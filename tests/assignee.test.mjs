@@ -153,6 +153,17 @@ t('Verlauf: „Lukas (gelöscht)“ bei der Person und als Zuständige',
   A.byText({ type: 'person', id: 'u_lukas', name: 'Lukas', deleted: true }) === 'Lukas (gelöscht)'
   && A.personText({ name: 'Lukas', id: 'u_lukas', deleted: true }) === 'Lukas (gelöscht)' && A.personText({ former: true }) === 'ehemalige Person');
 t('Verlauf-Filter: Person mit Vermerk', A.personsIn([{ by: { type: 'person', id: 'u_lukas', name: 'Lukas', deleted: true } }])[0].name === 'Lukas (gelöscht)');
+// v3.12.0 (F1037) — eine KI über ihren Schlüssel; ihre Ablesungen stehen im Bereich Ablesungen
+t('Verlauf: KI über den Schlüssel (via mcp), sonst API-Schlüssel',
+  A.byText({ type: 'key', name: 'Laptop', via: 'mcp' }) === 'KI (Schlüssel „Laptop“)' && A.byText({ type: 'key', name: 'HA' }) === 'API-Schlüssel „HA“'
+  && A.AREAS.reading === 'readings', A.byText({ type: 'key', name: 'Laptop', via: 'mcp' }));
+// v3.12.0 (Skeptiker M1) — in der App bestätigt: Der Verlauf nennt den Schlüssel und die Person
+t('Verlauf: vorgeschlagen über den Schlüssel, bestätigt von der Person',
+  /Laptop/.test(A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'person', name: 'Anna' } }))
+  && /Anna/.test(A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'person', name: 'Anna' } }))
+  && /Laptop/.test(A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'app' } }))
+  && A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'app' } }) !== A.byText({ type: 'key', name: 'Laptop', via: 'mcp' }),
+  A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'person', name: 'Anna' } }));
 const P = await import(`${JS}/components/person-delete.js`);
 const lines = P.handoverText({ to: { id: 'u_x', name: 'Thomas' }, open: 2, done: 1 });
 t('Dialog „Person löschen“: an wen und wie viele', lines[0] === '2 offene Termine gehen an Thomas.'
@@ -276,7 +287,7 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
     view.querySelector('#user-new-name')?.value === 'Mia' && view.querySelector('#user-new-role')?.value === 'admin');
   // v3.9.0 — Personen im Haushalt (Haushalt & Gebäude): mit Anmeldung die Zugänge mit Vermerk und
   // ohne Knöpfe (verwaltet unter Zugriff), Personen ohne Zugang mit „Umbenennen“ und „Person löschen“
-  await Settings.render(view, ['household']);
+  await Settings.render(view, [], { household: { page: 'people' } });
   const card = view.querySelector('#people-card');
   t('Haushalt: Karte „Personen im Haushalt“ mit allen Personen', !!card
     && [...card.querySelectorAll('.people-list__name')].map(e => e.textContent).join() === 'admin,Lukas,Mia');
@@ -309,13 +320,13 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
       && view.querySelector('[data-role="users-login-needed"]')?.textContent.includes('sobald die Anmeldung eingeschaltet ist')
       && !!view.querySelector('[data-role="users-enable-login"]'));
   t('ohne Anmeldung: Zugriff verweist auf die Personen unter Haushalt & Gebäude',
-    view.querySelector('[data-role="users-people-moved"] a')?.getAttribute('href') === '#/settings/household?field=person_name');
-  await Settings.render(view, ['household']);
+    view.querySelector('[data-role="users-people-moved"] a')?.getAttribute('href') === '#/household/people?field=person_name');
+  await Settings.render(view, [], { household: { page: 'people' } });
   t('ohne Anmeldung: Haushalt mit Person ohne Zugang, bedienbar, ohne Vermerk „mit Zugang“',
     !!view.querySelector('[data-person-delete="u_mia"]') && !view.querySelector('[data-role="has-account"]')
       && view.querySelector('[data-role="people-access-hint"]')?.textContent.includes('Anmelden kann sich damit niemand'));
   users.splice(0, users.length);
-  await Settings.render(view, ['household']);
+  await Settings.render(view, [], { household: { page: 'people' } });
   t('ohne Anmeldung und ohne Personen: Leerzustand mit Einladung und Feld zum Anlegen',
     view.querySelector('[data-role="people-empty"]')?.textContent.includes('Leg die erste an') && !!view.querySelector('#people-new-name'));
   await Settings.render(view, ['access']);
@@ -329,7 +340,7 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
   global.fetch = async (url, init = {}) => String(url).includes('/api/people')
     ? new Response(JSON.stringify({ success: true, data: [{ id: 'u_lukas', name: 'Lukas' }, { id: 'u_mia', name: 'Mia' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     : fetchAdmin(url, init);
-  await Settings.render(view, ['household']);
+  await Settings.render(view, [], { household: { page: 'people' } });
   t('Mitglied: Namen ohne Knöpfe und ohne Feld, Hinweis „nur, wer verwaltet“',
     [...view.querySelectorAll('.people-list__name')].map(e => e.textContent).join() === 'Lukas,Mia'
       && !view.querySelector('[data-person-delete], #people-new-name')
@@ -388,9 +399,9 @@ console.log('Zähler und Verträge (v3.7.0)');
   box.innerHTML = S.personSelectHtml({ id: 'x', record: former, people: [] });
   const f = box.querySelector('select');
   // v3.9.0 — Personen legt man unter Haushalt & Gebäude an (auch ohne Anmeldung), nicht mehr unter Zugriff
-  t('„ehemalige Person“ bleibt stehen; ohne Personen der Hinweis auf Haushalt & Gebäude',
+  t('„ehemalige Person“ bleibt stehen; ohne Personen der Hinweis auf Haushalt → Personen',
     f.selectedOptions[0].textContent === 'ehemalige Person' && JSON.stringify(S.personPayload(f, former)) === '{}'
-      && box.textContent.includes('Einstellungen → Haushalt & Gebäude'));
+      && box.textContent.includes('Haushalt → Personen'));
 
   t('Termin: Zähler an den Server', JSON.stringify(R.meterPayload('strom|m_strom_haus')) === '{"utility":"strom","meter_id":"m_strom_haus"}'
     && JSON.stringify(R.meterPayload('')) === '{"meter_id":null}');

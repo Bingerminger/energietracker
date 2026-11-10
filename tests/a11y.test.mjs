@@ -901,6 +901,20 @@ const freePort = () => new Promise((res, rej) => {
     view.querySelector('#u-list').innerHTML = '<button type="button" data-act="edit" data-id="x1">Bearbeiten</button>';
     await settle(20);
     t('Auslöser nach Neuaufbau: Fokus auf dem gleichen Knopf der neuen Liste', doc.activeElement === view.querySelector('[data-id="x1"]') && doc.activeElement.isConnected);
+    // v3.12.0 — Rückfrage aus einem gesperrten Knopf (guardSubmit sperrt ihn, solange der Handler läuft, wie
+    // „Speichern“ bei der Plausibilitäts-Rückfrage): nach „Abbrechen“ zurück auf den Knopf, sobald er frei ist
+    view.insertAdjacentHTML('beforeend', '<button type="button" id="u-save">Speichern</button>');
+    const saveBtn = view.querySelector('#u-save');
+    let asked = null;
+    saveBtn.addEventListener('click', modal.guardSubmit(saveBtn, async () => { asked = await modal.confirmModal({ title: 'Stand prüfen', message: 'Sehr hoch. Trotzdem?', confirmLabel: 'Speichern' }); }));
+    saveBtn.focus();
+    saveBtn.click();
+    await settle(10);
+    backdrops().at(-1)?.querySelector('[data-act="cancel"]')?.click();
+    await settle(30);
+    t('Rückfrage aus gesperrtem Knopf: „Abbrechen“ gibt den Fokus an den Knopf zurück (nicht <body>)', asked === false && doc.activeElement === saveBtn && !saveBtn.disabled,
+      describe(doc.activeElement));
+    saveBtn.remove();
     view.querySelector('#u-list').innerHTML = '';
     view.insertAdjacentHTML('beforeend', '<button type="button" id="u-gone">weg</button>');
     view.querySelector('#u-gone').focus();

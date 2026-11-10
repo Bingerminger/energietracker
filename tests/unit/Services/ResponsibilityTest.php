@@ -347,7 +347,7 @@ final class ResponsibilityTest extends ServiceTestCase
         self::assertStringContainsString("\r\nDESCRIPTION:Zuständig: anna\r\n", $block($all, 'reminder-' . $free['id']));
 
         $anna = $cal->ics($this->today, 'u_anna');
-        self::assertStringContainsString('X-WR-CALNAME:Energietracker — Fristen und Termine: Anna', $anna);
+        self::assertStringContainsString('X-WR-CALNAME:Energietracker: Fristen und Termine für Anna', $anna);
         self::assertNotSame('', $block($anna, 'cancel_by-' . $c['id']), 'geerbt vom Vertrag');
         self::assertNotSame('', $block($anna, 'reminder-' . $free['id']), 'freier Name derselben Person');
         self::assertSame('', $block($anna, "reading-strom-{$m['id']}"), 'die Ablesung liegt bei Ben');

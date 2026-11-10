@@ -7,6 +7,8 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Support\Dates;
+use Energietracker\Support\Input;
+use Energietracker\Support\LocalizedException;
 
 /**
  * Lieferungs-CRUD für die Lieferungs-basierten Verbrauchsarten
@@ -157,7 +159,7 @@ final class DeliveryService
      *   warnings: array<int, array<string,mixed>>
      * }
      */
-    public function stockHistory(string $utility, string $meterId, ConsumptionService $consumption): array
+    public function stockHistory(string $utility, string $meterId, ConsumptionService $consumption, ?string $today = null): array
     {
         $this->assertDeliveryUtility($utility);
         $meter = $this->meters->get($utility, $meterId);
@@ -165,7 +167,7 @@ final class DeliveryService
             throw new NotFoundException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
         }
 
-        $model = $consumption->tankModel($utility, $meter);
+        $model = $consumption->tankModel($utility, $meter, $today);   // v3.12.0 — bis zum Stichtag, sonst heute
         $days = [];
         foreach ($model['days'] as $date => $row) {
             $days[] = [
@@ -204,19 +206,39 @@ final class DeliveryService
         }
     }
 
+    /** v3.12.0 — Obergrenzen einer Lieferung: Menge (L bzw. kg), Preis je Einheit (wie an der Ablesung), Summe. */
+    public const LIMITS = ['quantity' => 1000000, 'unit_price_cents' => 100000, 'total_eur' => 10000000];
+
     private function normalize(string $utility, array $payload): array
     {
-        if (isset($payload['quantity'])) $payload['quantity'] = (float)$payload['quantity'];
-        if (isset($payload['unit_price_cents'])) $payload['unit_price_cents'] = (float)$payload['unit_price_cents'];
-        if (isset($payload['total_eur']) && $payload['total_eur'] !== null) {
-            $payload['total_eur'] = (float)$payload['total_eur'];
+        // v3.12.0 — Typen und Dezimalkomma an einer Stelle (Support\Input): eine Liste statt Text ergab
+        // 500, „1250,5“ L wurden still 1250, „abc“ ct still 0
+        Input::assertTexts($payload, ['meter_id', 'date', 'supplier', 'note']);
+        foreach (['quantity', 'unit_price_cents', 'total_eur'] as $f) {
+            if (!isset($payload[$f])) continue;
+            if ($payload[$f] === '') { $payload[$f] = 0.0; continue; }   // wie bisher (float)''
+            $n = Input::decimal($payload[$f]);
+            if ($n === null) {
+                throw new LocalizedException('errors.common.numberExpected', ['field' => $f, 'value' => is_scalar($payload[$f]) ? mb_substr((string)$payload[$f], 0, 40) : gettype($payload[$f])], "delivery $f");
+            }
+            // v3.12.0 — Obergrenzen: 10³⁰⁸ Liter legten bisher die Ansichten der Art lahm
+            if ($n > self::LIMITS[$f]) {
+                throw new LocalizedException('errors.common.valueInvalid', ['field' => $f, 'value' => (string)$payload[$f]], "delivery $f too large");
+            }
+            $payload[$f] = $n;
         }
-        if (isset($payload['is_planned'])) $payload['is_planned'] = (bool)$payload['is_planned'];
+        if (isset($payload['is_planned'])) {
+            // v3.12.0 — „false“ als Text war bisher wahr (geplant)
+            $b = Input::bool($payload['is_planned']);
+            if ($b === null) throw new LocalizedException('errors.common.boolExpected', ['field' => 'is_planned'], 'delivery is_planned');
+            $payload['is_planned'] = $b;
+        }
         // v2.10.0 — Tankbuch: „bis voll getankt" macht die Lieferung zur
         // Stützstelle (Bestand danach = Kapazität). "false" als Text ist falsch.
         if (array_key_exists('fill_to_full', $payload)) {
-            $v = $payload['fill_to_full'];
-            $payload['fill_to_full'] = $v === true || $v === 1 || (is_string($v) && in_array(strtolower($v), ['1', 'true', 'on', 'yes'], true));
+            // v3.12.0 — eine Regel für Wahrheitswerte (Support\Input::bool); Unlesbares ist ein Fehler
+            $payload['fill_to_full'] = Input::bool($payload['fill_to_full'])
+                ?? throw new LocalizedException('errors.common.boolExpected', ['field' => 'fill_to_full'], 'delivery fill_to_full');
         }
         if (isset($payload['supplier'])) $payload['supplier'] = (string)$payload['supplier'];
         if (isset($payload['note']))     $payload['note']     = (string)$payload['note'];
@@ -228,6 +250,7 @@ final class DeliveryService
         if (empty($d['date']) || !Dates::isIsoDate((string)$d['date'])) {   // v2.5.3: kalendergültig
             throw new \InvalidArgumentException($this->i18n->t('errors.delivery.dateMissing'));
         }
+        Input::assertDateInRange((string)$d['date']);   // v3.12.0 — 1900 bis 2100
         if (!isset($d['quantity']) || !is_numeric($d['quantity']) || (float)$d['quantity'] <= 0) {
             throw new \InvalidArgumentException($this->i18n->t('errors.delivery.quantityPositive'));
         }

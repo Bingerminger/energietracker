@@ -62,6 +62,8 @@ final class IngestService
      */
     public function ingest(array $input): array
     {
+        // v3.12.0 — eine Liste statt Text (utility, meter, date, timestamp) ergab bisher 500
+        \Energietracker\Support\Input::assertTexts($input, ['utility', 'meter', 'meter_id', 'date', 'timestamp', 'obis']);
         $utility = (string)($input['utility'] ?? '');
         if ($utility === '' || !Utilities::exists($utility)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.ingest.unknownUtility', ['utility' => $utility]));
@@ -74,8 +76,14 @@ final class IngestService
 
         // Zählerwert: `value` (HA-freundlich) oder `counter` (interne Bezeichnung).
         $rawValue = $input['value'] ?? $input['counter'] ?? null;
-        if ($rawValue === null || $rawValue === '' || !is_numeric($rawValue)) {
+        if ($rawValue === null || $rawValue === '') {
             throw new \InvalidArgumentException($this->i18n->t('errors.ingest.valueMissing'));
+        }
+        // v3.12.0 — ein Wert, der da ist, aber keine Zahl (etwa „31002,5“ mit Komma), meldet die Ursache
+        // (errors.reading.counterInvalid) statt „Wert fehlt“; Skripte in Home Assistant werten den Code aus
+        if (is_bool($rawValue) || !is_numeric($rawValue)) {
+            throw new \Energietracker\Support\LocalizedException('errors.reading.counterInvalid',
+                ['value' => is_scalar($rawValue) ? mb_substr((string)$rawValue, 0, 40) : gettype($rawValue)], 'ingest value not numeric');
         }
         $value = (float)$rawValue;
 
@@ -196,10 +204,13 @@ final class IngestService
             throw new \InvalidArgumentException($this->i18n->t('errors.ingest.tooMany', ['max' => self::BULK_MAX, 'count' => count($items)]));
         }
         // v3.3.0 — mit Zeitstempel auch nach der Uhrzeit (die Viertelstunden brauchen die Reihenfolge)
+        // v3.12.0 — nur Text zum Sortieren: Eine Liste im Feld brach sonst schon hier mit 500 ab,
+        // statt dass der Eintrag selbst seinen Fehler meldet
+        $s = fn(mixed $v, string $d = ''): string => is_string($v) || is_int($v) || is_float($v) ? (string)$v : $d;
         $key = fn($x) => is_array($x)
-            ? [(string)($x['utility'] ?? ''), (string)($x['meter'] ?? $x['meter_id'] ?? ''),
-               (string)($x['date'] ?? (isset($x['timestamp']) ? substr((string)$x['timestamp'], 0, 10) : '9999')),
-               isset($x['timestamp']) ? (int)strtotime((string)$x['timestamp']) : 0]
+            ? [$s($x['utility'] ?? ''), $s($x['meter'] ?? $x['meter_id'] ?? ''),
+               $s($x['date'] ?? null, isset($x['timestamp']) ? substr($s($x['timestamp']), 0, 10) : '9999'),
+               isset($x['timestamp']) ? (int)strtotime($s($x['timestamp'])) : 0]
             : ['', '', '', 0];
         $order = array_keys($items);
         usort($order, fn($a, $b) => [$key($items[$a]), $a] <=> [$key($items[$b]), $b]);

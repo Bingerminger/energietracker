@@ -42,12 +42,15 @@ const rec = {
     href: '#/bill-check?utility=strom&meter=m_strom_main' },
 };
 const other = { id: 'r4_x', severity: 'info', category: 'anomalie', title: 'Ungewöhnlich hoch', detail: '…', evidence: {} };
+let apiRecs = [rec, other];
+let apiRights = [];
 
 global.fetch = async (url) => {
   const u = String(url);
   const m = u.match(/public\/locales\/([a-z]+)\.json$/);
   if (m) return new Response(readFileSync(resolve(ROOT, 'public', 'locales', `${m[1]}.json`), 'utf8'), { status: 200 });
-  if (/\/api\/recommendations/.test(u)) return new Response(JSON.stringify({ success: true, data: [rec, other] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  if (/\/api\/recommendations/.test(u)) return new Response(JSON.stringify({ success: true, data: apiRecs }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  if (/\/api\/rights/.test(u)) return new Response(JSON.stringify({ success: true, data: apiRights }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   return new Response(JSON.stringify({ success: true, data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 };
 
@@ -131,6 +134,103 @@ t('… und „Was die App prüft“ führt ins Handbuch an die Stelle der Prüfu
 const plain = [...view.querySelectorAll('.rec-card')].find(c => !c.dataset.role);
 t('andere Kategorien ohne Fußzeile und Knopf', !!plain && !plain.querySelector('[data-role="rights-footer"], [data-role="letter-button"], [data-role="rights-doc"]'));
 
+// v3.12.0 — Briefe leichter finden: Reihenfolge wie der Server, Filter „Rechte“, Sprungmarke je Hinweis, der Weg ohne Befund
+console.log('Empfehlungen finden');
+{
+  const settle = async (cond) => { for (let i = 0; i < 60 && !cond(); i++) await new Promise(r => setTimeout(r, 10)); await new Promise(r => setTimeout(r, 5)); };
+  const r = (id, severity, category) => ({ id, severity, category, title: `T ${id}`, detail: 'd', evidence: {} });
+  // dieselbe Liste und dieselbe Erwartung wie RightsServiceTest::testRightsNotesLeadWithinTheirUrgency
+  const hand = [r('info-vertrag', 'info', 'vertrag'), r('warn-anomalie', 'warning', 'anomalie'), r('info-recht', 'info', 'recht'),
+    r('warn-recht-1', 'warning', 'recht'), r('dringend', 'urgent', 'vertrag'), r('warn-vertrag', 'warning', 'vertrag'),
+    r('warn-recht-2', 'warning', 'recht'), r('info-effizienz', 'info', 'effizienz')];
+  t('Reihenfolge wie die API: Stufe, darin Rechte zuerst, sonst wie gehabt', V.sortRecs(hand).map(x => x.id).join()
+    === 'dringend,warn-recht-1,warn-recht-2,warn-anomalie,warn-vertrag,info-recht,info-vertrag,info-effizienz');
+
+  const open = async (query = '') => {
+    await V.render(view, [], { query: new URLSearchParams(query) });
+    await settle(() => view.querySelector('.rec-card'));
+  };
+  apiRecs = [rec, r('dringend', 'urgent', 'vertrag'), other, r('warn-vertrag', 'warning', 'vertrag')];
+  await open();
+  const seg = () => [...view.querySelectorAll('.seg__btn')];
+  // v3.12.0 (M2) — „Rechte“ ist ein Filter von Zu tun (views/todo.js, `only`), hier stehen die Stufen
+  t('Stufen-Filter Alle, Dringend, Achtung, Hinweis', seg().map(b => b.dataset.sev).join() === 'all,urgent,warning,info', seg().map(b => b.dataset.sev).join());
+  await V.render(view, [], { query: new URLSearchParams(''), only: 'rights' });
+  await settle(() => view.querySelector('.rec-card'));
+  t('… „Rechte“ zeigt nur die Rechte-Hinweise, ohne Stufen', [...view.querySelectorAll('.rec-card')].map(c => c.dataset.recId).join() === rec.id && !view.querySelector('.rec-sev'));
+
+  // Sprung: das Ziel liegt nie hinter einem Filter
+  let scrolled = null, focused = null;
+  dom.window.HTMLElement.prototype.scrollIntoView = function (o) { scrolled = [this, o]; };
+  const jump = 'rec=' + encodeURIComponent('warn-vertrag');
+  await open();
+  view.querySelector(`.seg__btn[data-sev="urgent"]`)?.click();
+  await open(jump);
+  await new Promise(res => setTimeout(res, 20));
+  const target = view.querySelector('[data-rec-target]');
+  focused = document.activeElement;
+  t('Sprungmarke: Karte gefunden, Filter zurück auf „Alle“', target?.dataset.recId === 'warn-vertrag' && view.querySelector('.seg__btn.active')?.dataset.sev === 'all');
+  t('… hervorgehoben und für Screenreader kenntlich', target?.classList.contains('rec-card--target') && target?.getAttribute('aria-current') === 'true'
+    && target?.getAttribute('tabindex') === '-1' && target?.getAttribute('aria-label') === 'T warn-vertrag');
+  t('… gescrollt und fokussiert, nach dem Router', scrolled?.[0] === target && scrolled?.[1]?.block === 'center' && focused === target);
+  t('… nur diese eine Karte', view.querySelectorAll('.rec-card--target').length === 1 && view.querySelectorAll('[data-rec-id]').length === 4);
+  // Der Router scrollt nach `await render()` an den Anfang: Wer davor scrollt, landet oben
+  scrolled = null;
+  await V.render(view, [], { query: new URLSearchParams(jump) });
+  const whenRendered = scrolled;
+  await new Promise(res => setTimeout(res, 20));
+  t('… nicht schon während des Renderns', whenRendered === null && scrolled !== null);
+  scrolled = null;
+  await open('rec=gibt-es-nicht');
+  await new Promise(res => setTimeout(res, 20));
+  t('unbekannte Kennung: die Liste, ohne Fehler und ohne Sprung', view.querySelectorAll('.rec-card').length === 4 && !view.querySelector('[data-rec-target], .infobox--fehler') && scrolled === null);
+  await open('rec=' + encodeURIComponent('<img src=x onerror=1>'));
+  t('… auch mit Sonderzeichen', view.querySelectorAll('.rec-card').length === 4 && !view.querySelector('img'));
+
+  // Rückgängig: Der Hinweis kommt an seinen Platz zurück, nicht nach ganz oben
+  const stack = document.createElement('div');
+  stack.id = 'toast-stack';
+  document.body.appendChild(stack);
+  apiRecs = [r('dringend', 'urgent', 'vertrag'), rec, r('warn-vertrag', 'warning', 'vertrag')];
+  await open();
+  view.querySelector(`[data-dismiss="${rec.id}"]`)?.click();
+  await settle(() => stack.querySelector('.toast__action'));
+  t('ausgeblendet: Karte weg, „Rückgängig“ da', !view.querySelector(`[data-rec-id="${rec.id}"]`) && !!stack.querySelector('.toast__action'));
+  stack.querySelector('.toast__action')?.click();
+  await settle(() => view.querySelector(`[data-rec-id="${rec.id}"]`));
+  t('Rückgängig: an seinem Platz', [...view.querySelectorAll('[data-rec-id]')].map(c => c.dataset.recId).join() === `dringend,${rec.id},warn-vertrag`,
+    [...view.querySelectorAll('[data-rec-id]')].map(c => c.dataset.recId).join());
+  stack.remove();
+
+  // ohne Befund: der Weg zur Vertragskarte (nur im Land mit Regeln)
+  apiRecs = [other];
+  apiRights = { enabled: true, bills_recorded: 2, findings: [] };
+  await open();
+  const way = view.querySelector('[data-role="rights-letter-way"]');
+  t('ohne Befund: der Satz nennt die Vertragskarte, Link zu den Verträgen', /Vertragskarte/.test(way?.textContent || '') && /Brief schreiben/.test(way?.textContent || '') && way?.querySelector('a')?.getAttribute('href') === '#/contracts', way?.textContent);
+  await V.render(view, [], { query: new URLSearchParams(''), only: 'rights' });
+  await settle(() => view.querySelector('.infobox--info'));
+  t('… leer heißt nicht „alles im grünen Bereich“', /kein Hinweis zu deinen Rechten/.test(view.querySelector('.infobox--info')?.textContent || ''), view.querySelector('.infobox--info')?.textContent);
+  apiRights = { enabled: true, bills_recorded: 0, findings: [] };
+  await open();
+  t('ohne Rechnung: beide Sätze', !!view.querySelector('[data-role="rights-no-bill"]') && !!view.querySelector('[data-role="rights-letter-way"]'));
+  apiRights = { enabled: false, bills_recorded: 0, findings: [] };
+  await open();
+  t('Land ohne Regeln: kein Filter, kein Satz', !view.querySelector('[data-role="rights-letter-way"], .seg__btn[data-sev="rights"]') && view.querySelector('.seg__btn.active')?.dataset.sev === 'all');
+  apiRecs = [rec];
+  await open();
+  t('mit Befund: kein Satz nötig', !view.querySelector('[data-role="rights-letter-way"]'));
+  apiRecs = [rec, other];
+
+  // Knopf an der Vertragskarte: was der Server anbietet, nie mehr
+  t('Knopf „Brief schreiben“ an der Karte', /data-role="contract-letter"/.test(L.contractLetterButton({ id: 'c1', provider: 'Stadtwerke', letters: ['termination'] }))
+    && /aria-label="Brief schreiben: Stadtwerke"/.test(L.contractLetterButton({ id: 'c1', provider: 'Stadtwerke', letters: ['termination'] })));
+  t('kein Knopf ohne Angebot (Angebot, beendet, ältere Antwort)', L.contractLetterButton({ id: 'c1', letters: [] }) === '' && L.contractLetterButton({ id: 'c1' }) === '');
+  t('nie eine Vorlage, die etwas behauptet', L.contractLetterButton({ id: 'c1', letters: ['special_termination', 'objection', 'complaint'] }) === ''
+    && L.CONTRACT_LETTER_KINDS.join() === 'advance_adjustment,termination');
+  t('Sprungmarke wie RecommendationService::jumpHref', L.recHref('rights-a b') === '#/todo?art=rec&rec=rights-a%20b');
+}
+
 // v3.11.0 (Nachprüfung) — was die Ansichten aus Kündigungstag, Verlängerung, Bonus, Preisstufe und geschätztem
 // Endstand machen (erfundene Zeilen in der Form von contract-status, tariff-switch, Verträgen und Posteingang)
 console.log('Nachprüfung');
@@ -154,6 +254,11 @@ console.log('Nachprüfung');
   txt = strip(U.balanceCard({ ...base, end: '2025-12-31', renewed: true, notice_basis: 'basic_supply', switch_date: '2026-11-18', cancel_by: null }, gas));
   t('Grundversorgung: Saldo-Karte mit zwei Wochen Frist und § 20 GasGVV', txt.includes('zwei Wochen Frist') && txt.includes('§ 20 GasGVV') && txt.includes('17.11.2026')
     && !txt.includes('steht im Vertrag'), txt.slice(0, 300));
+  // v3.12.0 (Nachprüfung A3) — Gruppe, Mitglieder lange auseinander abgelesen: Die Karte nennt Grund und beide Tage, nicht das Heizmodell
+  txt = strip(U.balanceCard({ ...base, effective_end: '2026-12-31', settle_on: '2026-12-31', projected_end_balance: 586.5, projection_uncertain: { reasons: ['group_readings_differ'], factor: 1, factor_raw: null,
+    projected_range: [437.25, 735.75], suggested_range: null, group_readings: { earliest: '2026-04-30', latest: '2026-10-31' } } }, strom));
+  t('A3: Saldo-Karte nennt verschieden weit abgelesene Zähler mit beiden Tagen', txt.includes('verschieden weit abgelesen') && txt.includes('30.04.2026') && txt.includes('31.10.2026')
+    && !txt.includes('Heizmodell'), txt.slice(0, 400));
   // NP7 — Bonus der Zeile wie im Saldo
   t('NP7: Bonus der Tabellenzeile aus bonus_to_date, sonst actual_bonus_total', U.contractRowBonus({ bonus_to_date: 0, actual_bonus_total: 38.71 }) === 0
     && U.contractRowBonus({ actual_bonus_total: 75 }) === 75);
@@ -205,6 +310,22 @@ console.log('Nachprüfung');
     checked: true, estimate_backwards: { date: '2026-01-10', counter: 31040 } }] };
   const ph = document.createElement('div'); ph.innerHTML = I.proposalsHtml(pv, 'kWh');
   t('NP5: Prüfansicht zeigt die Warnung am Rechnungsvorschlag', ph.querySelector('[data-role="estimate-backwards"]')?.textContent.includes('31.040 kWh'), ph.textContent.slice(0, 200));
+
+  // v3.12.0 — „Rechnung prüfen“: ein sinkender Stand ist ein Rückgang, keine Lücke ohne Ablesung
+  const B = await import(`${JS}/views/bill-check.js`);
+  const bcRow = (from, to, kwh, gap) => ({ from, to, to_inclusive: to, days: 31, reason: 'reading', kwh, counter_from: 1, counter_from_kind: 'reading',
+    counter_to: 2, counter_to_kind: 'reading', ...(gap ? { gap_reason: gap } : {}) });
+  const bc = document.createElement('div');
+  bc.innerHTML = B.renderBillCheck({ rows: [bcRow('2026-01-01', '2026-02-01', 300), bcRow('2026-02-01', '2026-03-01', null, 'decrease'),
+    bcRow('2026-05-01', '2026-06-01', null, 'no_reading')], totals: { days: 93, kwh: 300, gaps: 2, decreases: 1 } }, { key: 'strom' });
+  const cells = [...bc.querySelectorAll('tbody tr')].map(tr => tr.querySelector('em')?.textContent || '');
+  t('Rückgang: Zeile sagt „Stand sinkt“, die Lücke „keine Ablesung“', cells[1] === 'Stand sinkt' && cells[2] === 'keine Ablesung', cells.join(' | '));
+  t('… unter der Tabelle je ein eigener Satz, die Lücke ohne den Rückgang gezählt',
+    /^1 Abschnitt ohne umschließende Ablesung/.test(bc.querySelector('[data-role="bill-gaps"]')?.textContent || '')
+    && /^1 Abschnitt, in dem der Zählerstand sinkt/.test(bc.querySelector('[data-role="bill-decreases"]')?.textContent || ''),
+    `${bc.querySelector('[data-role="bill-gaps"]')?.textContent} / ${bc.querySelector('[data-role="bill-decreases"]')?.textContent}`);
+  bc.innerHTML = B.renderBillCheck({ rows: [bcRow('2026-02-01', '2026-03-01', null, 'decrease')], totals: { days: 28, kwh: 0, gaps: 1, decreases: 1 } }, { key: 'strom' });
+  t('… nur ein Rückgang: kein Satz „ohne umschließende Ablesung“', !bc.querySelector('[data-role="bill-gaps"]') && !!bc.querySelector('[data-role="bill-decreases"]'));
 }
 
 console.log(`\nrights.test: ${pass} bestanden, ${fail} fehlgeschlagen`);

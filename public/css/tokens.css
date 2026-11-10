@@ -1,15 +1,17 @@
 /* =================================================================
-   Energietracker v1.2.0 — Design Tokens
-   Industrial dark theme. DM Mono for numbers, DM Sans for prose.
-   Aligned with v0.9.0 palette so the look stays consistent.
+   Energietracker — Design Tokens (v3.12.0, Designsprache)
+
+   Eine Schrift (DM Sans, Mono nur für Code), sieben Schriftgrößen, das
+   4-px-Raster, drei Radien, ein Rand, zwei Schatten, fünf Töne für Hinweise.
+   tests/design-rules.test.mjs hält die Regeln fest. Außerhalb dieser Datei steht kein Farbwert.
    ================================================================= */
 
 :root {
   /* ── Surfaces ─────────────────────────────────────────────────── */
-  --bg-0:        #080c12;      /* page background — deeper than v1.0.0 */
-  --bg-1:        #111827;      /* card / sidebar background */
-  --bg-2:        #1c2636;      /* nested surface, table header, button bg */
-  --bg-3:        #243044;      /* hover / focus / icon-box */
+  --bg-0:        #080c12;      /* Seitenhintergrund */
+  --bg-1:        #111827;      /* Karte, Seitenleiste */
+  --bg-2:        #1c2636;      /* verschachtelte Fläche, Hover */
+  --bg-3:        #243044;      /* Hover auf --bg-2, Spur */
   --bg-overlay:  rgba(8, 11, 16, 0.85);
 
   /* ── Borders ──────────────────────────────────────────────────── */
@@ -20,78 +22,90 @@
   /* ── Text ─────────────────────────────────────────────────────────
      v2.2.0 — `--text-2` und `--text-3` waren mit #6b7f99 / #6b7385 auf
      Kartenhintergrund (--bg-1) bei 4,38:1 bzw. darunter und verfehlten damit
-     WCAG AA (4,5:1) für normalen Text. Sie tragen als `.muted` fast alle
-     Sekundärtexte der App, oft bei 11–13 px. Jetzt aufgehellt auf 5,5:1 bzw.
-     5,0:1 gegen --bg-1. Das helle Theme war mit 7,6:1 nie betroffen. */
+     WCAG AA (4,5:1) für normalen Text. Jetzt 5,5:1 bzw. 5,0:1 gegen --bg-1. */
   --text-1:      #dce8f5;      /* primary */
   --text-2:      #8ba0ba;      /* secondary / muted */
   --text-3:      #8590a6;      /* tertiary */
   --text-disabled:#4a5f80;
 
-  /* ── Brand / accents ──────────────────────────────────────────── */
+  /* ── Akzent ───────────────────────────────────────────────────── */
   --accent:      #4a90e2;
   --accent-hover:#74acea;
+  /* Schrift auf Akzentfläche (Hauptknopf): dunkel auf dem hellen Blau */
+  --accent-fg:   #0a0d12;
 
-  /* ── Utility colors ───────────────────────────────────────────────
-     Seit v2.2.0 kommen `--util-<key>` und `--util-<key>-soft` zur Laufzeit
-     aus der Utilities-SSOT (public/js/lib/utility-theme.js erzeugt sie aus
-     /api/utilities). Hier stehen sie NICHT mehr: Die handgepflegte Liste
-     kannte nur gas/strom/wasser, sodass die fünf später ergänzten
-     Verbrauchsarten ungefärbt blieben — und bei Gas und Strom wich sie von
-     der SSOT ab, weshalb Diagramm und Bedienelement verschiedene Farben
-     zeigten. Eine neue Verbrauchsart braucht jetzt nur noch einen Eintrag in
-     src/Config/Utilities.php.
-
-     `--util` / `--util-soft` (ohne Key) werden pro [data-utility]-Container
-     ebenfalls dort gesetzt. Der neutrale Vorbelegungswert hier greift nur,
-     solange die Utilities noch nicht geladen sind. */
+  /* ── Farben der Verbrauchsarten ───────────────────────────────────
+     `--util-<key>` und `--util-<key>-soft` kommen zur Laufzeit aus der
+     Utilities-SSOT (lib/utility-theme.js, /api/utilities). Eine neue
+     Verbrauchsart braucht nur einen Eintrag in src/Config/Utilities.php.
+     `--util` / `--util-soft` gelten je [data-utility]-Container; der neutrale
+     Vorbelegungswert greift, solange die Utilities noch nicht geladen sind. */
   --util:      var(--accent);
   --util-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  /* Schriftfarbe auf gefüllter Utility-Fläche (Buttons, aktive Pillen);
-     außerhalb einer Verbrauchsart die des Akzents (v2.11.0). */
   --util-fg:   var(--accent-fg);
 
-  /* Semantic accent colors used in v0.9.0 KPI ribbons */
+  /* Weitere Aussagefarben (Schattenvertrag, künftiger Vertrag, Schaubilder) */
   --c-blue:      #4a90e2;
   --c-violet:    #8b5cf6;
   --c-yellow:    #f5c842;
   --c-red:       #ef4444;
+  /* v3.12.0 — als Schrift in Tabellenspalten (Kopf, Fuß, Hover auf --bg-2): Violett war dort 3,6:1; heller getönt
+     4,9:1 (tests/contrast.test.mjs). Die Aussagefarbe selbst bleibt für Flächen und Schaubilder. */
+  --c-violet-text: #a07cf8;
+  --c-yellow-text: var(--c-yellow);
   --c-blue-soft: rgba(74, 144, 226, 0.12);
   --c-violet-soft: rgba(139, 92, 246, 0.14);
   --c-yellow-soft: rgba(245, 200, 66, 0.14);
 
-  /* ── Semantic ─────────────────────────────────────────────────── */
-  --success:     #2de8a4;
-  --warning:     #f5c842;
-  /* v2.11.0 (Review UI-09) — #ef4444 kam als Schrift auf seiner eigenen
-     Tönung (Badge „Überfällig") auf 4,2:1; #f87171 auf 5,6:1. Gefüllte
-     Flächen mit weißer Schrift nehmen --danger-strong (4,8:1 statt 3,8:1). */
+  /* ── Zustände ─────────────────────────────────────────────────────
+     Gemessen (tests/contrast.test.mjs): --danger als Schrift auf der eigenen
+     Tönung 5,6:1; gefüllte Flächen mit weißer Schrift nehmen --danger-strong. */
+  --success:     #34d399;
+  --warning:     #fbbf24;
   --danger:      #f87171;
   --danger-strong: #dc2626;
   --info:        #4a90e2;
-  /* Schrift auf Akzentfläche (Primärknopf): dunkel auf dem hellen Blau */
-  --accent-fg:   #0a0d12;
+  --on-danger:   #ffffff;      /* Schrift auf --danger-strong */
 
-  --success-soft:rgba(45, 232, 164, 0.14);
-  --warning-soft:rgba(245, 200, 66, 0.14);
+  --success-soft:rgba(52, 211, 153, 0.14);
+  --warning-soft:rgba(251, 191, 36, 0.14);
   --danger-soft: rgba(239, 68, 68, 0.14);
 
-  /* ── Fonts ────────────────────────────────────────────────────── */
+  /* ── Töne der Infobox: eine Form, fünf Aussagen ───────────────────
+     Die Grafik liegt als Maske vor (Kontur deckend, Fläche 16 %), damit sie
+     den Ton der Box annimmt und auch bei gesetztem textContent stehen bleibt.
+     Quelle der Zeichnungen: lib/icons.js; tests/icons.test.mjs vergleicht. */
+  --ton-info:    var(--accent);
+  --ton-erfolg:  var(--success);
+  --ton-achtung: var(--warning);
+  --ton-fehler:  var(--danger);
+  --ton-neutral: var(--text-2);
+  --mask-info: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23000'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Ccircle%20fill%3D'%23000'%20fill-opacity%3D'.16'%20stroke%3D'none'%20cx%3D'12'%20cy%3D'12'%20r%3D'8.5'%2F%3E%3Ccircle%20cx%3D'12'%20cy%3D'12'%20r%3D'8.5'%2F%3E%3Cpath%20d%3D'M12%2011v5.5M12%207.8h.01'%2F%3E%3C%2Fsvg%3E");
+  --mask-erfolg: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23000'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Ccircle%20fill%3D'%23000'%20fill-opacity%3D'.16'%20stroke%3D'none'%20cx%3D'12'%20cy%3D'12'%20r%3D'8.5'%2F%3E%3Ccircle%20cx%3D'12'%20cy%3D'12'%20r%3D'8.5'%2F%3E%3Cpath%20d%3D'M8%2012.5l2.8%202.8L16.2%209.5'%2F%3E%3C%2Fsvg%3E");
+  --mask-achtung: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23000'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20fill%3D'%23000'%20fill-opacity%3D'.16'%20stroke%3D'none'%20d%3D'M12%204%2021%2019.5H3z'%2F%3E%3Cpath%20d%3D'M12%204%2021%2019.5H3zM12%2010v4.5M12%2017.2h.01'%2F%3E%3C%2Fsvg%3E");
+  --mask-fehler: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23000'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20fill%3D'%23000'%20fill-opacity%3D'.16'%20stroke%3D'none'%20d%3D'M8.5%203.5h7l5%205v7l-5%205h-7l-5-5v-7z'%2F%3E%3Cpath%20d%3D'M8.5%203.5h7l5%205v7l-5%205h-7l-5-5v-7zM12%208v5M12%2016.2h.01'%2F%3E%3C%2Fsvg%3E");
+  --mask-neutral: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23000'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Ccircle%20cx%3D'12'%20cy%3D'12'%20r%3D'8.5'%2F%3E%3Cpath%20d%3D'M8%2012h8'%2F%3E%3C%2Fsvg%3E");
+
+  /* ── Schrift ──────────────────────────────────────────────────────
+     Zahlen stehen in der Textschrift. DM Sans kennt kein `tnum`; --font-num setzt in Tabellen
+     die daraus abgeleiteten gleich breiten Ziffern davor. Mono nur für Code und YAML. */
   --font-sans:   "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono:   "DM Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font-num:    "DM Sans Ziffern", var(--font-sans);
+  --font-code:   "DM Mono", "SF Mono", Menlo, Consolas, monospace;
 
-  /* ── Sizes ────────────────────────────────────────────────────── */
-  --fs-xs:       0.75rem;
-  --fs-sm:       0.8125rem;
-  --fs-base:     0.9375rem;
-  --fs-md:       1rem;
-  --fs-lg:       1.125rem;
-  --fs-xl:       1.375rem;
-  --fs-2xl:      1.75rem;
-  --fs-3xl:      2.25rem;
+  --fs-xs:       0.75rem;      /* 12 px Abzeichen, Fußzeile */
+  --fs-sm:       0.8125rem;    /* 13 px Hinweis, Bezeichnung einer Zahl, Fußnote */
+  --fs-body:     0.875rem;     /* 14 px Text in Karten, Feldbezeichnung */
+  --fs-base:     0.9375rem;    /* 15 px Fließtext, Kartentitel */
+  --fs-md:       1rem;         /* 16 px mittlere Zahl, Eingaben auf Touch */
+  --fs-lg:       1.125rem;     /* 18 px Dialogtitel */
+  --fs-xl:       1.5rem;       /* 24 px Seitentitel, große Zahl */
+  --fs-2xl:      2rem;         /* 32 px einzelne große Aussage (Anmeldung, Fortschritt) */
 
-  /* ── Spacing ──────────────────────────────────────────────────── */
+  /* ── Abstände: das 4-px-Raster, darunter zwei Halbschritte für Abzeichen und Zeilen ── */
+  --sp-0: 2px;
   --sp-1: 4px;
+  --sp-1h: 6px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
@@ -101,14 +115,11 @@
   --sp-10: 40px;
   --sp-12: 48px;
 
-  /* ── Radii ────────────────────────────────────────────────────── */
+  /* ── Radien: Bedienung, Flächen; rund (50 %) nur für Punkte ───── */
   --r-sm: 6px;
   --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
 
-  /* ── Shadows ──────────────────────────────────────────────────── */
-  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  /* ── Schatten: Menüs und Hinweise, Dialoge. Alles andere trägt einen Rand. ── */
   --shadow-2: 0 4px 16px rgba(0,0,0,0.35);
   --shadow-3: 0 10px 32px rgba(0,0,0,0.5);
 
@@ -122,11 +133,11 @@
   --content-max: 1400px;
   --transition:  150ms ease-out;
 
-  /* ── Illustrationen und Schaltbilder (v3.9.0) ───────────────────────
-     Eine Grundlage für Inline-SVG (lib/illustrations.js, Klassen .ill-* in
-     components.css): Strich in Textfarbe, Betonung im Akzent, Flächen leicht
-     getönt. Abgeleitet aus den Themen-Variablen, daher hell und dunkel ohne
-     eigene Werte. Strichstärken in CSS-Pixeln (vector-effect: non-scaling-stroke). */
+  /* ── Grafiken, Illustrationen und Schaltbilder (v3.9.0) ─────────────
+     Eine Grundlage für Inline-SVG (lib/icons.js, lib/illustrations.js, Klassen
+     .ico und .ill-* in components.css): Strich, Betonung im Akzent, Flächen
+     leicht getönt. Abgeleitet aus den Themen-Variablen, daher hell und dunkel
+     ohne eigene Werte. Strichstärken in CSS-Pixeln (non-scaling-stroke). */
   --ill-line:    var(--text-2);                                      /* Kontur */
   --ill-ink:     var(--text-1);                                      /* Betonung, Beschriftung */
   --ill-accent:  var(--accent);                                      /* das, worum es geht */
@@ -135,17 +146,18 @@
   --ill-ground:  var(--border-2);                                    /* Boden, Leitung im Hintergrund */
   --ill-stroke:  1.5px;
   --ill-stroke-strong: 2px;
+
+  /* Dokument im Posteingang: Papier bleibt weiß, auch im dunklen Thema */
+  --paper:       #ffffff;
+  --paper-text:  #475569;
 }
 
 /* Die [data-utility="…"]-Bindungen erzeugt utility-theme.js zur Laufzeit für
    ALLE Verbrauchsarten der SSOT — siehe Kommentar oben. */
 
 /* =================================================================
-   Light theme — v1.2.0
-   Aktiviert über `data-theme="light"` auf <html> (gesetzt vom
-   Anti-Flash-Skript in index.php bzw. vom Theme-Toggle). Überschreibt
-   nur die Tokens, die in beiden Themes inhaltlich unterschiedlich
-   sind; die Layout- und Größentokens bleiben gemeinsam.
+   Helles Thema: `data-theme="light"` auf <html> (Anti-Flash-Skript in
+   index.php bzw. Umschalter). Überschreibt nur, was je Thema anders ist.
    ================================================================= */
 [data-theme="light"] {
   /* ── Surfaces ─────────────────────────────────────────────────── */
@@ -168,9 +180,10 @@
   --text-3:      #566276;
   --text-disabled: #8595ab;
 
-  /* ── Brand / accents — dunklere Schattierungen für Weiß-Bg-Kontrast */
+  /* ── Akzent — dunkler für Weiß-Kontrast; Weiß auf #2563eb: 5,2:1 ── */
   --accent:      #2563eb;
   --accent-hover:#1d4ed8;
+  --accent-fg:   #ffffff;
 
   /* Die Utility-Farben leitet utility-theme.js für das helle Theme selbst aus
      der SSOT ab (color-mix mit Schwarz), damit sie auf weißem Grund den
@@ -180,31 +193,27 @@
   --c-violet:    #7c3aed;
   --c-yellow:    #d97706;
   --c-red:       #b91c1c;
+  /* v3.12.0 — Gelb als Schrift in Tabellenspalten war auf --bg-2 2,8:1; dunkler getönt 4,8:1 */
+  --c-violet-text: var(--c-violet);
+  --c-yellow-text: #a8530a;
   --c-blue-soft:   rgba( 37,  99, 235, 0.10);
   --c-violet-soft: rgba(124,  58, 237, 0.10);
   --c-yellow-soft: rgba(217, 119,   6, 0.10);
 
-  /* ── Semantic ───────────────────────────────────────────────────
-     v2.11.0 (Review UI-09) — auf Weiß gemessen: Grün 3,8 → 5,5, Orange
-     3,2 → 5,6, Rot 4,8 → 6,5 (auf der eigenen Tönung 4,1 → 5,5). Salden,
-     „Abschlag €", Empfehlungstitel und Effizienzklassen erreichen damit AA.
-     v3.7.0 (Qualität) — Grün noch eine Stufe dunkler: Als Abzeichen in einer
-     Feldgruppe (Tönung über --bg-2, Dialog „Zähler bearbeiten“) kam #047857
-     auf 4,4:1; #036c4e erreicht dort 5,1:1 und auf Weiß 6,4:1. */
+  /* ── Zustände ─────────────────────────────────────────────────────
+     Auf Weiß und auf der eigenen Tönung gemessen: Grün 6,4:1 (Tönung über
+     --bg-2 5,1:1), Orange 5,6:1, Rot 6,5:1 (Tönung 5,5:1). */
   --success:     #036c4e;
   --warning:     #a84d07;
   --danger:      #b91c1c;
   --danger-strong: #b91c1c;
   --info:        #2563eb;
-  /* Weiß auf #2563eb: 5,2:1 (dunkle Schrift kam auf 3,8:1) */
-  --accent-fg:   #ffffff;
 
   --success-soft:rgba(  5, 150, 105, 0.10);
   --warning-soft:rgba(217, 119,   6, 0.10);
   --danger-soft: rgba(220,  38,  38, 0.10);
 
-  /* ── Shadows — weicher und dunkler auf hellem Grund ──────────── */
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  /* ── Schatten — weicher auf hellem Grund ──────────────────────── */
   --shadow-2: 0 4px 16px rgba(15, 23, 42, 0.08);
   --shadow-3: 0 10px 32px rgba(15, 23, 42, 0.12);
 }

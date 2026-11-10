@@ -63,7 +63,7 @@ Home-Balken und zeigt die zuletzt geladenen Daten auch ohne Netz.
 
 | | ohne Netz |
 |---|---|
-| Übersicht und Auswertungen ansehen | ✓ mit dem Stand des letzten Aufrufs; die Kopfleiste zeigt „Offline – Stand vom …“ |
+| Übersicht und Auswertungen ansehen | ✓ mit dem Stand des letzten Aufrufs; die Kopfleiste zeigt „Offline: Stand vom …“ |
 | Zählerstände in „Zählerstände“ speichern | ✓ seit v3.1.0: Der Stand wartet im Browser und wird nachgesendet (s. u.) |
 | Foto zum Stand | ✓ wartet mit dem Stand und wird vor ihm hochgeladen |
 | Monatswert eines Zählers mit Verbrauch je Zeitraum | ✓ wartet wie ein Stand ([Heizwärme](../verstehen/15-waerme.md)) |

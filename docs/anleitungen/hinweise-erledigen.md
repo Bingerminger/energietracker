@@ -46,7 +46,7 @@ ein — nur, wenn der Hinweis offen war.
 ## 2. Von Hand abhaken
 
 **Wo:** auf der **Übersicht unter „Zu tun“** (Haken ✓ rechts neben der Zeile)
-und unter **Hinweise → Termine & Wartung** (✓ in der Zeile).
+und unter **Zu tun → Termine** (✓ in der Zeile).
 
 Ein kleiner Dialog fragt:
 
@@ -83,7 +83,7 @@ ausblenden“. Bis v3.3 kam „Kündigung bis 30.11.“ schon am 11.11. zurück.
 
 ---
 
-## 3. Der Verlauf: Hinweise → Erledigt
+## 3. Der Verlauf: Zu tun → Verlauf
 
 Der Tab **„Erledigt“** unter Hinweise (ab Stufe „Erfahren“) zeigt alles, was
 erledigt wurde, nach Monaten, das Neueste oben:
@@ -110,7 +110,7 @@ erledigt wurde, nach Monaten, das Neueste oben:
   ([Abschnitt 10](#10-verlauf-als-csv-v350)).
 
 **Am Objekt:** Unter Kosten & Verträge → Verträge & Abschläge trägt ein
-Vertrag mit Einträgen den Knopf **„Verlauf (n)“**. Unter Termine & Wartung
+Vertrag mit Einträgen den Knopf **„Verlauf (n)“**. Unter Zu tun → Termine
 steht an jedem Termin „Zuletzt erledigt am … von …“.
 
 ---
@@ -139,14 +139,14 @@ steht ihr Name mit dem Zusatz **„(gelöscht)“** da *(v3.6.0)*. Rechte:
 
 ## 5. Aufbewahrung, Leeren, Datenschutz
 
-**Aufbewahrung:** 60 Monate (fünf Jahre), einstellbar unter Hinweise →
-Erledigt → **„Verlauf verwalten“** (nur Verwaltung, Einstellung
+**Aufbewahrung:** 60 Monate (fünf Jahre), einstellbar unter Zu tun →
+Verlauf → **„Verlauf verwalten“** (nur Verwaltung, Einstellung
 `activity_keep_months`, `0` = unbegrenzt). Ältere Einträge fallen beim
 nächsten Eintrag heraus.
 
 **Leeren:** im selben Fenster — alle Einträge, die vor einem Tag erledigt
 wurden, oder ohne Datum alle. Gelöscht ist gelöscht; einen Rückweg bietet ein
-Snapshot unter Einstellungen → Daten.
+Snapshot unter Einstellungen → Daten und Sicherung.
 
 **Namen im Backup.** Der Verlauf gehört zum Backup (Topf `activity`). Die Namen
 stehen darin **als Momentaufnahme** — wer ein Backup weitergibt, gibt sie mit.
@@ -155,7 +155,7 @@ Backup; das Personenverzeichnis (Nummer, Name, Rolle, Löschvermerk) gehört sei
 v3.6.0 dazu (Topf `people`). Ein Backup ohne Verlauf (aus einer Version vor
 3.4) lässt den vorhandenen Verlauf unverändert.
 
-**Person löschen:** Unter Einstellungen → Zugriff → „Benutzer und Rechte“ fragt
+**Person löschen:** Unter Einstellungen → Zugang und Sicherheit → „Benutzer und Rechte“ fragt
 „Person löschen“, ob der Name im Verlauf durch **„ehemalige Person“** ersetzt
 werden soll. Vorgewählt ist nein — der Verlauf behält den Namen dann, seit
 v3.6.0 mit dem Zusatz **„(gelöscht)“**
@@ -208,7 +208,7 @@ Statuscodes und Stabilität:
 
 ## 8. Zuständig an Terminen *(v3.5.0)*
 
-Ein Termin unter **Hinweise → Termine & Wartung** kann eine zuständige Person
+Ein Termin unter **Zu tun → Termine** kann eine zuständige Person
 haben — wer die Heizung warten lässt, wer den Rauchmelder prüft. Seit v3.7.0
 auch Zähler und Verträge; ihre Fristen landen dann bei dieser Person
 ([unten](#zähler-und-verträge-v370)). **Benachrichtigt wird niemand**;
@@ -258,7 +258,7 @@ Person stehen, mit „(gelöscht)“, bis jemand sie übernimmt.
 Auch ein Zähler und ein Vertrag können eine zuständige Person haben — die
 Fristen daran landen dann bei ihr. Gewählt wird im Zähler- bzw.
 Vertragsformular unter **„Zuständig“**, nur aus dem Personenverzeichnis (keine
-freien Namen); **„– niemand –“** heißt niemand. Die Karten der Zähler und
+freien Namen); **„Niemand“** heißt: Niemand ist zuständig. Die Karten der Zähler und
 Verträge zeigen die Person.
 
 **Wer bei einer Frist zuständig ist** — die erste Angabe, die es gibt, gilt:
@@ -314,7 +314,7 @@ aufgeklappten Abschnitt zum Erfassen.
 
 | Fall | erwarteter Zeitraum |
 |---|---|
-| laufender (auch weiterlaufender) Vertrag | die zuletzt abgeschlossene Periode nach dem Abrechnungsstichtag der Verbrauchsart (Einstellungen → Verbrauchsarten, Standard 01.01.), ab Vertragsbeginn |
+| laufender (auch weiterlaufender) Vertrag | die zuletzt abgeschlossene Periode nach dem Abrechnungsstichtag der Verbrauchsart (Haushalt → Verbrauchsarten, Standard 01.01.), ab Vertragsbeginn |
 | beendeter Vertrag | **Schlussrechnung** vom letzten Stichtag bis zum Vertragsende; ein weiterlaufender Vertrag endet am Tag vor dem Folgevertrag |
 | Folgevertrag **desselben Versorgers** ohne Lücke | keine Schlussrechnung — die Belieferung endet nicht |
 
@@ -322,7 +322,7 @@ aufgeklappten Abschnitt zum Erfassen.
 
 | Verbrauchsart | gesetzliche Frist | in der App |
 |---|---|---|
-| Strom, Gas (Deutschland) | Rechnung spätestens **sechs Wochen** nach Ende des Abrechnungszeitraums, Abschlussrechnung sechs Wochen nach Ende der Belieferung (§ 40c Abs. 2 EnWG); der Abrechnungszeitraum ist höchstens ein Jahr (§ 40b Abs. 1 EnWG) | nach Ende + 42 Tage **„überfällig — gesetzliche Frist verstrichen, beim Versorger nachfragen“**, rot unter „Zu tun“ |
+| Strom, Gas (Deutschland) | Rechnung spätestens **sechs Wochen** nach Ende des Abrechnungszeitraums, Abschlussrechnung sechs Wochen nach Ende der Belieferung (§ 40c Abs. 2 EnWG); der Abrechnungszeitraum ist höchstens ein Jahr (§ 40b Abs. 1 EnWG) | nach Ende + 42 Tage **„überfällig … Die gesetzliche Frist ist verstrichen, bitte beim Versorger nachfragen“**, rot unter „Zu tun“ |
 | Fernwärme | keine — abgerechnet wird „mindestens einmal jährlich“ (§ 4 Abs. 3 FFVAV, über § 24 Abs. 1 AVBFernwärmeV) | nur „erwartet“, nie „überfällig“ |
 | Wasser | keine (§ 24 Abs. 1 AVBWasserV; kommunale Gebühren nach Landesrecht, § 35 Abs. 1 AVBWasserV) | nur „erwartet“, nie „überfällig“ |
 | andere Länder | in der App nicht hinterlegt | nur „erwartet“ |
@@ -364,7 +364,7 @@ Rückgängig wie üblich.
 
 ## 10. Verlauf als CSV *(v3.5.0)*
 
-Unter **Hinweise → Erledigt** lädt **„Als CSV“** den Verlauf als Tabelle —
+Unter **Zu tun → Verlauf** lädt **„Als CSV“** den Verlauf als Tabelle —
 mit genau den gewählten Filtern (Person, Zeitraum, Bereich). Spalten:
 **Datum, Aktion, Titel, Wer, Grund, Notiz**. Titel, Aktion und Grund stehen in
 der Sprache der Oberfläche, Datum und Trennzeichen wie bei den übrigen

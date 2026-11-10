@@ -57,6 +57,7 @@ data/
 ├── people.json               # Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (v3.6.0) — im Backup, ohne Passwörter
 ├── inbox.json                # Posteingang: Versorgerpost mit Auslesung (v3.7.0) — entsteht mit dem ersten Dokument
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
+├── mcp/                      # KI-Schnittstelle (v3.12.0): offene Vorschläge (pending.json), Zugriffsprotokoll, Zähler der Ratengrenzen, je mit eigener Sperre — entsteht beim ersten Gebrauch, nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -96,7 +97,7 @@ bei jeder Art angelegt, genutzt bei Gas, Strom, Wasser und Fernwärme.
 **Heizwärme (`waerme/`, v3.1.0).** Die neunte Verbrauchsart: Wärme, die in der
 Wohnung ankommt, in kWh. Ihr Ordner entsteht mit Schema 1.7.0 leer, auch in
 Bestandsinstallationen; Standardzähler gibt es keine, und aktiv ist sie erst,
-wenn sie unter Einstellungen → Verbrauchsarten & Abrechnung gewählt ist
+wenn sie unter Haushalt → Verbrauchsarten gewählt ist
 (`active_utilities`). Mehr in [Heizwärme](../verstehen/15-waerme.md).
 
 **`instance.json` (v3.1.0).** `{instance_id, created_at}` — die Kennung der
@@ -361,7 +362,9 @@ werden aber **nicht** in die Verbrauchsberechnung einbezogen.
 Zwei optionale Felder seit v2.6.0 (additiv, nur vorhanden, wenn gesetzt):
 
 - `source`: `ingest` (Home Assistant), `csv` (CSV-Import) oder seit v3.7.0
-  `inbox` (aus einem Dokument im [Posteingang](#posteingang-v370) übernommen).
+  `inbox` (aus einem Dokument im [Posteingang](#posteingang-v370) übernommen)
+  oder seit v3.12.0 `mcp` (von einem KI-Assistenten vorgeschlagen und nach
+  Bestätigung übernommen).
 - `is_suspect: true`: fallender Stand aus dem Ingest; zählt nicht, bis er
   bestätigt (`PATCH` mit `is_suspect: false`) oder korrigiert ist.
 
@@ -795,6 +798,13 @@ und `customer_number` (Text, höchstens 64 Zeichen; leer entfernt das Feld),
 `errors.attachment.notFound`). Der Posteingang ordnet Dokumente über die
 Nummern zu. Kein Schema-Schritt.
 
+**Anschrift des Anbieters (v3.12.0)** — optional: `provider_address` (Text,
+bis zu vier Zeilen mit je 60 Zeichen, ohne den Namen; leer entfernt das Feld,
+länger → `400` `errors.settings.letterLines`). Der Brief-Dialog füllt damit den
+Empfänger vor. Kein Werkzeug der KI gibt das Feld heraus, der Posteingang liest
+und schreibt es nicht. Kein Schema-Schritt; dazu die Angaben für Briefe im
+Haushalt (`letter_*` in `settings.json`, [Einstellungen](einstellungen.md#angaben-für-briefe-v3120)).
+
 Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
 [Wasser](../verstehen/03-wasser.md).
@@ -1028,13 +1038,13 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 |---|---|
 | `id` | `act_` und 12 Hexziffern |
 | `action` | `done` (von Hand abgehakt), `auto_done` (aus den Daten erledigt: lückenloser Folgevertrag, Ablesung, Lieferung, Nebenkostenabrechnung; seit v3.5.0 neuer Zeitraum, Versorgerrechnung), `dismissed` (Empfehlung ausgeblendet) oder seit v3.5.0 `updated` (geänderte Nebenkostenabrechnung, `subject.kind: "tenancy_statement"` — nur Nachweis, erledigt nichts) |
-| `subject` | `kind` = Art wie in der Agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) bzw. `contract` (Folgevertrag) oder `recommendation`; `uid` wie in der Agenda; `occurrence` = `uid@anker` — Vertrag: sein Ende bzw. `renewed`/`open`, Tank: letzte Lieferung, Termin: Fälligkeit, Fristen: ihr Datum. Ein Haken gilt nur für dieses Vorkommen |
+| `subject` | `kind` = Art wie in der Agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) bzw. `contract` (Folgevertrag) oder `recommendation`; *(v3.12.0)* `reading` (Ablesung von einer KI übernommen, `action: updated`, `ref.reading_id` und `ref.proposal_id`); `uid` wie in der Agenda; `occurrence` = `uid@anker` — Vertrag: sein Ende bzw. `renewed`/`open`, Tank: letzte Lieferung, Termin: Fälligkeit, Fristen: ihr Datum. Ein Haken gilt nur für dieses Vorkommen |
 | `ref` | Verweise: `utility`, `meter_id` bzw. `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (bei der Kündigung `auto_renews` auf `false` gesetzt) |
 | `title_key`, `params` | Katalogschlüssel und Bausteine — der Titel lässt sich in jeder Sprache neu darstellen; Tage stehen als `JJJJ-MM-TT` darin |
 | `title` | Titel als Momentaufnahme in der Sprache beim Erledigen |
 | `done_on` | Tag der Tat, rückdatierbar, nicht in der Zukunft |
 | `recorded_at` | Zeitpunkt des Eintrags (ISO 8601) |
-| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}`; *(v3.6.0)* nach dem Löschen sonst `{type: "person", id, name, deleted: true}` („Name (gelöscht)“) |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel; *(v3.12.0)* mit `via: "mcp"`, wenn eine KI über ihren Schlüssel einen Vorschlag übernommen hat), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}`; *(v3.6.0)* nach dem Löschen sonst `{type: "person", id, name, deleted: true}` („Name (gelöscht)“) |
 | `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; seit v3.5.0 `…period` (neuer Zeitraum), `…bill` (Versorgerrechnung erfasst), beim Abhaken von `bill_expected` `…billWithout` („kam ohne Erfassung“) |
 | `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}`, *(v3.6.0)* nach dem Löschen `{name, id, deleted: true}`; *(v3.7.0)* auch bei Fristen und Terminen mit geerbter Zuständigkeit (Vertrag, Zähler) |
 | `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
@@ -1118,7 +1128,7 @@ ersten Lesen ihre Nummer, in der Reihenfolge `created_at`, dann `id`.
 
 Ein Eintrag ohne Zugang ist eine **Person ohne Anmeldung** — aus einem Backup
 oder einem Beispielhaushalt. Sie steht unter „Zuständig“ zur Wahl und unter
-Einstellungen → Zugriff mit „ohne Zugang“, wo sie sich löschen und seit v3.6.0
+Einstellungen → Zugang und Sicherheit mit „ohne Zugang“, wo sie sich löschen und seit v3.6.0
 umbenennen lässt, auch ihre Rolle (dann gelten für `name` die Regeln eines
 Zugangs: 1–40 Zeichen, eindeutig); ein neuer Zugang mit demselben Namen
 übernimmt ihre ID und Nummer. **Backup:** Topf
@@ -1175,6 +1185,12 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
 - **Arten** (`type`): `invoice`, `contract_confirmation`, `price_change`,
   `cancellation`, `supply_start`, `meter_change`, `reading_request`,
   `advance_change`; nur erkannt und abgelegt: `dunning`, `withdrawal`, `other`.
+- **Abgelegt mit einem KI-Schlüssel** *(v3.12.0)*: `source: "mcp"` am Eintrag.
+- **Ausgelesen von einer KI** *(v3.12.0)*: `extraction.provider` ist dann
+  `mcp_client`, `model` der Name des Clients (Selbstauskunft, nur Anzeige),
+  `type_confidence` `null`, `text` nur `{chars}`; geprüft wie jede Auslesung,
+  der Zwischenspeicher `cache` bleibt unberührt
+  ([KI-Schnittstelle](api.md#ändern-vorschlag-und-übernahme-v3120)).
 - **Feldstatus:** `ok` oder `check` mit Gründen (`empty`, `no_quote`,
   `quote_not_found`, `value_not_in_quote`, `unreadable`, `estimated`,
   `mandatory`, `price_from_invoice`, `sum_mismatch`, `inconsistent`,

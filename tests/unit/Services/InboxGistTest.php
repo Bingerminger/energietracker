@@ -309,7 +309,7 @@ final class InboxGistTest extends ServiceTestCase
         $g = $pv['gist'];
         self::assertSame('inbox.gist.meterChange.todo', $g['key']);
         parse_str(substr($g['action']['href'], strpos($g['action']['href'], '?') + 1), $q);
-        self::assertStringStartsWith('#/utility/gas/meters?', $g['action']['href']);
+        self::assertStringStartsWith('#/household/meters?art=gas&', $g['action']['href']);
         self::assertSame(['replace' => $this->meterId, 'date' => '2026-05-15', 'old' => '13902.5', 'new' => '0.8', 'serial' => 'TEST-4711-02'],
             array_intersect_key($q, ['replace' => 1, 'date' => 1, 'old' => 1, 'new' => 1, 'serial' => 1]));
     }

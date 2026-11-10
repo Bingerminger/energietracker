@@ -513,7 +513,13 @@ final class RightsBillChecksTest extends ServiceTestCase
             [$f[0]['text_key'], $f[0]['letter'], $f[0]['rules'], $f[0]['params']['deadline']]);
         self::assertStringContainsString('eine formlose Rückfrage wahrt sie nicht', $f[0]['text']);
         self::assertStringNotContainsString('Beauftragter', $f[0]['text']);
-        self::assertSame('rights.estimate.textNoticeExpired', $this->check('estimate_despite_reading', '2026-02-20')[0]['text_key']);
+        // v3.12.0 — dieselbe Frist wie der Hinweis zum Bescheid: „frühestens“ gilt in der Weichzone weiter
+        // (19.02. + 7 = 26.02.), abgelaufen erst danach; mit „Erhalten am“ 02.02.2026 Frist Mo 02.03.2026
+        self::assertSame('rights.estimate.textNotice', $this->check('estimate_despite_reading', '2026-02-26')[0]['text_key']);
+        self::assertSame('rights.estimate.textNoticeExpired', $this->check('estimate_despite_reading', '2026-02-27')[0]['text_key']);
+        $bill = $this->bills->list('wasser')[0];
+        $this->bills->update('wasser', (string)$bill['id'], ['received_on' => '2026-02-02']);
+        self::assertSame('2026-03-02', $this->check('estimate_despite_reading', '2026-01-20')[0]['params']['deadline']);
     }
 
     // ── A6 Messentgelt über der Obergrenze ───────────────────────────────
@@ -632,6 +638,40 @@ final class RightsBillChecksTest extends ServiceTestCase
             $f[0]['facts']['kwh_basis'], (float)$f[0]['facts']['kwh_year']]);
     }
 
+    /**
+     * v3.12.0 — Jede Grenze des Jahresverbrauchs gehört zur unteren Gruppe („über 6 000 bis einschließlich
+     * 10 000“, § 30 Abs. 1 MsbG). Menge laut Rechnung, Zeitraum 2026 (365 Tage): Jahreswert = Menge. Vorher
+     * rechnete die App erst ÷ 365, dann × 365, und 6000 ÷ 365 × 365 ist im Gleitkomma 6000,000000000001 —
+     * genau 6.000 kWh landeten in der 40-€-Gruppe. Messentgelt je Fall 5 € über der unteren Grenze:
+     *   6.000 → optional 30 €: 35 € ist 5 € darüber, Befund; 6.001 → 40 €: 35 € passt
+     *   10.000 → 40 €: 45 € Befund; 10.001 → 50 €: passt
+     *   20.000 → 50 €: 55 € Befund; 20.001 → 110 €: passt
+     *   50.000 → 110 €: 115 € Befund; 50.001 → 140 €: passt
+     *   100.000 → 140 €: 145 € Befund; 100.001 → angemessenes Entgelt, keine Prüfung
+     *
+     * @return array<string, array{0:int, 1:float}>
+     */
+    public static function meteringBoundaries(): array
+    {
+        return ['6.000 kWh' => [6000, 30.0], '10.000 kWh' => [10000, 40.0], '20.000 kWh' => [20000, 50.0],
+                '50.000 kWh' => [50000, 110.0], '100.000 kWh' => [100000, 140.0]];
+    }
+
+    #[DataProvider('meteringBoundaries')]
+    public function testMeteringGroupBoundaryBelongsToTheLowerGroup(int $kwh, float $cap): void
+    {
+        $this->contract();
+        $this->meters->update('strom', $this->meterId, ['metering_device' => 'imsys', 'msb_basic' => true]);
+        $item = [['label' => 'Messstellenbetrieb', 'amount_eur' => $cap + 5.0, 'kind' => 'metering', 'basis' => 'gross']];
+        $this->meteringBill($item, ['invoice' => ['energy_kwh' => $kwh]]);
+        $f = $this->check('metering_cap');
+        self::assertCount(1, $f, "$kwh kWh: Befund mit der unteren Grenze");
+        self::assertSame([$cap, 5.0, (float)$kwh], [$f[0]['facts']['cap_eur'], $f[0]['amount_eur'], (float)$f[0]['facts']['kwh_year']]);
+        $this->store->write('strom/bills.json', []);
+        $this->meteringBill($item, ['invoice' => ['energy_kwh' => $kwh + 1]]);
+        self::assertSame([], $this->check('metering_cap'), ($kwh + 1) . ' kWh: obere Gruppe, der Betrag passt');
+    }
+
     public function testAnInstallationInThePeriodMayCostUpTo100EurOnce(): void
     {
         $this->setMeterDevices('strom', [self::device('d1', '2024-01-01', '2026-03-01'), self::device('d2', '2026-03-01', null, 0.0)]);
@@ -689,10 +729,13 @@ final class RightsBillChecksTest extends ServiceTestCase
             $this->bill(['notice' => ['public_law' => true, 'dated_on' => '2026-01-27', 'remedy' => $remedy]], 'wasser');
             self::assertSame($letter, $this->check('fee_notice_deadline', '2026-02-10')[0]['letter'], "remedy $remedy");
         }
-        // Frist rechnerisch Samstag 28.02.2026, verschoben auf Montag 02.03.: bis dahin „Zu tun“, danach nicht mehr
+        // Frist rechnerisch Samstag 28.02.2026, verschoben auf Montag 02.03.: bis dahin „Zu tun“; v3.12.0 — danach
+        // sieben Tage „möglicherweise abgelaufen“ (bis 09.03.), weiter unter „Zu tun“, ab 10.03. nicht mehr
         self::assertTrue($this->rights->findings('2026-03-01')[0]['todo']);
         self::assertTrue($this->rights->findings('2026-03-02')[0]['todo']);
-        self::assertFalse($this->rights->findings('2026-03-03')[0]['todo']);
+        self::assertTrue($this->rights->findings('2026-03-03')[0]['todo']);
+        self::assertTrue($this->rights->findings('2026-03-09')[0]['todo']);
+        self::assertFalse($this->rights->findings('2026-03-10')[0]['todo']);
         // privatrechtliches Entgelt (kein Bescheid), auch mit Datum: keine Frist
         $this->store->write('wasser/bills.json', []);
         $this->bill(['notice' => ['public_law' => false, 'dated_on' => '2026-01-27']], 'wasser');
@@ -702,18 +745,33 @@ final class RightsBillChecksTest extends ServiceTestCase
     /**
      * v3.11.0 (Skeptiker H2) — nach dem Fristende kein „ist ein Rechtsbehelf möglich“ und kein Widerspruch:
      * Bescheid vom 27.01.2026, bekannt 31.01., rechnerisch Samstag 28.02.2026, Frist bis Montag 02.03.2026 (NP1).
+     * v3.12.0 — das Bescheiddatum ist nicht der Tag der Aufgabe zur Post, das Ende also nur das früheste:
+     * sieben Tage (Rights::NOTICE_SOFT_DAYS) „möglicherweise abgelaufen“, mit Brief und unter „Zu tun“, erst dann
+     * abgelaufen. Umbenannt aus testFeeNoticeAfterTheDeadlineSaysSoAndOffersNoLetter (sperrte ab dem 03.03.).
      *   27.02. bis 02.03.: läuft (Text wie bisher, Brief)
-     *   03.03.: abgelaufen, mit dem Jahr bei fehlender oder unrichtiger Belehrung (Prüfbericht 48)
+     *   03.03. bis 09.03. (02.03. + 7): möglicherweise abgelaufen, Warnung, Brief, Termin bleibt der 02.03.
+     *   10.03.: abgelaufen, mit dem Jahr bei fehlender oder unrichtiger Belehrung (Prüfbericht 48)
      *   31.01.2027 (Bekanntgabe + 12 Monate): noch mit dem Jahr; 01.02.2027: ohne
      */
-    public function testFeeNoticeAfterTheDeadlineSaysSoAndOffersNoLetter(): void
+    public function testFeeNoticeMayBeExpiredForSevenDaysThenSaysSoAndOffersNoLetter(): void
     {
         $this->bill(['notice' => ['public_law' => true, 'dated_on' => '2026-01-27', 'remedy' => 'objection']], 'wasser');
         foreach (['2026-02-27', '2026-02-28', '2026-03-01', '2026-03-02'] as $day) {
             $f = $this->check('fee_notice_deadline', $day)[0];
-            self::assertSame(['warning', 'rights.feeNotice.text', 'objection', false], [$f['severity'], $f['text_key'], $f['letter'], $f['facts']['expired']], $day);
+            self::assertSame(['warning', 'rights.feeNotice.text', 'objection', false, false], [$f['severity'], $f['text_key'], $f['letter'],
+                $f['facts']['expired'], $f['facts']['maybe_expired']], $day);
         }
-        $f = $this->check('fee_notice_deadline', '2026-03-03')[0];
+        foreach (['2026-03-03', '2026-03-09'] as $day) {
+            $f = $this->check('fee_notice_deadline', $day)[0];
+            self::assertSame(['warning', 'rights.feeNotice.titleMaybeExpired', 'rights.feeNotice.textMaybeExpired', 'objection', false, true, true,
+                '2026-03-02', '2026-03-09', 'post'],
+                [$f['severity'], $f['title_key'], $f['text_key'], $f['letter'], $f['facts']['expired'], $f['facts']['maybe_expired'], $f['todo'],
+                 $f['deadline'], $f['facts']['soft_until'], $f['facts']['known_basis']], $day);
+            self::assertSame('Wasser: Gebührenbescheid vom 27.01.2026, Frist möglicherweise am 02.03.2026 abgelaufen', $f['title'], $day);
+            self::assertStringContainsString('Erhalten am', $f['text'], $day);
+            self::assertContains('de.vwvfg.41.2.3', $f['rules'], $day);
+        }
+        $f = $this->check('fee_notice_deadline', '2026-03-10')[0];
         self::assertSame(['info', 'rights.feeNotice.titleExpired', 'rights.feeNotice.textExpired', null, true, false],
             [$f['severity'], $f['title_key'], $f['text_key'], $f['letter'], $f['facts']['expired'], $f['todo']]);
         self::assertSame(['de.vwgo.70.1', 'de.vwgo.58.2', 'de.vwvfg.41.2', 'de.ao.122.2', 'de.bgb.188', 'de.vwgo.57.2', 'de.vwvfg.31.3', 'de.ao.108.3'], $f['rules']);
@@ -778,6 +836,81 @@ final class RightsBillChecksTest extends ServiceTestCase
         $f = $this->check('fee_notice_deadline', '2026-03-10')[0];
         self::assertSame(['2026-03-10', '2026-03-10', false, false], [$f['deadline'], $f['facts']['nominal_end'], $f['facts']['deadline_shifted'], $f['facts']['expired']]);
         self::assertTrue($this->check('fee_notice_deadline', '2026-03-11')[0]['facts']['expired']);
+    }
+
+    /**
+     * v3.12.0 — „Erhalten am“ nach dem vierten Tag verschiebt die Bekanntgabe: „Dies gilt nicht, wenn der
+     * Verwaltungsakt nicht oder zu einem späteren Zeitpunkt zugegangen ist“ (§ 41 Abs. 2 Satz 3 VwVfG, ebenso
+     * § 122 Abs. 2 AO). Von Hand gezählt (01.10.2026 ist ein Donnerstag, 01.11.2026 ein Sonntag):
+     *   Bescheid Mo 28.09.2026, ohne Zugang: bekannt Fr 02.10., Frist Mo 02.11., möglicherweise abgelaufen bis 09.11.
+     *   erhalten Di 13.10.2026: frühestens bekannt 13.10., Frist frühestens Fr 13.11.2026. Zur Post ging der
+     *     Bescheid spätestens am 13.10., bekannt also spätestens am vierten Tag danach (Sa 17.10.), Frist dann
+     *     Di 17.11.2026: bis dahin „möglicherweise abgelaufen“ (vorher galt der Zugang als sicher, und am 14.11.
+     *     hieß es schon „abgelaufen“)
+     *   erhalten Do 01.10. (vor dem vierten Tag): es bleibt der 02.10. (die Fiktion gilt)
+     *   zugestellt Mo 05.10. mit Urkunde, „erhalten“ 20.10.: die Zustellung zählt, Frist Do 05.11.
+     */
+    public function testALaterReceiptMovesTheNotificationAndKeepsASoftZone(): void
+    {
+        $notice = ['public_law' => true, 'dated_on' => '2026-09-28', 'remedy' => 'objection'];
+        $this->bill(['notice' => $notice], 'wasser');
+        $f = $this->check('fee_notice_deadline', '2026-11-10')[0];
+        self::assertSame(['2026-10-02', '2026-11-02', 'post', true, null], [$f['facts']['known_on'], $f['deadline'], $f['facts']['known_basis'],
+            $f['facts']['expired'], $f['letter']], 'ohne Zugang: abgelaufen');
+
+        $this->store->write('wasser/bills.json', []);
+        $this->bill(['notice' => $notice, 'received_on' => '2026-10-13'], 'wasser');
+        $f = $this->check('fee_notice_deadline', '2026-11-10')[0];
+        self::assertSame(['warning', '2026-10-13', '2026-11-13', '2026-11-17', 'received', false, false, 'objection', 'rights.feeNotice.textReceived', true],
+            [$f['severity'], $f['facts']['known_on'], $f['deadline'], $f['facts']['soft_until'], $f['facts']['known_basis'], $f['facts']['expired'],
+             $f['facts']['maybe_expired'], $f['letter'], $f['text_key'], $f['todo']]);
+        self::assertSame('Wasser: Gebührenbescheid vom 28.09.2026, Rechtsbehelf bis 13.11.2026', $f['title']);
+        self::assertStringContainsString('erhalten am 13.10.2026', $f['text']);
+        self::assertStringContainsString('frühestens am 13.11.2026 und spätestens am 17.11.2026', $f['text']);
+        foreach (['de.vwvfg.41.2.3', 'de.ao.122.2.zugang'] as $rule) self::assertContains($rule, $f['rules']);
+        self::assertSame('2026-10-13', $f['params']['received_on']);
+        // Tag nach dem frühesten Ende: möglicherweise abgelaufen, Brief und „Zu tun“ bleiben
+        $maybe = $this->check('fee_notice_deadline', '2026-11-14')[0];
+        self::assertSame(['warning', false, true, 'objection', 'rights.feeNotice.textMaybeExpiredReceived', true],
+            [$maybe['severity'], $maybe['facts']['expired'], $maybe['facts']['maybe_expired'], $maybe['letter'], $maybe['text_key'], $maybe['todo']],
+            'eingetragener Zugang: der Bescheid kann bis zu vier Tage nach dem Zugang bekannt gegeben sein');
+        self::assertStringContainsString('spätestens am 17.11.2026', $maybe['text']);
+        self::assertSame('warning', $this->check('fee_notice_deadline', '2026-11-17')[0]['severity'], 'am spätesten Ende selbst läuft die Frist noch');
+        $after = $this->check('fee_notice_deadline', '2026-11-18')[0];
+        self::assertSame(['info', true, false, null], [$after['severity'], $after['facts']['expired'], $after['facts']['maybe_expired'], $after['letter']],
+            'eingetragener Zugang: am Tag nach dem spätesten Ende abgelaufen');
+
+        $this->store->write('wasser/bills.json', []);
+        $this->bill(['notice' => $notice, 'received_on' => '2026-10-01'], 'wasser');
+        $f = $this->check('fee_notice_deadline', '2026-10-20')[0];
+        self::assertSame(['2026-10-02', '2026-11-02', 'post', 'rights.feeNotice.text'], [$f['facts']['known_on'], $f['deadline'], $f['facts']['known_basis'], $f['text_key']]);
+
+        $this->store->write('wasser/bills.json', []);
+        $this->bill(['notice' => $notice + ['served_on' => '2026-10-05'], 'received_on' => '2026-10-20'], 'wasser');
+        $f = $this->check('fee_notice_deadline', '2026-10-20')[0];
+        self::assertSame(['2026-10-05', '2026-11-05', 'served', 'rights.feeNotice.textServed'], [$f['facts']['known_on'], $f['deadline'], $f['facts']['known_basis'], $f['text_key']]);
+    }
+
+    /** v3.12.0 — Rights::feeNoticeDeadline nennt die Grundlage der Bekanntgabe und das Ende der Weichzone. */
+    public function testFeeNoticeDeadlineKnowsTheBasisAndTheSoftZone(): void
+    {
+        // Zugang Di 13.10.: frühestens bekannt 13.10. (Frist Fr 13.11.), spätestens Sa 17.10. (Frist Di 17.11.)
+        $facts = Rights::feeNoticeDeadline('DE', '2026-09-28', null, '2026-10-13');
+        self::assertSame(['2026-10-13', '2026-11-13', '2026-11-13', 'received', '2026-11-17'], [$facts['known_on'], $facts['nominal_end'],
+            $facts['deadline'], $facts['basis'], $facts['soft_until']]);
+        // Zugang Do 15.10.: Frist So 15.11. → Mo 16.11.; spätestens bekannt Mo 19.10., Frist Do 19.11.
+        $later = Rights::feeNoticeDeadline('DE', '2026-09-28', null, '2026-10-15');
+        self::assertSame(['2026-11-15', '2026-11-16', '2026-11-19'], [$later['nominal_end'], $later['deadline'], $later['soft_until']]);
+        // Zugang Mi 28.10.: Frist Sa 28.11. → Mo 30.11.; spätestens bekannt So 01.11., Frist Di 01.12.
+        $weekend = Rights::feeNoticeDeadline('DE', '2026-09-28', null, '2026-10-28');
+        self::assertSame(['2026-11-30', '2026-12-01'], [$weekend['deadline'], $weekend['soft_until']]);
+        // ein Zugang vor dem vierten Tag ändert nichts: Fiktion, Weichzone wie ohne Zugang
+        self::assertSame(['2026-10-02', '2026-11-02', 'post', '2026-11-09'],
+            array_values(array_intersect_key(Rights::feeNoticeDeadline('DE', '2026-09-28', null, '2026-09-30'), array_flip(['known_on', 'deadline', 'basis', 'soft_until']))));
+        $post = Rights::feeNoticeDeadline('DE', '2026-09-28');
+        self::assertSame(['2026-10-02', '2026-11-02', 'post', '2026-11-09'], [$post['known_on'], $post['deadline'], $post['basis'], $post['soft_until']]);
+        self::assertSame('2026-10-02', Rights::feeNoticeDeadline('DE', '2026-09-28', null, '2026-10-02')['known_on'], 'am vierten Tag selbst: Fiktion');
+        self::assertSame('post', Rights::feeNoticeDeadline('DE', '2026-09-28', null, 'kein Datum')['basis']);
     }
 
     // ── Rechnung prüfen: Gutschrift und Bonus des Vertrags nicht doppelt ─

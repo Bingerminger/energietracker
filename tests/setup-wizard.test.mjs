@@ -147,9 +147,9 @@ const open = async (opts = {}) => {
 if (DEMO_RUN) {
   // ── Demo: Sprache je Gerät, Land gesperrt, nichts geschrieben ─────────
   localStorage.setItem('et-demo-persona', 'showcase');
-  t('Demo: Schritte Sprache/Land → Haushalt → Stufe → Weiter', W.setupSteps().join() === 'region,persona,level,finish', W.setupSteps().join());
+  t('Demo: Schritte Sprache/Land → Haushalt → Stufe → Weiter', W.setupSteps().join() === 'region,persona,level,ways,finish', W.setupSteps().join());
   await open({ firstRun: true });
-  t('Demo: Schritt 1 fragt Sprache und Land', !!q('#setup-lang') && !!q('#setup-country') && /1 von 4/.test(q('[data-role="progress"]')?.textContent || ''));
+  t('Demo: Schritt 1 fragt Sprache und Land', !!q('#setup-lang') && !!q('#setup-country') && /1 von 5/.test(q('[data-role="progress"]')?.textContent || ''));
   // v3.5.1 — Land als Text mit Hinweis, kein gesperrtes Auswahlfeld (wirkte am iPad wie ein Fehler)
   t('Demo: Land als Text, Hinweis auf den Beispielhaushalt', q('#setup-country')?.tagName === 'P'
     && !q('select#setup-country') && q('#setup-country')?.dataset.country === 'DE' && !!q('#setup-country-demo')?.textContent);
@@ -164,12 +164,17 @@ if (DEMO_RUN) {
     && document.activeElement !== q('input[name="setup-persona"]'));
   q('input[name="setup-persona"][value="mieterin"]').click(); await tick();
   next(); q('input[name="setup-level"][value="beginner"]')?.click(); await tick();
+  next(); await tick();   // v3.12.0 — „Wie willst du arbeiten?“, in der Demo genauso
+  t('Demo: drei Fragen, nichts vorbelegt', modal().querySelectorAll('fieldset.guide-q').length === 3 && !modal().querySelector('.guide-q input:checked'));
+  q('input[name="guide-ai"][value="out"]').click(); await tick();
   next(); await tick();
+  t('Demo: der Schluss nennt den Weg', !!q('[data-role="setup-way"] a[href="#/help/setups/cloud-ai"]'));
   // v3.10.0 — die Hauptfunktion früh: „So geht es weiter“ sagt, wo der Saldo steht und was er zeigt
   t('Demo: Schluss nennt den Saldo (gemessen, geschätzt, erwartet)', q('[data-role="setup-saldo"]')?.textContent === i18n.t('setup.finish.saldoDemo')
     && /reading/.test(q('[data-role="setup-saldo"]')?.textContent || ''), q('[data-role="setup-saldo"]')?.textContent);
   calls.length = 0;
-  next(); await tick(80);
+  q('[data-role="setup-way"] a').click(); await tick(80);   // v3.12.0 — wie „Los geht’s“, und der Weg bleibt nach dem Neuladen
+  t('Demo: der Link öffnet den Weg', location.hash === '#/help/setups/cloud-ai', location.hash);
   t('Demo: Sprache je Gerät gemerkt (et-demo-lang)', localStorage.getItem('et-demo-lang') === 'en', localStorage.getItem('et-demo-lang'));
   t('Demo: Haushalt und Stufe im Browser', localStorage.getItem('et-demo-persona') === 'mieterin' && localStorage.getItem('et-demo-level') === 'beginner');
   t('Demo: kein Schreibzugriff an einen Server', writes().length === 0 && !calls.some(c => /settings\/country/.test(c.path)), JSON.stringify(writes()));
@@ -179,8 +184,8 @@ if (DEMO_RUN) {
 
 // ── Schrittfolge ────────────────────────────────────────────────────────
 console.log('Schritte');
-t('Installation: Sprache/Land → Wer → Energieträger → Stufe → Weiter', W.setupSteps(false).join() === 'region,persona,utilities,level,finish');
-t('Demo: Sprache/Land → Wer → Stufe → Weiter', W.setupSteps(true).join() === 'region,persona,level,finish');
+t('Installation: Sprache/Land → Wer → Energieträger → Stufe → Wie arbeiten → Weiter', W.setupSteps(false).join() === 'region,persona,utilities,level,ways,finish');
+t('Demo: Sprache/Land → Wer → Stufe → Wie arbeiten → Weiter', W.setupSteps(true).join() === 'region,persona,level,ways,finish');
 
 // ── Regel aus N1014: Region nur bei gesprochener Sprache ────────────────
 console.log('Schreibweise (lib/format.js regionLocale)');
@@ -193,8 +198,8 @@ t('Italienisch in Deutschland bleibt it-IT, Französisch in der Schweiz fr-CH',
 // ── Schritt 1 ───────────────────────────────────────────────────────────
 console.log('Schritt 1: Sprache und Land');
 await open({ firstRun: true });
-t('Schritt 1 von 5 fragt Sprache und Land', q('.setup__question')?.textContent === 'Sprache und Land'
-  && /1 von 5/.test(q('[data-role="progress"]')?.textContent || ''));
+t('Schritt 1 von 6 fragt Sprache und Land', q('.setup__question')?.textContent === 'Sprache und Land'
+  && /1 von 6/.test(q('[data-role="progress"]')?.textContent || ''));
 t('Vorauswahl: Sprache dieses Geräts, Land der Installation', q('#setup-lang')?.value === 'de' && q('#setup-country')?.value === 'DE');
 t('Länderliste nach gescheitertem erstem Abruf nachgeladen (alle Länder wählbar)',
   q('#setup-country')?.options.length === COUNTRIES.length && calls.filter(c => c.path === '/api/countries').length === 2,
@@ -236,7 +241,7 @@ console.log('Bilder (v3.9.0)');
   await open({ firstRun: true });
   const art = () => q('.setup__head .setup__art svg.ill');
   const seen = [];
-  for (let i = 0; i < 5 && modal(); i++) {
+  for (let i = 0; i < 6 && modal(); i++) {
     const svg = art();
     seen.push(svg && svg.getAttribute('aria-hidden') === 'true' && svg.getAttribute('focusable') === 'false'
       && !svg.hasAttribute('role') && !!q('.setup__head .setup__lead .setup__question'));
@@ -247,9 +252,9 @@ console.log('Bilder (v3.9.0)');
         `${arts.length} von ${W.PERSONAS.length}`);
       q('input[name="setup-persona"][value="eigenheim-modern"]').click(); await tick();
     }
-    if (i < 4) { next(); await tick(); }
+    if (i < 5) { next(); await tick(); }
   }
-  t('jeder der fünf Schritte: Zeichnung neben der Frage, aria-hidden (die Frage sagt alles)', seen.length === 5 && seen.every(Boolean), JSON.stringify(seen));
+  t('jeder der sechs Schritte: Zeichnung neben der Frage, aria-hidden (die Frage sagt alles)', seen.length === 6 && seen.every(Boolean), JSON.stringify(seen));
   t('Einleitung steht im ersten Schritt neben dem Bild', W.withArt('region', '<h3 class="setup__question">F</h3><p>x</p>', '<p class="muted">E</p>')
     .startsWith('<div class="setup__head"><div class="setup__art"><svg class="ill'));
   t('Schritt ohne Zeichnung bleibt unverändert', W.withArt('unbekannt', '<h3 class="setup__question">F</h3>', '<p>E</p>') === '<p>E</p><h3 class="setup__question">F</h3>');
@@ -266,6 +271,7 @@ const walk = async () => {
   q('input[name="setup-persona"][value="eigenheim-klassisch"]').click(); await tick();
   next(); await tick();   // Energieträger
   next(); await tick();   // Stufe (vom Haushalt vorgeschlagen)
+  next(); await tick();   // v3.12.0 — Wie willst du arbeiten?
   next(); await tick();   // So geht es weiter
   q('input[name="setup-start"][value="own"]')?.click(); await tick();
 };
@@ -274,6 +280,13 @@ await walk();
 t('Schluss nennt den Saldo: gemessen bis zur letzten Ablesung, geschätzt bis heute, erwartet zur Abrechnung',
   /letzten Ablesung/.test(q('[data-role="setup-saldo"]')?.textContent || '') && /Abrechnung/.test(q('[data-role="setup-saldo"]')?.textContent || ''),
   q('[data-role="setup-saldo"]')?.textContent);
+// v3.12.0 (M6) — der Schluss nennt die Bereiche der Einrichtung, ohne Link (ein Sprung schlösse den Assistenten vor dem Speichern)
+{
+  const later = q('[data-role="setup-later"]');
+  t('Schluss nennt, wo es weitergeht: Haushalt und Verbindungen, Kernaussage fett, ohne Link',
+    !!later && later.textContent.includes(i18n.t('nav.household')) && later.textContent.includes(i18n.t('nav.connections'))
+      && !!later.querySelector('strong') && !later.querySelector('a'), later?.innerHTML);
+}
 calls.length = 0;
 next(); await tick(120);
 const patch = writes().find(c => c.path === '/api/settings' && 'setup_pending' in (c.body || {}));
@@ -291,15 +304,15 @@ await tick();
 await open({ firstRun: true });
 await walk();
 const conceptChoice = q('input[name="setup-start"][value="concept"]');
-t('Weg „Messkonzept einrichten“ am Ende der Einrichtung (Haushalt mit Strom)', !!conceptChoice && W.setupSteps(false).length === 5);
+t('Weg „Messkonzept einrichten“ am Ende der Einrichtung (Haushalt mit Strom)', !!conceptChoice && W.setupSteps(false).length === 6);
 conceptChoice?.click(); await tick();
 next(); await tick(120);
-t('… führt zu den Zählern „Strom“ und öffnet dort den Assistenten', location.hash === '#/utility/strom/meters?concept=1', location.hash);
+t('… führt zu den Zählern „Strom“ und öffnet dort den Assistenten', location.hash === '#/household/meters?art=strom&concept=1', location.hash);
 
 // v3.9.0 (F1032) — Schritt „Wie hängen deine Zähler?“ beim Beginn: mit Strom und PV (Eigenheim modern), sonst nicht
-t('Schritt „Wie hängen deine Zähler?“ nur mit Strom und PV', W.setupSteps(false, ['strom', 'pv_einspeisung']).join() === 'region,persona,utilities,concept,level,finish'
-  && W.setupSteps(false, ['gas', 'strom', 'wasser']).join() === 'region,persona,utilities,level,finish'
-  && W.setupSteps(true, ['strom', 'pv_einspeisung']).join() === 'region,persona,level,finish');
+t('Schritt „Wie hängen deine Zähler?“ nur mit Strom und PV', W.setupSteps(false, ['strom', 'pv_einspeisung']).join() === 'region,persona,utilities,concept,level,ways,finish'
+  && W.setupSteps(false, ['gas', 'strom', 'wasser']).join() === 'region,persona,utilities,level,ways,finish'
+  && W.setupSteps(true, ['strom', 'pv_einspeisung']).join() === 'region,persona,level,ways,finish');
 settings = { ...DEFAULTS };
 location.hash = '#/settings';
 await tick();
@@ -314,10 +327,11 @@ t('… zwei Wege mit Schaltbild, „Ein Zähler je Art“ vorgewählt, Bild nebe
   && !!q('.setup__head .setup__art svg.ill'), meterCards.join());
 q('input[name="setup-meters"][value="concept"]').click(); await tick();
 next(); await tick();   // Stufe
+next(); await tick();   // v3.12.0 — Wie willst du arbeiten?
 next(); await tick();   // So geht es weiter
 t('… „Anderer Aufbau“ wählt am Ende „Messkonzept einrichten“ vor', q('input[name="setup-start"]:checked')?.value === 'concept');
 next(); await tick(120);
-t('… und öffnet danach den Assistenten', location.hash === '#/utility/strom/meters?concept=1', location.hash);
+t('… und öffnet danach den Assistenten', location.hash === '#/household/meters?art=strom&concept=1', location.hash);
 
 settings = { ...DEFAULTS };
 location.hash = '#/settings';
@@ -335,6 +349,27 @@ t('Land gewechselt: einmal POST /api/settings/country mit Profil', country.lengt
   JSON.stringify(country.map(c => c.body)));
 t('Sprache gewechselt: Standardsprache der Installation', writes().some(c => c.path === '/api/settings' && c.body?.language === 'en'));
 t('Sprache bleibt nach „Los geht’s“', i18n.getLocale() === 'en');
+
+// ── v3.12.0 (M3): Ein Mitglied ändert die Vorgabe nicht, seine Sprache wird seine eigene ──
+console.log('Einrichtung als Mitglied');
+const levels = await import(`${JS}/lib/levels.js`);
+const annaSession = { mode: 'password', role: 'member', user: { id: 'u1', name: 'Anna', prefs: {} } };
+levels.setSession(annaSession);
+settings = { ...DEFAULTS };
+await open({ session: annaSession });
+t('Mitglied: Land gesperrt, mit Hinweis', q('#setup-country')?.disabled === true && !!q('[data-role="region-admin-only"]'));
+t('Mitglied: Sprache bedienbar', q('#setup-lang')?.disabled === false);
+change(q('#setup-lang'), 'fr');
+await tick(80);
+await walk();
+calls.length = 0;
+next(); await tick(120);
+t('Mitglied: kein Landwechsel, keine Vorgabe im PATCH', !writes().some(c => c.path === '/api/settings/country' || (c.path === '/api/settings' && 'language' in (c.body || {}))), JSON.stringify(writes()));
+t('Mitglied: die Einrichtung wird fertig', writes().some(c => c.path === '/api/settings' && c.body?.setup_pending === false), JSON.stringify(writes()));
+t('Mitglied: die Sprache wird die eigene', writes().some(c => c.path === '/api/session/me' && c.body?.language === 'fr'), JSON.stringify(writes()));
+levels.setSession(null);
+await i18n.initI18n('en');
+settings = { ...DEFAULTS, language: 'en', country: 'AT' };
 
 // ── Erneut öffnen: aktuelle Werte ───────────────────────────────────────
 console.log('Erneut aus den Einstellungen');
@@ -363,7 +398,7 @@ const settingsView = await import(`${JS}/views/settings.js`);
 const view = document.getElementById('view');
 const pickCountry = async (code, act) => {
   calls.length = 0;
-  await settingsView.render(view, ['general'], {});
+  await settingsView.render(view, ['region'], {});
   await tick(60);
   const sel = view.querySelector('#country-select');
   if (!sel) return null;
@@ -411,6 +446,50 @@ for (const [lang, file, head, step, demo] of [['de', 'docs/referenz/ansichten.md
   t(`${lang}: UI-Referenz §16 mit Strom und PV ${nConcept} Schritte, der Schritt heißt wie im Katalog`,
     nConcept === nInst + 1 && sec.includes(`${step} ${nConcept}`) && sec.includes(cat(lang).setup.concept.title));
 }
+
+
+// ── v3.12.0 (Paket wegweiser) — „Wie willst du arbeiten?“ ───────────────
+console.log('Wie willst du arbeiten?');
+settings = { ...DEFAULTS };
+location.hash = '#/settings';
+await tick();
+await open({ firstRun: true });
+next(); await tick();
+q('input[name="setup-persona"][value="eigenheim-klassisch"]').click(); await tick();
+next(); await tick();   // Energieträger
+next(); await tick();   // Stufe
+calls.length = 0;
+next(); await tick();   // Wie willst du arbeiten?
+t('Schritt mit den drei Fragen, keine Antwort vorbelegt, keine Pflicht', q('.setup__question')?.textContent === i18n.t('setups.quick.wizardTitle')
+  && modal().querySelectorAll('fieldset.guide-q').length === 3 && !modal().querySelector('.guide-q input:checked') && !q('[data-act="next"]').disabled);
+t('… mit Bild neben der Frage', !!modal().querySelector('.setup__art svg.ill'));
+q('input[name="guide-smart"][value="no"]').click(); await tick();
+q('input[name="guide-post"][value="no"]').click(); await tick();
+q('input[name="guide-ai"][value="no"]').click(); await tick();
+t('„Nichts davon“ führt zu „Von Hand“ und ist eine gute Antwort', q('[data-role="setup-ways-result"]')?.textContent.includes(i18n.t('setups.scene.byHand.title'))
+  && q('[data-role="setup-ways-result"]')?.textContent.includes(i18n.t('setups.quick.nothing')));
+t('Fokus bleibt an der gewählten Antwort', document.activeElement === q('input[name="guide-ai"][value="no"]'));
+q('input[name="guide-smart"][value="yes"]').click(); await tick();
+q('input[name="guide-ai"][value="home"]').click(); await tick();
+const waysText = q('[data-role="setup-ways-result"]')?.textContent || '';
+t('Antworten führen zu den Wegen, zwei Bausteine auch zu „Alles zusammen“', ['homeAssistant', 'localAi', 'together'].every(k => waysText.includes(i18n.t(`setups.scene.${k}.title`))), waysText);
+t('Antworten: nichts geschrieben', writes().length === 0, JSON.stringify(writes()));
+next(); await tick();   // So geht es weiter
+const wayLink = q('[data-role="setup-way"] a[href="#/help/setups/home-assistant"]');
+t('Der Schluss nennt die Wege als Link', !!wayLink && !!q('[data-role="setup-way"] a[href="#/help/setups/local-ai"]') && !!q('[data-role="setup-way"] a[href="#/help/setups/together"]'));
+calls.length = 0;
+wayLink.click(); await tick(120);
+const wayPatch = writes().find(c => c.path === '/api/settings' && 'setup_pending' in (c.body || {}));
+t('Der Link speichert wie „Los geht’s“ und öffnet den Weg', wayPatch?.body?.setup_pending === false && location.hash === '#/help/setups/home-assistant', location.hash);
+t('Die Antworten landen nicht im Haushalt', !JSON.stringify(writes().map(c => c.body)).match(/guide|smart|"ai"|ways/), JSON.stringify(wayPatch?.body));
+// Ohne jede Antwort: „Weiter“ geht, der Schluss nennt nur den Wegweiser
+settings = { ...DEFAULTS };
+location.hash = '#/settings';
+await tick();
+await open({ firstRun: true });
+await walk();
+t('Ohne Antwort: Link zum Wegweiser', !!q('[data-role="setup-way"] a[href="#/help/setups"]'));
+q('[data-act="skip"]').click(); await tick();
 
 // ── Demo (eigener Prozess: DEMO wird beim Laden des Moduls bestimmt) ────
 for (const [title, flag] of [['Demo', '--demo'], ['Start der App', '--boot']]) {

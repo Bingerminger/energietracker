@@ -31,7 +31,7 @@ Was der CO₂-Preis selbst ist und wie die App ihn rechnet:
 
 ## 1. Was du brauchst
 
-- **Einstellungen → Haushalt & Gebäude → „Ich wohne“: „zur Miete“** und als
+- **Haushalt → Gebäude → „Ich wohne“: „zur Miete“** und als
   Land Deutschland. Sonst fehlt die Karte; die API antwortet mit
   `supported: false`.
 - Ein **Mietverhältnis** unter Kosten & Verträge → Mietverhältnis
@@ -57,7 +57,7 @@ mit deinen **Gas- und Heizöldaten** als Etagenheizung.
 ## 3. Die Wohnfläche
 
 Im Dialog **„Mietverhältnis bearbeiten“** steht das Feld **„Wohnfläche laut
-Mietvertrag (m²)“**. Leer gilt die Wohnfläche aus Einstellungen → Haushalt &
+Mietvertrag (m²)“**. Leer gilt die Wohnfläche aus Haushalt →
 Gebäude. Ohne Fläche gibt es keine Stufe; die Karte sagt dann: „Ohne
 Wohnfläche keine Stufe – bitte im Mietverhältnis oder unter Haushalt
 eintragen.“ Gibt es im Jahr mehrere Mietverhältnisse, zählt das jüngste.
@@ -83,6 +83,15 @@ Nachkommastelle gerundet (Anlage zum CO2KostAufG):
 Umfasst eine Heizkostenabrechnung weniger als ein Jahr, kürzt die App die
 Grenzen im selben Verhältnis (§ 5 Abs. 1).
 
+<!-- doc-claim: co2-part-year -->
+*(v3.12.0)* **Auch bei der Etagenheizung:** Beginnt oder endet das
+Mietverhältnis im Jahr, gilt die Stufe für die Tage des Mietverhältnisses im
+Kalenderjahr, und die Grenzen werden anteilig gekürzt (§ 5 Abs. 3 Satz 4 mit
+Abs. 1). Die Karte sagt dann „Teiljahr: … Tage“. Beispiel (erfunden): Einzug am
+01.07., 184 Tage, 11,1 kg je m²: Die Grenze zwischen Stufe 3 und 4 liegt bei
+22 × 184 ÷ 365 = 11,09 kg, also **Stufe 4, 30 %** statt Stufe 1 für ein ganzes
+Jahr.
+
 ## 5. Etagenheizung: selbst ausrechnen und einfordern
 
 **1. Verbrauch erfassen.** Gas wie gewohnt mit Zählerständen und Vertrag,
@@ -102,7 +111,7 @@ aus dem Rechnungsdatum entsteht die Frist.
 
 | Feld | Wirkung |
 |---|---|
-| „Gas auch für eigene Geräte (z. B. Gasherd) – Erstattung −5 %“ | Die Erstattung sinkt um 5 % (§ 6 Abs. 3 Satz 2). |
+| „Gas auch für eigene Geräte (z. B. Gasherd): Erstattung −5 %“ | Die Erstattung sinkt um 5 % (§ 6 Abs. 3 Satz 2). |
 | „Öffentlich-rechtliche Vorgaben (§ 9)“: keine | keine Kürzung |
 | … „gegen Sanierung oder Heizungstausch (Anteil halbiert)“ | Eine Vorgabe wie Denkmalschutz verhindert eines davon: Anteil halbiert. |
 | … „gegen beides (keine Aufteilung)“ | Der Vermieter trägt nichts. |
@@ -170,7 +179,7 @@ App prüft, ob er stimmt.
 | „Die Stufe in der Abrechnung weicht von der nachgerechneten ab.“ | andere Stufe |
 | „Der Anteil des Vermieters in der Abrechnung weicht von der Tabelle ab.“ | anderer Prozentsatz |
 | „Der Betrag des Vermieters in der Abrechnung weicht vom nachgerechneten ab.“ | mehr als 0,50 € Unterschied |
-| „In der Abrechnung fehlen Emissionen oder Fläche – so lässt sich nichts nachrechnen.“ | Emissionen oder Wohnfläche fehlen |
+| „In der Abrechnung fehlen Emissionen oder Fläche. So lässt sich nichts nachrechnen.“ | Emissionen oder Wohnfläche fehlen |
 
 **Beispiel:** 2.000 kg CO₂ bei 70 m² sind 28,6 kg je m² — Stufe 5, 40 %. Bei
 300 € CO₂-Kosten trägt der Vermieter 120 €. Nennt die Abrechnung Stufe 4 und

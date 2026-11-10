@@ -49,6 +49,38 @@ final class CrossSiteGuard
         return true;
     }
 
+    /**
+     * v3.12.0 (F1037) — Ist `$origin` die eigene Adresse (Host bzw. erster
+     * X-Forwarded-Host)? Für /api/mcp, das jeden anderen Ursprung abweist.
+     *
+     * @param array<string,mixed> $server typischerweise $_SERVER
+     */
+    public static function isOwnOrigin(string $origin, array $server): bool
+    {
+        $host = self::hostOf(trim($origin));
+        if ($host === null) return false;
+        foreach (self::ownHosts($server) as $own) {
+            if (strcasecmp($own, $host) === 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * v3.12.0 (Nachprüfung A1) — Stammt die Anfrage belegt von der eigenen Seite? Strenger als
+     * isForeignWrite(): Ein Browser nennt bei POST und DELETE immer `Sec-Fetch-Site` oder `Origin`,
+     * curl und Skripte von sich aus nicht. Kein Schutz gegen jemanden, der die Kopfzeilen nachbaut:
+     * Der hält nur die Anmeldung auf.
+     *
+     * @param array<string,mixed> $server typischerweise $_SERVER
+     */
+    public static function isOwnPage(array $server): bool
+    {
+        $site = $server['HTTP_SEC_FETCH_SITE'] ?? null;
+        if (is_string($site) && $site !== '') return strtolower(trim($site)) === 'same-origin';
+        $origin = $server['HTTP_ORIGIN'] ?? null;
+        return is_string($origin) && trim($origin) !== '' && self::isOwnOrigin($origin, $server);
+    }
+
     /** „host" bzw. „host:port" aus einer Origin-URL, ohne Standardport. */
     private static function hostOf(string $origin): ?string
     {

@@ -89,10 +89,11 @@ final class Logger
         ];
 
         // Request-Korrelation, falls im HTTP-Kontext aufgerufen.
+        // v3.12.0 — Härtung: die URI ohne Zugangsdaten (safeUri)
         $method = $_SERVER['REQUEST_METHOD'] ?? null;
-        $uri    = $_SERVER['REQUEST_URI'] ?? null;
+        $rawUri = $_SERVER['REQUEST_URI'] ?? null;
         if ($method !== null) $record['method'] = $method;
-        if ($uri !== null)    $record['uri']    = $uri;
+        if (is_string($rawUri)) $record['uri'] = self::safeUri($rawUri);
 
         if ($context !== []) {
             $record['ctx'] = $context;
@@ -109,6 +110,39 @@ final class Logger
         }
 
         $this->write($line . "\n");
+    }
+
+    /**
+     * v3.12.0 — Härtung: Namen von Abfrageparametern, deren Wert nie ins
+     * Protokoll gehört (auch mit Präfix, etwa `access_token`, `api_key`).
+     */
+    private const SECRET_PARAMS = '/(^|[_-])(token|key|apikey|secret|password|passwd|pass|auth|session|signature|sig)$/i';
+
+    /**
+     * v3.12.0 — Härtung: Anfrage-URI fürs Protokoll. Das Kalender-Abo trägt seinen
+     * Schlüssel im Link (`?token=…`), bis v3.11 stand er mit jeder Meldung
+     * während eines Abrufs im Protokoll. Pfad und harmlose Parameter bleiben für
+     * die Fehlersuche; ersetzt (`***`) werden die Werte der Zugangsparameter
+     * (SECRET_PARAMS) und jeder Wert, der wie ein Schlüssel der App aussieht
+     * (`etk_…`, `et_…`), auch im Pfad.
+     */
+    public static function safeUri(string $uri): string
+    {
+        $keyShape = '/\b(etk|et)_[0-9a-f]{16,}/i';
+        $q = strpos($uri, '?');
+        $path = (string)preg_replace($keyShape, '$1_***', $q === false ? $uri : substr($uri, 0, $q));
+        if ($q === false) return $path;
+        $pairs = [];
+        foreach (explode('&', substr($uri, $q + 1)) as $pair) {
+            $eq = strpos($pair, '=');
+            if ($eq === false) { $pairs[] = $pair; continue; }
+            $name = substr($pair, 0, $eq);
+            $value = substr($pair, $eq + 1);
+            $secret = preg_match(self::SECRET_PARAMS, rawurldecode($name)) === 1
+                || preg_match($keyShape, rawurldecode($value)) === 1;
+            $pairs[] = $name . '=' . ($secret && $value !== '' ? '***' : $value);
+        }
+        return $path . '?' . implode('&', $pairs);
     }
 
     private function write(string $line): void

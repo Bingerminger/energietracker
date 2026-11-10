@@ -135,7 +135,7 @@ die Winter unterscheiden.
 
 > **Wenn nach der Zäsur noch zu wenig Historie vorliegt**, sagt die
 > Oberfläche das im Klartext („Die Regression braucht mindestens 8
-> Messpunkte ab der Zäsur — vorhanden sind 5"), statt eine Auswertung
+> Messpunkte ab der Zäsur, vorhanden sind 5"), statt eine Auswertung
 > wortlos ausfallen zu lassen. Der Vergleich erscheint erst, wenn **beide**
 > Epochen dick genug besetzt sind.
 
@@ -150,8 +150,8 @@ Seit v1.7.0 gehören zwei PV-Verbrauchsarten zum Standard-Eigenheim-Setup:
 `pv_einspeisung` (Zähler des Verteilnetzbetreibers) und `pv_erzeugung`
 (Wechselrichter-Gesamtertrag). Sie sind in den Default-Einstellungen
 NICHT aktiv — wer keine Anlage hat, sieht nichts davon. Wer eine
-Anlage hat, aktiviert beide in *Einstellungen → Verbrauchsarten &
-Abrechnung → Aktive Verbrauchsarten*.
+Anlage hat, aktiviert beide in *Haushalt →
+Verbrauchsarten → Aktive Verbrauchsarten*.
 
 ### 6.1 Welche Zähler brauche ich?
 
@@ -159,7 +159,7 @@ Abrechnung → Aktive Verbrauchsarten*.
 |---|---|
 | Nur Einspeisezähler (Standard-Inbetriebnahme bis ~2022) | Nur `pv_einspeisung` aktivieren. Strom-Saldo wird berechnet, Eigenverbrauch/Autarkiequote bleiben null (`has_generation_meter: false`). |
 | Einspeisezähler + Erzeugungszähler am Wechselrichter | Beide aktivieren. Volle Sicht: Strom-Saldo, Eigenverbrauchsquote, Autarkiequote. |
-| Anlage mit Speicher | Beide aktivieren wie oben; die App zeigt die *effektive* Autarkiequote (Speicher erhöht den Eigenverbrauch automatisch in den Zahlen). Seit v3.1.0 zusätzlich je ein Zähler für Ladung und Entladung unter PV-Erzeugung (Rollen „Speicher – Ladung“, „Speicher – Entladung“) — dann zeigt die Karte „Speicher“ Verluste, Wirkungsgrad und Vollzyklen ([PV §7](12-pv.md#7-speicher-v310)). |
+| Anlage mit Speicher | Beide aktivieren wie oben; die App zeigt die *effektive* Autarkiequote (Speicher erhöht den Eigenverbrauch automatisch in den Zahlen). Seit v3.1.0 zusätzlich je ein Zähler für Ladung und Entladung unter PV-Erzeugung (Rollen „Speicher (Ladung)“, „Speicher (Entladung)“) — dann zeigt die Karte „Speicher“ Verluste, Wirkungsgrad und Vollzyklen ([PV §7](12-pv.md#7-speicher-v310)). |
 | Mehrere PV-Stränge (z. B. Süd- und Ost-Dach mit getrennten Wechselrichtern) | Pro Strang einen `pv_erzeugung`-Zähler anlegen — die App summiert sie für das Dashboard automatisch. |
 
 ### 6.2 Vertrag = Einspeisevergütung
@@ -292,7 +292,7 @@ Vertrag ([Strom](02-strom.md#steuerbare-verbraucher-v310)).
 
 ---
 
-## 7. Termine & Wartung
+## 7. Termine
 
 Lege wiederkehrende Termine an (Heizungswartung, Schornsteinfeger,
 Zähler-Eichfrist, PV-Anlagen-Inspektion alle 4 Jahre). Fällige/

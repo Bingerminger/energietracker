@@ -30,7 +30,7 @@ What the CO₂ price itself is and how the app calculates it:
 
 ## 1. What you need
 
-- **Settings → Household & building → “I live”: “in a rented home”** and Germany as the
+- **Household → Building → “I live”: “in a rented home”** and Germany as the
   country. Otherwise the card is missing; the API answers with
   `supported: false`.
 - A **tenancy** under Costs & contracts → Tenancy
@@ -56,7 +56,7 @@ calculates with your **gas and heating oil data** as self-contained heating.
 ## 3. The floor area
 
 The **“Edit tenancy”** dialog has the field **“Floor area per tenancy agreement
-(m²)”**. Left empty, the living area from Settings → Household & building
+(m²)”**. Left empty, the living area from Household → Building
 applies. Without an area there is no stage; the card then says: “No stage
 without the floor area – please enter it in the tenancy or under Household.” If
 several tenancies apply in the year, the most recent one counts.
@@ -82,6 +82,15 @@ to one decimal place (annex to the CO2KostAufG):
 If a heating cost statement covers less than a year, the app shortens the
 limits in the same proportion (§ 5(1)).
 
+<!-- doc-claim: co2-part-year -->
+*(v3.12.0)* **Self-contained heating too:** if the tenancy starts or ends
+during the year, the stage applies to the days of the tenancy in the calendar
+year and the limits are shortened pro rata (§ 5(3) sentence 4 with (1)). The
+card then says "Part of the year: … days". Example (made up): moving in on
+1 July, 184 days, 11.1 kg per m²: the limit between stage 3 and 4 is
+22 × 184 ÷ 365 = 11.09 kg, so **stage 4, 30 %** instead of stage 1 for a whole
+year.
+
 ## 5. Self-contained heating: work it out and claim it
 
 **1. Record consumption.** Gas as usual with readings and a contract, heating
@@ -101,7 +110,7 @@ supplier’s figures, and the deadline follows from the bill date.
 
 | Field | Effect |
 |---|---|
-| “Gas also for own appliances (e.g. gas cooker) – refund −5%” | The refund is reduced by 5 % (§ 6(3), second sentence). |
+| “Gas also for own appliances (e.g. gas cooker): refund −5%” | The refund is reduced by 5 % (§ 6(3), second sentence). |
 | “Public-law restrictions (§ 9)”: none | no reduction |
 | … “against renovation or replacing the heating (share halved)” | A restriction such as a listed building prevents one of them: share halved. |
 | … “against both (no sharing)” | The landlord bears nothing. |
@@ -167,7 +176,7 @@ checks whether it is right.
 | “The stage on the statement differs from the recalculated one.” | different stage |
 | “The landlord’s share on the statement differs from the table.” | different percentage |
 | “The landlord’s amount on the statement differs from the recalculated one.” | more than 0.50 € apart |
-| “Emissions or floor area are missing from the statement – nothing can be checked.” | emissions or floor area missing |
+| “Emissions or floor area are missing from the statement. Nothing can be checked.” | emissions or floor area missing |
 
 **Example:** 2,000 kg of CO₂ at 70 m² are 28.6 kg per m² — stage 5, 40 %. With
 300 € of CO₂ costs the landlord bears 120 €. If the statement says stage 4 and

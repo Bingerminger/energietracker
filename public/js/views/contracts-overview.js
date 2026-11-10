@@ -18,11 +18,15 @@ import { t, tp } from '../lib/i18n.js';
 // v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
 import { openModal } from '../components/modal.js';
 import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
-import { uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
+import { uncertainRangeHtml, expectedBalance, bandText, balanceView, verdictKey, isFeedIn } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { restNoteText } from '../lib/rest-billing.js';   // v3.9.0 (Skeptiker N7) — Rest-Abrechnung am Elternvertrag
 // v3.7.0 — Zuständig: Vertrag, sonst Zähler; Filter wie in „Zu tun“ (je Gerät gemerkt)
 import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
+import { artIcon } from '../lib/icons.js';
+import { contractLetterButton, bindContractLetters } from '../lib/letter.js';   // v3.12.0 (M4) — Brief an der Zeile
+import { rowMenuHtml, bindRowMenus } from '../lib/row-menu.js';   // v3.12.0 (m4b) — ein Knopf je Zeile, der Rest im Menü
+import { dispatchContractModal } from './contracts.js';
 
 /**
  * v3.7.0 — wer für die Fristen eines Zählers mit laufendem Vertrag zuständig
@@ -79,6 +83,8 @@ export async function render(container) {
     return;
   }
 
+  rowCtx = new Map();
+  storedByContract = new Map();
   // v3.4.0 (F1024) — Verlauf je Vertrag (erledigte Hinweise, Folgevertrag)
   const activityP = api.activity().catch(() => []);
   // Je Verbrauchsart die Zähler, je Zähler der Vertragsstatus — parallel
@@ -106,6 +112,8 @@ export async function render(container) {
         const group = gc ? { id: ref.group_id, name: (groups || []).find(g => g.id === ref.group_id)?.name || ref.group_id, contract: gc } : null;
         return { meter: m, contracts, group, who: responsibleOf(cur ? byId.get(cur.contract_id) : gc ? byId.get(gc.contract_id) : null, m) };
       }));
+      rowCtx.set(u.key, { u, meters, stored: stored || [], groups: groups || [] });
+      for (const c of stored || []) storedByContract.set(c.id, c);
       return { u, rows: mergeGroupRows(rows) };
     } catch (e) {
       return { u, error: e };
@@ -136,15 +144,47 @@ function draw(container, header, blocks) {
   const hidden = all.length - visible.reduce((n, b) => n + (b.rows?.length || 0), 0);
   container.innerHTML = `${header}
     ${withFilter ? filterHtml({ id: 'co-assignee', value: filter, names: assigneeNames(all.map(r => r.who)) }) : ''}
+    <section class="card zeilen contract-rows" aria-label="${escapeHtml(t('nav.contracts'))}"><ul class="zeilen__liste">
     ${visible.filter(b => b.error || !withFilter || b.rows.length).map(utilityCard).join('')}
+    </ul></section>
     ${withFilter && hidden > 0 && visible.every(b => !b.error && !b.rows.length) ? `<p class="muted" data-role="assignee-empty">${escapeHtml(t('assignee.emptyFiltered'))}</p>` : ''}
     ${withFilter ? filterNoteHtml(hidden, filter) : ''}`;
   bindFilter(container, () => draw(container, header, blocks));
   container.querySelectorAll('[data-history]').forEach(b => b.addEventListener('click', () => openHistory(b.dataset.history, b.dataset.name)));
+  // v3.12.0 (M4) — Knöpfe an der Zeile: derselbe Dialog wie unter „Verträge verwalten“, danach neu lesen
+  const openRow = async (b, focusAdvance) => {
+    const x = rowCtx.get(b.dataset.utilityKey);
+    const id = b.dataset.rowEdit || b.dataset.rowAdvance;
+    const stored = x?.stored.find(c => c.id === id);
+    if (!stored) return;
+    const closed = dispatchContractModal(x.u, x.meters, stored, x.stored, x.groups);
+    if (focusAdvance) focusAdvanceField();
+    if (await closed) render(container);
+  };
+  container.querySelectorAll('[data-row-edit]').forEach(b => b.addEventListener('click', () => openRow(b, false)));
+  container.querySelectorAll('[data-row-advance]').forEach(b => b.addEventListener('click', () => openRow(b, true)));
+  for (const [key, x] of rowCtx) {
+    const root = container.querySelector(`.contract-overview[data-utility="${key}"]`);
+    if (root) bindContractLetters(root, key, x.stored);
+  }
+  bindRowMenus(container);   // v3.12.0 (m4b)
+}
+
+/** Dialog offen: das Feld des jüngsten Abschlags in den Blick (Strom und Gas: Gruppe, Wasser: Tabelle). */
+async function focusAdvanceField() {
+  const sel = '.modal [data-group="advance_payments"] input[data-role="amount"], .modal input[data-field="amount_eur"]';
+  for (let i = 0; i < 40; i++) {
+    const el = document.querySelector(sel);
+    if (el) { el.focus(); el.scrollIntoView?.({ block: 'center' }); return; }
+    await new Promise(r => setTimeout(r, 50));
+  }
 }
 
 /** v3.4.0 (F1024) — Verlauf je Vertrags-ID (neueste zuerst, aus GET /api/activity). */
 let historyByContract = new Map();
+/** v3.12.0 (M4) — je Art, was der Vertragsdialog braucht; gespeicherte Verträge nach ID (Knöpfe an der Zeile). */
+let rowCtx = new Map();
+let storedByContract = new Map();
 
 /** Verlauf eines Vertrags: was erledigt wurde, von wem und wann. */
 function openHistory(cid, name) {
@@ -163,36 +203,39 @@ function openHistory(cid, name) {
 }
 
 function utilityCard({ u, rows, error }) {
-  const manage = `<a class="btn btn--ghost btn--sm" href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contractsOverview.manage'))}</a>`;
+  const manage = `<a class="btn btn--ghost btn--sm" href="#/utility/${escapeHtml(u.key)}/contracts" aria-label="${escapeHtml(`${t('contractsOverview.manage')}: ${u.label}`)}">${escapeHtml(t('contractsOverview.manage'))}</a>`;
   let body;
   if (error) {
-    body = `<p class="muted">${escapeHtml(t('contractsOverview.loadFailed', { msg: error.message || String(error) }))}</p>`;
+    body = `<div class="zeile-wrap"><div class="zeile"><span class="zeile__icon">${artIcon(u, { size: 20 })}</span><div class="zeile__text"><span class="zeile__titel">${escapeHtml(u.label)}</span><span class="zeile__meta">${escapeHtml(t('contractsOverview.loadFailed', { msg: error.message || String(error) }))}</span></div></div></div>`;
   } else if (!rows.length) {
-    body = `<p class="muted">${escapeHtml(t('contractsOverview.noMeter'))}</p>`;
+    body = `<div class="zeile-wrap"><div class="zeile"><span class="zeile__icon">${artIcon(u, { size: 20 })}</span><div class="zeile__text"><span class="zeile__titel">${escapeHtml(u.label)}</span><span class="zeile__meta">${escapeHtml(t('contractsOverview.noMeter'))}</span></div></div></div>`;
   } else {
-    body = rows.map(({ meter, contracts, who, group, meters }) => meterBlock(u, meter, contracts, rows.length > 1, who, group, meters)).join('');
+    // v3.12.0 (m4b) — „Verträge verwalten“ im Menü der ersten Zeile mit Vertrag; ohne Vertrag führt „Vertrag anlegen“ dorthin
+    const withContract = rows.findIndex(r => r.group || (r.contracts || []).some(x => x.is_current));
+    body = rows.map(({ meter, contracts, who, group, meters }, i) => meterBlock(u, meter, contracts, rows.length > 1, who, group, meters, i === withContract ? manage : '')).join('');
   }
-  return `
-    <section class="card contract-overview card--${escapeHtml(u.key)}" data-utility="${escapeHtml(u.key)}">
-      <div class="card__title">
-        <span aria-hidden="true">${escapeHtml(u.icon || '')}</span> ${escapeHtml(u.label)}
-        <span class="card__title-action">${manage}</span>
-      </div>
-      ${body}
-    </section>`;
+  return `<li class="contract-overview" data-utility="${escapeHtml(u.key)}"><div class="contract-overview__rows">${body}</div></li>`;
 }
 
 // v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
-export function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, meters = null) {
+// v3.12.0 (M4) — Zeile statt Karte: Knöpfe an der Zeile (Abschlag ändern, Bearbeiten, Brief schreiben)
+export function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, meters = null, manage = '') {
   // v3.9.0 (Gruppenverträge) — über die Gruppe: deren Vertrag, die Zähler zusammen genannt
   const c = group ? group.contract : (contracts || []).find(x => x.is_current);
   const names = (group && meters?.length ? meters : [meter]).map(m => m.name).join(', ');
   const meterLine = showMeter ? `<div class="contract-overview__meter">${escapeHtml(t('contractsOverview.meter', { name: names }))}</div>` : '';
   const groupNote = group ? `<p class="muted small" data-role="overview-group-note">${escapeHtml(t('contractsOverview.viaGroup', { name: group.name }))}</p>` : '';
   if (!c) {
-    return `<div class="contract-overview__row">${meterLine}
-      <p class="muted">${escapeHtml(t('contractsOverview.noContract'))}
-        <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contractsOverview.addContract'))}</a>${chipHtml(who)}</p>
+    return `<div class="contract-overview__row zeile-wrap">
+      <div class="zeile">
+        <span class="zeile__icon" aria-hidden="true">${artIcon(u, { size: 20 })}</span>
+        <div class="zeile__text">
+          <div class="zeile__titel contract-overview__name">${escapeHtml(u.label)}</div>
+          ${meterLine}
+          <p class="muted">${escapeHtml(t('contractsOverview.noContract'))}
+            <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contractsOverview.addContract'))}</a>${chipHtml(who)}</p>
+        </div>
+      </div>
     </div>`;
   }
   const name = [c.provider, c.tariff_name].filter(Boolean).join(' · ') || '–';
@@ -208,12 +251,12 @@ export function meterBlock(u, meter, contracts, showMeter, who = {}, group = nul
   const gapless = next && Number(next.gap_days) === 0;
   // v3.11.0 (Nachprüfung NP4) — verlängert bis zum Folgevertrag: dieser gilt, kein Kündigungstag einer Verlängerung
   if (gapless || (c.renewed && next?.gap_covered)) {
-    facts.push(`<span class="success-text">${escapeHtml(next.provider
+    facts.push(`<span class="ton-ok">${escapeHtml(next.provider
       ? t('contractsOverview.successor', { provider: next.provider, date: fmt.date(next.start) })
       : t('contractsOverview.successorUnnamed', { date: fmt.date(next.start) }))}</span>`);
   } else if (c.cancel_missed) {
     // v3.11.0 (Nachprüfung NP3) — Fernwärme nach § 32 AVBFernwärmeV: bis wann sie sich verlängert
-    facts.push(`<span class="danger-text">${escapeHtml(c.renewal_term
+    facts.push(`<span class="ton-fehler">${escapeHtml(c.renewal_term
       ? t('contractsOverview.cancelMissedHeat', { date: fmt.date(c.cancel_by), until: fmt.date(c.renewal_term.until) })
       : t('contractsOverview.cancelMissed', { date: fmt.date(c.cancel_by) }))}</span>`);
   } else if (c.is_open_ended && !c.renewed && c.notice_basis === 'unknown') {
@@ -241,44 +284,42 @@ export function meterBlock(u, meter, contracts, showMeter, who = {}, group = nul
   } else if (c.cancel_by && c.remind_basis === 'cancel_by') {
     const days = Number(c.days_to_cancel);
     const soon = Number.isFinite(days) && days >= 0 && days <= 42;
-    facts.push(`<span${soon ? ' class="warning-text"' : ''}>${escapeHtml(t('contractsOverview.cancelBy', { date: fmt.date(c.cancel_by) }))}${
+    facts.push(`<span${soon ? ' class="ton-warn"' : ''}>${escapeHtml(t('contractsOverview.cancelBy', { date: fmt.date(c.cancel_by) }))}${
       Number.isFinite(days) && days >= 0 ? ` (${escapeHtml(tp('contractsOverview.daysLeft', days))})` : ''}</span>`);
   }
   // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Frist bleibt, die Lücke steht daneben
   // v3.11.0 (Skeptiker N10) — füllt die Verlängerung ohne Kündigung die Lücke, ist es keine
   if (next && !gapless && !next.gap_covered) {
-    facts.push(`<span class="warning-text">${escapeHtml(tp('contractsOverview.successorGap', Number(next.gap_days), { date: fmt.date(next.start) }))}</span>`);
+    facts.push(`<span class="ton-warn">${escapeHtml(tp('contractsOverview.successorGap', Number(next.gap_days), { date: fmt.date(next.start) }))}</span>`);
   }
-  if (c.current_advance_amount != null) {
-    // v3.9.0 (F1034) — alle zwei oder drei Monate: Betrag je Termin, nicht „im Monat“
-    facts.push(escapeHtml(Number(c.current_advance_every_months) > 1
-      ? t('contractsOverview.advanceEvery', { amount: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
-      : t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) })));
-  }
+  // v3.9.0 (F1034) — alle zwei oder drei Monate: Betrag je Termin, nicht „im Monat“
+  const advanceHtml = c.current_advance_amount == null ? '' : escapeHtml(Number(c.current_advance_every_months) > 1
+    ? t('contractsOverview.advanceEvery', { amount: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
+    : t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) }));
 
   // v3.10.0 — dieselbe Quelle wie die Saldo-Karte (expectedBalance): Summe einer Abrechnung über
   // mehrere Verträge, Spanne bzw. Breite der Schätzung
   const exp = expectedBalance(c);
   const verdict = c.settle_verdict || c.verdict;
-  const good = verdict === 'refund' || verdict === 'payout';
-  const bad = verdict === 'surcharge' || verdict === 'reclaim';
+  // v3.12.0 (Sichtung S1) — Farbe und Wort nach dem Vorzeichen, neutral nur bei genau 0
+  const bv = exp ? balanceView(exp.value, u) : null;
+  const even = !bv || bv.credit === null;
   // v3.7.0 (Nachlauf vor dem Release) — unsichere Schätzung: die Spanne der Saldo-Karte statt eines Betrags
   const expected = exp && exp.unc
     ? `<div class="contract-overview__expected" data-role="expected-range">
         ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
-        <strong>${escapeHtml(uncertainRangeText(exp.unc))}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
+        <strong>${uncertainRangeHtml(exp.unc)}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
       </div>`
     : exp && verdict
     ? `<div class="contract-overview__expected">
         ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
-        <strong class="${good ? 'success-text' : bad ? 'danger-text' : ''}">${escapeHtml(t('utility.verdict.' + verdict))} ${
-          verdict === 'balanced' ? '' : exp.band ? `≈ ${fmt.eur0(Math.abs(exp.value))}` : fmt.eur(Math.abs(exp.value))}</strong>
+        <strong class="${even ? '' : bv.cls}">${escapeHtml(t('utility.verdict.' + verdictKey(exp.value, u)))} ${
+          even ? '' : exp.band && bv.amount >= 1 ? `≈ ${fmt.eur0(bv.amount)}` : fmt.eur(bv.amount)}</strong>
         ${exp.band ? `<span class="muted small" data-role="expected-band">${escapeHtml(bandText(exp.band))}</span>` : ''}
       </div>`
     : '';
   // v3.9.0 (Skeptiker M7) — passt der Stichtag nicht zur letzten Rechnung: derselbe Hinweis wie an der Karte
   const anchorHint = anchorHintText(c.billing_period);
-  const expectedWithHint = expected + (anchorHint ? `<p class="muted small" data-role="overview-anchor-hint">${escapeHtml(anchorHint)}</p>` : '');
 
   // v3.4.0 (F1024) — Verlauf an der Vertragskarte, sobald es Einträge gibt
   const entries = historyByContract.get(c.contract_id) || [];
@@ -286,15 +327,38 @@ export function meterBlock(u, meter, contracts, showMeter, who = {}, group = nul
     ? `<button type="button" class="btn btn--ghost btn--sm contract-overview__history" data-history="${escapeHtml(c.contract_id)}" data-name="${escapeHtml(name)}">
         ${escapeHtml(t('contractsOverview.history', { count: entries.length }))}</button>`
     : '';
+  // v3.12.0 (M4) — Knöpfe an der Zeile: T03, T04 und T18 ohne den Umweg über „Verträge verwalten“
+  // v3.12.0 (m4b) — ein Knopf je Zeile sichtbar (der Abschlag, bei der Einspeisung „Bearbeiten“), der Rest im
+  // Menü der Zeile; die Knöpfe stehen rechts in der Zeile statt in einer eigenen Reihe darunter. Am iPhone
+  // standen vier Knöpfe in zwei Reihen, am Mac war die Seite 1.340 px hoch.
+  const stored = storedByContract.get(c.contract_id);
+  // Die Einspeisung kennt keine Abschläge (der Netzbetreiber zahlt aus)
+  const advanceBtn = stored && !isFeedIn(u) ? `<button type="button" class="btn btn--ghost btn--sm" data-row-advance="${escapeHtml(c.contract_id)}" data-utility-key="${escapeHtml(u.key)}" aria-label="${escapeHtml(t('contractsOverview.rowAdvanceNamed', { name }))}">${escapeHtml(t('contractsOverview.rowAdvance'))}</button>` : '';
+  const editBtn = stored ? `<button type="button" class="btn btn--ghost btn--sm" data-row-edit="${escapeHtml(c.contract_id)}" data-utility-key="${escapeHtml(u.key)}" aria-label="${escapeHtml(t('contractsOverview.rowEditNamed', { name }))}">${escapeHtml(t('contractsOverview.rowEdit'))}</button>` : '';
+  const first = advanceBtn || editBtn;
+  const menu = rowMenuHtml({ label: t('rowMenu.label', { name: `${u.label}: ${name}` }),
+    items: [advanceBtn ? editBtn : '', stored ? contractLetterButton(stored) : '', historyBtn, manage] });
+  const actions = `${first}${menu}`;
 
-  return `<div class="contract-overview__row"${group ? ` data-group="${escapeHtml(group.id)}"` : ''}>
-      ${meterLine}
-      <div class="contract-overview__name">${escapeHtml(name)}${chipHtml(who)}</div>
-      ${groupNote}
-      <div class="muted">${escapeHtml(term)}</div>
-      ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
-      ${expectedWithHint}
-      ${c.rest_of ? `<p class="muted small" data-role="overview-rest-note">${escapeHtml(restNoteText(c.rest_of, u.consumption_unit))}</p>` : ''}
-      ${historyBtn}
+  return `<div class="contract-overview__row zeile-wrap"${group ? ` data-group="${escapeHtml(group.id)}"` : ''} data-contract="${escapeHtml(c.contract_id)}">
+      <div class="zeile">
+        <span class="zeile__icon" aria-hidden="true">${artIcon(u, { size: 20 })}</span>
+        <div class="zeile__text">
+          <div class="zeile__titel contract-overview__name">${escapeHtml(u.label)}: ${escapeHtml(name)}${chipHtml(who)}</div>
+          ${meterLine}
+          ${groupNote}
+          <div class="zeile__meta">${escapeHtml(term)}</div>
+          ${facts.length ? `<div class="zeile__meta contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
+          ${c.rest_of ? `<p class="muted small" data-role="overview-rest-note">${escapeHtml(restNoteText(c.rest_of, u.consumption_unit))}</p>` : ''}
+          ${anchorHint ? `<p class="muted small" data-role="overview-anchor-hint">${escapeHtml(anchorHint)}</p>` : ''}
+        </div>
+        <div class="zeile__werte">
+          <div class="zeile__wertspalte">
+            ${advanceHtml ? `<div class="zeile__wert" data-role="overview-advance">${advanceHtml}</div>` : ''}
+            ${actions.trim() ? `<div class="zeile__aktionen zeile__aktionen--rechts">${actions}</div>` : ''}
+          </div>
+          ${expected}
+        </div>
+      </div>
     </div>`;
 }

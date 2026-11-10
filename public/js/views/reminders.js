@@ -20,6 +20,7 @@ import { ownAssigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFi
   matchesAssignee, storedFilter, normName, displayName } from '../lib/assignee.js';
 // v3.7.0 — Termin am Zähler (Eichfrist, Zählerwechsel, Lieferung): Zähler zur Wahl
 import { activeUtilities } from '../state.js';
+import { icon } from '../lib/icons.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -36,10 +37,10 @@ const badgesChanged = () => window.dispatchEvent(new CustomEvent('et:badges-refr
 
 export async function render(container, _params, ctx = {}) {
   await draw(container);
-  // Sprungziel des Erfassen-Blatts: #/reminders?add=1
+  // Sprungziel des Erfassen-Blatts: #/todo/dates?add=1
   if (ctx.query?.get('add') === '1') {
-    try { history.replaceState(history.state, '', '#/reminders'); } catch { /* egal */ }
-    openForm(container, null);
+    try { history.replaceState(history.state, '', '#/todo/dates'); } catch { /* egal */ }
+    setTimeout(() => { if (container.isConnected) openForm(container, null); }, 0);
   }
 }
 
@@ -54,7 +55,7 @@ async function draw(container) {
     // v3.6.0 — Personen aus dem Personenverzeichnis (auch ohne Anmeldung, etwa im Beispielhaushalt)
     [list, people, meters] = await Promise.all([api.reminders(), api.people().catch(() => []), loadMeters()]);
   } catch (e) {
-    container.innerHTML = `<div class="banner banner--error">${t('reminders.loadError', { msg: esc(e.message || e) })}</div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler">${t('reminders.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
   }
   known.people = Array.isArray(people) ? people : [];
@@ -80,14 +81,14 @@ async function draw(container) {
         <p class="view-header__subtitle">${t('reminders.subtitle')}</p>
       </div>
       <div class="view-header__actions">
-        <button class="btn btn--ghost" id="rem-subscribe"><span aria-hidden="true">📅</span> ${t('calendar.subscribe')}</button>
+        <button class="btn btn--ghost" id="rem-subscribe">${icon('kalender')} ${t('calendar.subscribe')}</button>
         <button class="btn btn--primary" id="rem-add" data-rem-add>${t('reminders.add')}</button>
       </div>
     </div>
 
     ${sorted.length === 0
       // v3.9.0 — derselbe Leerzustand wie auf den anderen Seiten (lib/empty.js), statt Hinweisbalken und Knopf
-      ? emptyHtml({ icon: '📌', title: t('reminders.empty'), text: t('reminders.emptyText'), role: 'reminders-empty',
+      ? emptyHtml({ icon: 'merker', title: t('reminders.empty'), text: t('reminders.emptyText'), role: 'reminders-empty',
           action: `<button type="button" class="btn btn--primary" data-rem-add>${esc(t('reminders.emptyCta'))}</button>` })
       // v2.12.0 (Review UI-20) — die Tabelle in einer Karte wie auf den anderen Seiten
       : `${withFilter ? filterHtml({ id: 'rem-assignee', value: filter, names: assigneeNames(list) }) : ''}
@@ -99,7 +100,7 @@ async function draw(container) {
           <tbody>
             ${shown.map(rowHtml).join('')}
           </tbody>
-        </table></div></div>` : `<div class="banner banner--info" data-role="assignee-empty">${esc(t('assignee.emptyFiltered'))}</div>`}
+        </table></div></div>` : `<div class="infobox infobox--info" data-role="assignee-empty">${esc(t('assignee.emptyFiltered'))}</div>`}
         ${withFilter ? filterNoteHtml(sorted.length - shown.length, filter) : ''}`}
   `;
 
@@ -157,7 +158,7 @@ async function draw(container) {
 /** v3.7.0 (Paket betrieb) — „Zählerstand melden“ am Zähler: direkt in dessen Erfassung. */
 export function readingLinkHtml(r) {
   if (r?.category !== 'zaehlerstand_melden' || !r.meter_id) return '';
-  return `<a class="btn btn--xs btn--primary" data-reading-link href="#/zaehlerstaende?meter=${esc(encodeURIComponent(r.meter_id))}">${esc(t('reminders.action.enterReading'))}</a>`;
+  return `<a class="btn btn--sm btn--primary" data-reading-link href="#/zaehlerstaende?meter=${esc(encodeURIComponent(r.meter_id))}">${esc(t('reminders.action.enterReading'))}</a>`;
 }
 
 function rowHtml(r) {
@@ -182,9 +183,9 @@ function rowHtml(r) {
     <td class="cell-actions">
       ${readingLinkHtml(r)}
       <!-- v2.12.0 (Review UI-22) — Vorlesetext mit dem Namen des Termins -->
-      <button class="btn btn--xs btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${esc(t('reminders.action.doneNamed', { title: r.title }))}"><span aria-hidden="true">✓</span></button>
-      <button class="btn btn--xs btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${esc(t('reminders.action.editNamed', { title: r.title }))}"><span aria-hidden="true">✎</span></button>
-      <button class="btn btn--xs btn--ghost" data-del="${esc(r.id)}" title="${t('reminders.action.delete')}" aria-label="${esc(t('reminders.action.deleteNamed', { title: r.title }))}"><span aria-hidden="true">🗑</span></button>
+      <button class="btn btn--sm btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${esc(t('reminders.action.doneNamed', { title: r.title }))}">${icon('haken')}</button>
+      <button class="btn btn--sm btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${esc(t('reminders.action.editNamed', { title: r.title }))}">${icon('stift')}</button>
+      <button class="btn btn--sm btn--ghost" data-del="${esc(r.id)}" title="${t('reminders.action.delete')}" aria-label="${esc(t('reminders.action.deleteNamed', { title: r.title }))}">${icon('eimer')}</button>
     </td>
   </tr>`;
 }
@@ -360,7 +361,7 @@ export function calendarLinkFor(url, personId) {
 // v3.1.0 (Paket H1, MKT-09) — Fristen und Termine als Kalender-Abo. Mit
 // eingeschalteter Anmeldung bekommt das Abo einen eigenen Schlüssel (Bereich
 // „calendar"), der nur für den Kalender gilt und im Link stehen darf.
-async function openCalendarSubscription() {
+export async function openCalendarSubscription() {
   // v3.5.0 (N1025) — Unter Home-Assistant-Ingress braucht die Adresse aus der
   // Adresszeile eine HA-Sitzung; kein Kalender kann sie abrufen. Dann die
   // Adresse im Netz von Home Assistant (wie die HA-Vorlagen) und ein Hinweis,

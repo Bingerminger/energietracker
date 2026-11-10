@@ -945,7 +945,7 @@ geprüft (`base_load.reference`, `reference_months`).
 
 Bei `poor` sagt die Abweichungstabelle das, nennt die Grenze `detect_floor`,
 unter der sie nichts erkennt, bei der Grundlast auch Modell und Messung je Tag,
-und verweist auf die Heizgrenze (Einstellungen › Verbrauchsarten & Abrechnung ›
+und verweist auf die Heizgrenze (Haushalt › Verbrauchsarten ›
 Physikalische Konstanten, ab Stufe Erfahren). Ein gut passendes Modell erkennt
 bei 2σ ab 20 % eines typischen Monats; über 15 % erst ab 30 %, anderthalbmal so
 spät. 15 % ist auch die Grenze, die ASHRAE Guideline 14 für kalibrierte Modelle
@@ -1113,6 +1113,18 @@ Modell schlecht:  jede Annahme zusätzlich × (1 ± Verhältnis der Gütesperre)
 Spanne            = erwarteter Saldo + (Energie_Annahme − geschätzte Energie), kleinste bis größte
 Abschlag          = aktueller Abschlag + Spanne / verbleibende Monate
 ```
+
+**Gruppe mit verschieden weit abgelesenen Mitgliedern (seit v3.12.0).** Die Gruppe
+gilt als gemessen bis zum **frühesten** letzten Stand ihrer Mitglieder. Von da an
+schätzt die App die ganze Gruppe; was das später abgelesene Mitglied danach schon
+gemessen hat, zählt nicht zusätzlich, sonst stünden diese Tage doppelt im Saldo.
+Auch Tagesraten und Kalibrierung kommen nur aus Monaten, in denen alle Mitglieder
+abgelesen sind; ein Monat ohne ein Mitglied sähe sonst nach gesunkenem Verbrauch aus.
+Liegen die Stände **mehr als 62 Tage** auseinander, ist der Saldo als unsicher
+gekennzeichnet (`group_readings_differ`): Die Spanne gibt den Tagen, für die es gar
+keinen Stand gibt, ± 50 %. Der Saldo nur über Gemessenes (`balance_measured`) endet
+ohnehin am frühesten Stand. **Ablesen aller Mitglieder am selben Tag** macht die
+Schätzung überflüssig.
 
 Ohne Heizmodell (Strom, Wasser) gibt es weder Gütesperre noch einen Heizanteil,
 der über das Jahr fortgeschrieben wird; ein nie gemessener Kalendermonat nimmt die
@@ -1388,8 +1400,13 @@ zwei Wochen Frist aus § 20 StromGVV bzw. GasGVV (`notice_basis: basic_supply`,
 ```text
 Stichtag (befristet)   = Vertragsende − Kündigungsfrist
 Wechsel (jederzeit)    = heute + Frist, zum Monatsende oder zu jedem Tag
-Wechsel (weiterlaufend)= heute + min(Frist, 1 Monat)
+Wechsel (weiterlaufend)= laut Vertrag (die App rechnet keinen; Fernwärme und Grundversorgung s. o.)
 ```
+
+*(v3.12.0)* Bis v3.11 stand hier für den weiterlaufenden Vertrag „heute + min(Frist,
+1 Monat)“; so rechnet die App nicht (Rechtsgrundlagen Nr. 59). Die Kündigung zum nächstmöglichen Termin
+lässt den Termin dann offen und sagt im Dialog warum (Stichtag verpasst, Vertrag
+läuft weiter, keine Frist eingetragen).
 
 Fristen gibt es in Monaten, Wochen oder Tagen (`notice_period_months` bzw.
 `notice_period_days`), dazu die Kündigungsweise (`notice_mode`: zum

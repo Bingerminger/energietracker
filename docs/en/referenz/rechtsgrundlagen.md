@@ -17,7 +17,8 @@ every rule here, no row without a rule, same norm, same source, same date.
 > energy arbitration board (Schlichtungsstelle Energie).
 
 The rules apply to Germany only. In any other country the app shows no notes on
-rights and no letters. Norms keep their German citation, as on the official
+rights. Of the letters only the termination on the contract card remains there;
+it names no provision and makes no legal statement (v3.12.0). Norms keep their German citation, as on the official
 source.
 
 ## Status
@@ -189,6 +190,8 @@ checks nothing for conventional meters and for gas.
 | 49 <!-- doc-claim: rights-rule de.vwgo.68.1 --> | *To be checked:* State law can exclude the objection procedure; then an action must be brought within one month. | [§ 68 Abs. 1 Satz 2, § 74 Abs. 1 VwGO](https://www.gesetze-im-internet.de/vwgo/__68.html) | 2026-11-03 | G |
 | 50 <!-- doc-claim: rights-rule de.vwvfg.41.2 --> | A notice sent by post within Germany is deemed notified on the fourth day after posting. | [§ 41 Abs. 2 Satz 1 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-03 | W |
 | 50 <!-- doc-claim: rights-rule de.ao.122.2 --> | For levies the same under the Fiscal Code; the reference in each state’s municipal levies act is still to be checked. | [§ 122 Abs. 2 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-03 | W |
+| 50 <!-- doc-claim: rights-rule de.vwvfg.41.2.3 --> | If the notice did not arrive or arrived later, the fourth day does not apply; in case of doubt the authority must prove receipt and its date (“Dies gilt nicht, wenn der Verwaltungsakt nicht oder zu einem späteren Zeitpunkt zugegangen ist …”). | [§ 41 Abs. 2 Satz 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-09 | W |
+| 50 <!-- doc-claim: rights-rule de.ao.122.2.zugang --> | The same for levies (“außer wenn er nicht oder zu einem späteren Zeitpunkt zugegangen ist”). | [§ 122 Abs. 2 AO, letzter Halbsatz](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-09 | W |
 | 51 <!-- doc-claim: rights-rule de.vwgo.80 --> | Objection and action against public levies do not defer payment; enforcement should be suspended if there are serious doubts or it would cause undue hardship. | [§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO](https://www.gesetze-im-internet.de/vwgo/__80.html) | 2026-11-03 | W |
 | 52 <!-- doc-claim: rights-rule de.bgb.188 --> | *To be checked:* A one-month deadline ends on the day of the following month with the same number; if there is none, on the last day of the month (the BGB applies under § 222 Abs. 1 ZPO and § 31 Abs. 1 VwVfG). For an end on a weekend or holiday see no. 60. | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-03 | G |
 | 60 <!-- doc-claim: rights-rule de.vwgo.57.2 --> | If the end of a deadline falls on a Sunday, a general public holiday or a Saturday, it ends at the end of the next working day; under § 57 Abs. 2 VwGO this applies to the deadlines of the VwGO. | [§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO](https://www.gesetze-im-internet.de/vwgo/__57.html) | 2026-11-03 | W |

@@ -2,10 +2,11 @@
 
 **English** · [Deutsch](INSTALL.de.md)
 
-> 🔐 **Security:** without sign-in, anyone who can reach the app can read and
+> [!WARNING]
+> **Security:** without sign-in, anyone who can reach the app can read and
 > change all data — fine in your own home network. Before making it reachable
 > from outside (port forwarding, reverse proxy, QuickConnect), switch on sign-in
-> (Settings → Access → "Sign-in & access") and read
+> (Settings → Access and security → "Sign-in & access") and read
 > [Security & network operation](docs/en/betrieb/sicherheit.md). Better
 > still: reach it on the road via VPN.
 
@@ -29,7 +30,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.11.0
+├── VERSION                ← 3.12.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -142,7 +143,7 @@ Templates for Synology, Unraid, CasaOS/ZimaOS and Umbrel (the last three under
 ## Load sample data (optional)
 
 Easiest in the app: on the empty overview **"Try with sample data"**, otherwise
-Settings → Data → "Load demo data". The app saves a snapshot of the current
+Settings → Data and backup → "Load demo data". The app saves a snapshot of the current
 state first. The repository also ships the same data as a backup file:
 [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
 
@@ -161,8 +162,7 @@ the current state. More in [`demo-data/README.md`](demo-data/README.md).
 Since v3.4.0 the import of old v0.9.0 backups is gone (it was the last part of
 the pre-1.0 era and only got in the way of the role model). If you still have
 one: install **v3.3.0** (`git checkout v3.3.0` or the image
-`ghcr.io/bingerminger/energietracker:3.3.0`), import the backup there under
-Settings → Data → Backup & restore → Migration from v0.9.0, then update to the
+`ghcr.io/bingerminger/energietracker:3.3.0`), import the backup there under Settings → Data → Backup & restore → Migration from v0.9.0 (the interface of 3.3.0), then update to the
 current version as usual. A data directory that is still in the v0.9.0 layout
 is still converted on the first start.
 
@@ -171,7 +171,7 @@ is still converted on the first start.
 Do you run Home Assistant and want to have meter readings handed over
 automatically? Energietracker has an official push endpoint for this
 (`POST /api/ingest`) with an optional API token. Setup directly in the UI under
-**Settings → Integrations → 🏠 Home Assistant integration**.
+**Connections → Home Assistant**.
 
 Step-by-step instructions including REST command, automation and use cases
 (detached house, rented flat): [Connect Home Assistant](docs/en/anleitungen/home-assistant.md).

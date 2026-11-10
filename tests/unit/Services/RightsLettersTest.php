@@ -93,24 +93,28 @@ final class RightsLettersTest extends ServiceTestCase
     /**
      * v3.11.0 (Skeptiker H2) — nach dem Fristende kein Widerspruch: kein Brief am Befund, der Server lehnt ab.
      * v3.11.0 (Nachprüfung NP1) — Bescheid vom 27.01.2026, bekannt 31.01., rechnerisch Samstag 28.02.2026: Die Frist
-     * endet am Montag 02.03.2026 (Prüfbericht 60). Am Sonntag 01.03. und am Montag geht der Brief, ab 03.03. nicht.
+     * endet am Montag 02.03.2026 (Prüfbericht 60). Am Sonntag 01.03. und am Montag geht der Brief.
+     * v3.12.0 — das Ende vom Bescheiddatum ist nur das früheste: bis 09.03. (+ 7 Tage) geht der Brief weiter, der
+     * Dialog sagt „möglicherweise abgelaufen“ (`finding.maybe_expired`); ab 10.03. lehnt der Server ab. Umbenannt
+     * aus testNoObjectionAfterTheDeadline (lehnte schon am 03.03. ab).
      */
-    public function testNoObjectionAfterTheDeadline(): void
+    public function testObjectionInTheSoftZoneAndNoneAfterIt(): void
     {
         $this->scenario('fee_notice_deadline');
-        $f = $this->rights->findings('2026-03-03')[0];
+        $f = $this->rights->findings('2026-03-10')[0];
         self::assertSame([null, true, '2026-03-02'], [$f['letter'], $f['facts']['expired'], $f['deadline']]);
         try {
-            $this->letters->render(['finding_id' => $f['id'], 'kind' => 'objection', 'extra' => ['confirm_objection' => true]], '2026-03-03');
-            self::fail('Widerspruch nach dem Fristende');
+            $this->letters->render(['finding_id' => $f['id'], 'kind' => 'objection', 'extra' => ['confirm_objection' => true]], '2026-03-10');
+            self::fail('Widerspruch nach der Weichzone');
         } catch (\Energietracker\Http\HttpStatusException $e) {
             self::assertSame([422, 'errors.letter.deadlinePassed'], [$e->status, $e->key]);
         }
         // am rechnerischen Ende (Samstag), am Sonntag und am verschobenen Ende (Montag) geht er noch
-        foreach (['2026-02-28', '2026-03-01', '2026-03-02'] as $day) {
+        foreach (['2026-02-28', '2026-03-01', '2026-03-02', '2026-03-03', '2026-03-09'] as $day) {
             $on = $this->rights->findings($day)[0];
             self::assertSame(['objection', false], [$on['letter'], $on['facts']['expired']], $day);
-            self::assertSame('objection', $this->letters->render(['finding_id' => $on['id'], 'extra' => ['confirm_objection' => true]], $day)['model']['kind'], $day);
+            $m = $this->letters->render(['finding_id' => $on['id'], 'extra' => ['confirm_objection' => true]], $day)['model'];
+            self::assertSame(['objection', $day > '2026-03-02'], [$m['kind'], $m['finding']['maybe_expired'] ?? null], $day);
         }
     }
 

@@ -94,13 +94,21 @@ final class UntrustedHeatModelTest extends ServiceTestCase
      * über 0,15 des mittleren Monats), also kein Vertrauen und keine Aufteilung auf Grundlast und
      * Heizanteil (Schritt 3, N5, Nachlauf). Erfundene Daten.
      */
+    /**
+     * v3.12.0 — feste Tage: 30 Monate bis 01.11.2026, gerechnet am 10.11.2026. Mit „−30 Monate“ ab heute
+     * lief der Monat am 31. über (31.04. = 01.05.), und je Kalendermonat lag die Streuung anders.
+     */
+    private const FIRST = '2024-05-01';
+    private const UNTIL = '2026-11-01';
+    private const TODAY = '2026-11-10';
+
     public function testAPoorFitAloneIsNotTrustedEvenWithTheRightBaseLoad(): void
     {
-        $first = date('Y-m-01', strtotime('-30 months'));
+        $first = self::FIRST;
         $meter = $this->setMeterDevices('gas', [['id' => 'd_p', 'serial' => null, 'installed_on' => $first, 'initial_counter' => 0.0,
             'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
         $temps = []; $rows = []; $c = 0.0;
-        for ($t = strtotime($first); $t <= strtotime(date('Y-m-01')); $t += 86400) {
+        for ($t = strtotime($first); $t <= strtotime(self::UNTIL); $t += 86400) {
             $d = date('Y-m-d', $t);
             $avg = 10.0 - 9.0 * cos(2 * M_PI * ((int)date('z', $t) - 15) / 365.25);
             $temps[$d] = ['avg' => round($avg, 1), 'min' => round($avg - 3, 1), 'max' => round($avg + 3, 1)];
@@ -111,12 +119,13 @@ final class UntrustedHeatModelTest extends ServiceTestCase
         $this->store->write('temperatures.json', $temps);
         $this->setReadings('gas', $meter, $rows);
         $m = $this->meters->get('gas', $meter);
-        $monthly = $this->consumption->forMeter('gas', $m);
+        $monthly = $this->consumption->forMeter('gas', $m, null, self::TODAY);
         $q = $this->consumption->anomalyQuality('gas', $monthly);
         self::assertSame('poor', $q['model_quality'], json_encode($q));
         self::assertSame(['scatter'], $q['reasons'], 'nur die Streuung, die Grundlast besteht');
         self::assertGreaterThan(0.5, (float)$q['base_load']['base_ratio'], 'Grundlast des Modells über der Hälfte des gemessenen Sommers');
-        (new \ReflectionMethod($this->consumption, 'volumeEstimator'))->invoke($this->consumption, 'gas', $monthly, 'kwh', $m);
+        $this->consumption->atDate(self::TODAY, fn() => (new \ReflectionMethod($this->consumption, 'volumeEstimator'))
+            ->invoke($this->consumption, 'gas', $monthly, 'kwh', $m));
         $p = (new \ReflectionProperty($this->consumption, 'lastProjection'))->getValue($this->consumption);
         self::assertFalse($p['trusted'], 'Gütesperre nicht bestanden');
         self::assertFalse($p['split'], 'ein Faktor für das Ganze');
@@ -125,11 +134,11 @@ final class UntrustedHeatModelTest extends ServiceTestCase
     public function testATrustedHeatModelStillEstimatesWithTheWeather(): void
     {
         // gleichmäßig 5 kWh Grundlast + 0,3 kWh je Gradtag, monatlich abgelesen: verlässliches Modell
-        $first = date('Y-m-01', strtotime('-30 months'));
+        $first = self::FIRST;
         $meter = $this->setMeterDevices('gas', [['id' => 'd_t', 'serial' => null, 'installed_on' => $first, 'initial_counter' => 0.0,
             'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
         $temps = []; $rows = []; $c = 0.0;
-        for ($t = strtotime($first); $t <= strtotime(date('Y-m-01')); $t += 86400) {
+        for ($t = strtotime($first); $t <= strtotime(self::UNTIL); $t += 86400) {
             $d = date('Y-m-d', $t);
             $avg = 10.0 - 9.0 * cos(2 * M_PI * ((int)date('z', $t) - 15) / 365.25);
             $temps[$d] = ['avg' => round($avg, 1), 'min' => round($avg - 3, 1), 'max' => round($avg + 3, 1)];
@@ -139,9 +148,10 @@ final class UntrustedHeatModelTest extends ServiceTestCase
         $this->store->write('temperatures.json', $temps);
         $this->setReadings('gas', $meter, $rows);
         $m = $this->meters->get('gas', $meter);
-        $monthly = $this->consumption->forMeter('gas', $m);
-        $this->consumption->contractStatus('gas', $m);
-        $est = (new \ReflectionMethod($this->consumption, 'volumeEstimator'))->invoke($this->consumption, 'gas', $monthly, 'kwh', $m);
+        $monthly = $this->consumption->forMeter('gas', $m, null, self::TODAY);
+        $this->consumption->contractStatus('gas', $m, self::TODAY);
+        $est = $this->consumption->atDate(self::TODAY, fn() => (new \ReflectionMethod($this->consumption, 'volumeEstimator'))
+            ->invoke($this->consumption, 'gas', $monthly, 'kwh', $m));
         $p = (new \ReflectionProperty($this->consumption, 'lastProjection'))->getValue($this->consumption);
         self::assertTrue($p['trusted'], 'Gütesperre bestanden, Grundlast wie der Sommer');
         // ein Tag mit 5 °C: 5 + 0,3 × 10 = 8 kWh (Faktoren rund 1)

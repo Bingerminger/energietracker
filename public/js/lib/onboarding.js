@@ -10,6 +10,7 @@ import { api } from '../api.js';
 import { getSettings, getCountries, getUtilities } from '../state.js';
 import { t } from './i18n.js';
 import { escapeHtml } from './format.js';
+import { icon } from './icons.js';
 
 /**
  * @returns {Promise<Array<{id: string, done: boolean, href: string, optional?: boolean}>>}
@@ -31,7 +32,7 @@ export async function setupSteps() {
     && Number(settings.longitude) === Number(profile.longitude);
 
   const rows = overview?.rows || [];
-  const steps = [{ id: 'location', done: !locationDefault, href: '#/temperatures' }];
+  const steps = [{ id: 'location', done: !locationDefault, href: '#/connections/weather' }];
   if (rows.length) {
     steps.push({ id: 'firstReading', done: rows.some(r => r.last_reading), href: '#/zaehlerstaende' });
     steps.push({ id: 'secondReading', done: rows.some(r => (r.reading_count || 0) >= 2), href: '#/zaehlerstaende' });
@@ -43,7 +44,7 @@ export async function setupSteps() {
   const hasContract = lists.some(list => (list || []).some(c => !c.is_shadow));
   if (withContracts.length) steps.push({ id: 'contract', done: hasContract, href: '#/contracts' });
 
-  steps.push({ id: 'homeAssistant', done: !!(ha?.enabled && ha?.last_used_at), href: '#/settings/integrations', optional: true });
+  steps.push({ id: 'homeAssistant', done: !!(ha?.enabled && ha?.last_used_at), href: '#/connections/homeassistant', optional: true });
   return steps;
 }
 
@@ -55,7 +56,7 @@ export function setupListHtml(steps) {
     <ol class="setup-list">
       ${steps.map((s, i) => `
       <li class="setup-list__item${s.done ? ' setup-list__item--done' : ''}">
-        <span class="setup-list__mark" aria-hidden="true">${s.done ? '✓' : i + 1}</span>
+        <span class="setup-list__mark" aria-hidden="true">${s.done ? icon('haken', { size: 16 }) : i + 1}</span>
         <span class="setup-list__body">
           <span><a href="${s.href}">${escapeHtml(t(`onboarding.step.${s.id}.title`))}</a>${s.optional ? ` <span class="muted small">(${escapeHtml(t('onboarding.optional'))})</span>` : ''}</span>
           <span class="muted small">${escapeHtml(t(`onboarding.step.${s.id}.text`))}</span>

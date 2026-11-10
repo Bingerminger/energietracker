@@ -11,6 +11,7 @@
 // =====================================================================
 import { escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
+import { icon } from '../lib/icons.js';
 
 /**
  * @param {string} message
@@ -31,7 +32,7 @@ export function toast(message, variant = 'info', timeoutMs = 4000, action = null
     <span class="toast__msg">${escapeHtml(message)}</span>
     ${action ? `<button type="button" class="btn btn--sm toast__action">${escapeHtml(action.label)}</button>` : ''}
     <button type="button" class="toast__close" aria-label="${escapeHtml(t('common.close'))}">
-      <span aria-hidden="true">×</span>
+      ${icon('kreuz', { size: 16 })}
     </button>`;
   stack.appendChild(el);
 

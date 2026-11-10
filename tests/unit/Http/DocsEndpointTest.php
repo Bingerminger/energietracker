@@ -88,8 +88,14 @@ final class DocsEndpointTest extends HttpServerTestCase
             self::assertSame(200, $o['status']);
             self::assertSame('private, no-cache', $o['headers']['cache-control'] ?? null, "v=$v");
         }
+        // v3.12.0 (Paket wegweiser) — die erzeugten Schaubilder, direkt geöffnet ohne Wirkung
+        $svg = $this->request('GET', '/api/docs/asset?path=ui/wegweiser/by-hand.de.svg&v=' . self::version());
+        self::assertSame(200, $svg['status']);
+        self::assertSame('image/svg+xml', $svg['headers']['content-type'] ?? null);
+        self::assertStringContainsString('sandbox', $svg['headers']['content-security-policy'] ?? '');
+        self::assertStringNotContainsString('<script', $svg['body']);
         foreach (['README.md', 'ui/screenshots/../screenshots/dashboard.png', '../docs/ui/screenshots/dashboard.png',
-                  'ui/screenshots/%2e%2e/screenshots/dashboard.png', '/ui/screenshots/dashboard.png', 'root/LICENSE'] as $p) {
+                  'ui/screenshots/%2e%2e/screenshots/dashboard.png', '/ui/screenshots/dashboard.png', 'root/LICENSE', 'ui/wegweiser/../wegweiser/by-hand.de.svg', 'assets/promo/x.svg'] as $p) {
             self::assertSame(404, $this->request('GET', '/api/docs/asset?path=' . $p)['status'], "asset path=$p");
         }
     }

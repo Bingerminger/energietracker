@@ -56,13 +56,13 @@ export async function render(container) {
         <a class="btn btn--primary" id="report-print" data-report="print" href="${href('print')}">${escapeHtml(t('report.print.open'))}</a>
       </div>
       ${pdf ? `
-      <h3 style="margin: var(--sp-4) 0 var(--sp-2); font-size: 1rem">${escapeHtml(t('report.page.pdfHeading'))}</h3>
+      <h3 style="margin: var(--sp-4) 0 var(--sp-2); font-size:var(--fs-md)">${escapeHtml(t('report.page.pdfHeading'))}</h3>
       <div class="report-actions">
         <a class="btn btn--ghost" id="report-open" data-report="open" target="_blank" rel="noopener" href="${href('open')}">${escapeHtml(t('report.page.open'))}</a>
         <a class="btn btn--ghost" id="report-download" data-report="download" href="${href('download')}" download>${escapeHtml(t('settings.pdf.download'))}</a>
       </div>
-      <p class="muted report-note">${escapeHtml(t('report.page.note'))}</p>` : ''}
-      <p class="muted report-note">${escapeHtml(t('report.page.choose'))}</p>
+      <p class="infobox infobox--neutral">${escapeHtml(t('report.page.note'))}</p>` : ''}
+      <p class="infobox infobox--neutral">${escapeHtml(t('report.page.choose'))}</p>
     </div>`;
 
   const refresh = () => {

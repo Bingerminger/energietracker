@@ -10,17 +10,17 @@
 .report-print__actions { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 .report-print { display: grid; gap: var(--sp-5); }
 .report-print .print-section {
-  background: var(--bg-1); border: 1px solid var(--border-1); border-radius: var(--r-lg);
+  background: var(--bg-1); border: 1px solid var(--border-1); border-radius: var(--r-md);
   padding: var(--sp-5);
 }
-.report-print h2 { margin: 0 0 var(--sp-3); font-size: 1.25rem; }
-.report-print h3 { margin: var(--sp-4) 0 var(--sp-2); font-size: 1rem; }
+.report-print h2 { margin: 0 0 var(--sp-3); font-size: var(--fs-lg); font-weight: 600; }
+.report-print h3 { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-base); font-weight: 600; }
 .report-print__cover { text-align: left; }
-.report-print__brand { letter-spacing: .12em; font-weight: 700; color: var(--accent); font-size: .85rem; }
-.report-print__title { font-size: 2rem; margin: var(--sp-2) 0; }
-.report-print__location { font-size: 1.1rem; margin: 0 0 var(--sp-3); }
+.report-print__brand { font-weight: 500; color: var(--text-2); font-size: var(--fs-sm); }
+.report-print__title { font-size: var(--fs-xl); margin: var(--sp-1) 0; }
+.report-print__location { font-size: var(--fs-base); margin: 0 0 var(--sp-1); }
 .report-print__tile { background: var(--bg-2); border-radius: var(--r-md); padding: var(--sp-4); }
-.report-print__big { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.report-print__big { font-size: var(--fs-xl); font-weight: 600; color: var(--text-1); }
 .report-print__kpis {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--sp-3);
   margin-bottom: var(--sp-4);
@@ -31,10 +31,6 @@
 .report-print__bars text { font-size: 9px; fill: var(--text-2); }
 .report-print__table { width: 100%; }
 .report-print__table .num { text-align: right; white-space: nowrap; }
-.report-print__rec { border-left: 3px solid var(--border-1); padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); margin-bottom: var(--sp-3); }
-.report-print__rec--urgent { border-left-color: var(--danger, #dc2626); }
-.report-print__rec--warning { border-left-color: var(--warning, #d97706); }
-.report-print__sev { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
 
 /* v3.4.0 (F1025) — Jahresbericht für alle: Kacheln, Ampeln, Aufgaben, „Stand heute“ */
 .report-print__detail { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: .9rem; }
@@ -50,52 +46,52 @@
   list-style: none; padding: 0; margin: 0 0 var(--sp-4);
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3);
 }
-.report-print__light { display: flex; flex-direction: column; gap: 2px; }
+.report-print__light { display: flex; flex-direction: column; gap: var(--sp-0); }
 .report-print__light-title { font-size: .8rem; color: var(--text-2); font-weight: 600; }
-.report-print__light-word { font-weight: 700; }
+.report-print__light-word { font-weight: 600; }
 .report-print__light--ok .report-print__light-word { color: var(--success); }
 .report-print__light--warn .report-print__light-word { color: var(--warning); }
 .report-print__light--alert .report-print__light-word { color: var(--danger); }
 .report-print__light--none .report-print__light-word { color: var(--text-2); }
 .report-print__today {
-  border: 1px solid var(--warning); background: var(--warning-soft); border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border-1)); background: color-mix(in srgb, var(--warning) 7%, var(--bg-1)); border-radius: var(--r-md);
   padding: var(--sp-3) var(--sp-4); margin: var(--sp-3) 0;
 }
-.report-print__today-label { font-size: .8rem; font-weight: 700; color: var(--warning); margin: 0 0 var(--sp-2); }
+.report-print__today-label { font-size: var(--fs-sm); font-weight: 600; color: var(--warning); margin: 0 0 var(--sp-2); }
 .report-print__tasks, .report-print__successes, .report-print__infos { list-style: none; padding: 0; margin: 0; }
 .report-print__tasks > li, .report-print__successes > li, .report-print__infos > li { margin: 0 0 var(--sp-3); }
 .report-print__task-head { display: flex; gap: var(--sp-2); align-items: baseline; }
 .report-print__prio {
   display: inline-grid; place-items: center; min-width: 1.4em; height: 1.4em; border-radius: 50%;
-  font-size: .8rem; font-weight: 700; color: #fff; background: var(--text-2);
+  font-size: .8rem; font-weight: 600; color: #fff; background: var(--text-2);
 }
 .report-print__task--p1 .report-print__prio { background: var(--danger-strong); }
 .report-print__task--p2 .report-print__prio { background: var(--warning); }
-.report-print__meta { font-weight: 600; color: var(--text-2); margin: 2px 0 var(--sp-1); }
+.report-print__meta { font-weight: 600; color: var(--text-2); margin: var(--sp-0) 0 var(--sp-1); }
 .report-print__task--p1 .report-print__meta { color: var(--danger); }
 .report-print__task--p2 .report-print__meta { color: var(--warning); }
 .report-print__meta--good { color: var(--success); }
 .report-print__overdue td { color: var(--danger); }
 .report-print__hbars { display: grid; gap: var(--sp-2); margin: 0 0 var(--sp-3); }
 .report-print__hbar { display: grid; grid-template-columns: minmax(90px, 28%) 1fr auto; gap: var(--sp-2); align-items: center; }
-.report-print__hbar-track { background: var(--bg-2); border-radius: 3px; height: 12px; overflow: hidden; }
+.report-print__hbar-track { background: var(--bg-2); border-radius: var(--r-sm); height: 12px; overflow: hidden; }
 .report-print__hbar-fill { display: block; height: 100%; background: var(--c, var(--accent)); }
 .report-print__hbar-value { font-weight: 600; white-space: nowrap; }
 .report-print__bars .rp-now { fill: var(--c, var(--accent)); }
 .report-print__bars .rp-hatch-bg { fill: var(--c, var(--accent)); }
 .report-print__bars .rp-hatch-line { stroke: #fff; stroke-width: 1.4; }
 .report-print__bars .rp-prev { fill: #7d8898; }
-.rp-key { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -1px; margin-left: var(--sp-2); }
+.rp-key { display: inline-block; width: .8em; height: .8em; border-radius: var(--r-sm); vertical-align: -1px; margin-left: var(--sp-2); }
 .rp-key--now { background: var(--c, var(--accent)); }
 .rp-key--prev { background: #7d8898; }
 .rp-key--est { background: repeating-linear-gradient(45deg, var(--c, var(--accent)) 0 2px, #fff 2px 4px); }
-.report-print__scale { list-style: none; padding: 0; margin: 0 0 var(--sp-2); display: flex; gap: 2px; }
+.report-print__scale { list-style: none; padding: 0; margin: 0 0 var(--sp-2); display: flex; gap: var(--sp-0); }
 .report-print__scale li {
-  flex: 1; text-align: center; font-weight: 700; padding: 2px 0; border-radius: 2px;
+  flex: 1; text-align: center; font-weight: 600; padding: var(--sp-0) 0; border-radius: var(--r-sm);
   background: var(--bg-2); color: var(--text-2);
 }
 .report-print__scale li.is-current { background: var(--text-1); color: var(--bg-1); }
-.report-print__glossary-list dt { font-weight: 700; margin-top: var(--sp-2); }
+.report-print__glossary-list dt { font-weight: 600; margin-top: var(--sp-2); }
 .report-print__glossary-list dd { margin: 0; }
 .report-print progress { width: 100%; max-width: 320px; }
 
@@ -108,7 +104,7 @@
 
   html, body, .layout, .view, main {
     background: #fff !important; color: #111 !important;
-    margin: 0 !important; padding: 0 !important; box-shadow: none !important;
+    margin: 0 !important; padding: 0 !important;
   }
   .layout { display: block !important; }
 
@@ -122,6 +118,11 @@
     print-color-adjust: exact; -webkit-print-color-adjust: exact;
   }
   .report-print__tile, .report-print__kpi { background: #f1f5f9 !important; }
+  /* v3.12.0 (Sichtung S1, S7) — Salden auch auf Papier in Farbe, unabhängig vom Thema; das Wort steht dabei */
+  .ton-ok { color: #036c4e !important; }
+  .ton-fehler { color: #b91c1c !important; }
+  .report-print__big, .report-print__title { color: #111 !important; }
+  .report-print__brand { color: #475569 !important; }
   .report-print__table, .report-print__table tr { break-inside: avoid; }
   /* v3.4.0 — Druckfarben: Farbton der Verbrauchsart, abgedunkelt (≥ 3:1 auf Weiß) */
   .report-print [style*="--cp"] { --c: var(--cp) !important; }

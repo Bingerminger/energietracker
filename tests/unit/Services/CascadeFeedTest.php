@@ -212,14 +212,17 @@ final class CascadeFeedTest extends ServiceTestCase
         // ein normaler Monat: je Zählwerk 250 und 200
         $n = self::row($this->consumption->forMeter('strom', $this->meters->groupTarget('strom', $this->g1)), '2024-06');
         self::assertSame([250.0, 200.0], array_map(fn($x) => (float)$x['rest'], $n['rest_of']['registers']));
-        // Vertragskarte ab Beginn der Periode 2024 (der Hinweis zählt bis zur letzten Ablesung, 24 Monate):
-        // je Zählwerk zusammengezählt, der März bei HT unter null ausgewiesen
+        // Vertragskarte ab Beginn der Periode 2024 (der Hinweis zählt bis zur letzten Ablesung):
+        // je Zählwerk zusammengezählt, der März bei HT unter null ausgewiesen.
+        // v3.12.0 — am Stichtag 31.12.2024 ist die letzte Ablesung die vom 01.12.2024: elf Monate,
+        // HT 10 × 250 − 50 (März), abgezogen 11 × 150, NT 11 × 200. Bis v3.11 zählten die
+        // Ablesungen bis 01.01.2026 mit (24 Monate), die es an diesem Tag noch nicht gab.
         $card = $this->consumption->contractStatus('strom', $this->meters->groupTarget('strom', $this->g1), '2024-12-31')['contracts'][0];
         $cr = array_column($card['rest_of']['registers'], null, 'meter_id');
-        self::assertEqualsWithDelta(250.0 * 23 - 50.0, $cr[$this->id['z1ht']]['rest'], 0.5);
-        self::assertEqualsWithDelta(150.0 * 24, $cr[$this->id['z1ht']]['deducted'], 0.5);
+        self::assertEqualsWithDelta(250.0 * 10 - 50.0, $cr[$this->id['z1ht']]['rest'], 0.5);
+        self::assertEqualsWithDelta(150.0 * 11, $cr[$this->id['z1ht']]['deducted'], 0.5);
         self::assertEqualsWithDelta(50.0, $cr[$this->id['z1ht']]['short_kwh'], 0.5);
-        self::assertEqualsWithDelta(200.0 * 24, $cr[$this->id['z1nt']]['rest'], 0.5);
+        self::assertEqualsWithDelta(200.0 * 11, $cr[$this->id['z1nt']]['rest'], 0.5);
     }
 
     /** Zeilen je Zählwerk zweier Hinweise (etwa zweier Zeiträume) werden je Zähler zusammengezählt. */

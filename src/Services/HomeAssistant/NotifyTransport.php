@@ -5,6 +5,7 @@ namespace Energietracker\Services\HomeAssistant;
 
 use Energietracker\Services\OcrService;
 use Energietracker\Support\HomeTls;
+use Energietracker\Support\IpAddress;
 use Energietracker\Support\Outbound;
 
 /**
@@ -19,6 +20,7 @@ use Energietracker\Support\Outbound;
  *     Token im Klartext durchs Internet.
  *   - Link-local (169.254.0.0/16, fe80::/10) und unspezifizierte Adressen
  *     nie: dort antworten bei gemieteten Servern die Metadatendienste.
+ *     v3.12.0: dazu jeder Metadatendienst aus Support\IpAddress::METADATA.
  *   - Antwort höchstens 1 MB (Support\Outbound), Zeitgrenze TIMEOUT.
  *   - v3.10.0 (#36): HTTPS mit eigener PKI über Support\HomeTls (eigenes
  *     Stammzertifikat zusätzlich, „nicht prüfen“ nur im Heimnetz).
@@ -68,21 +70,25 @@ final class NotifyTransport
         return ['ok' => (bool)$r['ok'], 'status' => $r['http_code'] ?? null, 'error' => $r['ok'] ? null : ($r['error_code'] ?? 'network')];
     }
 
-    /** Link-local, unspezifiziert und der Metadatendienst (IPv4 und IPv6). */
+    /**
+     * Link-local, unspezifiziert und der Metadatendienst (IPv4 und IPv6).
+     *
+     * v3.12.0 — Härtung: Die Sperrliste sieht durch jede Hülle auf die IPv4
+     * (Support\IpAddress: `::ffff:…` in jeder Schreibweise, `::a.b.c.d`,
+     * NAT64, 6to4); das lokale NAT64-Präfix, dessen IPv4 sich nicht ablesen
+     * lässt, ist gesperrt. Unspezifiziert heißt 0.0.0.0/8 („dieses Netz“).
+     * Die Metadatendienste stehen in IpAddress::METADATA (auch 100.100.100.200,
+     * das mitten in 100.64.0.0/10 liegt).
+     */
     public static function forbidden(string $ip): bool
     {
-        if (preg_match('/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i', $ip, $m)) $ip = $m[1];
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $n = ip2long($ip);
-            return $ip === '0.0.0.0' || ($n & (-1 << 16)) === (ip2long('169.254.0.0') & (-1 << 16));
-        }
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            $bin = inet_pton($ip);
-            if ($bin === false || $bin === inet_pton('::')) return true;
-            if ($bin === inet_pton('fd00:ec2::254')) return true;
-            return ord($bin[0]) === 0xFE && (ord($bin[1]) & 0xC0) === 0x80;   // fe80::/10
-        }
-        return true;
+        $a = IpAddress::parse($ip);
+        if ($a['form'] === 'invalid' || $a['form'] === 'nat64_local') return true;
+        if (IpAddress::isMetadata($ip)) return true;
+        if ($a['ipv4'] !== null) return IpAddress::inV4Nets($a['ipv4'], [['0.0.0.0', 8], ['169.254.0.0', 16]]);
+        $bin = (string)$a['bin'];
+        if ($bin === inet_pton('::')) return true;
+        return ord($bin[0]) === 0xFE && (ord($bin[1]) & 0xC0) === 0x80;   // fe80::/10
     }
 
     /** @return list<string> */

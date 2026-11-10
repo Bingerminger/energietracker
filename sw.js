@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v3.11.0';
+const VERSION = 'v3.12.0';
 // v3.1.0 (Ökosystem G1) — Caches tragen den Scope der Installation im Namen.
 // Zwei Installationen auf einem Ursprung (ACC und Prod auf derselben NAS,
 // die App unter Home-Assistant-Ingress neben HAs eigenem Worker) löschten
@@ -50,6 +50,7 @@ const SHELL_URLS = [
   './public/css/print.css',
   './public/vendor/fonts.css',
   './public/vendor/fonts/dm-sans.woff2',
+  './public/vendor/fonts/dm-sans-ziffern.woff2',
   './public/vendor/fonts/dm-mono-400.woff2',
   './public/vendor/fonts/dm-mono-500.woff2',
   './public/vendor/chart.umd.min.js',

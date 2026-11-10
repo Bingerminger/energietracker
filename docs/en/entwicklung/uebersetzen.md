@@ -191,9 +191,13 @@ format and ellipsis; the other points are agreements.
 
 - Inserted labels (`{label}`, `{utility}`, `{sev}`, `{stage}`) are capitalised
   and carry no article. Except in German they therefore only stand at the start
-  of a sentence, after “:”, “—”, “(” or an opening quotation mark — in
-  mid-sentence they would give “Plan next Heating oil delivery”. Test:
+  of a sentence, after “:”, “(” or an opening quotation mark. In mid-sentence
+  they would give “Plan next Heating oil delivery”. Test:
   `testLabelsNotMidSentence`.
+- **No dash as sentence glue** *(since v3.12.0)*. Instead of “A – B” use two
+  sentences, a colon, brackets or a list, with the key statement first. Ranges
+  stay (“3–5”, “{from} – {until}”, “Oct–Apr”), and “–” on its own for a missing
+  value. Test: `testNoDashAsConnector`.
 - Variants are whole sentences, not building blocks: rather three keys
   `recommendations.emptyFiltered.urgent`, `….warning`, `….info` than one
   sentence with an inserted word.

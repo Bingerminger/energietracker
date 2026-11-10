@@ -212,7 +212,7 @@ final class AgendaService
         $today ??= date('Y-m-d');
         $days = max(0, min(730, $days));
         $until = date('Y-m-d', (int)strtotime("$today +$days days"));
-        $recs = $this->recommendations->all();
+        $recs = $this->recommendations->allAt($today);   // v3.12.0 — am Stichtag der Agenda (bis v3.11 heute)
         $recIds = array_flip(array_column($recs, 'id'));
         $events = [];
         $this->meterIndex = [];   // v3.7.0 — Zähler je Aufruf frisch
@@ -229,7 +229,7 @@ final class AgendaService
             $meter = $this->meterOf($mu, $mid);
             // v3.7.0 (Paket betrieb) — „Zählerstand melden“ führt direkt in die Erfassung des Zählers
             $href = $meter !== null && ($r['category'] ?? '') === ReminderService::CATEGORY_READING
-                ? '#/zaehlerstaende?meter=' . rawurlencode($mid) : '#/reminders';
+                ? '#/zaehlerstaende?meter=' . rawurlencode($mid) : '#/todo/dates';
             $events[] = $this->event('reminder', 'reminder-' . $r['id'], $date, 'calendar.event.reminder',
                 ['title' => (string)($r['title'] ?? '')],
                 $status === 'overdue' ? 'overdue' : ($due ? 'due' : 'upcoming'), $due, $href,
@@ -481,8 +481,9 @@ final class AgendaService
                 $date = (string)$deadline;
             }
             $u = (string)$f['utility'];
+            // v3.12.0 — steht der Hinweis in den Empfehlungen, führt der Eintrag direkt zu ihm (dort der Brief)
             $ev = $this->event('rights', (string)$f['id'], $date, (string)$f['title_key'], $f['params'],
-                $due ? 'due' : 'upcoming', $due, (string)$f['href'],
+                $due ? 'due' : 'upcoming', $due, $shown ? RecommendationService::jumpHref((string)$f['id']) : (string)$f['href'],
                 array_intersect_key($f, array_flip(RightsService::REF_FIELDS)) + ['check' => $f['check'], 'deadline' => $deadline,
                     'letter' => $f['letter'], 'amount_eur' => $f['amount_eur']] + ($shown ? ['recommendation_id' => $f['id']] : []),
                 (string)$f['date'], null,

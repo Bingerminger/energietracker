@@ -262,7 +262,8 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
             foreach (array_filter($this->meters->list($u), fn($m) => MeterService::countsInTotals($m) && ($m['capture'] ?? null) !== 'period') as $mt) {
                 $r = $sc->compute(['utility' => $u, 'meter_id' => $mt['id'], 'model' => 'last_year'], $today);
                 if (empty($r['valid']) || $r['model'] !== 'last_year') continue;
-                $rows = array_column($this->consumption->forMeter($u, $mt), null, 'ym');
+                // v3.12.0 — die Monatszeilen am selben Stichtag wie die Werkstatt (der Tank rechnet bis zu ihm)
+                $rows = array_column($this->consumption->forMeter($u, $mt, null, $today), null, 'ym');
                 foreach ($r['months'] as $fm) {
                     $prev = sprintf('%04d-%s', (int)substr($fm['ym'], 0, 4) - 1, substr($fm['ym'], 5, 2));
                     $row = $rows[$prev] ?? null;

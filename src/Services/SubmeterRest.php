@@ -112,6 +112,9 @@ final class SubmeterRest
             $subs[] = ['meter_id' => (string)$id, 'name' => (string)($names[$id] ?? $id), 'kwh' => round($kwh, 1)];
         }
         $out = ['measured' => round($measured, 1), 'submeters' => $subs, 'rest' => round($measured - array_sum($by), 1)];
+        // v3.12.0 — die Menge, die der Vertrag rechnet: der Rest ohne die Abschnitte unter null (rest + short, nie
+        // unter null). Bis v3.11 nannte der Hinweis nur `rest` mit Vorzeichen, eine kleinere Zahl als die abgerechnete.
+        $out['billed'] = self::billedOf($out['rest'], $short);
         if ($estimated > 0.05) $out['estimated_kwh'] = round($estimated, 1);
         if ($openDays > 0) $out['open_days'] = $openDays;
         if ($short > 0.05) $out['short_kwh'] = round($short, 1);
@@ -133,7 +136,8 @@ final class SubmeterRest
         $deducted = array_sum(array_map(fn($s) => (float)($s['kwh'] ?? 0), (array)($restOf['submeters'] ?? [])));
         $reg = ['meter_id' => (string)($meter['id'] ?? ''), 'name' => (string)($meter['name'] ?? ($meter['id'] ?? '')),
                 'obis' => MeterService::obisKey($meter['obis'] ?? null) ?? '', 'measured' => round((float)($restOf['measured'] ?? 0), 1),
-                'deducted' => round($deducted, 1), 'rest' => round((float)($restOf['rest'] ?? 0), 1)];
+                'deducted' => round($deducted, 1), 'rest' => round((float)($restOf['rest'] ?? 0), 1),
+                'billed' => self::billedFrom($restOf)];   // v3.12.0
         if ((float)($restOf['short_kwh'] ?? 0) > 0.05) $reg['short_kwh'] = round((float)$restOf['short_kwh'], 1);
         return $restOf + ['registers' => [$reg]];
     }
@@ -153,8 +157,9 @@ final class SubmeterRest
         foreach ([$acc, $add] as $r) {
             foreach ((array)($r['registers'] ?? []) as $g) {
                 $id = (string)$g['meter_id'];
-                $q = $regs[$id] ?? ['meter_id' => $id, 'name' => (string)$g['name'], 'obis' => (string)($g['obis'] ?? ''), 'measured' => 0.0, 'deducted' => 0.0, 'rest' => 0.0];
+                $q = $regs[$id] ?? ['meter_id' => $id, 'name' => (string)$g['name'], 'obis' => (string)($g['obis'] ?? ''), 'measured' => 0.0, 'deducted' => 0.0, 'rest' => 0.0, 'billed' => 0.0];
                 foreach (['measured', 'deducted', 'rest'] as $k) $q[$k] = round($q[$k] + (float)($g[$k] ?? 0), 1);
+                $q['billed'] = round($q['billed'] + self::billedFrom($g), 1);   // v3.12.0 — je Abschnitt nie unter null
                 $short = (float)($q['short_kwh'] ?? 0) + (float)($g['short_kwh'] ?? 0);
                 if ($short > 0.05) $q['short_kwh'] = round($short, 1);
                 $regs[$id] = $q;
@@ -167,8 +172,12 @@ final class SubmeterRest
                 $by[$id] = ['meter_id' => $id, 'name' => (string)$s['name'], 'kwh' => round(($by[$id]['kwh'] ?? 0.0) + (float)$s['kwh'], 1)];
             }
         }
+        // v3.12.0 — abgerechnet: die Summe der abgerechneten Teile (jeder nie unter null), nicht der Rest der Summe.
+        // Bis v3.11 stand im Hinweis nur `rest` (mit Vorzeichen über alle Teile), bei einem Monat unter null eine
+        // kleinere Menge als die, die der Vertrag rechnet.
         $out = ['measured' => round((float)$acc['measured'] + (float)$add['measured'], 1), 'submeters' => array_values($by),
-                'rest' => round((float)$acc['rest'] + (float)$add['rest'], 1)];
+                'rest' => round((float)$acc['rest'] + (float)$add['rest'], 1),
+                'billed' => round(self::billedFrom($acc) + self::billedFrom($add), 1)];
         foreach (['estimated_kwh', 'short_kwh'] as $k) {
             $v = (float)($acc[$k] ?? 0) + (float)($add[$k] ?? 0);
             if ($v > 0.05) $out[$k] = round($v, 1);
@@ -176,5 +185,18 @@ final class SubmeterRest
         $open = (int)($acc['open_days'] ?? 0) + (int)($add['open_days'] ?? 0);
         if ($open > 0) $out['open_days'] = $open;
         return $regs === [] ? $out : $out + ['registers' => array_values($regs)];
+    }
+
+    /** v3.12.0 — abgerechnete Menge aus Rest (mit Vorzeichen) und Rest unter null: nie unter null. */
+    public static function billedOf(float $rest, float $short): float
+    {
+        return round(max(0.0, $rest + $short), 1);
+    }
+
+    /** v3.12.0 — `billed` eines Hinweises; ältere Hinweise ohne das Feld aus `rest` und `short_kwh`. */
+    public static function billedFrom(array $r): float
+    {
+        return isset($r['billed']) && is_numeric($r['billed'])
+            ? (float)$r['billed'] : self::billedOf((float)($r['rest'] ?? 0), (float)($r['short_kwh'] ?? 0));
     }
 }

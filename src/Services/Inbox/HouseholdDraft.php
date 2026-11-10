@@ -918,7 +918,7 @@ final class HouseholdDraft
                 if (($twin = self::overlappingRegisters($mrs)) !== null) {
                     $this->missing[] = ['kind' => 'two_registers', 'utility' => $u, 'key' => "reg:$id", 'docs' => [$id],
                         'params' => ['name' => $d['name'], 'meter' => $twin],
-                        'href' => "#/utility/$u/meters"];
+                        'href' => "#/household/meters?art=$u"];
                     continue;
                 }
                 foreach ($mrs as $i => $mr) {
@@ -1287,7 +1287,7 @@ final class HouseholdDraft
             ];
             if ($final === null) {
                 // ohne Endstand kein Wechsel (MeterService::replaceDevice verlangt ihn)
-                $this->missing[] = ['kind' => 'old_final', 'utility' => $u, 'key' => $item['key'], 'params' => ['date' => $t['date']], 'href' => "#/utility/$u/meters"];
+                $this->missing[] = ['kind' => 'old_final', 'utility' => $u, 'key' => $item['key'], 'params' => ['date' => $t['date']], 'href' => "#/household/meters?art=$u"];
                 continue;
             }
             // ein fallender Stand ist nur ein Verdacht: sein Endstand ist erschlossen (`inferred`, Kernfeld) —

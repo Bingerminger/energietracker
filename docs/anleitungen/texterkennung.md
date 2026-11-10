@@ -30,7 +30,9 @@ iPhone mit Live Text („Text scannen“ im Feld).
   (`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), `100.64.0.0/10` (Tailscale)
   und die entsprechenden IPv6-Bereiche (`::1`, `fc00::/7`). Link-local
   (`169.254.x`, `fe80::`) gilt seit v3.4.0 nicht mehr als Heimnetz — dort
-  antworten bei gemieteten Servern die Metadatendienste der Anbieter. Eine
+  antworten bei gemieteten Servern die Metadatendienste der Anbieter. Seit
+  v3.12.0 ist auch `100.100.100.200` gesperrt, ein Metadatendienst mitten in
+  `100.64.0.0/10`; das übrige Netz bleibt Heimnetz. Eine
   öffentliche Adresse lehnt sie ab. Einen Schalter, der das aufhebt, gibt es
   nicht.
 - Geprüft wird bei **jedem** Aufruf, nach der Namensauflösung, und verbunden
@@ -172,8 +174,8 @@ Alle drei Wege führen auf Adressen im eigenen Netz und bestehen die Prüfung.
 
 ## Einstellungen
 
-Oben auf der Seite **Einstellungen → Experte**, vor den eingeklappten
-Rechenparametern, stehen zwei Karten. Adresse und Schnittstelle teilt die
+Auf der Seite **Verbindungen → Post und Fotos auslesen** stehen zwei
+Karten. Adresse und Schnittstelle teilt die
 Texterkennung mit dem Posteingang; seit v3.7.0 stehen sie deshalb einmal, in der
 Karte **📥 Auslesen** unter **Lokal** (mit **Verbindung prüfen**, siehe
 [Posteingang](posteingang.md#auslesen-einrichten)). Die Zählerfotos liest immer
@@ -188,7 +190,7 @@ der eigene Dienst, auch wenn der Posteingang in der Cloud ausliest.
 
 Speichern (jede Karte für sich). Beim nächsten Öffnen von „Zählerstände“ ist die
 Texterkennung aktiv. Alle Schlüssel:
-[Einstellungen → Texterkennung im Heimnetz](../referenz/einstellungen.md#texterkennung-im-heimnetz-v310).
+[Einstellungen-Referenz: Texterkennung im Heimnetz](../referenz/einstellungen.md#texterkennung-im-heimnetz-v310).
 
 ---
 
@@ -224,11 +226,11 @@ JSON mit Wert und Selbsteinschätzung. Technisch:
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| „Die Texterkennung muss im eigenen Netz laufen – „…“ ist keine Adresse im Heimnetz.“ | Die Adresse — oder eine der Adressen, auf die der Name zeigt — liegt nicht im eigenen Netz. Die IP-Adresse des Rechners im Heimnetz eintragen. Ein Cloud-Dienst geht bewusst nicht. |
+| „Die Texterkennung muss im eigenen Netz laufen. „…“ ist keine Adresse im Heimnetz.“ | Die Adresse — oder eine der Adressen, auf die der Name zeigt — liegt nicht im eigenen Netz. Die IP-Adresse des Rechners im Heimnetz eintragen. Ein Cloud-Dienst geht bewusst nicht. |
 | „Die Texterkennung hat nicht innerhalb von 30 Sekunden geantwortet.“ | Das Modell ist zu langsam für das Zeitlimit, besonders beim ersten Aufruf nach einer Pause, wenn der Dienst das Modell erst in den Speicher lädt. Zeitlimit erhöhen, ein kleineres Modell nehmen oder den Dienst auf einem schnelleren Rechner betreiben. |
 | „Die Texterkennung ist nicht erreichbar.“ | Der Dienst läuft nicht, hört nur auf `127.0.0.1` (`OLLAMA_HOST`, „Serve on Local Network“), eine Firewall sperrt den Port, im Container steht `localhost` ([Docker](#wenn-der-energietracker-in-docker-läuft)) oder der Name lässt sich nicht auflösen. Ebenso, wenn der Dienst mit einem Fehler antwortet — etwa weil es das Modell unter diesem Namen nicht gibt (`ollama list` zeigt die Namen), die Schnittstelle nicht passt oder LM Studio eine Anmeldung verlangt („Require Authentication“) — oder dem Server fehlt die PHP-Erweiterung curl. Erste Probe: das `curl` von oben, vom Server des Energietrackers aus. |
 | „Die Texterkennung hat keine verwertbare Antwort geliefert.“ | Der Dienst hat geantwortet, aber ohne Text — etwa ein Modell, das mit dem Bild nichts anfangen kann, oder unter der Adresse antwortet ein anderer Dienst. |
-| „Kein Zählerstand erkannt – bitte von Hand eintragen.“ | Das Modell hat geantwortet, aber keine Zahl gefunden. Näher, gerader und schärfer fotografieren oder ein anderes Modell probieren. |
+| „Kein Zählerstand erkannt. Bitte von Hand eintragen.“ | Das Modell hat geantwortet, aber keine Zahl gefunden. Näher, gerader und schärfer fotografieren oder ein anderes Modell probieren. |
 | Der Vorschlag ist falsch oder Unsinn | Ein Modell **ohne Bildfähigkeit** weist das Bild ab (dann „nicht erreichbar“) oder antwortet, ohne es zu sehen — mit einem erfundenen oder ohne Wert. Ein Bildmodell eintragen, etwa `qwen2.5vl`, `llama3.2-vision` oder `minicpm-v`. Fehlen oder stören Nachkommastellen, den Wert vor dem Speichern korrigieren: Gespeichert wird nur, was im Feld steht. |
 
 ---

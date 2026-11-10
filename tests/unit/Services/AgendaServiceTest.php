@@ -127,8 +127,10 @@ final class AgendaServiceTest extends ServiceTestCase
         self::assertMatchesRegularExpression('/^reminder-[\w-]+@et_[0-9a-f]{16}$/', (string)$uid);
 
         // erledigt → dasselbe Ereignis (gleiche UID) am neuen Datum
+        // v3.12.0 — halbjährlich: Die nächste Fälligkeit liegt sicher im Kalenderfenster von 365 Tagen.
+        // Jährlich (heute + 1 Jahr) lag sie in Jahren mit 29.02. 366 Tage voraus und fehlte.
         $rem = array_values(array_filter($this->reminderService->list(), fn($r) => $r['title'] === 'Rauchmelder prüfen'))[0];
-        $this->reminderService->update($rem['id'], ['recurrence' => 'yearly']);
+        $this->reminderService->update($rem['id'], ['recurrence' => 'semi-yearly']);
         $this->reminderService->markDone($rem['id'], $this->today);
         $after = $cal->ics($this->today);
         self::assertStringContainsString("UID:$uid", $after);

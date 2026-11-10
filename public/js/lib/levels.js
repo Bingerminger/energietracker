@@ -31,7 +31,7 @@ function demoStored() {
 
 export const LEVELS = ['beginner', 'advanced', 'expert'];
 const RANK = { beginner: 0, advanced: 1, expert: 2 };
-export const LEVEL_ICONS = { beginner: '🌱', advanced: '🌿', expert: '🌳' };
+export const LEVEL_ICONS = { beginner: 'stufe1', advanced: 'stufe2', expert: 'stufe3' };   // Namen aus lib/icons.js
 
 /**
  * Mindeststufe je Ansicht (Schlüssel wie im Router: Ansicht oder
@@ -57,6 +57,7 @@ export const VIEW_LEVEL = {
   'inbox-draft': 'beginner',        // v3.7.0 — Entwurf aus Dokumenten (Erstbefüllung)
   'utility': 'beginner',            // Verbrauch je Art (auch PV, Wallbox, Wärmepumpe)
   'contracts-overview': 'beginner',
+  'contracts-past': 'beginner',     // v3.12.0 (M4)
   'contracts': 'beginner',          // Verträge einer Art (Formular einfach, Rest ab Erfahren)
   'forecast': 'beginner',           // v3.6.0 (F1031) — Werkstatt: drei Regler, drei Zahlen
   'scenario-print': 'beginner',
@@ -66,27 +67,42 @@ export const VIEW_LEVEL = {
   // Nachrechnung je Zähler und die Viertelstundenreihen ab Experte (bis v3.5: Experte)
   'report': 'beginner',
   'report-print': 'beginner',
+  'todo': 'beginner',               // v3.12.0 — Offen, mit Empfehlungen; KI-Vorschläge nach Rolle
   'reminders': 'beginner',
-  'recommendations': 'beginner',
+  'activity': 'beginner',           // v3.4.0 (F1024); v3.12.0 — Verlauf ab Einsteiger (Freigabe)
+  'activity-ai': 'beginner',        // v3.12.0 — Zugriffe der KI: nach Rolle, nicht nach Stufe
+  'connections': 'beginner',        // v3.12.0 — das Menü ist in jeder Stufe gleich
+  'connections:reading': 'beginner',   // Auslesen ab Einsteiger (Freigabe)
+  'connections:calendar': 'beginner',
   'help': 'beginner',
   'help-doc': 'beginner',
+  'help-setups': 'beginner',   // v3.12.0 (Paket wegweiser)
+  // v3.12.0 (M3) — Haushalt: Zähler ab Einsteiger (Freigabe), Karten darin tragen ihre Stufe
+  'household': 'beginner',
+  'household:meters': 'beginner',
+  'household:people': 'beginner',
+  'household:building': 'beginner',
+  'household:utilities': 'beginner',
   'settings:general': 'beginner',
-  'settings:household': 'beginner',
-  'settings:utilities': 'beginner',
+  'settings:region': 'beginner',
+  'settings:display': 'beginner',
   'settings:data': 'beginner',
   // 🌿 — vergleichen und prüfen
+  'figures': 'advanced',            // v3.12.0 (M4) — Karten der Übersicht, bis v3.11 ab Erfahren
   'tariffs': 'advanced',
   'bill-check': 'advanced',
   'tenancy': 'advanced',            // Einsteiger: „Reicht die Vorauszahlung?“ auf der Übersicht
   'analysis': 'advanced',
-  'meters': 'advanced',             // Zähler-Aufbau (Subzähler, Rollen, Geräte)
   'temperatures': 'advanced',
-  'activity': 'advanced',           // v3.4.0 (F1024) — Hinweise › Erledigt
-  'settings:integrations': 'advanced',
+  'connections:homeassistant': 'advanced',
+  'connections:ai': 'advanced',
   // 🌳 — alles sehen und anbinden
   'settings:access': 'expert',
-  'settings:expert': 'expert',
+  'settings:calculation': 'expert',   // Rechnen ab Experte (Freigabe)
   'settings:system': 'expert',
+  'connections:keys': 'expert',
+  'connections:evcc': 'expert',
+  'connections:homenet': 'expert',
 };
 
 let current = 'expert';

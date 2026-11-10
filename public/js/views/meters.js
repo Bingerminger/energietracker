@@ -6,7 +6,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtility, getSettings } from '../state.js';
+import { getUtility, getSettings, activeUtilities } from '../state.js';
 import { loadHeatLimit } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
@@ -23,34 +23,76 @@ import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { dossierHtml, wireDossiers } from '../components/dossier.js';
 // v3.9.0 (F1032) — Assistent „Messkonzept“ (nicht in der öffentlichen Demo: dort schreibt nichts)
 import { openConceptWizard, conceptOffered } from '../components/concept-wizard.js';
+import { icon, artIcon, meterGlyph } from '../lib/icons.js';
+import { meterTreeHtml } from '../lib/meter-tree.js';   // v3.12.0 (Sichtung S8)
+import { rich } from '../lib/rich.js';
 
 export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
   const u = await getUtility(utilityKey);
   if (!u) {
-    container.innerHTML = `<div class="banner banner--error">${t('meters.unknown', { key: escapeHtml(utilityKey) })}</div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler">${t('meters.unknown', { key: escapeHtml(utilityKey) })}</div>`;
     return;
   }
 
   container.setAttribute('data-utility', u.key);
   const meters = await refresh(container, u);
   // v3.7.0 (Paket betrieb) — Zählerwechsel aus dem Posteingang: der Dialog mit
-  // Tag, End- und Anfangsstand und neuer Nummer vorbelegt (#/utility/<u>/meters?replace=<id>&…)
+  // Tag, End- und Anfangsstand und neuer Nummer vorbelegt (#/household/meters?art=<u>&replace=<id>&…)
   const q = ctx.query;
   const wanted = q?.get('replace');
   const m = wanted ? (meters || []).find(x => x.id === wanted) : null;
-  // v3.9.0 (F1032) — aus der Ersteinrichtung: #/utility/strom/meters?concept=1 öffnet den Assistenten „Messkonzept“
+  // v3.9.0 (F1032) — aus der Ersteinrichtung: #/household/meters?art=strom&concept=1 öffnet den Assistenten „Messkonzept“
   if (q?.get('concept') && conceptOffered(u.key)) {
-    try { history.replaceState(history.state, '', `#/utility/${u.key}/meters`); } catch { /* egal */ }
+    try { history.replaceState(history.state, '', `#/household/meters?art=${u.key}`); } catch { /* egal */ }
     openConceptWizard().then(done => { if (done && container.isConnected) refresh(container, u); }).catch(() => {});
   }
   if (m && m.capture !== 'period') {
+    // v3.12.0 (M3b) — sofort aus der Adresse, wie beim Messkonzept oben: Sonst führt der Weg aus dem Dialog zurück auf
+    // `replace=…`, Abbrechen öffnet ihn gleich wieder und nach × oder Escape öffnet ihn das Neuladen.
+    try { history.replaceState(history.state, '', `#/household/meters?art=${u.key}`); } catch { /* egal */ }
     // nicht abwarten: Der Dialog bleibt offen, bis man ihn schließt — die Ansicht ist fertig
     openReplaceDeviceModal(u, m, swapPrefill(q)).then((changed) => {
-      try { history.replaceState(history.state, '', `#/utility/${u.key}/meters`); } catch { /* egal */ }
       if (changed && container.isConnected) refresh(container, u);
     }).catch(() => {});
   }
+}
+
+/**
+ * v3.12.0 (M3) — Haushalt › Zähler: alle Zähler an einem Ort. Je Verbrauchsart ein Abschnitt mit Baum,
+ * Gruppen und allen Knöpfen von bisher; `?art=` zeigt eine Art (auch eine nicht aktive, wie die alte Seite).
+ */
+export async function renderHouseholdMeters(container, ctx = {}) {
+  const q = ctx.query;
+  const wanted = q?.get('art') || '';
+  const active = await activeUtilities().catch(() => []);
+  const head = `<div class="view-header"><div>
+      <h1 class="view-header__title">${escapeHtml(t('household.meters.title'))}</h1>
+      <div class="view-header__subtitle">${rich('household.meters.subtitle')}</div>
+    </div></div>`;
+  const filter = `<nav class="section-tabs section-tabs--filter" aria-label="${escapeHtml(t('household.meters.filter'))}">
+      <a class="section-tabs__tab${wanted ? '' : ' active'}" href="#/household/meters"${wanted ? '' : ' aria-current="page"'}>${escapeHtml(t('household.meters.all'))}</a>
+      ${active.map(u => `<a class="section-tabs__tab${u.key === wanted ? ' active' : ''}" href="#/household/meters?art=${encodeURIComponent(u.key)}"${u.key === wanted ? ' aria-current="page"' : ''} data-utility="${escapeHtml(u.key)}">${artIcon(u, { size: 16 })} ${escapeHtml(u.label)}</a>`).join('')}
+    </nav>`;
+  const info = `<div class="infobox infobox--info">
+      <strong>${t('meters.info.title')}</strong> ${t('meters.info.text')}
+      <br><strong>${t('meters.info.topologyLabel')}</strong> ${t('meters.info.topologyText')}
+    </div>`;
+  container.innerHTML = `${head}${filter}${info}<div data-role="household-meters"></div>`;
+  const list = container.querySelector('[data-role="household-meters"]');
+  const section = (key) => {
+    const el = document.createElement('section');
+    el.className = 'card household-art';
+    el.id = `art-${key}`;
+    list.append(el);
+    return el;
+  };
+  if (wanted) return render(section(wanted), [wanted], ctx);
+  await Promise.all(active.map(async (u) => {
+    const el = section(u.key);
+    el.setAttribute('data-utility', u.key);
+    await refresh(el, u);
+  }));
 }
 
 /** Vorbelegung des Zählertauschs aus der Adresse (Zahlen mit Punkt, wie der Server sie schreibt). */
@@ -93,26 +135,21 @@ async function refresh(container, u) {
   container.innerHTML = `
     <div data-utility="${u.key}">
       <div class="section-head">
-        <h1>${u.icon} ${t('meters.title', { label: escapeHtml(u.label) })}</h1>
+        <h2>${artIcon(u, { size: 24 })} ${t('meters.title', { label: escapeHtml(u.label) })}</h2>
         <div class="section-actions">
           <a class="btn btn--ghost" href="#/utility/${u.key}">${t('meters.toOverview')}</a>
           ${meters.length >= 2 ? `<button type="button" class="btn btn--ghost" data-action="merge-meters">${t('meters.merge')}</button>` : ''}
           ${conceptOffered(u.key) ? `<button type="button" class="btn btn--ghost" data-action="concept">${escapeHtml(t('concept.title'))}</button>` : ''}
-          <button type="button" class="btn btn--util" data-action="new-meter">${t('meters.newMeter')}</button>
+          <button type="button" class="btn btn--primary" data-action="new-meter">${t('meters.newMeter')}</button>
         </div>
-      </div>
-
-      <div class="banner banner--info">
-        <strong>${t('meters.info.title')}</strong> ${t('meters.info.text')}
-        <br><strong>${t('meters.info.topologyLabel')}</strong> ${t('meters.info.topologyText')}
       </div>
 
       ${renderGroupsBar(groups)}
 
       ${summaryLine ? `<div class="muted" style="margin:8px 0">${summaryLine}</div>` : ''}
 
-      <div id="meters-list">
-        ${meters.length === 0 ? `<p class="muted">${t('meters.empty')}</p><button type="button" class="btn btn--util" data-action="new-meter">${t('meters.emptyCta')}</button>` : ''}
+      <div class="meters-list" id="meters-list-${u.key}">
+        ${meters.length === 0 ? `<p class="muted">${t('meters.empty')}</p><button type="button" class="btn btn--primary" data-action="new-meter">${t('meters.emptyCta')}</button>` : ''}
         ${renderMeterTree(meters, groups, u)}
       </div>
     </div>
@@ -206,12 +243,12 @@ async function refresh(container, u) {
 function renderGroupsBar(groups) {
   if (!groups || groups.length === 0) return '';
   return `
-    <div class="banner" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+    <div class="infobox infobox--neutral infobox--zeile">
       <strong>${t('meters.groupsBar.label')}</strong>
       ${groups.map(g => `
         <span class="tag tag--util" style="display:inline-flex;align-items:center;gap:6px">
           ${escapeHtml(g.name)}
-          <button type="button" class="btn btn--sm btn--ghost" style="padding:0 6px" title="${t('meters.groupsBar.dissolveTitle')}" aria-label="${t('meters.groupsBar.dissolveTitle')}" data-delete-group="${escapeHtml(g.id)}"><span aria-hidden="true">✕</span></button>
+          <button type="button" class="btn btn--sm btn--ghost" style="padding:0 6px" title="${t('meters.groupsBar.dissolveTitle')}" aria-label="${t('meters.groupsBar.dissolveTitle')}" data-delete-group="${escapeHtml(g.id)}">${icon('kreuz')}</button>
         </span>
       `).join('')}
     </div>
@@ -222,23 +259,8 @@ function renderGroupsBar(groups) {
 // (eingerückt). Subzähler ohne auffindbaren Elternzähler werden als
 // Top-Level behandelt (defensiv).
 function renderMeterTree(meters, groups, u) {
-  if (!meters || meters.length === 0) return '';
-  const byParent = {};
-  const tops = [];
-  const ids = new Set(meters.map(m => m.id));
-  for (const m of meters) {
-    const p = m.parent_meter_id;
-    if (p && ids.has(p)) {
-      (byParent[p] ||= []).push(m);
-    } else {
-      tops.push(m);
-    }
-  }
-  return tops.map(m => {
-    const children = byParent[m.id] || [];
-    return renderMeterCard(m, u, groups, false)
-      + children.map(c => renderMeterCard(c, u, groups, true)).join('');
-  }).join('');
+  // v3.12.0 (Sichtung S8) — eingerückt unter dem Hauptzähler, mit Linie (lib/meter-tree.js, M3 übernimmt den Baustein)
+  return meterTreeHtml(meters, (m, depth) => renderMeterCard(m, u, groups, depth > 0));
 }
 
 function groupName(groups, id) {
@@ -249,8 +271,8 @@ function renderMeterCard(meter, u, groups, isSub) {
   const devices = meter.devices || [];
   const gName = meter.meter_group_id ? groupName(groups, meter.meter_group_id) : null;
   return `
-    <div class="meter-card${isSub ? ' meter-card--sub' : ''}" data-utility="${u.key}"${isSub ? ' style="margin-left:32px;border-left:3px solid var(--util,#888)"' : ''}>
-      <div class="meter-card__icon">${isSub ? '↳ ' : ''}${escapeHtml(meter.icon || u.icon)}</div>
+    <div class="meter-card${isSub ? ' meter-card--sub' : ''}" data-utility="${u.key}">
+      <div class="meter-card__icon">${meterGlyph(meter, u, { size: 24 })}</div>
       <div class="meter-card__main">
         <div class="meter-card__name">
           ${escapeHtml(meter.name)}
@@ -281,7 +303,7 @@ function renderMeterCard(meter, u, groups, isSub) {
         </ul>
         ${dossierHtml({ utility: u.key, meterId: meter.id })}
       </div>
-      <div class="row-actions" style="flex-direction:column; gap: 4px">
+      <div class="row-actions meter-card__aktionen">
         ${meter.capture === 'period' ? '' : `<button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>`}
         <button class="btn btn--sm" data-import-readings="${escapeHtml(meter.id)}">${t('meters.card.csvImport')}</button>
         ${u.reading_kind === 'delivery' ? '' : `<button class="btn btn--sm btn--ghost" data-min-level="expert" data-import-series="${escapeHtml(meter.id)}">${t('import.series.button')}</button>`}
@@ -567,7 +589,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
       body,
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
-        <button type="button" class="btn btn--util" data-act="save">${t('meters.modal.save')}</button>
+        <button type="button" class="btn btn--primary" data-act="save">${t('meters.modal.save')}</button>
       `,
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
@@ -861,7 +883,7 @@ async function openReplaceDeviceModal(u, meter, prefill = {}) {
   return new Promise(resolve => {
     const body = `
       <p>${t('meters.replace.intro')}</p>
-      ${prefill.fromInbox ? `<p class="banner banner--info" data-role="swap-prefilled">${escapeHtml(t('meters.replace.fromInbox'))}</p>` : ''}
+      ${prefill.fromInbox ? `<p class="infobox infobox--info" data-role="swap-prefilled">${escapeHtml(t('meters.replace.fromInbox'))}</p>` : ''}
         <form id="replace-form">
         <!-- v3.4.0 (N1021) — Formularraster: Die lange Beschriftung des
              Anfangsstands brach um und schob das Feld 17 px tiefer -->
@@ -897,7 +919,7 @@ async function openReplaceDeviceModal(u, meter, prefill = {}) {
       body,
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
-        <button type="button" class="btn btn--util" data-act="save">${t('meters.replace.submit')}</button>
+        <button type="button" class="btn btn--primary" data-act="save">${t('meters.replace.submit')}</button>
       `,
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
@@ -956,13 +978,13 @@ async function openImportReadingsModal(u, meter) {
   return new Promise(resolve => {
     const body = `
       <p>${t('meters.import.intro', { name: escapeHtml(meter.name) })}</p>
-      <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:12px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:6px">${t('meters.import.formatLabel')}</div>
+      <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:var(--fs-xs)">
+        <div style="font-size:var(--fs-xs);color:var(--text-2);margin-bottom:6px">${t('meters.import.formatLabel')}</div>
         ${exampleReadingsCsv().trim().split('\n').map((l, i) => `<code class="mono" style="display:block;color:var(${i ? '--text-2' : '--text-1'})">${escapeHtml(l)}</code>`).join('')}
         <div style="margin-top:8px;color:var(--text-2)">
           ${t('meters.import.formatHint')}
         </div>
-        <button type="button" class="btn btn--sm btn--ghost" id="dl-example" style="margin-top:10px"><span aria-hidden="true">⬇</span> ${t('meters.import.downloadExample')}</button>
+        <button type="button" class="btn btn--sm btn--ghost" id="dl-example" style="margin-top:10px">${icon('herunter')} ${t('meters.import.downloadExample')}</button>
       </div>
       <div class="drop-zone" id="import-drop" role="button" tabindex="0" aria-label="${t('meters.import.dropZoneAria')}">
         <p>${t('meters.import.dropZone')}</p>
@@ -1001,7 +1023,7 @@ async function openImportReadingsModal(u, meter) {
             });
             result.querySelector('[data-act="import"]')?.addEventListener('click', () => runImport(text));
           } catch (e) {
-            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+            result.innerHTML = `<div class="infobox infobox--fehler">${escapeHtml(e.message)}</div>`;
           }
         };
 
@@ -1012,7 +1034,7 @@ async function openImportReadingsModal(u, meter) {
             didImport = didImport || (res.imported > 0 || res.overwritten > 0);
             const errs = res.errors || [];
             result.innerHTML = `
-              <div class="banner ${res.skipped || errs.length ? 'banner--warning' : 'banner--success'}" style="font-size:12px">
+              <div class="infobox ${res.skipped || errs.length ? 'infobox--achtung' : 'infobox--erfolg'}">
                 <div>${t('meters.import.result', { imported: res.imported, overwritten: res.overwritten, skipped: res.skipped })}</div>
                 ${errs.length ? `<div style="margin-top:6px;color:var(--text-2)">
                   ${errs.slice(0, 8).map(e => `· ${escapeHtml(e)}`).join('<br>')}
@@ -1025,7 +1047,7 @@ async function openImportReadingsModal(u, meter) {
             }
             drop.hidden = false; input.value = '';
           } catch (e) {
-            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+            result.innerHTML = `<div class="infobox infobox--fehler">${escapeHtml(e.message)}</div>`;
           }
         };
 
@@ -1067,7 +1089,7 @@ async function openImportPeriodsModal(u, meter) {
       title: t('meters.import.title', { name: meter.name }),
       body: `
         <p>${t('meters.periodImport.intro', { name: escapeHtml(meter.name) })}</p>
-        <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:12px">
+        <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:var(--fs-xs)">
           <code class="mono" style="display:block">2026-01;812</code>
           <code class="mono" style="display:block">${escapeHtml(fmt.date('2026-02-01'))};${escapeHtml(fmt.date('2026-02-28'))};745</code>
           <div style="margin-top:8px;color:var(--text-2)">${t('meters.periodImport.formatHint', { unit: escapeHtml(unit) })}</div>
@@ -1110,14 +1132,14 @@ async function openImportPeriodsModal(u, meter) {
               try {
                 const res = await api.importPeriodCsv(u.key, meter.id, text);
                 done = done || res.imported > 0;
-                result.innerHTML = `<div class="banner ${res.skipped ? 'banner--warning' : 'banner--success'}" style="font-size:12px">
+                result.innerHTML = `<div class="infobox ${res.skipped ? 'infobox--achtung' : 'infobox--erfolg'}">
                   ${escapeHtml(tp('meters.periodImport.result', res.imported, { skipped: res.skipped }))}${errorsHtml(res.errors || [])}</div>`;
                 if (res.imported) toastOk(tp('meters.periodImport.result', res.imported, { skipped: res.skipped }));
                 drop.hidden = false; input.value = '';
-              } catch (e) { result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`; }
+              } catch (e) { result.innerHTML = `<div class="infobox infobox--fehler">${escapeHtml(e.message)}</div>`; }
             });
           } catch (e) {
-            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+            result.innerHTML = `<div class="infobox infobox--fehler">${escapeHtml(e.message)}</div>`;
           }
         };
         drop.addEventListener('click', () => input.click());
@@ -1153,9 +1175,14 @@ function previewHtml(u, meter, preview, existing) {
     const prevExisting = existing.filter(e => e.date < r.date && !e.is_future).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
     const prevFile = rows.slice(0, idx).filter(p => p.date < r.date).pop() || null;
     const prev = [prevExisting, prevFile].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
+    // v3.12.0 (Skeptiker M7) — der nächste Stand aus Bestand und Datei
+    const nextExisting = existing.filter(e => e.date > r.date && !e.is_future && !e.is_suspect).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+    const nextFile = rows.slice(idx + 1).filter(p => p.date > r.date)[0] || null;
+    const next = [nextExisting, nextFile].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
     const issues = checkReading({
       value: Number(r.counter), date: r.date, today, prev, typical,
       deviceChanged: prev ? deviceChangedBetween(meter, prev.date, r.date) : false,
+      next, nextDeviceChanged: next ? deviceChangedBetween(meter, r.date, next.date) : false,
     });
     const notes = issues.map(i => issueText(i, { unit, date: r.date }));
     if (dates.indexOf(r.date) !== dates.lastIndexOf(r.date)) notes.push(t('meters.import.duplicate'));
@@ -1198,7 +1225,7 @@ function previewHtml(u, meter, preview, existing) {
         </tbody>
       </table></div>
       ${hidden > 0 ? `<p class="muted small">${escapeHtml(tp('meters.import.moreRows', hidden))}</p>` : ''}`
-      : `<div class="banner banner--warning" style="font-size:12px">${t('meters.import.nothing')}</div>`}
+      : `<div class="infobox infobox--achtung">${t('meters.import.nothing')}</div>`}
       <div class="import-preview__actions">
         <button type="button" class="btn btn--ghost" data-act="other-file">${t('meters.import.otherFile')}</button>
         ${importable ? `<button type="button" class="btn btn--primary" data-act="import">${escapeHtml(tp('meters.import.confirm', importable))}</button>` : ''}
@@ -1250,7 +1277,7 @@ async function openMergeModal(u, meters, groups) {
       body,
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
-        <button type="button" class="btn btn--util" data-act="save">${t('meters.mergeModal.submit')}</button>
+        <button type="button" class="btn btn--primary" data-act="save">${t('meters.mergeModal.submit')}</button>
       `,
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
@@ -1327,7 +1354,7 @@ async function openImportSeriesModal(u, meter) {
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
         <button type="button" class="btn btn--ghost" data-act="preview">${t('import.series.previewButton')}</button>
-        <button type="button" class="btn btn--util" data-act="import" disabled>${t('import.series.importButton')}</button>`,
+        <button type="button" class="btn btn--primary" data-act="import" disabled>${t('import.series.importButton')}</button>`,
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
         const q = (s) => modalEl.querySelector(s);

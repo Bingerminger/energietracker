@@ -252,17 +252,27 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertSame([], $checks->advanceHigh('2025-06-10', 'DE'), 'gepflegter Abschlag 150 €');
         $this->contracts->update('gas', 'c_gas_messy', ['advance_payments' => [['from' => '2022-11-01', 'amount_eur' => 450]]]);
         self::assertSame([], $checks->advanceHigh('2025-06-10', 'DE'), 'ohne abgerechneten Zeitraum ohne Lücken kein Urteil');
+        // v3.12.0 — die Sperre des gemessenen Anteils für sich: Am 10.06.2025 hält schon die unsichere Prognose
+        // A2 an (unten), die gesetzliche Sicht aus Ablesungen muss trotzdem schweigen, weil die letzte Periode zu
+        // viele verteilte Monate hat (gemessener Anteil unter MEASURED_SHARE_MIN)
+        $lastBilled = new \ReflectionMethod($checks, 'lastBilledPeriod');
+        self::assertNull($lastBilled->invoke($checks, 'gas', $this->meter('gas'), '2025-06-10'), 'ohne Rechnung keine Grundlage aus verteilten Monaten');
         // mit einer erfassten Jahresrechnung (erfunden: 9.000 kWh im Jahr 2024) gibt es eine Grundlage
         $bills->create('gas', ['meter_id' => $this->meter('gas')['id'], 'kind' => 'annual', 'period_from' => '2024-01-01',
             'period_to' => '2024-12-31', 'issued_on' => '2025-02-10', 'invoice' => ['energy_kwh' => 9000, 'amount_eur' => 1170]]);
-        $f = $checks->advanceHigh('2025-06-10', 'DE');
-        $status = $this->consumption->contractStatus('gas', $this->meter('gas'), '2025-06-10')['contracts'][0];
-        // Mitte 2025 ist die Prognose sicher; Rechnung und Prognose halten 450 € beide für viel zu hoch:
+        // Die gesetzliche Sicht allein hält 450 € für viel zu hoch:
         // 2024 hat 366 Tage: 9.000 × 365/366 = 8.975,4 kWh × 0,112 = 1.005,25 € + 12 × 13,50 = 1.167,25 € ÷ 12 = 97,27 €
-        self::assertNull($status['projection_uncertain']);
-        self::assertCount(1, $f);
-        self::assertSame(['bill', 97.27, 352.73], [$f[0]['facts']['basis'], $f[0]['facts']['measure_eur'], $f[0]['amount_eur']]);
-        self::assertTrue(\Energietracker\Services\Rights\ContractChecks::tooHigh(450.0, (float)$status['advance_ongoing']));
+        $basis = \Energietracker\Services\Rights\ContractChecks::lastBilledQuantity($bills->list('gas', $this->meter('gas')['id']), '2025-06-10');
+        self::assertSame(['bill', 9000.0, 366], [$basis['source'], $basis['qty'], $basis['days']]);
+        $annual = $checks->annualCost($this->contracts->get('gas', 'c_gas_messy'), $basis['qty'] * 365 / $basis['days'], '2025-07-01');
+        self::assertEqualsWithDelta(97.27, $annual / 12, 0.005);
+        // v3.12.0 — die zweite Sicht urteilt nicht: Am 10.06.2025 passt das Heizmodell mit den Ablesungen bis
+        // dahin (letzte am 03.06.) schlecht zu diesem Zähler, die Prognose ist unsicher, also bleibt A2 still.
+        // Bis v3.11 rechnete der Vertragsstatus hier mit allen Ablesungen bis Januar 2026, die es am 10.06.2025
+        // noch nicht gab, und hielt die Prognose für sicher (mit Befund 97,27 €).
+        $status = $this->consumption->contractStatus('gas', $this->meter('gas'), '2025-06-10')['contracts'][0];
+        self::assertSame(['poor_fit'], $status['projection_uncertain']['reasons'] ?? null);
+        self::assertSame([], $checks->advanceHigh('2025-06-10', 'DE'), 'unsichere Prognose: kein Urteil');
     }
 
     public function testAQuarterlyAdvanceChangesOnlyWhatIsPaid(): void

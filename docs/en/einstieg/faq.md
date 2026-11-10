@@ -24,7 +24,7 @@ Once a month is enough; less often works too. Consumption comes from the
 difference between two readings and is spread over the months to the day; the
 denser the readings, the more precise the months. After 45 days without a
 reading the overview reminds you under "To do" (adjustable under Settings →
-General).
+Display and reminders).
 
 ### Can I record readings without Wi-Fi in the cellar?
 
@@ -48,8 +48,8 @@ uses no cloud service —
 ### Can I try it out first without entering anything?
 
 Yes: on the empty overview **"Try with sample data"**, later under Settings →
-Data → "Load demo data". The app saves the current state first; the way back
-is Settings → Data → Stored snapshots (↩️).
+Data and backup → "Load demo data". The app saves the current state first; the way back
+is Settings → Data and backup → Stored snapshots (↩️).
 
 ### I rent my home — does the app help me?
 
@@ -57,8 +57,8 @@ Yes. It handles electricity on your own contract like anyone else’s. For
 heating and water that you pay through the service charges, there are building
 blocks of their own since v3.1.0: the utility **Heat** for the monthly
 consumption information from the metering service (German HeizkostenV § 6a),
-hot- and cold-water meters with roles and — after **Settings → Household &
-building → “I live”: “in a rented home”** — the page **Tenancy** under Costs &
+hot- and cold-water meters with roles and — after **Household →
+Building → “I live”: “in a rented home”** — the page **Tenancy** under Costs &
 contracts. It compares the prepayment with the expected costs of the current
 billing period, keeps the service charge statements with their PDF and puts
 the deadlines for the statement and for objections into the calendar. In
@@ -75,7 +75,7 @@ separated by semicolon or comma, note and "estimated" optional. Column names
 may be in any language of the app. A preview shows every row before anything
 is written, and an example can be downloaded there. An American date with the
 month first (`01/15/2026`) is not reinterpreted; the app reports the row.
-Temperatures go in under Settings → Weather data as `DD.MM.YYYY;mean;min;max`.
+Temperatures go in under Connections → Weather data as `DD.MM.YYYY;mean;min;max`.
 Monthly values for a meter with consumption per period (since v3.1.0) are read
 by the same button as `month;consumption`, for example `01.2026;1180`.
 
@@ -97,7 +97,7 @@ open claim against the grid operator.
 
 Usually for one of these reasons:
 
-- The **billing date** is a different one (Settings → Utilities & billing).
+- The **billing date** is a different one (Household → Utilities).
 - A **refund or back-payment** from the previous year's bill is missing — it
   belongs on the contract as a special payment.
 - For gas the bill's **conversion factors** are missing (volume correction
@@ -207,8 +207,8 @@ the heat ([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-
 
 ### How do I compare myself with others?
 
-With your own **reference values** (since v3.1.0): under Settings → Household
-& building → “Own reference values” enter, for example, the kWh the German
+With your own **reference values** (since v3.1.0): under Household →
+Building → “Own reference values” enter, for example, the kWh the German
 electricity benchmark (Stromspiegel) gives for your household and the kWh per
 m² from the heating benchmark (Heizspiegel), plus the source. The overview then
 shows the card “Benchmark” for the last full year as a traffic light with one
@@ -233,14 +233,14 @@ condenses them into daily values. It does not connect to the portals
 The gas meter counts cubic metres; kWh only come from volume correction factor ×
 calorific value, and both change from year to year. As long as only the default
 factor 11.5 is entered, the result is off. The bill's factors belong in the list
-under Settings → Utilities & billing, each with its effective date.
+under Household → Utilities, each with its effective date.
 
 ### Why are analysis or forecast empty?
 
 Because there is not enough data yet. Weather adjustment needs 12 months with
 at least 8 usable points, anomalies 5 months, an efficiency class a whole year
 (360 covered days) and the floor area. Every evaluation with degree days also
-needs temperatures for your location (Settings → Weather data).
+needs temperatures for your location (Connections → Weather data).
 
 ### Why is the efficiency class missing?
 
@@ -262,7 +262,7 @@ shows the effect ([Scenario house](../verstehen/08-szenario-eigenheim.md)).
 
 ### I do not live in Germany — does it work?
 
-Yes. The country under Settings → General → Language & country sets currency,
+Yes. The country under Settings → Region and language sets currency,
 formats, time zone, weather location, heating limit, CO₂ factor and gas units.
 Efficiency classes and the special right to cancel remain German
 ([Country profiles](../verstehen/14-laenderprofile.md)). The ⓘ explanations
@@ -271,7 +271,7 @@ links the official tariff comparison where there is one.
 
 ### Two languages in one household — does that work?
 
-Yes, since v3.1.0. Under Settings → General → Language & country every device
+Yes, since v3.1.0. Under Settings → Region and language every device
 picks its **language on this device**; the browser remembers it, nothing
 changes on the server. Next to it is the **default language of the
 installation**: it applies to devices without a choice of their own and to
@@ -284,13 +284,13 @@ the device.
 ### Where is my data, and how do I back it up?
 
 As JSON files in the data directory (`data/`, in the Docker container `/data`).
-A complete backup comes from Settings → Data → **Download JSON backup**; before
+A complete backup comes from Settings → Data and backup → **Download JSON backup**; before
 every import the app creates a snapshot itself.
 
 ### What data leaves my server?
 
 Only the requests to Open-Meteo: the daily weather sync with your location
-rounded to about 1 km (can be switched off under Settings → Weather data) and
+rounded to about 1 km (can be switched off under Connections → Weather data) and
 the place search, if you use it. In addition, only if you set one up, the
 photos to your own text recognition service — which has to be in the home
 network ([Text recognition](../anleitungen/texterkennung.md)) — and, since
@@ -318,16 +318,16 @@ HTTPS. See [Use on your phone](handy.md).
 
 ### Can the app report deadlines to Home Assistant?
 
-Yes, since v3.9.0: Settings → Integrations → “Notifications to Home
-Assistant”. In the Home Assistant app the switch is enough, otherwise a webhook
+Yes, since v3.9.0: Connections →
+Notifications. In the Home Assistant app the switch is enough, otherwise a webhook
 or address and token. Due appointments, deadlines, warnings and new mail arrive
 once each, in the installation’s language
 ([Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390)).
 
 ### Can I see deadlines in my calendar?
 
-Yes, since v3.1.0 as a calendar subscription: under **Reminders & tips →
-Reminders & maintenance → Subscribe in your calendar**. It holds reminders,
+Yes, since v3.1.0 as a calendar subscription: under **To do →
+Dates → Subscribe in your calendar**. It holds reminders,
 cancellation deadlines, contract ends, price guarantees, price increases and
 due readings, and when renting the deadlines of the service charge statement;
 the calendar fetches them again every 12 hours. How to set it up
@@ -346,7 +346,7 @@ file in the default language of the installation is still available.
 ### Which CSV format should I export?
 
 For Excel, LibreOffice or Numbers the **spreadsheet in the default language**
-(Settings → Data → Data export, recommended): column names, decimal separator
+(Settings → Data and backup → Data export, recommended): column names, decimal separator
 and dates match the language, and the file opens correctly with a double click.
 For scripts **CSV format 1** — it stays byte for byte as it is. Both can be
 imported again ([CSV formats](../referenz/api.md#csv-formats-v310)).
@@ -360,7 +360,7 @@ itself at start-up; a backup beforehand never hurts
 
 ### Can I make the app reachable from the internet?
 
-Yes, but only with sign-in (Settings → Access) and behind HTTPS. The checklist
+Yes, but only with sign-in (Settings → Access and security) and behind HTTPS. The checklist
 is in [Security & network operation](../betrieb/sicherheit.md).
 
 ### What does the Energietracker cost?

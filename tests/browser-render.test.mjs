@@ -159,7 +159,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const warnBtn = [...view.querySelectorAll('.seg__btn')].find(b => b.dataset.sev === 'warning');
     if (warnBtn) { warnBtn.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true })); }
     t('recommendations: Filter-Klick ohne Exception', true);
-    t('recommendations: einheitlicher Seitenkopf', !!view.querySelector('.view-header .view-header__title'));
+    t('recommendations: Teil von Zu tun, ohne zweiten Seitenkopf', !view.querySelector('.view-header'));
   } catch (e) { t('recommendations: render', false, e.message); }
 
   // ── F1004 (v1.6.0): zentrale Zählerstand-Erfassung ──
@@ -293,6 +293,17 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('tenancy: Budget, Stammdaten und Abrechnungen',
         tv.querySelector('.view-header__title')?.textContent.includes('Mietverhältnis') && tv.querySelectorAll('.card').length >= 3
           && tv.querySelector('#st-new') && tv.querySelector('#ten-edit'), `${tv.querySelectorAll('.card').length} Karten`);
+      // v3.12.0 (Sichtung M1) — Monatstabelle in Kundensicht wie überall (+ Guthaben, − Nachzahlung), mit Legende
+      // darunter. Die Rechengröße der API ist umgekehrt (positiv = Nachzahlung).
+      const bud = (await (await fetch(`${HOST}/api/tenancies/${encodeURIComponent(ten.id)}/budget`)).json()).data;
+      const legend = tv.querySelector('[data-role="tenancy-legend"]');
+      const monthRows = [...(legend?.closest('details')?.querySelectorAll('tbody tr') || [])];
+      const mi = (bud?.months || []).findIndex(m => Math.abs(Number(m.balance_eur)) >= 0.01);
+      const raw = Number(bud?.months?.[mi]?.balance_eur);
+      const cell = (monthRows[mi]?.querySelector('td:last-child')?.textContent || '').trim();
+      t('tenancy: Monatstabelle mit Legende „+ Guthaben, − Nachzahlung“', /\+\s*Guthaben/.test(legend?.textContent || '')
+        && /−\s*Nachzahlung/.test(legend?.textContent || '') && monthRows.length === (bud?.months || []).length, legend?.textContent || 'keine Legende');
+      t('tenancy: Monatstabelle zeigt das Vorzeichen in Kundensicht', mi >= 0 && (raw > 0 ? /^−/.test(cell) : /^\+/.test(cell)), `${cell} (Rechengröße ${raw})`);
       tv.querySelector('#st-new').dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
       await new Promise(r => setTimeout(r, 50));
       t('tenancy: Formular „Abrechnung erfassen" öffnet', !!global.document.querySelector('#st-form'));
@@ -397,6 +408,12 @@ async function renderView(modPath, params = [], ctx = {}) {
     const years = [...view.querySelectorAll('#t-year option')].map(o => o.value).filter(Boolean);
     t('tariff: Rückblick bietet nur Jahre mit Daten', years.length >= 1 && years.length < 7, years.join(','));
     t('tariff: Zeitraum ohne ISO-Monat', !/\d{4}-\d{2}\b/.test(retro?.querySelector('.toolbar--sub .muted')?.textContent || ''));
+    // v3.12.0 — „Lohnt sich“ mit Richtung: ab (darüber günstiger) oder bis (nur darunter günstiger)
+    const tm = await import(`${ROOT}/views/tariff.js?be=${Date.now()}`);
+    t('tariff: Lohnt sich nennt die Richtung', tm.breakEvenLabel('above', '900') === 'ab 900' && tm.breakEvenLabel('below', '600') === 'bis 600',
+      `${tm.breakEvenLabel('above', '900')} / ${tm.breakEvenLabel('below', '600')}`);
+    const heads = [...view.querySelectorAll('#t-switch thead th')].map(th => th.textContent.trim());
+    t('tariff: Spalte heißt „Lohnt sich“', heads.length === 0 || heads.some(h => h.startsWith('Lohnt sich')), heads.join(' | '));
   } catch (e) { t('tariff: render', false, e.message); }
 
   // ── 4. Dashboard (Chart-Stub, Insight-Karten) ──
@@ -407,29 +424,30 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: Verbrauchskarten vorhanden', view.querySelectorAll('.card').length >= 1);
     const canvas = view.querySelector('#dash-chart');
     t('dashboard: Chart-Canvas eingebunden', !!canvas);
-    // v2.10.0 — Effizienzkarte mit der zweiten Zahl (energieausweis-nah)
-    t('dashboard: Effizienz mit energieausweis-naher Kennzahl', !!view.querySelector('.dash-eff__cert'));
+    // v2.10.0 — Effizienzkarte mit der zweiten Zahl (energieausweis-nah); v3.12.0 (M4) — unter Auswertungen › Kennzahlen
+    const { view: fig } = await renderView(`${ROOT}/views/figures.js`);
+    t('Kennzahlen: Effizienz mit energieausweis-naher Kennzahl', !!fig.querySelector('.dash-eff__cert'));
     // v3.5.0 — Verfahren des Rechentags: ⓘ nennt Basis und verlangte Monate; vor
     // einem neuen Verfahren (GModG ab 2027) steht darunter die Vorschau
     const effApi = await (await global.fetch(HOST + '/api.php/api/benchmarks/efficiency')).json().then(d => d.data ?? d);
     const cert = effApi.certificate;
-    const certInfo = view.querySelector('.dash-eff__cert .info-btn')?.getAttribute('data-info-text') || '';
-    t('dashboard: ⓘ der Kennzahl nennt Basis und Datenzeitraum des Verfahrens',
+    const certInfo = fig.querySelector('.dash-eff__cert .info-btn')?.getAttribute('data-info-text') || '';
+    t('Kennzahlen: ⓘ der Kennzahl nennt Basis und Datenzeitraum des Verfahrens',
       !!cert && certInfo.includes(cert.fuel_basis === 'hs' ? 'nach Brennwert' : 'nach Heizwert')
         && certInfo.includes(`verlangt ${cert.months_required} Monate`), certInfo);
-    const upLine = view.querySelector('[data-role="cert-upcoming"]');
-    t('dashboard: Vorschau auf das neue Verfahren genau dann, wenn die API eine liefert',
+    const upLine = fig.querySelector('[data-role="cert-upcoming"]');
+    t('Kennzahlen: Vorschau auf das neue Verfahren genau dann, wenn die API eine liefert',
       cert?.upcoming ? !!upLine && upLine.textContent.includes(`statt ${cert.months_required} Monate`)
           && upLine.textContent.includes(cert.upcoming.from.split('-').reverse().join('.'))
         : !upLine, upLine?.textContent || '(keine)');
     // v2.12.0 (Review UI-21) — „Zu tun" oben: fällige Ablesungen und Termine mit Sprung
     const todo = view.querySelector('.dash-todo');
-    t('dashboard: „Zu tun" vorhanden', !!todo);
+    t('dashboard: Auszug von „Zu tun" vorhanden, mit Weg zur ganzen Liste', !!todo && !!todo.querySelector('a[href="#/todo"][data-role="todo-all"]'));
     // Demo-Daten: sieben fällige Zähler → eine Sammelzeile zur Erfassung
     t('dashboard: fällige Ablesungen führen zur Erfassung', !!todo?.querySelector('a[href^="#/zaehlerstaende"]'));
     t('dashboard: viele fällige Zähler als eine Zeile',
       todo?.querySelectorAll('a[href^="#/zaehlerstaende"]').length === 1, `${todo?.querySelectorAll('li').length} Einträge`);
-    t('dashboard: überfälliger Termin führt zu den Terminen', !!todo?.querySelector('a[href="#/reminders"]'));
+    t('dashboard: überfälliger Termin führt zu den Terminen', !!todo?.querySelector('a[href="#/todo/dates"]'));
     t('dashboard: keine Kachel „Aktive Zähler" mehr', !/Aktive Zähler/.test(html));
     // v3.6.0 (Paket flexplus) — ohne Viertelstunden keine Kachel „Dein Hebel“, auch kein Platzhalter
     await new Promise(r => setTimeout(r, 400));
@@ -450,7 +468,19 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /^91\s€$/.test(tile.querySelector('.dash-lever__big')?.textContent || '') && /inkl\. USt/.test(tile.textContent), tile?.textContent.replace(/\s+/g, ' ').trim());
     t('Kachel „Dein Hebel“: klein „bis zu“ mit dynamischem Tarif', /bis zu 251\s€/.test(tile?.querySelector('.dash-lever__upto')?.textContent || ''));
     t('Kachel „Dein Hebel“: ein Handlungssatz und ein Link zur Flexibilität', tile?.querySelectorAll('.dash-lever__action').length === 1
-      && /00:00–06:00 Uhr/.test(tile.querySelector('.dash-lever__action').textContent) && !!tile.querySelector('a[href="#/flexibility"]'));
+      && /00:00–06:00 Uhr/.test(tile.querySelector('.dash-lever__action').textContent) && !!tile.querySelector('a[href="#/flexibility?year=2025"]'));
+    // v3.12.0 — Vorjahr ohne Zahl (Viertelstunden fehlen ein Jahr lang): die Kachel des Jahres davor, mit dessen Jahr
+    const { leverTileFor } = await import(`${ROOT}/views/dashboard.js?lever=${Date.now()}`);
+    const asked = [];
+    const only2025 = async (y) => { asked.push(y); return { year: y, summary: y === 2025 ? s : null }; };
+    box.innerHTML = await leverTileFor(2027, only2025);
+    t('Kachel „Dein Hebel“: ohne Zahl im Vorjahr die des Jahres davor, mit Jahr und Link dorthin',
+      /2025/.test(box.querySelector('.card__title')?.textContent || '') && !!box.querySelector('a[href="#/flexibility?year=2025"]')
+      && asked.join() === '2026,2025', `gefragt ${asked.join()}`);
+    asked.length = 0;
+    box.innerHTML = await leverTileFor(2026, only2025);
+    t('Kachel „Dein Hebel“: mit Zahl im Vorjahr bleibt es beim Vorjahr', /2025/.test(box.textContent) && asked.join() === '2025', `gefragt ${asked.join()}`);
+    t('Kachel „Dein Hebel“: in keinem der beiden Jahre eine Zahl, keine Kachel', await leverTileFor(2028, only2025) === '');
     t('Kachel „Dein Hebel“: ohne gemessene Viertelstunden, ohne Hebel, ohne Antwort leer',
       leverTileHtml({ ...s, measured: false }) === '' && leverTileHtml({ ...s, eur: 0.4 }) === '' && leverTileHtml(null) === '');
     box.innerHTML = leverTileHtml({ ...s, real: false, eur: 250.75, dynamic_eur: null, action: null });
@@ -495,7 +525,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const area = av.querySelector('#act-area');
     area.value = log[0].subject.kind === 'reminder' ? 'contracts' : 'reminders';
     area.dispatchEvent(new global.window.Event('change', { bubbles: true }));
-    t('activity: Filter Bereich blendet aus', !av.querySelector('.activity-item') && !!av.querySelector('.banner'));
+    t('activity: Filter Bereich blendet aus', !av.querySelector('.activity-item') && !!av.querySelector('.infobox'));
     const area2 = av.querySelector('#act-area');
     area2.value = '';
     area2.dispatchEvent(new global.window.Event('change', { bubbles: true }));
@@ -564,15 +594,16 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('Termin-Dialog: Feld „Zuständig“ mit Vorschlägen (Namen, Personen)',
         field?.getAttribute('list') === 'f-assignee-list' && [...modal.querySelectorAll('#f-assignee-list option')].some(o => o.value === 'Lena'));
 
-      const { view: dv } = await renderView(`${ROOT}/views/dashboard.js`);
+      // v3.12.0 (M4) — der Filter steht unter Zu tun, die Übersicht zeigt den Auszug
+      const { view: dv } = await renderView(`${ROOT}/views/todo.js`);
       useStorage();
-      await sleep(100);
+      await sleep(300);
       t('Zu tun: Chip am Termin und Filter „Zuständig“',
         !!dv.querySelector('.dash-todo .chip--assignee') && !!dv.querySelector('.dash-todo #todo-assignee'));
       const tsel = dv.querySelector('#todo-assignee');
       t('Zu tun: gemerkte Wahl gilt auch hier (Gerät)', tsel?.value === 'name:lena');
       t('Zu tun: gefiltert — nur Lenas Termine, der Rest gezählt',
-        [...dv.querySelectorAll('.dash-todo__item')].every(li => li.textContent.includes('Lena')) && !!dv.querySelector('.dash-todo [data-role="assignee-hidden"]'));
+        [...dv.querySelectorAll('.dash-todo__item')].filter(li => li.querySelector('.chip--assignee')).every(li => li.textContent.includes('Lena')) && !!dv.querySelector('.dash-todo [data-role="assignee-hidden"]'));
       tsel.value = 'all';
       tsel.dispatchEvent(new global.window.Event('change', { bubbles: true }));
       const bill = dv.querySelector('.dash-todo a[href^="#/bill-check?"]');
@@ -603,7 +634,13 @@ async function renderView(modPath, params = [], ctx = {}) {
   } catch (e) { t('F1028/F1029: Zuständig, Abrechnung erwartet, CSV', false, e.message); }
 
   // ── 5. Einstellungen — seit v2.12.0 Unterseiten (Review UI-13) ──
-  const settingsPage = async (page) => (await renderView(`${ROOT}/views/settings.js`, page ? [page] : [])).view;
+  // v3.12.0 (M3) — `household:<seite>` zeichnet dasselbe Gerüst, wie views/household.js
+  const settingsPage = async (page) => (await (String(page).startsWith('household:')
+    ? renderView(`${ROOT}/views/settings.js`, [], { household: { page: page.slice(10) } })
+    : renderView(`${ROOT}/views/settings.js`, page ? [page] : []))).view;
+  // v3.12.0 (M2) — Verbindungen und Zu tun
+  const connPage = async (page, sub) => (await renderView(`${ROOT}/views/connections.js`, [page, sub].filter(Boolean))).view;
+  const todoPage = async (query = '') => (await renderView(`${ROOT}/views/todo.js`, [], { query: new URLSearchParams(query) })).view;
 
   // v3.1.0 (I18N-29) — Sprache dieses Geräts: im Browser, nicht für alle
   try {
@@ -627,13 +664,14 @@ async function renderView(modPath, params = [], ctx = {}) {
     await i18n.initI18n('de');
   } catch (e) { t('settings: Gerätesprache', false, e.message); }
   try {
-    const view = await settingsPage();
-    t('settings/allgemein: Seite „Allgemein"', !!view.querySelector('h1')?.textContent.includes('Allgemein'));
+    let view = await settingsPage('region');
+    t('settings/region: Seite „Region und Sprache"', !!view.querySelector('h1')?.textContent.includes('Region und Sprache'));
     // v2.7.0 — Länderprofil: Land, Währung, Zeitzone
     const countryOpts = view.querySelectorAll('#country-select option').length;
     t('settings/allgemein: Länderauswahl mit allen Profilen', countryOpts === 9, `${countryOpts} Länder`);
     t('settings/allgemein: Währung und Zeitzone wählbar',
       !!view.querySelector('#currency-select') && view.querySelectorAll('#tz-select option').length > 10);
+    view = await settingsPage('display');
     const bar = view.querySelector('[data-role="savebar"]');
     t('settings/allgemein: Speicherleiste erst bei einer Änderung', bar?.hidden === true);
     const dm = view.querySelector('[data-key="dashboard_months"]');
@@ -644,7 +682,7 @@ async function renderView(modPath, params = [], ctx = {}) {
   } catch (e) { t('settings/allgemein: render', false, e.message); }
 
   try {
-    const view = await settingsPage('utilities');
+    const view = await settingsPage('household:utilities');
     t('settings/verbrauchsarten: active_utilities-Checkboxen', view.querySelectorAll('[data-active-util]').length >= 3);
     // v2.12.0 — alle Abrechnungsstichtage an einer Stelle; v2.13.0 (FE-10)
     // ohne Heizöl/Pellets (keine Abschläge, kein Stichtag), mit PV-Einspeisung
@@ -665,21 +703,22 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/verbrauchsarten: Brennwert-Einheit kWh, MJ, GJ',
       [...view.querySelectorAll('[data-key="gas_cv_unit"] option')].map(o => o.value).join() === 'kwh,mj,gj');
     // v2.10.0 — CO₂ Strom je Jahr, Einheiten je kWh
-    t('settings/verbrauchsarten: CO₂-Jahreswerte als Tabelle',
-      view.querySelectorAll('[data-co2years] [data-cy-table] tbody tr').length >= 3
-        && view.querySelector('[data-key="co2_strom_years"]')?.getAttribute('data-type') === 'json');
-    t('settings/verbrauchsarten: CO₂ Heizöl/Pellets je kWh', /CO₂ Heizöl[^<]*<span class="settings-field__unit">g\/kWh/.test(view.innerHTML));
+    const calc = await settingsPage('calculation');
+    t('settings/rechnen: CO₂-Jahreswerte als Tabelle',
+      calc.querySelectorAll('[data-year-key="co2_strom_years"] [data-cy-table] tbody tr').length >= 3
+        && calc.querySelector('[data-key="co2_strom_years"]')?.getAttribute('data-type') === 'json');
+    t('settings/rechnen: CO₂ Heizöl/Pellets je kWh', /CO₂ Heizöl[^<]*<span class="settings-field__unit">g\/kWh/.test(calc.innerHTML));
     t('settings/verbrauchsarten: kein Standort mehr (steht bei den Wetterdaten)', !view.querySelector('[data-key="latitude"]'));
   } catch (e) { t('settings/verbrauchsarten: render', false, e.message); }
 
   try {
-    const view = await settingsPage('household');
+    const view = await settingsPage('household:building');
     t('settings/haushalt: Wohnfläche', !!view.querySelector('[data-key="wohnflaeche_m2"]'));
     t('settings/haushalt: beheizter Keller und dezentrales Warmwasser',
       !!view.querySelector('[data-key="beheizter_keller"]') && !!view.querySelector('[data-key="warmwasser_dezentral"]'));
     t('settings/haushalt: Personen im Haushalt', !!view.querySelector('[data-key="wasser_personen_anzahl"]'));
     // v3.9.0 (Paket oberflaeche) — Karte „Personen im Haushalt“ in jeder Stufe, ohne Anmeldung bedienbar
-    const people = view.querySelector('#people-card');
+    const people = (await settingsPage('household:people')).querySelector('#people-card');
     t('settings/haushalt: Karte „Personen im Haushalt“ mit den Personen des Beispielhaushalts',
       !!people && [...people.querySelectorAll('.people-list__name')].map(e => e.textContent).sort().join() === 'Anna,Paul',
       people?.textContent.replace(/\s+/g, ' ').slice(0, 160));
@@ -695,17 +734,16 @@ async function renderView(modPath, params = [], ctx = {}) {
 
   try {
     const view = await settingsPage('data');
-    // v2.11.0 — der Jahresbericht hat eine eigene Seite; hier nur der Verweis
-    t('settings/daten: Verweis auf den Jahresbericht', !!view.querySelector('a[href="#/report"]'));
+    // v3.12.0 (M3) — der Verweis auf den Jahresbericht entfällt, er bleibt unter Auswertungen
+    t('settings/daten: kein Verweis mehr auf den Jahresbericht', !view.querySelector('a[href="#/report"]'));
     t('settings/daten: Sicherung, Import und Demo-Daten',
       !!view.querySelector('#btn-export') && !!view.querySelector('#btn-import') && !!view.querySelector('#btn-demo'));
-    t('settings/daten: keine Speicherleiste (keine Felder)', !view.querySelector('[data-role="savebar"]'));
+    t('settings/daten: Speicherleiste wegen der Belege, verborgen bis zur Änderung', view.querySelector('[data-role="savebar"]')?.hidden === true && !!view.querySelector('[data-key="attachments_max_mb"]'));
   } catch (e) { t('settings/daten: render', false, e.message); }
 
   try {
-    const view = await settingsPage('expert');
-    const details = view.querySelector('details.settings-expert');
-    t('settings/experte: eingeklappt mit Warnung', !!details && !details.open && !!details.querySelector('.banner--warning'));
+    let view = await settingsPage('calculation');
+    t('settings/rechnen: Warnung über allem, nichts eingeklappt', !!view.querySelector('[data-role="calc-warning"].infobox--achtung') && !view.querySelector('details.settings-expert'));
     t('settings/experte: sigmoid im Modell-Picker',
       !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
     // v2.13.0 (UI-17) — lesbare Namen statt der Schlüssel, Bandbreite pflegbar
@@ -716,6 +754,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/experte: Split-Modus übersetzt', !!splitOpt && splitOpt.textContent.trim() !== 'auto', splitOpt?.textContent);
     t('settings/experte: Breite des Prognosebands', !!view.querySelector('[data-key="confidence_band_sigma"]'));
     // v3.10.0 (#36) — Verbindungen im Heimnetz: Stammzertifikat als Textfeld, „nicht prüfen“ aus und mit Warnung
+    view = await connPage('homenet');
     const pem = view.querySelector('textarea[data-key="home_ca_pem"]');
     t('settings/experte: eigenes Stammzertifikat als mehrzeiliges Feld, ohne Rechtschreibprüfung',
       !!pem && pem.value === '' && pem.getAttribute('spellcheck') === 'false' && !pem.closest('details.settings-expert'));
@@ -725,6 +764,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v3.7.0 — Karte „Auslesen“: Umschalter Lokal | Cloud (die Wahl ist `inbox_provider`),
     // Lokal mit den gemeinsamen Feldern der Texterkennung, Cloud mit Voreinstellungen und
     // „experimentell“; eigene Speichern-Taste (nicht die Speicherleiste)
+    view = await connPage('reading');
     const card = view.querySelector('#inbox-reading-card');
     t('settings/experte: Karte „Auslesen“', !!card);
     const pane = (role) => card?.querySelector(`[data-role="${role}"]`);
@@ -788,7 +828,7 @@ async function renderView(modPath, params = [], ctx = {}) {
   } catch (e) { t('settings/system: render', false, e.message); }
 
   try {
-    const view = await settingsPage('integrations');
+    let view = await connPage('homeassistant');
     t('settings/integrationen: Home Assistant', !!view.querySelector('#btn-ha-generate, #btn-ha-revoke'));
     // v2.13.0 (I18N-25) — Anleitung als Link, nicht als Pfad im Fließtext
     // v3.4.0 (N1019) — im Handbuch der App, ohne neuen Tab
@@ -796,6 +836,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !guide.hasAttribute('target') && !view.textContent.includes('HOME-ASSISTANT.md'),
       guide?.getAttribute('href'));
     // v3.1.0 (H1, API-33) — Sensor-Vorlage auf /api/summary, je Zähler mit Schlüssel aus der Summary
+    view = await connPage('homeassistant', 'templates');
     const sensors = view.querySelector('#ha-sensors')?.textContent || '';
     t('settings/integrationen: REST-Sensoren auf /api/summary', /^rest:\n  - resource: ".*\/api\.php\/api\/summary"/.test(sensors)
       && /selectattr\('key', 'eq', 'gas\.[^']+'\)/.test(sensors) && sensors.includes('device_class: monetary'), sensors.slice(0, 80));
@@ -803,6 +844,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const todoYaml = view.querySelector('#ha-todo-sensor')?.textContent || '';
     t('settings/integrationen: Sensor „Zu tun“ auf /api/todo', /^rest:\n  - resource: ".*\/api\.php\/api\/todo"/.test(todoYaml)
       && todoYaml.includes('value_json.data.count'), todoYaml.slice(0, 80));
+    view = await connPage('homeassistant', 'notifications');
     const han = view.querySelector('#ha-notify-card');
     t('settings/integrationen: Karte Benachrichtigungen, aus, mit dem Satz zum Heimnetz', !!han
       && !han.querySelector('#han-enabled')?.checked && /Ausgeschaltet/.test(han.querySelector('[data-role="han-state"]')?.textContent || '')
@@ -833,6 +875,286 @@ async function renderView(modPath, params = [], ctx = {}) {
       !('webhook_id' in body) && !('token' in body) && body.target === 'webhook' && Array.isArray(body.events) && body.events.length === 4,
       JSON.stringify(body));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
+
+  // v3.12.0 (F1037, Paket oberflaeche) — Karte „KI-Assistenten (MCP)“: Stand und
+  // Schalter schmal, Verbinden (Schlüssel, Adresse, Vorlagen) und Vorschläge/Protokoll
+  // breit; Schalter speichern sofort, ein angelegter Schlüssel steht in den Vorlagen.
+  try {
+    const tick = (ms = 120) => new Promise(r => setTimeout(r, ms));
+    const realFetch = global.fetch;
+    const sent = [];
+    global.fetch = (u, o = {}) => { sent.push({ method: (o.method || 'GET').toUpperCase(), url: String(u), body: o.body ? JSON.parse(o.body) : null }); return realFetch(u, o); };
+    let view;
+    try {
+      const statusView = await connPage('ai');
+      const card = statusView.querySelector('#mcp-card');
+      view = await connPage('ai', 'connect');
+      let connect = view.querySelector('#mcp-connect-card');
+      t('KI-Assistenten: Stand schmal, Verbinden breit, Reiter führen zu Vorschlägen und Zugriffen',
+        !!card && !card.classList.contains('settings-card--wide') && connect?.classList.contains('settings-card--wide')
+        && !!statusView.querySelector('.section-tabs a[href="#/todo?art=ki"]') && !!statusView.querySelector('.section-tabs a[href="#/todo/history/ai"]')
+        && !!statusView.querySelector('[data-role="connection-crumb"] a[href="#/connections"]'));
+      const state = card?.querySelector('[data-role="mcp-state"]');
+      t('KI-Assistenten: ab Werk aus, Schalter frei, Freigaben aus, Hinweis zum Sprachmodell',
+        state?.dataset.state === 'off' && /Ausgeschaltet/.test(state.textContent) && card.querySelector('#mcp-enabled')?.checked === false
+        && card.querySelector('#mcp-enabled')?.disabled === false && !card.querySelector('#mcp-share-identifiers')?.checked
+        && !card.querySelector('#mcp-share-documents')?.checked && /Sprachmodell/.test(card.querySelector('[data-role="mcp-privacy"]')?.textContent || ''),
+        state?.textContent);
+      t('KI-Assistenten: jedes Kästchen mit Hinweis verbunden (aria-describedby)',
+        [...card.querySelectorAll('input[type="checkbox"]')].every(i => !!statusView.querySelector(`#${i.getAttribute('aria-describedby')}`)?.textContent.trim()));
+      t('KI-Assistenten: keine Ursprungsliste (mcp_allowed_origins entfällt)', !statusView.querySelector('[data-key="mcp_allowed_origins"], #mcp-allowed-origins'));
+      const scopes = [...(connect?.querySelectorAll('#mcp-key-scope option') || [])].map(o => `${o.value}:${o.textContent.trim()}`);
+      t('KI-Assistenten: Bereiche „KI lesen“ und „KI lesen und vorschlagen“', scopes.join('|') === 'mcp:KI lesen|mcp_write:KI lesen und vorschlagen', scopes.join('|'));
+      const url = connect?.querySelector('#mcp-url')?.value || '';
+      t('KI-Assistenten: Adresse aus der Seite, über api.php, nur lesbar',
+        /^http:\/\/127\.0\.0\.1:\d+.*\/api\.php\/api\/mcp$/.test(url) && connect.querySelector('#mcp-url')?.readOnly === true, url);
+      const clients = [...(connect?.querySelectorAll('[data-mcp-client] > summary') || [])].map(s => s.textContent.trim());
+      // v3.12.0 (Entscheidung 2026-11-04) — Open WebUI zuerst und aufgeklappt, jede andere Vorlage trägt die Kennzeichnung
+      t('KI-Assistenten: Vorlagen für fünf Programme, Open WebUI empfohlen, die anderen experimentell',
+        clients.map(c => c.replace(/\s+/g, ' ')).join('|') === 'Open WebUI empfohlen|Claude Code experimentell|VS Code experimentell|Cursor experimentell|LM Studio experimentell'
+        && connect.querySelector('[data-mcp-client="openwebui"]')?.open === true && connect.querySelector('[data-mcp-client="vscode"]')?.open === false
+        && /Geprüft mit Open WebUI/.test(connect.querySelector('[data-role="mcp-clients-hint"]')?.textContent || '')
+        && /github\.com\/Bingerminger\/energietracker\/issues/.test(connect.querySelector('[data-role="mcp-feedback"]')?.getAttribute('href') || ''), clients.join('|'));
+      // v3.12.0 (Skeptiker M1) — Bestätigung in der App: ab Werk an, der Hinweis sagt, was gilt
+      const inApp = card.querySelector('#mcp-apply-in-app');
+      t('KI-Assistenten: „Übernahme nur in der App bestätigen“ ab Werk an, mit ehrlichem Hinweis',
+        inApp?.checked === true && /Übernehmen/.test(statusView.querySelector('#mcp-apply-in-app-hint')?.textContent || ''));
+      // v3.12.0 (Mehrwert) — „Was bringt dir das?“ zugeklappt, Beispiele als erfunden gekennzeichnet, Link in die Anleitung
+      const value = card.querySelector('#mcp-value');
+      t('KI-Assistenten: „Was bringt dir das?“ zugeklappt, sechs Beispiele, erfunden, Link auf den Abschnitt',
+        value?.open === false && /Was bringt dir das/.test(value.querySelector('summary')?.textContent || '')
+        && value.querySelectorAll('[data-mcp-example]').length === 6 && /erfundene Beispiele/.test(value.textContent)
+        && /€/.test(value.querySelector('[data-mcp-example="bill"] dd')?.textContent || '')
+        && /\?h=mehrwert$/.test(value.querySelector('[data-role="mcp-value-more"]')?.getAttribute('href') || ''));
+      const vs = JSON.parse(connect?.querySelector('[data-mcp-block="vscode"]')?.textContent || '{}');
+      t('KI-Assistenten: VS Code fragt nach dem Schlüssel (nicht in der Datei)',
+        vs.servers?.energietracker?.url === url && vs.inputs?.[0]?.password === true && vs.inputs?.[0]?.description === 'API-Schlüssel für den Energietracker');
+      t('KI-Assistenten: Hinweis „noch ausgeschaltet“, noch kein Schlüssel, keine Vorschläge, kein Protokoll',
+        !!connect?.querySelector('[data-role="mcp-connect-off"]') && !!connect?.querySelector('[data-role="mcp-keys-none"]'));
+      t('KI-Assistenten: Kopierknöpfe mit eigenem Namen',
+        [...connect.querySelectorAll('[data-mcp-copy]')].every(b => /^Kopieren: .+/.test(b.getAttribute('aria-label') || '')));
+
+      // Einschalten speichert sofort; ohne Schlüssel warnt der Stand
+      const box = card.querySelector('#mcp-enabled');
+      box.checked = true;
+      box.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+      await tick(300);
+      t('KI-Assistenten: Einschalten speichert sofort (PATCH mcp_enabled), Stand „ohne Schlüssel“',
+        sent.some(s => s.method === 'PATCH' && s.body?.mcp_enabled === true) && state.dataset.state === 'no-key', state.dataset.state);
+      (await import(`${ROOT}/state.js`)).invalidateSettings();
+      view = await connPage('ai', 'connect');
+      connect = view.querySelector('#mcp-connect-card');
+      t('KI-Assistenten: eingeschaltet, „noch ausgeschaltet“ steht nicht mehr da', !connect?.querySelector('[data-role="mcp-connect-off"]'));
+
+      // Schlüssel anlegen: Bereich mcp, Schlüssel einmal sichtbar und in den Vorlagen
+      connect.querySelector('#mcp-key-name').value = 'Laptop';
+      connect.querySelector('form[data-role="mcp-key-form"]').dispatchEvent(new global.window.Event('submit', { bubbles: true, cancelable: true }));
+      await tick(400);
+      const created = sent.find(s => s.method === 'POST' && /\/api\/auth\/keys$/.test(s.url));
+      const shown = connect.querySelector('[data-role="mcp-key-value"]')?.textContent || '';
+      const cursor = JSON.parse(connect.querySelector('[data-mcp-block="cursor"]')?.textContent || '{}');
+      t('KI-Assistenten: Schlüssel mit Bereich mcp angelegt, in Cursor- und Befehlsvorlage eingesetzt, Stand „an“',
+        created?.body?.scope === 'mcp' && /^etk_[0-9a-f]{48}$/.test(shown)
+        && cursor.mcpServers?.energietracker?.headers?.Authorization === `Bearer ${shown}`
+        && connect.querySelector('[data-mcp-block="claude-code-cli"]')?.textContent.includes(`Bearer ${shown}'`)
+        && !connect.querySelector('[data-mcp-block="vscode"]')?.textContent.includes(shown), `${created?.body?.scope} ${shown.slice(0, 8)}`);
+      const row = connect.querySelector('[data-mcp-key]');
+      t('KI-Assistenten: Schlüssel in der Liste mit „KI lesen“ und Widerrufen', /Laptop/.test(row?.textContent || '') && /KI lesen/.test(row?.textContent || '')
+        && !!row?.querySelector('[data-mcp-revoke]'));
+      t('KI-Assistenten: Fokus auf „Schlüssel kopieren“', global.document.activeElement?.dataset?.role === 'mcp-key-copy');
+
+      const stateOn = (await connPage('ai')).querySelector('#mcp-card [data-role="mcp-state"]')?.dataset.state;
+      t('KI-Assistenten: mit Schlüssel steht der Stand auf „an“', stateOn === 'on', stateOn);
+      // Verbindungen › Schlüssel: dieselben Schlüssel mit Beschriftung des Bereichs
+      const access = await connPage('keys');
+      const labels = [...access.querySelectorAll('#sec-keys tbody tr')].map(r => r.children[1]?.textContent.trim());
+      t('Schlüssel: KI-Schlüssel mit Beschriftung „KI lesen“, Hinweis auf Verbindungen',
+        labels.includes('KI lesen') && /Verbindungen/.test(access.querySelector('[data-role="keys-mcp-hint"]')?.textContent || ''), labels.join(', '));
+      t('Schlüssel: Zeilen zu Home Assistant und zu den KI-Schlüsseln', !!access.querySelector('[data-role="keys-all"] a[href="#/connections/homeassistant"]') && !!access.querySelector('[data-role="keys-all"] a[href="#/connections/ai/connect"]'));
+      t('Zugriff: Weg zu den Schlüsseln bleibt', !!(await settingsPage('access')).querySelector('#keys-moved a[href="#/connections/keys"]'));
+
+      // Widerrufen: Rückfrage, Liste leer, Vorlagen wieder mit Platzhalter
+      view = await connPage('ai', 'connect');
+      const c2 = view.querySelector('#mcp-connect-card');
+      t('KI-Assistenten: nach dem Neuladen steht der Schlüssel nicht mehr in den Vorlagen',
+        (c2?.querySelector('[data-mcp-block="cursor"]')?.textContent || '').includes('Bearer etk_…'));
+      c2?.querySelector('[data-mcp-revoke]')?.click();
+      await tick(150);
+      global.document.querySelector('.modal [data-act="ok"]')?.click();
+      await tick(400);
+      t('KI-Assistenten: Widerrufen mit Rückfrage, danach kein Schlüssel und Stand „ohne Schlüssel“',
+        sent.some(s => s.method === 'DELETE' && /\/api\/auth\/keys\/k_/.test(s.url)) && !!c2?.querySelector('[data-role="mcp-keys-none"]')
+        && global.document.activeElement?.id === 'mcp-key-name');
+      t('KI-Assistenten: danach Stand „ohne Schlüssel“', (await connPage('ai')).querySelector('#mcp-card [data-role="mcp-state"]')?.dataset.state === 'no-key');
+    } finally {
+      global.fetch = realFetch;
+      await realFetch(`${HOST}/api/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mcp_enabled: false }) }).then(r => r.text()).catch(() => {});
+    }
+
+    // Vorschläge ablehnen und Protokoll mit Blättern (Antworten des Servers nachgestellt)
+    const now = Date.parse('2026-11-03T10:00:00Z');
+    const journal = Array.from({ length: 60 }, (_, i) => ({ at: new Date(now - i * 60000).toISOString(), key_id: 'k_1', key_name: 'Laptop',
+      client: { name: 'vscode', version: '1.106' }, method: 'tools/call', name: i % 2 ? 'get_overview' : 'list_meters',
+      result: i === 0 ? 'denied' : 'ok', status: 200, code: null, error_id: null, version: '2026-07-28', ms: 12 + i }));
+    let proposals = [{ id: 'mp_aaaaaaaaaaaaaaaaaaaaaaaa', kind: 'reading', summary: 'Gas, Zähler Keller: Stand 12 345,6 m³ am 02.11.2026 eintragen (geschätzt: nein).',
+      key_name: 'Laptop', status: 'open', created_at: '2026-11-03T10:00:00+01:00', expires_at: '2026-11-03T10:15:00+01:00' }];
+    const deleted = [];
+    const json = (data) => new Response(JSON.stringify({ success: true, data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    global.fetch = (u, o = {}) => {
+      const url = String(u), method = (o.method || 'GET').toUpperCase();
+      if (method === 'GET' && url.endsWith('/api/mcp/status')) return Promise.resolve(json({ enabled: true, setting: true, locked_by_env: false, share_identifiers: false, share_documents: false, apply_in_app: true, login_active: false }));   // v3.12.0 (Nachprüfung A1)
+      if (method === 'GET' && url.endsWith('/api/mcp/journal')) return Promise.resolve(json(journal.slice().reverse()));   // Reihenfolge macht die Karte
+      if (method === 'GET' && url.endsWith('/api/mcp/proposals')) return Promise.resolve(json(proposals));
+      if (method === 'DELETE' && url.includes('/api/mcp/proposals/')) { deleted.push(url.split('/').pop()); proposals = []; return Promise.resolve(json({ rejected: true })); }
+      return realFetch(u, o);
+    };
+    try {
+      const v = await connPage('ai');
+      const act = (await renderView(`${ROOT}/views/activity-ai.js`)).view.querySelector('#mcp-activity-card');
+      // v3.12.0 (Nachprüfung A1) — keine Anmeldung aktiv: Die Karte sagt, was der Schalter dann nicht schützt
+      t('KI-Assistenten: ohne Anmeldung ein Hinweis am Schalter', /Anmeldung ist aus/.test(v.querySelector('[data-role="mcp-no-login"]')?.textContent || ''));
+      const rows = act?.querySelectorAll('[data-mcp-journal]') || [];
+      const first = rows[0]?.textContent.replace(/\s+/g, ' ') || '';
+      t('KI-Assistenten: Protokoll neueste zuerst, Programm, Aufruf, Ergebnis, Dauer; ab 51 Einträgen mit Blättern',
+        rows.length === 25 && /Laptop/.test(first) && /vscode 1\.106/.test(first) && /list_meters/.test(first) && /abgewiesen/.test(first)
+        && /12 ms/.test(first) && !!act.querySelector('[data-pager="mcp-journal"]'), `${rows.length} · ${first}`);
+      act.querySelector('[data-pager="mcp-journal"] [data-pager-go="next"]')?.click();
+      await tick(50);
+      t('KI-Assistenten: Protokoll blättert', act.querySelectorAll('[data-mcp-journal]').length === 25
+        && /26–50|26-50/.test(act.querySelector('.pager__range')?.textContent || ''), act.querySelector('.pager__range')?.textContent);
+      const todoKi = await todoPage('art=ki');
+      t('Zu tun: ohne Anmeldung derselbe Hinweis bei den Vorschlägen', /Anmeldung ist aus/.test(todoKi.querySelector('[data-role="mcp-no-login"]')?.textContent || ''));
+      const prow = todoKi.querySelector('[data-mcp-proposal]');
+      t('KI-Assistenten: offener Vorschlag mit Art, Zusammenfassung und „Ablehnen“',
+        /Zählerstand/.test(prow?.textContent || '') && /12 345,6 m³/.test(prow?.textContent || '') && !!prow?.querySelector('[data-mcp-reject]'));
+      prow.querySelector('[data-mcp-reject]').click();
+      await tick(150);
+      const modal = global.document.querySelector('.modal');
+      t('KI-Assistenten: Ablehnen fragt nach und nennt den Vorschlag', /ablehnen\?/.test(modal?.textContent || '') && /12 345,6 m³/.test(modal?.querySelector('[data-role="confirm-detail"]')?.textContent || ''));
+      global.document.querySelector('.modal [data-act="ok"]')?.click();
+      await tick(300);
+      t('KI-Assistenten: abgelehnt (DELETE), Liste neu vom Server, Fokus auf dem Filter',
+        deleted[0] === 'mp_aaaaaaaaaaaaaaaaaaaaaaaa' && !!todoKi.querySelector('[data-role="todo-empty"]')
+        && global.document.activeElement?.dataset?.art === 'ki', `${deleted.join()} ${global.document.activeElement?.dataset?.art}`);
+    } finally { global.fetch = realFetch; }
+
+    // v3.12.0 (Skeptiker M1) — Übernehmen in der App: Rückfrage mit dem ganzen Satz, POST, Liste vom Server, Hinweis über „Zu tun“
+    {
+      let open = [{ id: 'mp_bbbbbbbbbbbbbbbbbbbbbbbb', kind: 'reading', summary: 'Gas: Stand 13.200 m³ am 04.11.2026 eintragen (geschätzt: nein).',
+        key_name: 'Laptop', status: 'open', created_at: '2026-11-04T10:00:00+01:00', expires_at: '2026-11-05T10:00:00+01:00', untrusted: { name: 'Keller', note: 'Vom Flur abgelesen' } }];
+      const posted = [];
+      global.fetch = (u, o = {}) => {
+        const url = String(u), method = (o.method || 'GET').toUpperCase();
+        if (method === 'GET' && url.endsWith('/api/mcp/status')) return Promise.resolve(json({ enabled: true, setting: true, locked_by_env: false, share_identifiers: false, share_documents: false, apply_in_app: true }));
+        if (method === 'GET' && url.endsWith('/api/mcp/proposals')) return Promise.resolve(json(open));
+        if (method === 'POST' && url.endsWith('/apply')) { posted.push(url); open = []; return Promise.resolve(json({ proposal_id: 'mp_b', kind: 'reading', status: 'applied', applied: [], skipped: [], failed: [], activity_ids: [] })); }
+        return realFetch(u, o);
+      };
+      try {
+        const act = await todoPage('art=ki');
+        const row = act?.querySelector('[data-mcp-proposal]');
+        t('Zu tun: Vorschlag als Zeile mit Art, Schlüssel, Frist und Knöpfen',
+          /Zählerstand/.test(row?.textContent || '') && /Laptop/.test(row?.textContent || '') && /Gültig bis/.test(row?.textContent || '')
+          && !!row.querySelector('[data-role="mcp-proposal-summary"]') && !!row.querySelector('[data-role="mcp-proposal-actions"] [data-mcp-apply]'));
+        t('Zu tun: Filter „KI-Vorschläge“ und Zusage, wer bestätigt', !!act.querySelector('[data-art="ki"].active') && /Übernehmen/.test(act.querySelector('[data-role="mcp-proposals-hint"]')?.textContent || ''));
+        t('KI-Assistenten: Vorschlag mit „Übernehmen“, Zahl an der Karte, Zähler neben dem Satz, Frist',
+          !!row?.querySelector('[data-mcp-apply]') && !!row?.querySelector('[data-mcp-reject]') && act.querySelector('[data-art="ki"] [data-role="todo-count"]')?.textContent.trim() === '1'
+          && /Keller/.test(row.querySelector('[data-role="mcp-proposal-context"]')?.textContent || '') && /Vom Flur abgelesen/.test(row.querySelector('[data-role="mcp-proposal-context"]')?.textContent || '') && /Übernehmen/.test(act.querySelector('[data-role="mcp-proposals-hint"]')?.textContent || ''));
+        row.querySelector('[data-mcp-apply]').click();
+        await tick(150);
+        global.document.querySelector('.modal [data-act="cancel"]')?.click();
+        await tick(200);
+        t('KI-Assistenten: Abbrechen in der Rückfrage übernimmt nichts', posted.length === 0 && !!act.querySelector('[data-mcp-proposal]'), posted.join());
+        act.querySelector('[data-mcp-apply]').click();
+        await tick(150);
+        const modal = global.document.querySelector('.modal');
+        t('KI-Assistenten: Übernehmen fragt nach, nennt Schlüssel, Satz und Zähler',
+          /übernehmen\?/.test(modal?.textContent || '') && /Laptop/.test(modal?.textContent || '')
+          && /13\.200 m³/.test(modal?.querySelector('[data-role="confirm-detail"]')?.textContent || '') && /Keller/.test(modal?.querySelector('[data-role="confirm-detail"]')?.textContent || ''));
+        global.document.querySelector('.modal [data-act="ok"]')?.click();
+        await tick(300);
+        t('KI-Assistenten: übernommen (POST …/apply), Liste leer, Fokus auf dem Filter',
+          posted.length === 1 && /\/api\/mcp\/proposals\/mp_b+\/apply$/.test(posted[0]) && !!act.querySelector('[data-role="todo-empty"]')
+          && act.querySelector('[data-art="ki"] [data-role="todo-count"]')?.textContent.trim() === '0' && global.document.activeElement?.dataset?.art === 'ki', posted.join());
+      } finally { global.fetch = realFetch; }
+    }
+
+    // v3.12.0 (Skeptiker M1) — offene Vorschläge warten: Hinweis über „Zu tun“ mit Sprung zur Karte; Schalter aus: kein Abruf
+    {
+      const asked = [];
+      const dash = async (settings, open) => {
+        asked.length = 0;
+        (await import(`${ROOT}/state.js`)).invalidateSettings();
+        global.fetch = async (u, o = {}) => {
+          const url = String(u);
+          if (url.endsWith('/api/mcp/proposals')) { asked.push(url); return json(open); }
+          const res = await realFetch(u, o);
+          if (!url.endsWith('/api/settings') || (o.method || 'GET').toUpperCase() !== 'GET') return res;
+          const body = await res.json();
+          return json({ ...body.data, ...settings });
+        };
+        const { view: dv } = await renderView(`${ROOT}/views/dashboard.js`);
+        await tick(300);
+        return dv;
+      };
+      try {
+        const two = [{ id: 'mp_a' }, { id: 'mp_b' }];
+        const on = (await dash({ mcp_enabled: true, mcp_apply_in_app: true }, two)).querySelector('[data-role="mcp-proposals-waiting"] a');
+        t('Dashboard: zwei Vorschläge warten, Hinweis mit Zahl und Sprung zur Karte', /2 offene Vorschläge/.test(on?.textContent || '') && on?.getAttribute('href') === '#/todo?art=ki', on?.textContent);
+        const none = await dash({ mcp_enabled: true, mcp_apply_in_app: true }, []);
+        t('Dashboard: kein offener Vorschlag, kein Hinweis', asked.length === 1 && !none.querySelector('[data-role="mcp-proposals-waiting"]'));
+        const off = await dash({ mcp_enabled: true, mcp_apply_in_app: false }, two);
+        t('Dashboard: Schalter aus, kein Abruf und kein Hinweis', asked.length === 0 && !off.querySelector('[data-role="mcp-proposals-waiting"]'));
+        const lev = await import(`${ROOT}/lib/levels.js`);
+        const before = lev.currentLevel();
+        lev.applyLevel('beginner');
+        const beginner = await dash({ mcp_enabled: true, mcp_apply_in_app: true }, two);
+        lev.applyLevel(before);
+        t('Dashboard: auch die Einsteiger-Ansicht nennt die wartenden Vorschläge', !!beginner.querySelector('[data-role="todo"][data-variant="beginner"]') && !!beginner.querySelector('[data-role="mcp-proposals-waiting"] a'));
+      } finally { global.fetch = realFetch; (await import(`${ROOT}/state.js`)).invalidateSettings(); }
+    }
+
+    // ET_MCP=off: Stand „Gesperrt“, Schalter gesperrt, keine Karte zum Verbinden
+    global.fetch = (u, o = {}) => (String(u).endsWith('/api/mcp/status') && (o.method || 'GET') === 'GET'
+      ? Promise.resolve(json({ enabled: false, setting: true, locked_by_env: true, share_identifiers: false, share_documents: false }))
+      : realFetch(u, o));
+    try {
+      const v = await connPage('ai');
+      const st = v.querySelector('#mcp-card [data-role="mcp-state"]');
+      const sw = v.querySelector('#mcp-enabled');
+      t('KI-Assistenten: ET_MCP=off als feste Sperre sichtbar, Schalter gesperrt, ohne „verbinden“',
+        st?.dataset.state === 'locked' && /ET_MCP=off/.test(st.textContent) && sw?.disabled === true && sw.checked === true
+        && /ET_MCP/.test(v.querySelector(`#${sw.getAttribute('aria-describedby')}`)?.textContent || '')
+        && !v.querySelector('a[href="#/connections/ai/connect"]') && !(await connPage('ai', 'connect')).querySelector('#mcp-connect-card'), st?.textContent);
+    } finally { global.fetch = realFetch; }
+
+    // Mitglied: keine Karte, keine Anfrage an /api/mcp/… (die Routen sind nur für Verwalter)
+    const asked = [];
+    global.fetch = (u, o = {}) => {
+      const url = String(u);
+      if (url.includes('/api/mcp')) asked.push(url);
+      if (url.endsWith('/api/session') && (o.method || 'GET') === 'GET') {
+        return Promise.resolve(json({ mode: 'password', authenticated: true, role: 'member', user: { id: 'u_anna', name: 'Anna', role: 'member', prefs: {} } }));
+      }
+      return realFetch(u, o);
+    };
+    const levels = await import(`${ROOT}/lib/levels.js`);
+    try {
+      levels.setSession({ mode: 'password', authenticated: true, role: 'member', user: { id: 'u_anna', name: 'Anna', role: 'member', prefs: {} } });
+      const ha = await connPage('homeassistant');
+      const ki = await connPage('ai');
+      const list = await connPage();
+      t('KI-Assistenten: Mitglieder sehen die Karten nicht und fragen nichts ab',
+        !!ha.querySelector('#ha-card') && !ki.querySelector('#mcp-card, #mcp-connect-card') && !!ki.querySelector('[data-role="mcp-admin-only"]') && asked.length === 0, asked.join(', '));
+      t('Verbindungen: Mitglieder sehen weder KI noch Schlüssel', !list.querySelector('#v-ki, #v-schluessel') && !!list.querySelector('#v-ha') && asked.length === 0);
+      const td = await todoPage('art=ki');
+      t('Zu tun: Mitglieder sehen keine KI-Zeilen, keinen Filter, keine Anfrage', !td.querySelector('[data-art="ki"], [data-mcp-proposal]') && !!td.querySelector('[data-art="alle"].active') && asked.length === 0, asked.join(', '));
+      const hist = await (async () => (await renderView(`${ROOT}/views/activity.js`)).view)();
+      t('Verlauf: Mitglieder sehen keine Zugriffe der KI', !hist.querySelector('[data-role="history-pills"]'));
+      const ai = (await renderView(`${ROOT}/views/activity-ai.js`)).view;
+      t('Zugriffe der KI: Mitglied bekommt einen Satz, keine Anfrage', !!ai.querySelector('[data-role="mcp-admin-only"]') && asked.length === 0);
+    } finally { levels.setSession(null); global.fetch = realFetch; }
+  } catch (e) { t('KI-Assistenten: render', false, e.message); }
 
   // ── 5b. v3.4.0 (N1021) — ein Formularraster, Einstellungen im Raster ──
   // Kästchen-Beschriftung in Satzschreibung: jedes Kästchen sitzt in einem
@@ -881,6 +1203,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const card = view.querySelector('.contract-card[data-utility="wasser"]');
     const counts = card?.querySelector('.contract-card__counts')?.textContent || '';
     t('#34 Wasservertrag: Karte zählt die Sonderzahlungen', /Sonderzahlung|special payment/i.test(counts), counts.replace(/\s+/g, ' ').trim());
+    // v3.12.0 — „Brief schreiben“ an der Karte (was sie anbietet, sagt der Server)
+    t('Vertragskarte: Knopf „Brief schreiben“', !!card?.querySelector('[data-role="contract-letter"]'));
     const cid = card?.dataset.contractId;
     card?.querySelector('[data-edit-contract]')?.click();
     await new Promise(r => setTimeout(r, 300));
@@ -921,7 +1245,38 @@ async function renderView(modPath, params = [], ctx = {}) {
       sp?.kind === 'nachzahlung_mit' && sp.amount_eur === 42.5 && sp.new_advance_eur === 45 && sp.advance_from === '2025-04-01',
       sp ? JSON.stringify(sp) : `nicht gespeichert: ${(global.document.querySelector('#toast-stack')?.textContent || '').trim()}`
         + ` [${[...(form?.querySelectorAll('.invalid') || [])].map(el => el.getAttribute('data-field') || el.getAttribute('data-role') || el.name).join(',')}]`);
-    if (sp) await api.updateContract('wasser', cid, { special_payments: (saved.special_payments || []).filter(p => p !== sp) });
+    // v3.12.0 — Rundreise Dialog: erneut öffnen und unverändert speichern behält die Kennungen der
+    // Sonderzahlungen (bisher vergab jedes Speichern neue; eine gebuchte Rechnung fand ihre Zahlung nicht mehr)
+    if (sp) {
+      const ids = (saved.special_payments || []).map(p => p.id);
+      const { view: v2 } = await renderView(`${ROOT}/views/contracts.js`, ['wasser']);
+      await new Promise(r => setTimeout(r, 400));
+      v2.querySelector(`.contract-card[data-contract-id="${cid}"] [data-edit-contract]`)?.click();
+      await new Promise(r => setTimeout(r, 300));
+      const rows = [...global.document.querySelectorAll('#modal-root #water-contract-form [data-section="special"] .special-row')];
+      t('Vertragsdialog: jede Sonderzahlung trägt ihre Kennung', rows.length === ids.length && rows.every((r, i) => r.dataset.spId === ids[i]),
+        `${rows.map(r => r.dataset.spId).join(',')} / ${ids.join(',')}`);
+      // den Betrag der neuen Zeile korrigieren: Nur die mitgeschickte Kennung hält sie fest
+      // (eine unveränderte Zeile ordnet auch der Server wieder zu)
+      const mine = rows.find(r => r.dataset.spId === sp.id);
+      if (mine) mine.querySelector('[data-role="amount"]').value = '43,00';
+      global.FormData = global.window.FormData;
+      let again = null;
+      try {
+        global.document.querySelector('#modal-root [data-act="save"]')?.click();
+        for (let i = 0; i < 40; i++) {
+          await new Promise(r => setTimeout(r, 100));
+          if (!global.document.querySelector('#modal-root #water-contract-form')) break;
+        }
+        again = await api.contract('wasser', cid);
+      } finally { global.FormData = nodeFormData; }
+      t('Vertragsdialog: speichern behält die Kennungen der Sonderzahlungen, auch mit korrigiertem Betrag',
+        JSON.stringify((again?.special_payments || []).map(p => p.id)) === JSON.stringify(ids)
+          && (again?.special_payments || []).find(p => p.id === sp.id)?.amount_eur === 43,
+        JSON.stringify((again?.special_payments || []).map(p => [p.id, p.amount_eur])));
+      saved = again || saved;
+    }
+    if (sp) await api.updateContract('wasser', cid, { special_payments: (saved.special_payments || []).filter(p => p.id !== sp.id) });
   } catch (e) { t('#34 Wasservertrag', false, e.message); }
 
   try {
@@ -972,11 +1327,10 @@ async function renderView(modPath, params = [], ctx = {}) {
   // Einstellungen: jede Karte im Raster, breite Karten am Ende
   try {
     const outside = [], order = [];
-    for (const page of ['general', 'household', 'utilities', 'data', 'integrations', 'access', 'expert', 'system']) {
+    for (const page of ['general', 'region', 'display', 'data', 'access', 'calculation', 'system']) {
       const view = await settingsPage(page);
-      view.querySelectorAll('.card').forEach(c => { if (!c.parentElement?.classList.contains('settings-grid')) outside.push(`${page}:${c.id || c.className}`); });
-      // „Daten": der einzelne Verweis auf den Jahresbericht steht bewusst am Ende
-      if (page !== 'data') view.querySelectorAll('.settings-grid').forEach(g => {
+      view.querySelectorAll('.card').forEach(c => { if (!c.parentElement?.classList.contains('settings-grid') && !c.matches('.settings-topics, .such__treffer')) outside.push(`${page}:${c.id || c.className}`); });
+      view.querySelectorAll('.settings-grid').forEach(g => {
         const cards = [...g.children];
         const firstWide = cards.findIndex(c => c.classList.contains('settings-card--wide'));
         if (firstWide >= 0 && cards.slice(firstWide).some(c => !c.classList.contains('settings-card--wide'))) order.push(page);
@@ -984,19 +1338,23 @@ async function renderView(modPath, params = [], ctx = {}) {
     }
     t('N1021 Einstellungen: jede Karte im Raster', outside.length === 0, outside.join(', '));
     t('N1021 Einstellungen: breite Karten am Seitenende', order.length === 0, order.join(', '));
-    const util = await settingsPage('utilities');
+    const util = await settingsPage('household:utilities');
     const au = util.querySelector('#active-utils-card');
     t('N1021 Einstellungen: „Aktive Verbrauchsarten" schmal, Kästchen in Spalten',
       !!au && !au.classList.contains('settings-card--wide') && util.querySelector('#active-utils')?.classList.contains('check-grid'));
-    const integ = await settingsPage('integrations');
-    t('N1021 Einstellungen: Home Assistant geteilt — Token schmal, Vorlagen breit',
+    const integ = await connPage('homeassistant');
+    const integM = await connPage('homeassistant', 'meters');
+    const integT = await connPage('homeassistant', 'templates');
+    t('Verbindungen › Home Assistant: Token schmal, Zuordnung und Vorlagen breit, je ein Reiter',
       !integ.querySelector('#ha-card').classList.contains('settings-card--wide') && !!integ.querySelector('#ha-card #btn-ha-generate, #ha-card #btn-ha-revoke')
-      && integ.querySelector('#ha-setup-card')?.classList.contains('settings-card--wide') && !!integ.querySelector('#ha-setup-card #ha-yaml'));
-    const access = await settingsPage('access');
-    t('N1021 Einstellungen: Anmeldung schmal, API-Schlüssel breit',
-      !!access.querySelector('#security-card') && !access.querySelector('#security-card').classList.contains('settings-card--wide')
+      && integM.querySelector('#ha-setup-card')?.classList.contains('settings-card--wide')
+      && integT.querySelector('#ha-templates-card')?.classList.contains('settings-card--wide') && !!integT.querySelector('#ha-templates-card #ha-yaml'));
+    const accessPage = await settingsPage('access');
+    const access = await connPage('keys');
+    t('N1021 Einstellungen: Anmeldung schmal, API-Schlüssel breit unter Verbindungen',
+      !!accessPage.querySelector('#security-card') && !accessPage.querySelector('#security-card').classList.contains('settings-card--wide')
       && access.querySelector('#keys-card')?.classList.contains('settings-card--wide') && !!access.querySelector('#keys-card #btn-key-create')
-      && noOldGrid(access));
+      && noOldGrid(accessPage));
     // v3.7.0 (Paket betrieb) — Schlüssel „nur Posteingang“ für Kurzbefehl und E-Mail
     const scopes = [...access.querySelectorAll('#key-scope option')].map(o => `${o.value}:${o.textContent.trim()}`);
     t('Zugriff: Bereich „nur Posteingang (PDF ablegen)“ wählbar', scopes.includes('inbox:nur Posteingang (PDF ablegen)'), scopes.join(' | '));
@@ -1235,7 +1593,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
         const body = await res.json();
         for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, {
-          projection_uncertain: null, projection_band: null, measured_until: until, current_balance: -612.65, estimated_cost_to_date: 13.0,
+          projection_uncertain: null, projection_band: null, measured_until: until, reading_until: until, current_balance: -612.65, estimated_cost_to_date: 13.0,
           // v3.10.0 (Skeptiker M3) — Stand heute: Grundpreis, Abschläge und eine Nachzahlung seit der Ablesung
           base_to_date: 115.35, bonus_to_date: 0, advance_paid: 1000.0, special_payment_net: -20.0,
           balance_as_of: iso(today), balance_from: `${year}-01-01`, start: `${year}-01-01`, billing_period: null, special_payments_count: 0,
@@ -1272,6 +1630,31 @@ async function renderView(modPath, params = [], ctx = {}) {
     finally { global.fetch = realFetch; }
   }
 
+  // v3.12.0 (Skeptiker M6) — eine geschätzte Ablesung nach der letzten echten: Die Monate zählen sie mit, also reicht die
+  // Kachel bis zu ihr (`reading_until`), gemessen ist nur bis `measured_until`. Erfundene Werte
+  {
+    const realFetch = global.fetch;
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const today = new Date(); today.setUTCHours(12, 0, 0, 0);
+    const until = iso(new Date(today.getTime() - 86400000));
+    const real = `${until.slice(0, 4)}-01-02`;
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { measured_until: real, reading_until: until, balance_from: real, start: real, billing_period: null });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const fmtMod = await import(`${ROOT}/lib/format.js`);
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+      await new Promise(r => setTimeout(r, 500));
+      const label = view.querySelector('[data-role="kpi-advances-label"]')?.textContent.replace(/\s+/g, ' ').trim() || '';
+      t('M6: Kachel bis zur letzten Ablesung, auch einer geschätzten', until.slice(0, 4) !== iso(today).slice(0, 4) || label.includes(`bis ${fmtMod.fmt.date(until)}`), label);
+    } catch (e) { t('M6: Kachel bis zur letzten Ablesung', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
   // v3.10.0 (Skeptiker M2, H3) — beginnt der Saldo der Karte (Tarifwechsel, Stichtag) innerhalb der Kachel, steht dort
   // kein zweiter „Saldo“, sondern ab wann die Karte zählt; ohne gemessenen Tag heißt die Spalte „Saldo heute (geschätzt)“.
   // Erfundene Werte: Karte ab gestern, letzte Ablesung vor ihrem Beginn (am 1. Januar ohne Kachel-Prüfung)
@@ -1287,7 +1670,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
         const body = await res.json();
         for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { balance_measured: null, settle_balance: null,
-          measured_until: from, balance_from: from, start: from, balance_as_of: iso(today), cost_to_date: 12.0, current_balance: -88.0 });
+          measured_until: from, reading_until: from, balance_from: from, start: from, balance_as_of: iso(today), cost_to_date: 12.0, current_balance: -88.0 });
         return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
       };
       const fmtMod = await import(`${ROOT}/lib/format.js`);
@@ -1402,7 +1785,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       await new Promise(r => setTimeout(r, 500));
       const short = view.querySelector('[data-role="balance-short"]')?.textContent.replace(/\s+/g, ' ') || '';
       t('#38: Saldo-Karte mit Guthaben kurz vor der Abrechnung — „nicht senken“, laufend 40 € statt 50 €',
-        /bleiben nur noch 2 Abschläge\. Das Guthaben zahlt die Abrechnung aus; dafür musst du den Abschlag jetzt nicht senken\./.test(short)
+        /Den Abschlag musst du jetzt nicht senken: Bis zur Abrechnung am .+ bleiben nur noch 2 Abschläge, das Guthaben zahlt die Abrechnung aus\./.test(short)
         && !/nicht erhöhen/.test(short) && /rund 40\s€ statt 50,00\s€ im Monat/.test(short), short.slice(0, 260));
     } catch (e) { t('#38: Guthaben kurz vor der Abrechnung', false, e.stack || e.message); }
     finally { global.fetch = realFetch; }
@@ -1431,7 +1814,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const { view } = await renderView(`${ROOT}/views/flexibility.js`, [], { query: new URLSearchParams('year=2025') });
     await new Promise(r => setTimeout(r, 400));
     const html = view.innerHTML;
-    t('flexibility: render ohne Exception', html.includes('section-head') && !html.includes('banner--error'));
+    t('flexibility: render ohne Exception', html.includes('section-head') && !html.includes('infobox--fehler'));
     // v3.6.0 — statt zweier Hinweise eine Einladung: was fehlt und was es bringt
     const missing = [...view.querySelectorAll('.flex-missing [data-missing]')].map(li => li.dataset.missing);
     t('flexibility: Einladung ohne Preise und ohne Viertelstunden', missing.includes('prices') && missing.includes('intervals') && missing.includes('devices'), missing.join());
@@ -1483,7 +1866,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       ['#ws-opt', '#ws-models', '#ws-csv', '#ws-budget'].every(s => view.querySelector(s)?.closest('[data-min-level]')?.dataset.minLevel === 'expert'));
     t('werkstatt: Kurve kumuliert gezeichnet', (global.Chart.instances || []).filter(i => i.canvas?.id === 'ws-chart-cum' && !i.destroyed).length === 1);
     t('werkstatt: bisherige Prognose aufklappbar erreichbar', !!view.querySelector('details#fc-classic #fc-table table'));
-    t('werkstatt: Beispielszenarien', view.querySelectorAll('#ws-presets [data-preset="cold_winter"], #ws-presets [data-preset="save10"]').length === 2);
+    t('werkstatt: Beispielszenarien', view.querySelectorAll('#ws-presets [data-preset="cold_winter"], #ws-presets [data-preset="room_minus_1"]').length === 2);
     const before = card();
     const slider = view.querySelector('#ws-saving');
     slider.value = '20';
@@ -1527,6 +1910,120 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /Annahmen/.test(ptxt) && /kälter/.test(ptxt) && pv.view.querySelectorAll('svg.scenario-print__svg').length === 2, ptxt.replace(/\s+/g, ' ').slice(0, 300));
   } catch (e) { t('werkstatt: render', false, e.stack || e.message); }
 
+  // v3.12.0 (F1040) — jede Art mit eigenen Beispielen, Maßnahmen und Worten
+  try {
+    const { view } = await renderView(`${ROOT}/views/forecast.js`);
+    await new Promise(r => setTimeout(r, 900));
+    const w = global.window;
+    const util = async (key) => {
+      const sel = view.querySelector('#util-select');
+      sel.value = key;
+      sel.dispatchEvent(new w.Event('change', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 900));
+    };
+    const chips = () => [...view.querySelectorAll('#ws-presets [data-preset]')].map(b => b.dataset.preset).filter(Boolean);
+    const shown = (s) => !view.querySelector(s).hidden;
+    const addRow = () => { view.querySelector('#ws-add-measure').click(); return [...view.querySelectorAll('.ws-measure')].at(-1); };
+    const kinds = (row) => [...row.querySelectorAll('[data-f="kind"] option')].map(o => o.value);
+    const hiddenField = (row, f) => row.querySelector(`[data-f="${f}"]`).closest('.field').hidden;
+
+    t('werkstatt je Art: Gas spricht von Warmwasser und Kochen', chips().includes('room_minus_1') && !chips().includes('save10')
+      && /Warmwasser und Kochen/.test(view.querySelector('#ws-baseload-label').textContent) && /Gas/.test(view.querySelector('#ws-lead').textContent), chips().join());
+    // v3.12.0 (F1040, Phase 2) — die Heizkurve nur, wo ein Heizmodell wirkt
+    t('werkstatt je Art: Gas mit Heizkurve', shown('[data-cap="regression"]'));
+    const gasRow = addRow();
+    t('werkstatt je Art: Gas-Maßnahme zeigt ihre Arten', kinds(gasRow).includes('roof') && kinds(gasRow).includes('hot_water') && !kinds(gasRow).includes('leak'), kinds(gasRow).join());
+    const gasKind = gasRow.querySelector('[data-f="kind"]');
+    gasKind.value = 'roof';
+    gasKind.dispatchEvent(new w.Event('change', { bubbles: true }));
+    t('werkstatt je Art: Dach zeigt nur Heizung', !hiddenField(gasRow, 'heat') && hiddenField(gasRow, 'base'));
+    gasKind.value = 'hot_water';
+    gasKind.dispatchEvent(new w.Event('change', { bubbles: true }));
+    t('werkstatt je Art: Warmwasser zeigt nur seinen Teil', hiddenField(gasRow, 'heat') && !hiddenField(gasRow, 'base'));
+    await new Promise(r => setTimeout(r, 400));
+    gasRow.querySelector('[data-f="remove"]').click();
+    await new Promise(r => setTimeout(r, 400));
+
+    await util('wasser');
+    t('werkstatt je Art: Wasser mit eigenen Beispielen', chips().join() === 'shower,toilet,save10', chips().join());
+    t('werkstatt je Art: Wasser ohne Winter, Raumtemperatur, Grundlast, E-Auto', !shown('[data-cap="heat_model"]') && !shown('[data-cap="room_temp"]')
+      && !shown('[data-lever="baseload"]') && !shown('[data-lever="ev"]'));
+    t('werkstatt je Art: Wasser sagt, warum es keinen Tarif gibt', shown('#ws-tariff-none') && view.querySelector('#ws-tariff').closest('[data-cap]').hidden
+      && !!view.querySelector('#ws-tariff-none strong'));
+    t('werkstatt je Art: Wasser ohne Heizkurve', !shown('[data-cap="regression"]'));
+    const waterRow = addRow();
+    t('werkstatt je Art: Wasser-Maßnahme ohne Heizanteil', kinds(waterRow).includes('leak') && !kinds(waterRow).includes('roof') && hiddenField(waterRow, 'heat')
+      && /Verbrauch/.test(waterRow.querySelector('[data-f="base-label"]').textContent), kinds(waterRow).join());
+    waterRow.querySelector('[data-f="remove"]').click();
+    view.querySelector('#ws-presets [data-preset="shower"]').click();
+    await new Promise(r => setTimeout(r, 900));
+    t('werkstatt je Art: Beispiel nennt seine Annahme', /angenommener Beispielwert, kein Richtwert/.test(view.querySelector('#ws-honesty').textContent), view.querySelector('#ws-honesty').textContent.slice(0, 200));
+    t('werkstatt je Art: Beispiel mit eigenem Satz', /Sparbrause spart dir/.test(view.querySelector('#ws-card').textContent), view.querySelector('#ws-card').textContent.slice(0, 120));
+    t('werkstatt je Art: Sparbrause legt eine Maßnahme an', view.querySelectorAll('.ws-measure').length > 0);
+
+    // v3.12.0 (F1040) — Wechsel der Art mit aktivem Beispiel: seine Hebel bleiben nicht hängen
+    // (bisher nahm etwa Strom die Sparbrause von Wasser mit)
+    await util('strom');
+    t('werkstatt je Art: Wechsel der Art setzt ein aktives Beispiel zurück', view.querySelectorAll('.ws-measure').length === 0
+      && !/Sparbrause/.test(view.querySelector('#ws-card').textContent + view.querySelector('#ws-honesty').textContent),
+      `${view.querySelectorAll('.ws-measure').length} Maßnahmen`);
+    t('werkstatt je Art: Strom mit Grundlast und E-Auto', chips().includes('baseload_down') && chips().includes('ev') && !chips().includes('cold_winter')
+      && shown('[data-lever="ev"]') && /Grundlast/.test(view.querySelector('#ws-baseload-label').textContent), chips().join());
+    t('werkstatt je Art: Strom ohne Heizkurve', !shown('[data-cap="regression"]'));
+    // Gespeichertes Szenario: Dach am Stromzähler bleibt sichtbar, markiert, mit Werten
+    const meterId = view.querySelector('#meter-select').value;
+    w.localStorage.setItem('et-scenarios', JSON.stringify([{ name: 'Alt', saved_at: '2026-01-01', state: { utility: 'strom', meter_id: meterId, model: 'standard', winter_pct: 0, room_temp_delta: 0,
+      saving_pct: 0, baseload_pct: 0, ev_km: 0, measures: [{ id: 'roof', kind: 'roof', label: '', heat_pct: 15, base_pct: 0, cost_eur: null, active: true }], tariff: { kind: 'current' } } }]));
+    view.querySelector('#ws-saved-wrap').hidden = false;
+    view.querySelector('#ws-saved').innerHTML = '<option value="Alt">Alt</option>';
+    view.querySelector('#ws-load').click();
+    await new Promise(r => setTimeout(r, 900));
+    const old = view.querySelector('.ws-measure');
+    t('werkstatt je Art: alte Maßnahme bleibt und ist markiert', old?.querySelector('[data-f="kind"]').value === 'roof' && !old.querySelector('[data-f="mismatch"]').hidden
+      && !hiddenField(old, 'heat') && old.querySelector('[data-f="heat"]').value === '15');
+    w.localStorage.removeItem('et-scenarios');
+
+    // v3.12.0 (F1040, Phase 2) — Heizöl: Winter, Preis, Heizungstausch, Tank; kein Abschlag, keine Heizkurve
+    await util('heizoel');
+    t('werkstatt Heizöl: Beispiele vom Server', chips().join() === 'cold_winter,mild_winter,room_minus_1,roof,fuel_price_up,heat_pump', chips().join());
+    t('werkstatt Heizöl: Preis und Tausch statt Tarif', shown('[data-lever="price"]') && shown('[data-lever="replacement"]') && shown('[data-cap="heat_model"]')
+      && view.querySelector('#ws-tariff').closest('[data-cap]').hidden && !shown('#ws-tariff-none') && !shown('[data-cap="regression"]'));
+    t('werkstatt Heizöl: Tank und Brennstoffkosten', shown('#ws-extra') && /Tank leer am/.test(view.querySelector('#ws-kpis').textContent)
+      && /Brennstoffkosten/.test(view.querySelector('#ws-kpis').textContent) && !/Abschlag/.test(view.querySelector('#ws-kpis').textContent), view.querySelector('#ws-kpis').textContent.slice(0, 200));
+    view.querySelector('#ws-presets [data-preset="heat_pump"]').click();
+    await new Promise(r => setTimeout(r, 900));
+    t('werkstatt Heizöl: Wärmepumpe als zweite Rechnung mit Annahmen', /Wärmepumpe/.test(view.querySelector('#ws-extra').textContent)
+      && /Jahresarbeitszahl 3/.test(view.querySelector('#ws-extra').textContent) && view.querySelector('#ws-replace').value === 'heat_pump'
+      && !/scenario\./.test(view.querySelector('#ws-extra').textContent), view.querySelector('#ws-extra').textContent.slice(0, 200));
+    view.querySelector('#ws-presets [data-preset=""]').click();
+    await new Promise(r => setTimeout(r, 700));
+    await util('pellets');
+    t('werkstatt Pellets: kein Tausch in sich selbst', view.querySelector('#ws-replace option[value="pellets"]').hidden && !view.querySelector('#ws-replace option[value="heat_pump"]').hidden);
+
+    // PV: Anlage, Speicher, Eigenverbrauch, Vergütung; keine Maßnahmen, kein Sparen, kein Modell
+    await util('pv_erzeugung');
+    t('werkstatt PV: Beispiele vom Server', chips().join() === 'pv_bigger,battery,self_use_up,feed_in_half', chips().join());
+    t('werkstatt PV: eigene Regler, nichts vom Verbrauch', shown('[data-lever="pv_size"]') && shown('[data-lever="battery"]') && shown('[data-lever="self_use"]')
+      && shown('[data-lever="feed_in"]') && !shown('[data-lever="saving"]') && !shown('[data-lever="measures"]') && !shown('[data-lever="model"]')
+      && !shown('[data-cap="heat_model"]') && !shown('[data-cap="regression"]') && !shown('#ws-tariff-none'));
+    t('werkstatt PV: Jahr je Monat als Modellwert', view.querySelectorAll('#ws-extra tbody tr').length === 12 && /Autarkiequote/.test(view.querySelector('#ws-kpis').textContent)
+      && /Modellwert|bis/.test(view.querySelector('#ws-kpis').textContent), view.querySelector('#ws-kpis').textContent.slice(0, 200));
+    view.querySelector('#ws-presets [data-preset="battery"]').click();
+    await new Promise(r => setTimeout(r, 900));
+    t('werkstatt PV: Speicher spart, mit Annahme', /Speicher spart dir/.test(view.querySelector('#ws-card').textContent)
+      && /angenommener Beispielwert/.test(view.querySelector('#ws-honesty').textContent), view.querySelector('#ws-card').textContent.slice(0, 160));
+    view.querySelector('#ws-presets [data-preset=""]').click();
+    await new Promise(r => setTimeout(r, 700));
+
+    // Druckansicht und Jahresbericht: nur was wirkt, mit dem Wort der Art
+    const { assumptions } = await import(`${ROOT}/views/scenario-print.js`);
+    const printed = (word, m) => assumptions({ utility: 'x', meter_id: 'm', measures: [{ id: 'a', label: '', cost_eur: null, active: true, ...m }] }, { model: 'standard', profile: { base_word: word } }).join(' | ');
+    const leak = printed('usage', { kind: 'leak', heat_pct: 0, base_pct: 10 });
+    t('werkstatt je Art: Druck beim Wasser ohne Heizung und Grundlast', /Verbrauch −10/.test(leak) && !/Heizung|Grundlast/.test(leak), leak);
+    const roofPrint = printed('hot_cook', { kind: 'roof', heat_pct: 15, base_pct: 0 });
+    t('werkstatt je Art: Druck nennt den Heizanteil', /Heizung −15/.test(roofPrint) && !/Warmwasser/.test(roofPrint), roofPrint);
+  } catch (e) { t('werkstatt je Art: render', false, e.stack || e.message); }
+
   // ── 9. Analyse-View: Sigmoid im Korrelations-Chart (Fix v1.4.3 #1) ──
   try {
     const { view } = await renderView(`${ROOT}/views/analysis.js`, ['gas']);
@@ -1535,7 +2032,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('analyse(gas): render ohne Exception', html.length > 50 && !html.includes('Lade '));
     t('analyse(gas): Sigmoid in R²-Tabelle',
       /Sigmoid/i.test(html), 'kein Sigmoid-Eintrag in der Regressionsübersicht');
-    t('analyse(gas): R² als Anpassung erklärt', /nicht, wie gut sie das nächste Jahr vorhersagt/.test(html));
+    t('analyse(gas): R² als Anpassung erklärt', /Wie gut sie das nächste Jahr vorhersagt, sagt R² nicht/.test(html));
   } catch (e) { t('analyse(gas): render', false, e.message); }
 
   // v2.8.0 — Heizöl: keine Heizkurve über nach Gradtagen verteilte Monate
@@ -1616,7 +2113,12 @@ async function renderView(modPath, params = [], ctx = {}) {
   } catch (e) { t('contracts(gas): render', false, e.message); }
 
   // ── 12. v2.11.0 — Verträge & Abschläge über alle Verbrauchsarten ──
+  // v3.12.0 — die Fernwärme der Beispieldaten hat jetzt eine Kündigungsfrist (der Kündigungsbrief zeigt keine Lücke);
+  // für „ohne eingetragene Frist“ nimmt der Test sie für diese Prüfung heraus und setzt sie danach zurück
+  const fwPatch = (n) => fetch(`${HOST}/api/utility/fernwaerme/contracts/c_fw_001`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notice_period_months: n }) }).then(r => r.text()).catch(() => {});
   try {
+    await fwPatch(null);
     const { view } = await renderView(`${ROOT}/views/contracts-overview.js`);
     await new Promise(r => setTimeout(r, 300));
     t('contractsOverview: Überschrift', !!view.querySelector('h1')?.textContent.includes('Verträge'));
@@ -1630,9 +2132,24 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('contractsOverview: unbefristeter Vertrag ohne Frist „Kündigungsfrist nicht eingetragen“',
       !!view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Kündigungsfrist nicht eingetragen')
       && !view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Jederzeit kündbar'));
-    t('contractsOverview: befristeter Vertrag mit datiertem Stichtag',
-      !!view.querySelector('.contract-overview[data-utility="gas"]')?.textContent.includes('Kündigen bis'));
+    // v3.12.0 — welchen Satz der laufende Gasvertrag am Tag des Laufs trägt, sagt der Vertragsstatus des
+    // Servers: vor dem Kündigungstag „Kündigen bis“, danach „verstrichen“, verlängert „laut Vertrag“. Die
+    // Beispieldaten sind fest; bis v3.11 erwartete der Test immer „Kündigen bis“ und war ab Dezember rot.
+    const gasText = view.querySelector('.contract-overview[data-utility="gas"]')?.textContent || '';
+    const gasCurrent = [];
+    for (const m of (await (await fetch(`${HOST}/api/utility/gas/meters`)).json())?.data || []) {
+      const st = (await (await fetch(`${HOST}/api/utility/gas/meters/${encodeURIComponent(m.id)}/contract-status`)).json())?.data;
+      for (const c of st?.contracts || []) if (c.is_current) gasCurrent.push(c);
+    }
+    const gasDated = gasCurrent.find(c => !c.renewed && !c.cancel_missed && c.cancel_by && c.remind_basis === 'cancel_by');
+    const gasMissed = gasCurrent.find(c => c.cancel_missed);
+    const gasRenewed = gasCurrent.find(c => c.renewed);
+    t('contractsOverview: befristeter Vertrag mit datiertem Stichtag (sonst verstrichen oder verlängert)',
+      gasCurrent.length > 0 && (gasDated ? gasText.includes('Kündigen bis')
+        : gasMissed ? gasText.includes('verstrichen') : gasRenewed ? gasText.includes('laut Vertrag') : false),
+      `${gasDated ? 'datiert' : gasMissed ? 'verstrichen' : gasRenewed ? 'verlängert' : 'ohne Fall'}: ${gasText.slice(0, 160)}`);
   } catch (e) { t('contractsOverview: render', false, e.message); }
+  finally { await fwPatch(3); }
 
   // ── 13. v2.11.0 — Jahresbericht als eigene Seite ──
   try {
@@ -1661,7 +2178,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         `${utilities} Verbrauchsarten`);
       const lights = [...view.querySelectorAll('.report-print__light')];
       t(`report-print (${lang}): vier Ampeln, jede mit Symbol und Wort`,
-        lights.length === 4 && lights.every(l => /[✔▲✖●]\s*\S/.test(l.querySelector('.report-print__light-word')?.textContent || '')));
+        lights.length === 4 && lights.every(l => !!l.querySelector('.report-print__light-word .ico use') && /\S/.test(l.querySelector('.report-print__light-word')?.textContent || '')));
       t(`report-print (${lang}): „Stand heute“ als Kasten`, view.querySelectorAll('.report-print__today').length >= 2);
       t(`report-print (${lang}): Schaubilder aus explainer.js (Energiefluss der PV, Zeitstrahl)`,
         !!view.querySelector('.explainer.ex-energy') && !!view.querySelector('.explainer.ex-timeline'));
@@ -1764,17 +2281,49 @@ async function renderView(modPath, params = [], ctx = {}) {
     const nm = await import(`${ROOT}/lib/nav-model.js`);
     const top = nm.sidebarModel([{ key: 'gas', label: 'Gas' }, { key: 'strom', label: 'Strom' }]).map(m => m.key);
     // v3.7.0 — dazu der Posteingang hinter den Zählerständen (Erfassen)
-    t('nav: acht Bereiche mit dem Posteingang', top.join(',') === 'dashboard,readings-entry,inbox,consumption,costs,analysis,hints,settings', top.join(','));
+    // v3.12.0 (M2) — zwei Gruppen: Alltag und Einrichtung
+    t('nav: Alltag und Einrichtung', top.join(',') === 'daily,setup', top.join(','));
+    const model = nm.sidebarModel([{ key: 'gas', label: 'Gas' }, { key: 'strom', label: 'Strom' }]);
+    t('nav: Alltag mit Zu tun, Zählerständen, Posteingang, Verbrauch, Kosten, Auswertungen', model[0].children.map(m => m.key).join(',') === 'dashboard,todo,readings-entry,inbox,consumption,costs,analysis', model[0].children.map(m => m.key).join(','));
+    t('nav: Einrichtung mit Haushalt, Verbindungen und Einstellungen', model[1].children.map(m => m.key).join(',') === 'household,connections,settings');
     t('nav: „Rechnung prüfen" nur mit Gas',
       nm.sectionPages('costs', { utilities: [{ key: 'gas' }] }).some(p => p.view === 'bill-check')
       && !nm.sectionPages('costs', { utilities: [{ key: 'strom' }] }).some(p => p.view === 'bill-check'));
-    t('nav: Tab-Leiste mit fünf Zielen', nm.tabbarModel('gas').length === 5);
+    t('nav: Tab-Leiste: Übersicht, Zu tun, Erfassen, Verbrauch, Mehr', nm.tabbarModel('gas').map(x => x.key).join(',') === 'overview,todo,capture,consumption,more');
   } catch (e) { t('nav-model', false, e.message); }
+
+  // v3.12.0 (M2) — Zu tun und Verbindungen
+  try {
+    const tv = await todoPage();
+    t('Zu tun: Filter Alle, Fristen, Empfehlungen, Post; Kalender und Neuer Termin oben',
+      ['alle', 'frist', 'rec', 'post'].every(k => !!tv.querySelector(`[data-art="${k}"]`)) && !!tv.querySelector('#rem-subscribe') && tv.querySelector('#rem-add')?.getAttribute('href') === '#/todo/dates?add=1');
+    const total = Number(tv.querySelector('[data-art="alle"] [data-role="todo-count"]')?.textContent);
+    t('Zu tun: Zahl unter „Alle“ ist die Zahl der Zeilen (ohne Sammelzeile doppelt)', total === tv.querySelectorAll('.dash-todo__list > li').length, `${total} / ${tv.querySelectorAll('.dash-todo__list > li').length}`);
+    const off = await import(`${ROOT}/views/todo.js`);
+    const data = await off.loadOffen();
+    t('Zu tun: Keine Empfehlung steht doppelt unter „Alle“', !data.restRecs.some(r => data.todo.some(x => x.recId === r.id)));
+    const recView = await todoPage('art=rec');
+    for (let i = 0; i < 60 && !recView.querySelector('.rec-card, [data-role="todo-body"] .infobox'); i++) await new Promise(r => setTimeout(r, 50));
+    t('Zu tun › Empfehlungen: volle Karten mit Stufen-Filter und Ausblenden', recView.querySelectorAll('.rec-sev .seg__btn').length === 4
+      && (!recView.querySelector('.rec-card') || !!recView.querySelector('.rec-card [data-dismiss]')));
+    const list = await connPage();
+    const lev = await import(`${ROOT}/lib/levels.js`);
+    t('Verbindungen: jede Zeile vom Experten aus', ['post', 'ha', 'wetter', 'evcc', 'kalender', 'ki', 'benachr', 'schluessel', 'tls'].every(id => !!list.querySelector(`#v-${id}`)), [...list.querySelectorAll('.zeile-wrap')].map(z => z.id).join());
+    t('Verbindungen: Weg zum Wegweiser', !!list.querySelector('[data-role="connections-way"] a[href="#/help/setups"]'));
+    const before = lev.currentLevel();
+    lev.applyLevel('beginner');
+    try {
+      const small = await connPage();
+      t('Verbindungen, Einsteiger: Auslesen und Kalender, Rest hinter „Weitere“', !!small.querySelector('#v-post') && !!small.querySelector('#v-kalender') && !small.querySelector('#v-ha, #v-ki, #v-schluessel') && !!small.querySelector('#weitere-zeigen'));
+      small.querySelector('#weitere-zeigen')?.click();
+      t('Verbindungen, Einsteiger: „Weitere“ zeigt alles, ohne die Stufe zu wechseln', !!small.querySelector('#v-ha') && !!small.querySelector('#v-ki') && !!small.querySelector('#v-schluessel') && !small.querySelector('#weitere-zeigen') && lev.currentLevel() === 'beginner');
+    } finally { lev.applyLevel(before); }
+  } catch (e) { t('Zu tun und Verbindungen: render', false, e.message); }
 
   // ── 15. v2.11.0 — Dashboard: Kopf und Überschriften (UI-21, UI-26) ──
   try {
     const { view } = await renderView(`${ROOT}/views/dashboard.js`);
-    t('dashboard: Temperaturen nicht mehr als Kopf-Aktion', !view.querySelector('a[href="#/temperatures"]'));
+    t('dashboard: Temperaturen nicht mehr als Kopf-Aktion', !view.querySelector('a[href="#/connections/weather"]'));
     t('dashboard: kein Link in einer Überschrift (UI-26)', !view.querySelector('h2 a, h2 .card__title-action'));
   } catch (e) { t('dashboard: Kopf', false, e.message); }
 
@@ -1797,7 +2346,9 @@ async function renderView(modPath, params = [], ctx = {}) {
     const docs = await import(`${ROOT}/lib/docs.js`);
     const hrefs = [...view.querySelectorAll('.help-links a, [data-role="handbook"]')].map(a => a.getAttribute('href') || '');
     const inApp = (h) => h.startsWith('#/help/doc/') && docs.DOC_PATHS.includes('docs/' + decodeURIComponent(h.slice('#/help/doc/'.length).split('?')[0]));
-    t('help: Handbuch und Doku-Links in der App', hrefs.length === 9 && hrefs.every(inApp)
+    // v3.12.0 (doku-vorlagen) — zehn: dazu „KI-Assistent anbinden (MCP)“
+    t('help: Handbuch und Doku-Links in der App', hrefs.length === 10 && hrefs.every(inApp)
+      && hrefs.includes('#/help/doc/anleitungen/ki-assistent.md')
       && view.querySelector('[data-role="handbook"]')?.getAttribute('href') === '#/help/doc/README.md', hrefs.join(' '));
     t('help: Doku-Links ohne neuen Tab', !view.querySelector('a[href^="#/help/doc/"][target]'));
     // v3.4.0 — alle Anwendungsfälle A–G und die Stufen, je mit Sprung in den Abschnitt
@@ -1810,8 +2361,79 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v3.11.0 (Paket doku) — „Deine Rechte als Kunde“ in der Liste der Doku-Links
     t('help: Rechte als Kunde verlinkt', hrefs.some(h => /verstehen\/17-rechte\.md$/.test(h)));
     t('help: Handbuch liegt auf dem Server (Hinweis mit Version)', view.textContent.includes('1.3.0'));
-    t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
+    t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .infobox--erfolg'));
+    // v3.12.0 (Paket wegweiser) — oben in der Hilfe groß verlinkt
+    t('help: Wegweiser oben verlinkt', view.querySelector('.guide-hero a')?.getAttribute('href') === '#/help/setups'
+      && view.querySelector('.guide-hero').compareDocumentPosition(view.querySelector('.help-grid')) === 4);
   } catch (e) { t('help: render', false, e.message); }
+
+  // ── v3.12.0 (Paket wegweiser) — Wegweiser: Auswahl, Weg mit Schaubild, Im Detail ──
+  try {
+    const scenes = await import(`${ROOT}/lib/setup-scenes.js`);
+    const docs = await import(`${ROOT}/lib/docs.js`);
+    const { view: start } = await renderView(`${ROOT}/views/help-setups.js`, []);
+    t('wegweiser: Auswahl ohne Vorbelegung', start.querySelectorAll('.guide-tile').length === scenes.SETUP_IDS.length
+      && !start.querySelector('#guide-scenario') && !start.querySelector('[aria-current]'));
+    t('wegweiser: keine Rangfolge in der Wortwahl', !/Grundstufe|Ausbaustufe|Ausbau\b/i.test(start.textContent));
+    // Kurzauswahl: drei Fragen, nichts vorbelegt; die Antwort führt zum Weg, „Nichts davon“ zu „Von Hand“
+    const fire = (el) => el.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('wegweiser: Kurzauswahl mit drei Fragen, nichts vorbelegt', start.querySelectorAll('fieldset.guide-q').length === 3 && !start.querySelector('.guide-q input:checked'));
+    const answer = (name, value) => { const el = start.querySelector(`input[name="guide-${name}"][value="${value}"]`); el.checked = true; fire(el); };
+    const links = () => [...start.querySelectorAll('[data-role="quick-result"] a')].map(a => a.getAttribute('href')).join();
+    t('wegweiser: ohne Antwort kein Ergebnis', links() === '');
+    answer('smart', 'no');
+    t('wegweiser: „Nichts davon“ führt zu „Von Hand“', links() === '#/help/setups/by-hand');
+    answer('smart', 'yes'); answer('ai', 'home');
+    t('wegweiser: Antworten führen zu den Wegen', links() === '#/help/setups/home-assistant,#/help/setups/local-ai,#/help/setups/together', links());
+    for (const id of scenes.SETUP_IDS) {
+      const { view } = await renderView(`${ROOT}/views/help-setups.js`, [id]);
+      const box = view.querySelector('#guide-scenario');
+      t(`wegweiser ${id}: Weg gewählt`, box?.dataset.guide === id && view.querySelector('.guide-tile--on')?.getAttribute('aria-current') === 'true');
+      t(`wegweiser ${id}: kein fehlender Schlüssel`, !/setups\.[a-zA-Z]/.test(view.innerHTML), (view.innerHTML.match(/setups\.[a-zA-Z.0-9]+/g) || []).slice(0, 3).join(' '));
+      t(`wegweiser ${id}: kein Platzhalter offen`, !/\{[a-zA-Z]+\}/.test(box.textContent.replace(box.querySelector('.guide-code')?.textContent || '', '')));
+      // Vier Bilder: breit und schmal, je ohne und mit Ports; jedes benannt und mit Hausgrenze
+      const imgs = [...box.querySelectorAll('svg.ill--scene')];
+      t(`wegweiser ${id}: vier Bilder mit Namen`, imgs.length === 4 && imgs.every(s => s.getAttribute('role') === 'img' && s.getAttribute('aria-label') && s.querySelector('title')));
+      t(`wegweiser ${id}: Hausgrenze in jedem Bild`, imgs.every(s => s.querySelector('.ill-boundary')));
+      t(`wegweiser ${id}: Farben nur über Klassen`, imgs.every(s => !s.querySelector('[fill],[stroke],[style]')));
+      // Ports und Adressen erst im Detail
+      const plain = imgs.filter(s => !s.closest('details')), detail = imgs.filter(s => s.closest('details'));
+      t(`wegweiser ${id}: Ports nur im Detail`, plain.length === 2 && detail.length === 2
+        && plain.every(s => !s.querySelector('.ill-port')) && detail.every(s => s.querySelector('.ill-port')));
+      // Derselbe Inhalt als Text: jeder Pfeil, getrennt nach drinnen und über die Grenze
+      const flows = scenes.sceneFlows(id);
+      t(`wegweiser ${id}: Bild auch als Text`, box.querySelectorAll('[data-role="flows"] li').length === flows.inside.length + flows.across.length
+        && flows.across.length > 0 && flows.inside.length > 0);
+      // Alle Blöcke
+      t(`wegweiser ${id}: alle Blöcke`, box.querySelectorAll('.guide-block').length === 7 && box.querySelectorAll('.guide-steps li').length === scenes.SETUPS[id].steps.length);
+      t(`wegweiser ${id}: „Im Detail“ aufklappbar`, !!box.querySelector('details[data-role="detail"] summary'));
+      // Links: Doku in der App auf vorhandene Seiten, Weg und App als Route, nach außen im neuen Tab
+      const hrefs = [...box.querySelectorAll('a.guide-link')].map(a => a.getAttribute('href') || '');
+      const known = (h) => h.startsWith('#/help/doc/') ? docs.DOC_PATHS.includes('docs/' + decodeURIComponent(h.slice('#/help/doc/'.length).split('?')[0]))
+        : (h.startsWith('#/') || h.startsWith('https://'));
+      t(`wegweiser ${id}: Links gültig`, hrefs.length > 0 && hrefs.every(known), hrefs.filter(h => !known(h)).join(' '));
+      t(`wegweiser ${id}: außen mit noopener`, [...box.querySelectorAll('a.guide-link[href^="http"]')].every(a => a.target === '_blank' && a.rel === 'noopener noreferrer'));
+      // Beschriftungen aus der App stehen wörtlich im Text
+      if (id === 'local-ai') {
+        const i18n = await import(`${ROOT}/lib/i18n.js`);
+        t(`wegweiser ${id}: Bezeichnungen wie in der App`, ['settings.mcp.title', 'settings.mcp.enabled', 'settings.security.scopeMcp', 'settings.security.scopeMcpWrite', 'settings.mcp.shareIdentifiers', 'settings.mcp.shareDocuments']
+          .every(k => box.textContent.includes(i18n.t(k))));
+      }
+    }
+    // „Im Detail“: für Experten offen, für alle anderen zu; versteckt wird nichts
+    const levels = await import(`${ROOT}/lib/levels.js`);
+    const before = levels.currentLevel();
+    levels.applyLevel('beginner');
+    const { view: closed } = await renderView(`${ROOT}/views/help-setups.js`, ['local-ai']);
+    t('wegweiser: Einsteiger sehen „Im Detail“ zugeklappt, aber vorhanden', closed.querySelector('details[data-role="detail"]')?.open === false && !!closed.querySelector('details[data-role="detail"] .guide-code'));
+    levels.applyLevel('expert');
+    const { view: opened } = await renderView(`${ROOT}/views/help-setups.js`, ['local-ai']);
+    t('wegweiser: Experten sehen es offen', opened.querySelector('details[data-role="detail"]')?.open === true);
+    t('wegweiser: Auszeichnung aus dem Katalog wird zu <code>', !/&lt;code/.test(opened.innerHTML) && !!opened.querySelector('.guide-rows dd code'));
+    levels.applyLevel(before);
+    const { view: unknown } = await renderView(`${ROOT}/views/help-setups.js`, ['gibt-es-nicht']);
+    t('wegweiser: unbekannter Weg zeigt die Auswahl', !!unknown.querySelector('.guide-tiles') && !unknown.querySelector('#guide-scenario'));
+  } catch (e) { t('wegweiser: render', false, e.message); }
 
   // ── 16b. v3.4.0 (N1019) — Handbuch in der App, vom eigenen Server ──
   try {
@@ -1848,8 +2470,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const lic = (await renderView(`${ROOT}/views/help-doc.js`, ['root/LICENSE'])).view;
     t('help-doc: LICENSE als Text', !!lic.querySelector('pre.doc-plain') && /GNU AFFERO/.test(lic.textContent));
     const nope = (await renderView(`${ROOT}/views/help-doc.js`, ['nope.md'])).view;
-    t('help-doc: unbekannte Seite → Hinweis und Weg zurück', !!nope.querySelector('.banner--warning') && !nope.querySelector('.doc-body')
-      && !!nope.querySelector('a[href="#/help/doc/README.md"]'), nope.querySelector('.banner--warning')?.textContent);
+    t('help-doc: unbekannte Seite → Hinweis und Weg zurück', !!nope.querySelector('.infobox--achtung') && !nope.querySelector('.doc-body')
+      && !!nope.querySelector('a[href="#/help/doc/README.md"]'), nope.querySelector('.infobox--achtung')?.textContent);
     await renderView(`${ROOT}/views/help-doc.js`, ['ERSTE-SCHRITTE.md'], { query: new URLSearchParams() });
     t('help-doc: alter Pfad führt zur neuen Seite', global.location.hash === '#/help/doc/einstieg/erste-schritte.md', global.location.hash);
     const i18n = await import(`${ROOT}/lib/i18n.js`);
@@ -1898,10 +2520,11 @@ async function renderView(modPath, params = [], ctx = {}) {
 
   try {
     const { view } = await renderView(`${ROOT}/views/dashboard.js`);
-    t('dashboard: ⓘ an den Kennzahlen', view.querySelectorAll('.info-btn').length >= 2, `${view.querySelectorAll('.info-btn').length}`);
+    const { view: fig2 } = await renderView(`${ROOT}/views/figures.js`);
+    t('Kennzahlen: ⓘ an den Karten', fig2.querySelectorAll('.info-btn').length >= 2, `${fig2.querySelectorAll('.info-btn').length}`);
     t('dashboard: kein Willkommen, wenn Daten da sind', !view.querySelector('.dash-welcome'));
     t('dashboard: PV als Einspeisung und Vergütung, nicht als Verbrauch und Kosten',
-      /Einspeisung \(letzte 12 Monate\)/.test(view.textContent) && /Vergütung \(letzte 12 Monate\)/.test(view.textContent));
+      !!view.querySelector('.kpi__label[title="Einspeisung (letzte 12 Monate)"]') && !!view.querySelector('.kpi__label[title="Vergütung (letzte 12 Monate)"]'));
   } catch (e) { t('dashboard: E1', false, e.message); }
 
   try {
@@ -1989,10 +2612,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     const footer = mc?.config?.options?.plugins?.tooltip?.callbacks?.footer?.([{ dataIndex: pIdx }]) || '';
     t('utility(gas): Tooltip nennt die erfassten Tage', /Teilmonat: 14 von 31 Tagen/.test(footer), footer);
     t('utility(gas): Teilmonat in der Tabelle „14 / 31“ und erklärt', !!partialRow && partialRow.classList.contains('is-partial')
-      && /nur teilweise erfasst/.test(view.textContent) && !!view.querySelector('.chart-note'));
+      && /nur teilweise erfasst/.test(view.textContent) && !!view.querySelector('.fussnote'));
     t('utility(gas): Kurzbeschreibung mit Summe und Monaten', /^Balkendiagramm: Gas 2026 je Monat, zusammen .+ am meisten im .+ am wenigsten im /.test(view.querySelector('#month-chart')?.getAttribute('aria-label') || ''),
       view.querySelector('#month-chart')?.getAttribute('aria-label'));
-    const banner = view.querySelector('.status-banner')?.textContent || '';
+    const banner = view.querySelector('.infobox')?.textContent || '';
     t('utility(gas): Trend gegen das Vorjahr statt „3-Monats-Trend“', /gegenüber Vorjahr/.test(banner) && !/3-Monats-Trend/.test(banner), banner.replace(/\s+/g, ' ').trim().slice(0, 120));
     // Witterungsbereinigt heißt Heizmodell (`heat_adjusted`, v2.8.0) — das Altfeld
     // `weather_adjusted` skaliert auch das Warmwasser und bleibt nur für die API
@@ -2067,6 +2690,9 @@ async function renderView(modPath, params = [], ctx = {}) {
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
     await new Promise(r => setTimeout(r, 900));
+    // v3.12.0 (M4) — der Saldo steht in seiner Sicht und wird gezeichnet, wenn sie zu sehen ist
+    t('utility(gas): vor dem Umschalten kein Saldo-Diagramm', chartOn('balance-chart').length === 0);
+    view.querySelector('[data-sicht-btn="balance"]')?.click();
     const [bc] = chartOn('balance-chart');
     const bds = bc?.config?.data?.datasets || [];
     t('utility(gas): Saldo-Verlauf mit Kosten und Bezahltem', bds.length === 2 && bds.every(d => d.data.length >= 2)
@@ -2095,7 +2721,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const labels2 = (mc2?.config?.data?.datasets || []).map(d => d.label);
     t('utility(gas): Umschalter „Witterungsbereinigt“ zeichnet bereinigt, ohne Temperatur', !!btn && btn.getAttribute('aria-pressed') === 'true'
       && labels2.some(l => /witterungsbereinigt/.test(l)) && !labels2.some(l => /Temperatur/.test(l))
-      && /Normaljahr/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), labels2.join(' | '));
+      && /Normaljahr/.test(view.querySelector('[data-role="month-fussnote"]')?.textContent || ''), labels2.join(' | '));
     const adjVals = (mc2?.config?.data?.datasets || []).find(d => /witterungsbereinigt/.test(d.label))?.data || [];
     const { api: apiMod } = await import(`${ROOT}/api.js`);
     const gm = await apiMod.meters('gas');
@@ -2186,7 +2812,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         && (!m12 || m12[1] === fmtMod12.fmt.date(lastRd)), `${metaText.slice(0, 160)} | ${lastRd}`);
     }
     // v3.6.0 (abrplus) — gerechnet bis zur letzten Ablesung: ⓘ „Laufendes Jahr“ an der Abschlagskachel
-    const advLabel = view.querySelector('.kpi.c-yellow .kpi__label');
+    const advLabel = view.querySelector('[data-role="kpi-advances-label"]');
     // v3.10.0 (#49) — mit Beginn: „Abschläge ‹Periodenbeginn› bis ‹letzte Ablesung›“
     t('abrechnungsjahr(gas): ⓘ „Laufendes Jahr“ an „Abschläge … bis …“', /Abschläge \d{2}\.\d{2}\.\d{4} bis \d{2}\.\d{2}\.\d{4}/.test(advLabel?.textContent || '')
       && !!advLabel?.querySelector('[data-glossary="runningYear"]'), advLabel?.textContent);
@@ -2240,7 +2866,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     localStorage.setItem('et-period-mode', 'calendar');
     const cal = await renderView(`${ROOT}/views/utility.js`, ['gas']);
     await new Promise(r => setTimeout(r, 900));
-    const label = cal.view.querySelector('.kpi.c-yellow .kpi__label');
+    const label = cal.view.querySelector('[data-role="kpi-advances-label"]');
     const until = /Abschläge \d{2}\.\d{2}\.\d{4} bis/.test(label?.textContent || '');   // v3.10.0 (#49) — mit Beginn
     t('kalenderjahr(gas): ⓘ „Laufendes Jahr“ genau an „Abschläge … bis …“', !!label && until === !!label.querySelector('[data-glossary="runningYear"]'), label?.textContent);
     localStorage.setItem('et-period-mode', 'billing');
@@ -2271,7 +2897,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     for (const [u, q] of [['gas', 'kwh'], ['strom', 'kwh']]) {
       const gp = (await (await fetch(`${HOST}/api/utility/${u}/billing-periods`)).json()).data.periods.filter(p => p.days > 0).pop();
       const card = view.querySelector(`.card[data-utility="${u}"]`);
-      const labels = [...card.querySelectorAll('.kpi__label')].map(l => l.textContent.trim());
+      // v3.12.0 (M4) — sichtbar kurz, der Zeitraum steht darüber; der lange Name als Tooltip
+      const labels = [...card.querySelectorAll('.kpi__label')].map(l => l.getAttribute('title') || '');
       const sofar = gp.as_of < gp.until;
       t(`abrechnungsjahr(Übersicht, #36, ${u}): Kacheln „bisher im Abrechnungsjahr“ statt „letzte 12 Monate“`,
         labels.length === 2 && labels.every(l => sofar ? /\(bisher im Abrechnungsjahr\)$/.test(l) : /\(Abrechnungsjahr\)$/.test(l)), labels.join(' | '));
@@ -2280,15 +2907,15 @@ async function renderView(modPath, params = [], ctx = {}) {
       const pct = s ? Math.abs(signed) : null;
       // v3.10.0 (Skeptiker M1) — mehr als doppelt bzw. weniger als halb so viel: „Ablesung prüfen“ statt Prozent
       if (s && chartData.trendNeedsCheck(signed)) {
-        const chk = card.querySelector('.kpi__value [data-role="trend-check"]');
+        const chk = card.querySelector('[data-role="trend-check"]');
         t(`abrechnungsjahr(Übersicht, #36, ${u}): stark verändert → „Ablesung prüfen“ statt Prozent`, !!chk
-          && chk.getAttribute('href') === `#/utility/${u}` && !/%/.test(chk.textContent) && !card.querySelector('.kpi__trend--danger, .kpi__trend--success'),
+          && chk.getAttribute('href') === `#/utility/${u}?view=readings` && !/%/.test(chk.textContent) && !card.querySelector('.kpi__trend--danger, .kpi__trend--success'),
           `${signed.toFixed(0)} % · ${chk?.outerHTML.slice(0, 120)}`);
         basisOf[u] = s.basis;
         compared++;
         continue;
       }
-      const arrow = card.querySelector('.kpi__value .kpi__trend');
+      const arrow = card.querySelector('.kpi__trend[data-trend]');
       if (s && pct >= 0.5) compared++;
       const label = arrow?.getAttribute('aria-label') || '';
       const shown = Number((label.match(/^([\d.]+)\s*%/)?.[1] || 'NaN').replace(/\./g, ''));   // „2.611 %“ (geschütztes Leerzeichen) → 2611
@@ -2305,10 +2932,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Nachtrag #36 — Gas wechselt in den Beispieldaten mitten im Jahr den Lieferanten: Pfeil gegen dieselben Kalendertage
     t('abrechnungsjahr(Übersicht, #36): Gas nach dem Lieferantenwechsel gegen dieselben Kalendertage ein Jahr früher, Strom gegen die Periode davor',
       basisOf.gas === 'calendar' && basisOf.strom === 'period', JSON.stringify(basisOf));
-    // v3.10.0 (#36) — am Ort neu gezeichnet: fertig erst, wenn auch die Schaubilder stehen (kein „Lädt …“ nach dem Tausch)
+    // v3.10.0 (#36) — am Ort neu gezeichnet: fertig erst, wenn auch das Nachgeladene steht (kein „Lädt …“ nach dem Tausch)
     const ip = await renderView(`${ROOT}/views/dashboard.js`, [], { inPlace: true });
     t('abrechnungsjahr(Übersicht, #36): am Ort neu gezeichnet ohne „Lädt …“ im fertigen Inhalt',
-      !!ip.view.querySelector('[data-role="explainers"]') && !ip.view.querySelector('.loading'), ip.view.querySelector('.loading')?.parentElement?.className || '');
+      !!ip.view.querySelector('[data-role="numbers"]') && !ip.view.querySelector('.loading'), ip.view.querySelector('.loading')?.parentElement?.className || '');
   } catch (e) { t('abrechnungsjahr(Übersicht): F1', false, e.message); }
 
   try {
@@ -2370,11 +2997,11 @@ async function renderView(modPath, params = [], ctx = {}) {
       const { view } = await renderView(`${ROOT}/views/dashboard.js`);
       await new Promise(r => setTimeout(r, 900));
       const card = view.querySelector('.card[data-utility="wasser"]');
-      const chk = card?.querySelector('.kpi__value [data-role="trend-check"]');
+      const chk = card?.querySelector('[data-role="trend-check"]');
       t('Übersicht (Skeptiker M1): falsche Ziffer → „Ablesung prüfen“ statt Prozentpfeil, mit Weg zu den Ablesungen',
-        !!gp?.prev_same_span && gp.m3 > 2 * gp.prev_same_span.m3 && !!chk && chk.getAttribute('href') === '#/utility/wasser'
+        !!gp?.prev_same_span && gp.m3 > 2 * gp.prev_same_span.m3 && !!chk && chk.getAttribute('href') === '#/utility/wasser?view=readings'
         && chk.textContent.trim() === 'Ablesung prüfen' && /mehr als doppelt/.test(chk.getAttribute('aria-label') || '')
-        && !/\d\s*%/.test(card.querySelector('.kpi__value')?.textContent || ''), `${gp?.m3} gegen ${gp?.prev_same_span?.m3} · ${chk?.outerHTML.slice(0, 160)}`);
+        && !/\d\s*%/.test(card.querySelector('.kpi__value')?.textContent || '') && !card.querySelector('.kpi__trend[data-trend]'), `${gp?.m3} gegen ${gp?.prev_same_span?.m3} · ${chk?.outerHTML.slice(0, 160)}`);
     } finally {
       if (typo?.id) await fetch(`${HOST}/api/utility/wasser/readings/${encodeURIComponent(typo.id)}`, { method: 'DELETE' });
     }
@@ -2407,7 +3034,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       water: { m3: 179, complete: true, persons: 4, reference_l: 122, liters_per_person_day: 100, index: 82, delta_pct: -18, rating: 'good' },
       missing: ['reference_strom_kwh', 'reference_heat_kwh_m2'] });
     const links = [...without.querySelectorAll('a')].map(a => a.getAttribute('href'));
-    t('einordnung ohne Vergleichswerte: Einladung mit genau einem Link zum Feld', links.length === 1 && links[0] === '#/settings/household?field=reference_strom_kwh', links.join(', '));
+    t('einordnung ohne Vergleichswerte: Einladung mit genau einem Link zum Feld', links.length === 1 && links[0] === '#/household/building?field=reference_strom_kwh', links.join(', '));
     t('einordnung: keine Links aus der App heraus (Strom-/Heizspiegel)', !without.querySelector('a[target="_blank"], a[href^="http"]'));
     const wrow = without.querySelector('.cmp-row');
     // v3.9.0 (L16) — der Satz zuerst, das Wort danach (bis v3.8 „Darüber Wasser: …“, ein Satzanfang ohne Bezug)
@@ -2428,7 +3055,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const partial = card({ ...base, strom: { kwh: 1800, complete: false, own_value: 3400, delta_pct: null, rating: null, special_household: false } });
     t('einordnung: halbes Jahr ohne Ampel, mit Hinweis', partial.querySelector('.cmp-row')?.dataset.rating === 'none' && /alle Monate/.test(partial.textContent));
     // Fläche fehlt: genau dieser Link
-    t('einordnung: fehlt die Wohnfläche, führt der Link dorthin', card({ ...base, missing: ['wohnflaeche_m2'] }).querySelector('a')?.getAttribute('href') === '#/settings/household?field=wohnflaeche_m2');
+    t('einordnung: fehlt die Wohnfläche, führt der Link dorthin', card({ ...base, missing: ['wohnflaeche_m2'] }).querySelector('a')?.getAttribute('href') === '#/household/building?field=wohnflaeche_m2');
     // nichts Sinnvolles: keine Kachel
     t('einordnung: ohne Zeile und ohne Einladung keine Kachel', comparisonCardHtml(base) === '' && comparisonCardHtml({ supported: false }) === '');
   } catch (e) { t('einordnung: Kachel', false, e.message); }
@@ -2471,7 +3098,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       projection_uncertain: { reasons: ['poor_fit'], projected_range: [-768.0, 3.0] } } }], byKey).join('');
     const urow = ub.textContent.replace(/\s+/g, ' ');
     t('H3: Einsteiger — Spanne der Karte statt „rund 532 € zurück“', /768\s€ Guthaben bis \S+ 3\s€ Nachzahlung \(unsicher\)/.test(urow)
-      && !/532/.test(urow) && !!ub.querySelector('[data-role="money-uncertain"]') && !ub.querySelector('.success-text, .danger-text'), urow);
+      && !/532/.test(urow) && !!ub.querySelector('[data-role="money-uncertain"] .ton-ok') && !!ub.querySelector('[data-role="money-uncertain"] .ton-fehler'), urow);
     // v3.10.0 (Skeptiker v3.9.0, R2-3) — sichere Schätzung mit Breite: dieselbe Breite wie an der Karte (Strom ohne Wetterteil);
     // rechnet eine Abrechnung zwei Verträge ab, die Summe (Wirklichkeitsabgleich)
     const bb = global.document.createElement('ul');
@@ -2492,7 +3119,7 @@ async function renderView(modPath, params = [], ctx = {}) {
 
   try {
     // Sprung aus der Einladung: Seite Haushalt, Feld im Fokus
-    const { view } = await renderView(`${ROOT}/views/settings.js`, ['household'], { query: new URLSearchParams('field=reference_strom_kwh') });
+    const { view } = await renderView(`${ROOT}/views/settings.js`, [], { household: { page: 'building' }, query: new URLSearchParams('field=reference_strom_kwh') });
     await new Promise(r => setTimeout(r, 50));
     const el = view.querySelector('[data-key="reference_strom_kwh"]');
     t('einordnung → Einstellungen: das Feld hat den Fokus und ist markiert', !!el && global.document.activeElement === el && el.closest('.settings-field')?.hasAttribute('data-target'));
@@ -2500,7 +3127,7 @@ async function renderView(modPath, params = [], ctx = {}) {
 
   try {
     localStorage.removeItem('et-settings-co2-open');
-    const { view } = await renderView(`${ROOT}/views/settings.js`, ['utilities']);
+    const { view } = await renderView(`${ROOT}/views/settings.js`, ['calculation']);
     const d = view.querySelector('[data-collapse="co2"] details.disclosure');
     t('CO₂-Emissionsfaktoren: lange Liste zugeklappt, Felder darin', !!d && !d.open && !!d.querySelector('[data-key="co2_gas"]') && !!d.querySelector('[data-co2years]')
       && d.dataset.disclosure === 'et-settings-co2-open', d ? `open=${d.open}` : 'kein Aufklappbereich');
@@ -2512,7 +3139,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     await new Promise(r => setTimeout(r, 50));
     t('CO₂-Emissionsfaktoren: bei einem Fehler im Feld klappt die Liste auf', d.open && co2.classList.contains('invalid'));
     // nach dem Speichern: geänderte Liste offen (auf diesem Gerät gemerkt)
-    const { view: v2 } = await renderView(`${ROOT}/views/settings.js`, ['utilities']);
+    const { view: v2 } = await renderView(`${ROOT}/views/settings.js`, ['calculation']);
     const d2 = v2.querySelector('[data-collapse="co2"] details.disclosure');
     const was = (await (await fetch(`${HOST}/api/settings`)).json()).data.co2_wasser;
     d2.open = false;
@@ -2607,8 +3234,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const band = [...view.querySelectorAll('#flex-ampel .flex-band > li')];
     t('flex: Tagesband mit 24 Stunden, jede mit Stufe und Text für Screenreader', band.length === 24
       && band.every(li => /flex-lv--(cheap|mid|expensive)/.test(li.className) && (li.querySelector('.sr-only')?.textContent || '').length > 5));
-    t('flex: Stufe auch als Symbol, nie nur Farbe', band.every(li => /[✔▲✖]/.test(li.querySelector('.flex-band__cell')?.textContent || '')));
-    t('flex: Sonne im Band', band.some(li => li.querySelector('.flex-sun--strong')?.textContent === '☀'));
+    t('flex: Stufe auch als Symbol, nie nur Farbe', band.every(li => /#i-(haken|achtung|kreuz)$/.test(li.querySelector('.flex-band__cell .ico use')?.getAttribute('href') || '')));
+    t('flex: Sonne im Band', band.some(li => li.querySelector('.flex-sun--strong .ico use')?.getAttribute('href') === '#i-sonne'));
     const rows = view.querySelectorAll('#flex-ampel .flex-week tbody tr');
     t('flex: Wochenraster 7 × 24 ab Erfahren', rows.length === 7 && [...rows].every(r => r.querySelectorAll('td').length === 24)
       && view.querySelector('.flex-week-wrap')?.getAttribute('data-min-level') === 'advanced');
@@ -2655,7 +3282,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: Kachel „Dein Hebel“ mit Viertelstunden', !!tile && !!sum.summary?.measured, `${sum.year}: ${sum.summary?.eur}`);
     t('dashboard: Kachel zeigt die Zahl des Servers, inkl. USt', (tile?.querySelector('.dash-lever__big')?.textContent || '') === fmt.eur0(sum.summary.eur)
       && /inkl\. USt/.test(tile?.textContent || ''));
-    t('dashboard: Kachel im Raster der übrigen, mit Link und Satz', !!tile?.closest('.grid') && !!tile.querySelector('a[href="#/flexibility"]')
+    t('dashboard: Kachel im Raster der übrigen, mit Link und Satz', !!tile?.closest('.raster') && !!tile.querySelector(`a[href="#/flexibility?year=${sum.year}"]`)
       && !!tile.querySelector('.dash-lever__action'));
     if (sum.year === 2025) t('dashboard: dieselbe Zahl wie die Ergebniskarte der Seite', (tile?.querySelector('.dash-lever__big')?.textContent || '') === big);
 
@@ -2681,13 +3308,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     await patch({ wohnflaeche_m2: null });
     // Nachtrag: Effizienzklasse rechnet weiter mit 100 m², sagt es aber mit Link zum Feld
     {
-      const dash0 = await renderView(`${ROOT}/views/dashboard.js`);
+      const dash0 = await renderView(`${ROOT}/views/figures.js`);
       await new Promise(r => setTimeout(r, 600));
       const note = dash0.view.querySelector('.dash-insight [data-role="area-assumed"]');
-      t('einpers: Effizienz mit angenommener Fläche — Hinweis mit Link zum Feld', /Angenommene Wohnfläche 100 m²/.test(note?.textContent || '')
-        && note.querySelector('a')?.getAttribute('href') === '#/settings/household?field=wohnflaeche_m2', note?.textContent.replace(/\s+/g, ' ').trim() || 'kein Hinweis');
+      t('einpers: Effizienz mit angenommener Fläche — Hinweis mit Link zum Feld', /angenommenen 100 m²/.test(note?.textContent || '')
+        && note.querySelector('a')?.getAttribute('href') === '#/household/building?field=wohnflaeche_m2', note?.textContent.replace(/\s+/g, ' ').trim() || 'kein Hinweis');
     }
-    const { view } = await renderView(`${ROOT}/views/settings.js`, ['household']);
+    const { view } = await renderView(`${ROOT}/views/settings.js`, [], { household: { page: 'building' } });
     const area = view.querySelector('[data-key="wohnflaeche_m2"]');
     t('einpers: Wohnfläche ohne Eintrag leer, Default als Platzhalter, Satz dazu', area?.value === '' && area.getAttribute('placeholder') === '100'
       && /Noch nicht eingetragen.*100 m²/.test(view.querySelector('#set-wohnflaeche_m2-assumed')?.textContent || '')
@@ -2704,7 +3331,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const imp = await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ force: true, persona: 'eigenheim-klassisch' }) });
     t('einpers: Beispielhaushalt „Eigenheim klassisch“ geladen', imp.ok, `HTTP ${imp.status}`);
-    const dash = await renderView(`${ROOT}/views/dashboard.js`);
+    const dash = await renderView(`${ROOT}/views/figures.js`);
     await new Promise(r => setTimeout(r, 600));
     const card = dash.view.querySelector('[data-role="comparison"]');
     const ratings = [...(card?.querySelectorAll('.cmp-row') || [])].map(r => r.dataset.rating);
@@ -2864,7 +3491,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     // (3) Gas: die heute geltende Umrechnung mit ⓘ und Verweis auf die Einstellung
     const gf = form?.querySelector('[data-role="gas-factor-note"]');
     t('nachzuege: Gas-Umrechnung im Vertragsformular', /Umrechnung heute: .*kWh\/m³/.test(gf?.textContent || '')
-      && gf.querySelector('a')?.getAttribute('href') === '#/settings/utilities' && /Netz/.test(gf.querySelector('[data-info-text]')?.dataset.infoText || ''),
+      && gf.querySelector('a')?.getAttribute('href') === '#/household/utilities' && /Netz/.test(gf.querySelector('[data-info-text]')?.dataset.infoText || ''),
       gf?.textContent.replace(/\s+/g, ' ').trim().slice(0, 120));
     t('nachzuege: Vertragskarte nennt die Boni mit Art', !!cv.view.querySelector('[data-role="contract-bonuses"]')
       && /Bonus \(/.test(cv.view.querySelector('[data-role="contract-bonuses"]')?.textContent || ''));
@@ -2921,7 +3548,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     if (global.document.querySelector('#modal-root #contract-form')) global.document.querySelector('.modal [data-act="cancel"]')?.click();
     // (5) Einstellungen: Flexibilität mit Beispielwerten als Platzhalter
     await patch({ flex_washer_kwh_per_cycle: null, flex_dishwasher_cycles_per_week: null });
-    const st = await renderView(`${ROOT}/views/settings.js`, ['utilities']);
+    const st = await renderView(`${ROOT}/views/settings.js`, [], { household: { page: 'utilities' } });
     await new Promise(r => setTimeout(r, 300));
     const dish = st.view.querySelector('[data-key="flex_dishwasher_cycles_per_week"]');
     t('nachzuege: Flexibilität — leeres Feld, Beispielwert als Platzhalter und Satz', dish?.value === '' && dish.getAttribute('placeholder') === '5'
@@ -3057,7 +3684,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       await new Promise(r => setTimeout(r, 50));
       // eine Wahrheit: der Umschalter der Karte „Auslesen“ zeigt, wer ausliest, und stellt es um
       st.invalidateSettings();
-      const ex1 = (await renderView(`${ROOT}/views/settings.js`, ['expert'])).view;
+      const ex1 = await connPage('reading');
       const mode1 = ex1.querySelector('#inbox-reading-card input[name="rd-mode"]:checked')?.value;
       t('inbox/cloud: die Karte „Auslesen“ steht auf „Cloud“ und sagt, wohin Dokumente gehen',
         mode1 === 'cloud' && /geht an api\.anthropic\.com/.test(ex1.querySelector('[data-role="ic-state"]')?.textContent || ''), mode1);
@@ -3072,7 +3699,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('inbox/cloud: „Lokal“ wählen und speichern stellt inbox_provider um, die Cloud bleibt eingeschaltet',
         afterLocal.inbox_provider === 'local' && afterLocal.inbox_cloud_enabled === true, `${afterLocal.inbox_provider} ${afterLocal.inbox_cloud_enabled}`);
       st.invalidateSettings();
-      const ex2 = (await renderView(`${ROOT}/views/settings.js`, ['expert'])).view;
+      const ex2 = await connPage('reading');
       t('inbox/cloud: „Lokal“ gewählt — die Karte sagt, dass nichts hinausgeht',
         ex2.querySelector('#inbox-reading-card input[name="rd-mode"]:checked')?.value === 'local'
         && /es liest aber „Lokal“/.test(ex2.querySelector('[data-role="ic-state"]')?.textContent || ''),
@@ -3145,8 +3772,17 @@ async function renderView(modPath, params = [], ctx = {}) {
     for (let i = 0; i < 40 && !dv.querySelector('#inbox-fields .inbox-field--edited'); i++) await new Promise(r => setTimeout(r, 50));
     const bill2 = [...dv.querySelectorAll('#inbox-proposals .inbox-proposal')].find(p => /Rechnung 01\.01\.2025/.test(p.textContent));
     t('inbox: nach der Korrektur ist die Rechnung vorbelegt', !!bill2?.querySelector('input').checked, bill2?.textContent.replace(/\s+/g, ' ').trim());
+    // v3.12.0 — Übernehmen kann einen Vertrag anlegen: Die Zuordnung liest die Listen danach neu (vorher „kein Vertrag“
+    // bis zum Neuladen). Nachgestellt mit einem Vertrag, der nach dem ersten Zeichnen dazukommt.
+    const lateC = (await (await fetch(`${HOST}/api/utility/gas/contracts`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meter_id: 'm_gas_main', provider: 'Spät Musterstadt', start: '2031-01-01',
+        working_prices: [{ from: '2031-01-01', ct_per_kwh: 10 }], base_prices: [{ from: '2031-01-01', eur_per_month: 10 }] }) })).json()).data;
     dv.querySelector('#inbox-apply')?.click();
     for (let i = 0; i < 60 && !/Übernommen/.test(dv.querySelector('#inbox-state')?.textContent || ''); i++) await new Promise(r => setTimeout(r, 50));
+    t('inbox: nach dem Übernehmen kennt die Zuordnung neue Verträge (ohne Neuladen)',
+      [...(dv.querySelector('#inbox-contract')?.options || [])].some(o => /Spät Musterstadt/.test(o.textContent)),
+      [...(dv.querySelector('#inbox-contract')?.options || [])].map(o => o.textContent).join(' | '));
+    if (lateC?.id) await fetch(`${HOST}/api/utility/gas/contracts/${encodeURIComponent(lateC.id)}`, { method: 'DELETE' });
     const bills = (await (await fetch(`${HOST}/api/utility/gas/bills`)).json()).data || [];
     const b = bills.find(x => x.period_from === '2025-01-01' && x.period_to === '2025-12-31');
     t('inbox: übernommen — Rechnung mit Dokument als Beleg und gebucht', !!b && b.attachment_ids?.length === 1 && !!b.special_payment_id
@@ -3202,7 +3838,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         for (let i = 0; i < 60 && !kv.querySelector('#inbox-gist [data-role="gist-text"]'); i++) await new Promise(r => setTimeout(r, 50));
         const kg = kv.querySelector('#inbox-gist [data-role="gist-text"]')?.textContent.replace(/\s+/g, ' ').trim() || '';
         t('N7: Kernaussage der Rechnungskorrektur nennt Ersetzen, Zeitraum, Ergebnis und Buchung (nicht erst unter „Mehr dazu“)',
-          /^Rechnungskorrektur 01\.01\.2025 bis 31\.12\.2025: Sie ersetzt die erfasste und gebuchte Rechnung, das Ergebnis wird Guthaben 20,00 € statt Guthaben 548,54 €, und die Buchung ändert sich mit\./.test(kg), kg);
+          /^Rechnungskorrektur 01\.01\.2025 bis 31\.12\.2025: Das Ergebnis wird Guthaben 20,00 € statt Guthaben 548,54 €\. Sie ersetzt die erfasste und gebuchte Rechnung, die Buchung ändert sich mit\./.test(kg), kg);
         const kp = [...kv.querySelectorAll('#inbox-proposals .inbox-proposal')];
         const corrP = kp.find(p => /Rechnungskorrektur 01\.01\.2025 bis 31\.12\.2025 übernehmen/.test(p.textContent));
         const rebP = kp.find(p => /Buchung ersetzen/.test(p.textContent));
@@ -3274,13 +3910,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     v = await routed('advanced', '#/contracts');
     t('stufen: Erfahren — Kosten mit „Wechsel prüfen“ und „Rechnung prüfen“', tabs(v).includes('#/tariffs') && tabs(v).includes('#/bill-check'), tabs(v).join(' '));
     v = await routed('beginner', '#/settings');
-    t('stufen: Einsteiger — Einstellungen Allgemein, Haushalt, Verbrauchsarten, Daten',
-      tabs(v).join() === '#/settings,#/settings/household,#/settings/utilities,#/settings/data', tabs(v).join(' '));
+    t('stufen: Einsteiger — Einstellungen Übersicht, Region, Anzeige, Daten',
+      tabs(v).join() === '#/settings,#/settings/region,#/settings/display,#/settings/data', tabs(v).join(' '));
     t('stufen: Einstellungen › Stufe verlinkt die Funktionstabelle',
       /referenz\/stufen\.md$/.test(decodeURIComponent(v.querySelector('[data-role="level-table"]')?.getAttribute('href') || '')),
       v.querySelector('[data-role="level-table"]')?.getAttribute('href') || 'kein Link');
     v = await routed('expert', '#/settings');
-    t('stufen: Experte — alle neun Einstellungsseiten', tabs(v).length === 9, tabs(v).join(' '));
+    t('stufen: Experte — alle sieben Einstellungsseiten (Wetter und Integrationen unter Verbindungen)', tabs(v).length === 7, tabs(v).join(' '));
     // bis v3.6 löschte die Ansicht den Hinweis, wenn der Bereich keine Tabs hatte
     // (Kosten hat für Einsteiger nur „Verträge & Abschläge“)
     for (const hash of ['#/tariffs', '#/bill-check']) {
@@ -3307,8 +3943,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     L.applyLevel('advanced');
     freshDom();
     const box2 = global.document.getElementById('view');
-    await dash.render(box2);
-    t('stufen: Erfahren — Übersicht mit „Schaubilder“ (bis v3.6 Experte)', !!box2.querySelector('section.dash-explainers'));
+    await (await import(`${ROOT}/views/figures.js`)).render(box2);
+    t('stufen: Erfahren — Kennzahlen mit „Schaubilder“ (bis v3.11 auf der Übersicht)', !!box2.querySelector('section.dash-explainers'));
     L.applyLevel('beginner');
     freshDom();
     const box3 = global.document.getElementById('view');
@@ -3360,7 +3996,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const [mc] = chartOn('month-chart');
     const cur = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function' && !/zum Vergleich|Vorperiode/.test(d.label || ''));
     t('interpolation: Monatschart schraffiert (Farbe aus u.color) mit Satz darunter', /0\.2\)$/.test(cur?.backgroundColor?.({ dataIndex: 3 }) || '')
-      && /Schraffierte Säulen/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), cur?.backgroundColor?.({ dataIndex: 3 }));
+      && /Schraffierte Säulen/.test(view.querySelector('[data-role="month-fussnote"]')?.textContent || ''), cur?.backgroundColor?.({ dataIndex: 3 }));
     // v3.9.0 (L9) — Legende mit der Fläche eines gemessenen Monats, Vorjahr mit seinen verteilten Monaten schraffiert
     const dsets = mc?.config?.data?.datasets || [];
     const legend = mc?.config?.options?.plugins?.legend?.labels?.generateLabels?.({ data: mc.config.data }) || [];
@@ -3421,9 +4057,9 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('gütesperre: schlechtes Modell — Satz über der Tabelle mit Grenze', q?.model_quality === 'poor' && /passt schlecht/.test(qa?.textContent || '')
       && new RegExp(`eines mittleren gemessenen Monats \\(${Math.round(q.mean_month).toLocaleString('de-DE')} kWh\\)`).test(qa?.textContent || '')
       && new RegExp(`ab ${Math.round(q.detect_floor).toLocaleString('de-DE')} kWh`).test(qa?.textContent || ''), `${q?.ratio} · ${qa?.textContent.trim().slice(0, 120)}`);
-    t('gütesperre: Sprung zur Heizgrenze (Einstellungen › Verbrauchsarten & Abrechnung › Physikalische Konstanten)',
-      qa?.querySelector('a')?.getAttribute('href') === '#/settings/utilities?field=hdd_base_temp'
-      && /Verbrauchsarten & Abrechnung › Physikalische Konstanten › HGT-Basistemperatur/.test(qa?.querySelector('a')?.textContent || ''));
+    t('gütesperre: Sprung zur Heizgrenze (Haushalt › Verbrauchsarten › Physikalische Konstanten)',
+      qa?.querySelector('a')?.getAttribute('href') === '#/household/utilities?field=hdd_base_temp'
+      && /Haushalt › Verbrauchsarten › Physikalische Konstanten › HGT-Basistemperatur/.test(qa?.querySelector('a')?.textContent || ''));
     t('gütesperre: kein „alle Monate liegen innerhalb“', !/alle Monate liegen innerhalb/.test(an.view.textContent));
     // v3.7.0 (wirklichkeit-2, Schritt 3, N2) — der Satz über der Tabelle passt zu ihr: mit Zeilen nicht „dass sie leer ist“
     const rowsShown = ((await json(`/utility/gas/meters/${mid}/consumption`))?.anomalies || []).length;
@@ -3618,7 +4254,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       const ev = ag.find(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk);
       t('heizgrenze: Agenda — Art heat_limit, fällig, mit Empfehlung und Wirkung', !!ev && ev.due_now && !ev.can_mark_done && !!ev.ref?.recommendation_id
         && ev.ref?.best === hl6.best && !!ev.ref?.effect, JSON.stringify(ev)?.slice(0, 300));
-      const dv = await renderView(`${ROOT}/views/dashboard.js`);
+      const dv = await renderView(`${ROOT}/views/todo.js`);   // v3.12.0 (M4) — die ganze Liste; die Übersicht zeigt vier Zeilen
       const hkRow = () => dv.view.querySelector(`[data-role="heat-limit-todo"][data-meter="${hk}"]`);
       for (let i = 0; i < 120 && !hkRow(); i++) await sleep(50);
       const row = hkRow()?.closest('li');
@@ -3704,6 +4340,11 @@ async function renderView(modPath, params = [], ctx = {}) {
         && !/Gas/.test(effTxt2) && dashM.efficiencyIncompleteText({ year: 2025, per_source: [{ label: 'Gas', class: 'C', complete: true }] }) === '', effTxt2);
       // v3.9.0 (Skeptiker R2-5) — nach „Übernehmen“ und „Rückgängig“ die ganze Übersicht neu; der Vorschlag steht
       // nicht zugleich unter „Top-Empfehlungen“
+      // v3.12.0 (M4) — die Übersicht zeigt vier Zeilen: Für den Fall steht der Vorschlag allein darin
+      const fetchEcht = global.fetch;
+      global.fetch = (u, o) => (/\/agenda/.test(String(u))
+        ? fetchEcht(u, o).then(async r => { const j = await r.json(); j.data.events = j.data.events.filter(e => e.kind === 'heat_limit'); return new global.Response(JSON.stringify(j), { status: 200, headers: { 'content-type': 'application/json' } }); })
+        : fetchEcht(u, o));
       const dv5 = await renderView(`${ROOT}/views/dashboard.js`);
       const row5 = () => dv5.view.querySelector(`[data-role="heat-limit-todo"][data-meter="${hk}"]`);
       for (let i = 0; i < 120 && !row5(); i++) await sleep(50);
@@ -3724,6 +4365,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('heizgrenze (R2-5): Übersicht nach „Übernehmen“ und „Rückgängig“ ganz neu gezeichnet, Vorschlag nicht doppelt unter „Top-Empfehlungen“',
         !topRec && Number(ma5?.hdd_base_temp) === hl6.best && redrawn && Number(mu5?.hdd_base_temp) === 6 && redrawn2,
         `${topRec} ${ma5?.hdd_base_temp} ${redrawn} ${mu5?.hdd_base_temp} ${redrawn2}`);
+      global.fetch = fetchEcht;
       // Prognose und Werkstatt: derselbe Hinweis, wenn das Heizmodell schlecht passt
       const fw = await renderView(`${ROOT}/views/forecast.js`);
       await sleep(400);
@@ -3831,10 +4473,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('umgebung: einzeilig auch am Handy (nowrap, schrumpft nicht)', /\.demo-chip--env\s*\{[^}]*white-space:\s*nowrap[^}]*flex-shrink:\s*0/.test(css));
     // Einstellungen → Allgemein: das Feld mit Grenze
     (await import(`${ROOT}/state.js`)).invalidateSettings();
-    const sv = await renderView(`${ROOT}/views/settings.js`, ['general']);
+    const sv = await renderView(`${ROOT}/views/settings.js`, ['display']);
     await new Promise(r => setTimeout(r, 500));
     const field = sv.view.querySelector('input[data-key="env_name"]');
-    t('umgebung: Feld unter Einstellungen › Allgemein mit 12 Zeichen', field?.getAttribute('maxlength') === '12' && field.value === 'Test Haus', field?.outerHTML?.slice(0, 200));
+    t('umgebung: Feld unter Einstellungen › Anzeige und Erinnerungen mit 12 Zeichen', field?.getAttribute('maxlength') === '12' && field.value === 'Test Haus', field?.outerHTML?.slice(0, 200));
     await patch({ env_name: '' });
   } catch (e) { t('umgebung: Abzeichen', false, e.stack || e.message); }
 
@@ -3907,7 +4549,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     await sleep(800);
     const on = ov.view.querySelector('[data-role="overview-rest-note"]');
     t('rest: „Kosten & Verträge“ zeigt den Rest-Hinweis am Elternvertrag', !!on && /nur der Rest/.test(on.textContent) && /Werkstatt/.test(on.textContent), on?.textContent.slice(0, 160));
-    const mv2 = await renderView(`${ROOT}/views/meters.js`, ['gas']);
+    const mv2 = await renderView(`${ROOT}/views/household.js`, ['meters'], { query: new URLSearchParams('art=gas') });
     await sleep(300);
     t('rest: Zählerseite sagt, dass nur ein Subzähler mit eigenem Vertrag abgezogen wird', /mit eigenem Vertrag wird vom Vertrag des Elternzählers abgezogen/.test(mv2.view.textContent));
     if (cid) await send('DELETE', `/utility/gas/contracts/${cid}`);
@@ -4034,8 +4676,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Strängen, der Satz „geschätzt“, keine Warnung „bitte die Ablesungen prüfen“
     const vals = card ? [...card.querySelectorAll('[data-strand] .kpi__value')].map(v => v.textContent.trim()) : [];
     t('kaskade: verteilte Monate mit ≈ und „geschätzt“, ohne Warnung', vals.length === 2 && vals.every(v => v.startsWith('≈'))
-      && /geschätzt/.test(card?.querySelector('[data-role="pv-cascade-estimated"]')?.textContent || '') && !card.querySelector('.banner--warning'),
-      `${vals.join(' | ')} ${card?.querySelector('.banner--warning')?.textContent || ''}`);
+      && /geschätzt/.test(card?.querySelector('[data-role="pv-cascade-estimated"]')?.textContent || '') && !card.querySelector('.infobox--achtung'),
+      `${vals.join(' | ')} ${card?.querySelector('.infobox--achtung')?.textContent || ''}`);
     // Wärmepumpe: ein geschätzter Monat ohne Arbeitszahl, mit ≈ am Strom und einem Satz
     const U = await import(`${ROOT}/views/utility.js?t=${Date.now()}`);
     const hpHtml = U.heatPumpCardHtml({ jaz: 3.0, jaz_heating_season: null, months_covered: 2, heat_kwh: 3000, elec_kwh: 950, linked: true,
@@ -4183,7 +4825,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('ablesung: /api/todo zählt den Eintrag', (todo?.items || []).some(i => i.uid === ev?.uid), `${todo?.count}`);
 
     // Zu tun auf der Übersicht: Titel, davor/danach, Vermutung, drei Knöpfe
-    const dv = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv = await renderView(`${ROOT}/views/todo.js`);
     const rowOf = (kind, id) => dv.view.querySelector(`[data-role="reading-check-todo"][data-kind="${kind}"][data-meter="${id}"]`)?.closest('li');
     const row = await until(() => rowOf('check', mid), 120);
     const rt = (row?.textContent || '').replace(/\s+/g, ' ');
@@ -4205,7 +4847,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const back = await until(async () => (await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === mid));
     t('ablesung: Rückgängig — der Eintrag ist wieder da', !!back);
     // „Nur für die Abrechnung“: Merker, Monatswerte überbrückt, Rechnung prüfen mit dem Stand
-    const dv2 = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv2 = await renderView(`${ROOT}/views/todo.js`);
     const row2 = await until(() => dv2.view.querySelector(`[data-role="reading-check-todo"][data-kind="check"][data-meter="${mid}"]`), 120);
     row2?.querySelector('[data-rc-billing]')?.click();
     const r2 = await until(async () => (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid && r.is_billing_only));
@@ -4217,7 +4859,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Liste der Ablesungen: Marke „NUR ABRECHNUNG“ und der Satz über der Liste
     const lv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&year=2025`) });
     const pill = await until(() => lv.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="billing-only-pill"]`), 120);
-    t('ablesung: Liste — Marke „NUR ABRECHNUNG“ mit Erklärung und Satz über der Liste', /NUR ABRECHNUNG/.test(pill?.textContent || '')
+    t('ablesung: Liste — Marke „Nur Abrechnung“ mit Erklärung und Satz über der Liste', /Nur Abrechnung/.test(pill?.textContent || '')
       && /1 Stand gilt nur für die Abrechnung/.test(lv.view.querySelector('[data-role="billing-only-note"]')?.textContent || ''));
     // Skeptiker M9: Monatszeile mit der abgerechneten Menge, eigene Legende „nach dem Wetter“
     const billedCell = lv.view.querySelector('[data-role="billed-qty"]');
@@ -4240,7 +4882,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const yv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${yid}&year=2025`) });
     const yNote = (await until(() => yv.view.querySelector('[data-role="bridged-total-note"]'), 120))?.textContent || '';
     t('ablesung: Monatstabelle — Satz zum Unterschied der Summen nur, wenn die Überbrückung über den Jahreswechsel reicht',
-      noNote && /liegen Monatswert und abgerechnete Menge zusammen um [\d.]+ kWh auseinander/.test(yNote) && /Jahreswechsel/.test(yNote),
+      noNote && /weichen Monatswert und abgerechnete Menge zusammen um [\d.]+ kWh ab/.test(yNote) && /Jahreswechsel/.test(yNote),
       `${noNote} · ${yNote.slice(0, 200)}`);
     await send('DELETE', `/utility/gas/meters/${yid}`);
     // zurück (Rückgängig ist oben schon geprüft): den Merker direkt entfernen
@@ -4250,7 +4892,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const lv2 = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&year=2025`) });
     const cp = await until(() => lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="reading-check-pill"]`), 120);
     const why = cp?.nextElementSibling?.getAttribute('data-info-text') || '';
-    t('ablesung: Liste — Marke „AUFFÄLLIG“ mit Erklärung (davor, danach, Vermutung) und Knopf „Stand ist richtig“', /AUFFÄLLIG/.test(cp?.textContent || '')
+    t('ablesung: Liste — Marke „Auffällig“ mit Erklärung (davor, danach, Vermutung) und Knopf „Stand ist richtig“', /Auffällig/.test(cp?.textContent || '')
       && /Davor \(.+\): .+ gemessen, erwartet rund .+ Danach/.test(why) && /zu hoch/.test(why)
       && !!lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-action="verify-reading"]`),
       why.slice(0, 300) || `${JSON.stringify((await send('GET', `/utility/gas/meters/${mid}/reading-checks`)).data?.checks?.map(c => c.reading_ids))} · ${lv2.view.querySelector(`tr[data-reading-id="${rid}"]`)?.innerHTML?.slice(0, 300) || 'keine Zeile'}`);
@@ -4271,7 +4913,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Doppelt eingetragen: „Eine löschen“, Rückgängig legt sie neu an
     const orig = (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data.find(r => r.date === '2024-03-01');
     await send('POST', '/utility/gas/readings', { meter_id: mid, date: orig.date, counter: orig.counter });
-    const dv3 = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv3 = await renderView(`${ROOT}/views/todo.js`);
     const drow = await until(() => dv3.view.querySelector(`[data-role="reading-check-todo"][data-kind="duplicate"][data-meter="${mid}"]`)?.closest('li'), 120);
     t('ablesung: Zu tun — „doppelt eingetragen“ mit „Eine löschen“', /Ablesung vom 01\.03\.2024 doppelt eingetragen/.test(drow?.textContent || '')
       && /Eine löschen/.test(drow?.querySelector('[data-rc-delete]')?.textContent || ''), (drow?.textContent || '').replace(/\s+/g, ' ').slice(0, 200));
@@ -4295,7 +4937,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('ablesung: Agenda — Hinweis auf die Analyse-Zäsur am 01.07.2025, abhakbar, kein „Ablesung prüfen“', !!lev && lev.due_now && lev.can_mark_done
       && lev.ref?.date === '2025-07-01' && lev.ref?.direction === 'higher' && /seit 01\.07\.2025 dauerhaft weniger Verbrauch/.test(lev.title)
       && !(await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === lid), JSON.stringify(lev)?.slice(0, 300));
-    const dv4 = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv4 = await renderView(`${ROOT}/views/todo.js`);
     const lrow = await until(() => dv4.view.querySelector(`[data-role="reading-check-todo"][data-kind="level"][data-meter="${lid}"]`)?.closest('li'), 120);
     const lt = (lrow?.textContent || '').replace(/\s+/g, ' ');
     t('ablesung: Zu tun — Zäsur-Hinweis mit Faktor, Erklärung, „Zäsur hier setzen“ und „Nicht jetzt“ (ohne Haken)',
@@ -4323,7 +4965,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     toastAction()?.click();
     const mu = await until(async () => ((await send('GET', '/utility/gas/meters')).data || []).find(m => m.id === lid && !(m.baseline_events || []).length));
     t('ablesung: Rückgängig — Zäsur wieder entfernt', !!mu);
-    const dv5 = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv5 = await renderView(`${ROOT}/views/todo.js`);
     const lrow2 = await until(() => dv5.view.querySelector(`[data-role="reading-check-todo"][data-kind="level"][data-meter="${lid}"]`)?.closest('li'), 120);
     lrow2?.querySelector('[data-rc-later]')?.click();
     const dismissed = await until(async () => (await agenda()).find(e => e.kind === 'level_shift' && e.ref?.meter_id === lid && !e.due_now && e.done));
@@ -4342,7 +4984,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const xev = (await agenda()).find(e => e.kind === 'reading_check' && e.ref?.meter_id === xid);
     t('ablesung: zweite Stufe — Titel „Verbrauch vor dem … und nach dem … passt nicht zusammen“',
       /Verbrauch vor dem 01\.01\.2025 und nach dem 01\.03\.2025 passt nicht zusammen \(Versatz Test\)/.test(xev?.title || ''), xev?.title);
-    const dv6 = await renderView(`${ROOT}/views/dashboard.js`);
+    const dv6 = await renderView(`${ROOT}/views/todo.js`);
     const xrow = await until(() => dv6.view.querySelector(`[data-role="reading-check-todo"][data-kind="check"][data-meter="${xid}"]`)?.closest('li'), 120);
     const xt = (xrow?.textContent || '').replace(/\s+/g, ' ');
     t('ablesung: zweite Stufe — Zu tun mit davor/danach, „kein gemeinsamer Versatz“, Knöpfen, ohne Vermutung',
@@ -4625,6 +5267,205 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('rechnung: Erfassung speichert „an den Versorger gemeldet“ mit dem Tag', !!made?.reported_on && made.reported_on === made.date, JSON.stringify(made));
     if (made) await api.deleteReading(rr.utility, made.id);
   } catch (e) { t('rechnung: Felder und Hinweise an der Rechnung', false, e.stack || e.message); }
+
+  // ── v3.12.0 — Rückfragen beim Nachtrag, Antworten der Übersicht, ein Ausfall als Ausfall ──
+  {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    const txt = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
+    const dayAfter = (d) => new Date(Date.parse(d) + 86400000).toISOString().slice(0, 10);
+    // Seite „Zählerstände“: ein Nachtrag zwischen zwei Ständen wird gegen beide geprüft, wie im Dialog „+ Ablesung“
+    try {
+      const { api } = await import(`${ROOT}/api.js`);
+      const { formatForInput } = await import(`${ROOT}/lib/format.js`);
+      const { view } = await renderView(`${ROOT}/views/readings-entry.js`);
+      const rows = (await api.readingsOverview()).rows;
+      let pick = null;
+      for (const c of view.querySelectorAll('.reading-card:not([data-capture="period"])')) {
+        const r = rows.find(x => x.utility === c.dataset.utility && x.meter_id === c.dataset.meterId);
+        if (!r?.last_reading) continue;
+        const list = ((await api.readings(r.utility, r.meter_id)) || []).filter(x => !x.is_future && !x.is_suspect).sort((a, b) => a.date.localeCompare(b.date));
+        for (let i = list.length - 1; i > 0 && !pick; i--) {
+          const a = list[i - 1], b = list[i];
+          if ((a.device_id ?? null) === (b.device_id ?? null) && (Date.parse(b.date) - Date.parse(a.date)) / 86400000 >= 3 && Number(b.counter) > Number(a.counter) + 2) pick = { c, a, b };
+        }
+        if (pick) break;
+      }
+      if (!pick) throw new Error('kein Zähler mit zwei Ständen');
+      const { c, a, b } = pick;
+      const mid = dayAfter(a.date);
+      c.querySelector('[data-action="toggle-date"]')?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+      const dateEl = c.querySelector('[data-role="date"]'), counterEl = c.querySelector('[data-role="counter"]'), hint = c.querySelector('[data-role="hint"]');
+      dateEl.value = mid;
+      dateEl.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+      // über dem nächsten Stand
+      counterEl.value = formatForInput(Number(b.counter) + 50);
+      counterEl.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+      for (let i = 0; i < 40 && hint.hidden; i++) await sleep(25);
+      t('Zählerstände: Nachtrag über dem nächsten Stand fragt nach (wie „+ Ablesung“)', !hint.hidden && /größer als der nächste/.test(hint.textContent), `${mid}: ${txt(hint)}`);
+      // unter dem vorigen Stand
+      counterEl.value = formatForInput(Number(a.counter) - 1);
+      counterEl.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+      for (let i = 0; i < 40 && !/kleiner als der letzte/.test(hint.textContent); i++) await sleep(25);
+      t('Zählerstände: Nachtrag unter dem vorigen Stand fragt nach', !hint.hidden && /kleiner als der letzte/.test(hint.textContent), txt(hint));
+      // beim Speichern dieselbe Rückfrage; Abbrechen speichert nichts
+      const before = ((await api.readings(c.dataset.utility, c.dataset.meterId)) || []).length;
+      counterEl.value = formatForInput(Number(b.counter) + 50);
+      counterEl.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+      click(view.querySelector('[data-action="save-all"]'));
+      const modal = global.document.querySelector('#modal-root');
+      for (let i = 0; i < 60 && !modal.querySelector('[data-act="cancel"]'); i++) await sleep(25);
+      t('Zählerstände: Speichern des Nachtrags fragt erst nach', /größer als der nächste/.test(txt(modal)), txt(modal).slice(0, 160));
+      click(modal.querySelector('[data-act="cancel"]'));
+      await sleep(150);
+      t('Zählerstände: abgebrochen, nichts gespeichert', ((await api.readings(c.dataset.utility, c.dataset.meterId)) || []).length === before);
+    } catch (e) { t('Zählerstände: Nachtrag mit Rückfrage', false, e.stack || e.message); }
+
+    // Rückfrage im Dialog „+ Ablesung“: der Titel nennt das Datum, kein Platzhalter im sichtbaren Text
+    try {
+      const pl = await import(`${ROOT}/lib/plausibility.js`);
+      const { fmt } = await import(`${ROOT}/lib/format.js`);
+      const p = pl.confirmIssues([{ type: 'future' }, { type: 'higher_than_next', next: 120 }], { unit: 'm³', date: '2026-03-05', utility: 'gas' });
+      const modal = global.document.querySelector('#modal-root');
+      for (let i = 0; i < 40 && !modal.querySelector('.modal__title'); i++) await sleep(25);
+      const title = txt(modal.querySelector('.modal__title'));
+      t('Rückfrage: Titel mit Datum statt {date}', title.includes(fmt.date('2026-03-05')) && !/[{}]/.test(title), title);
+      t('Rückfrage: kein {…} im sichtbaren Text des Dialogs', !/\{[A-Za-z_]+\}/.test(txt(modal)), txt(modal).slice(0, 200));
+      click(modal.querySelector('[data-act="cancel"]'));
+      await p;
+    } catch (e) { t('Rückfrage: Titel', false, e.stack || e.message); }
+
+    // Übersicht: „Noch n weitere“ zählt wie „Zu tun“ (Filter „Alle“, Seitenleiste)
+    try {
+      const tv = (await renderView(`${ROOT}/views/todo.js`, [], { query: new URLSearchParams('') })).view;
+      const total = Number(txt(tv.querySelector('[data-art="alle"] [data-role="todo-count"]')).replace(/\D/g, ''));
+      const { view: dv } = await renderView(`${ROOT}/views/dashboard.js`);
+      for (let i = 0; i < 60 && !dv.querySelector('[data-role="todo"]'); i++) await sleep(25);
+      const box = dv.querySelector('[data-role="todo"]');
+      const shown = box.querySelectorAll('.dash-todo__list > li').length;
+      const moreText = txt(box.querySelector('[data-role="todo-more"]'));
+      const more = /\d/.test(moreText) ? Number(moreText.replace(/\D/g, '')) : moreText ? 1 : 0;
+      t('Übersicht: Auszug und „Noch n weitere“ ergeben die Zahl unter „Zu tun“', total > 0 && shown + more === total, `Zu tun ${total}, Übersicht ${shown} + ${more} („${moreText}“)`);
+      // nur Post und Empfehlungen offen, keine Frist: kein „Gerade nichts“, sondern der Hinweis auf Zu tun
+      const dash = await import(`${ROOT}/views/dashboard.js?m7=${Date.now()}`);
+      const ex = global.document.createElement('div');
+      ex.dataset.variant = 'excerpt';
+      global.document.body.appendChild(ex);
+      const none = dash.buildTodo([], []);
+      none.total = 3;
+      dash.renderTodoBox(ex, none);
+      t('Übersicht: ohne Frist, aber mit Post und Empfehlungen „3 Einträge warten“ statt „Gerade nichts“', /3 Einträge warten unter „Zu tun“/.test(txt(ex)) && !/Gerade nichts/.test(txt(ex)), txt(ex));
+      ex.remove();
+    } catch (e) { t('Übersicht: Noch n weitere', false, e.stack || e.message); }
+
+    // Trend: eine Schwelle für Kachel und Antwort
+    try {
+      const { trendHtml } = await import(`${ROOT}/components/trend.js`);
+      const dash = await import(`${ROOT}/views/dashboard.js?m7t=${Date.now()}`);
+      const u = { key: 'strom', label: 'Strom', accounting_kind: 'consumption' };
+      const cases = [0.3, -0.4, 0.6, 1, 1.9, -1.2, -2.5].map(pct => {
+        const tile = trendHtml({ months: ['2026-01', '2026-02'], pct }).includes('data-role="trend-same"');
+        const answer = dash.trendAnswer({ pct }, u);
+        return { pct, tile, same: answer.same, word: answer.word };
+      });
+      t('Trend: Kachel und Antwort nennen dieselbe Richtung („etwa gleich“ nur unter derselben Schwelle)', cases.every(x => x.tile === x.same), JSON.stringify(cases.filter(x => x.tile !== x.same)));
+      t('Trend: 1 % mehr heißt in der Antwort „1 % mehr als im Vorjahr“', /1\s%\smehr als im Vorjahr/.test(dash.trendAnswer({ pct: 1 }, u).word), dash.trendAnswer({ pct: 1 }, u).word);
+    } catch (e) { t('Trend: eine Schwelle', false, e.stack || e.message); }
+
+    // Einsteiger „Bekomme ich Geld zurück?“: unter 1 € auf den Cent ohne „rund“, bei genau 0 „ausgeglichen“ wie die Karte
+    try {
+      const { beginnerMoneyLines } = await import(`${ROOT}/views/dashboard.js?m7m=${Date.now()}`);
+      const byKey = new Map([['strom', { key: 'strom', label: 'Strom', icon: '⚡' }]]);
+      const line = (bal) => {
+        const ul = global.document.createElement('ul');
+        ul.innerHTML = beginnerMoneyLines([{ utility: 'strom', name: 'Haushalt', contract: { projected_end_balance: bal, period_last_day: '2026-12-31' } }], byKey).join('');
+        return txt(ul);
+      };
+      const due = line(0.38), credit = line(-0.38), even = line(0);
+      t('Einsteiger: 0,38 € Nachzahlung ohne „rund“', /0,38\s€/.test(due) && /Nachzahlung/.test(due) && !/rund/.test(due), due);
+      t('Einsteiger: 0,38 € zurück ohne „rund“', /0,38\s€/.test(credit) && /zurück/.test(credit) && !/rund/.test(credit), credit);
+      t('Einsteiger: genau 0 heißt „ausgeglichen“ wie Karte und Zeilen, ohne „etwa“', /Strom: ausgeglichen/.test(even) && !/etwa/.test(even), even);
+    } catch (e) { t('Einsteiger: Saldo unter 1 €', false, e.stack || e.message); }
+
+    // Prognose › Monate im Detail: der Saldo wie die Karte (Wort und Betrag auf den Cent, Farbe und Box nach dem Vorzeichen)
+    {
+      const realFetch = global.fetch;
+      const stubBalance = (bal, band = null) => {
+        global.fetch = async (input, init) => {
+          const res = await realFetch(input, init);
+          if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+          const body = await res.json();
+          for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { projection_uncertain: null, projected_end_balance: bal, settle_on: '2026-12-31', settle_balance: null, projection_band: band });
+          return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        };
+      };
+      const box = async () => {
+        const { view } = await renderView(`${ROOT}/views/forecast.js`);
+        for (let i = 0; i < 80 && !view.querySelector('[data-role="fc-card-balance"]'); i++) await sleep(50);
+        return view.querySelector('[data-role="fc-card-balance"]');
+      };
+      try {
+        stubBalance(0.38);
+        let b = await box();
+        t('Prognose: 0,38 € heißt „Nachzahlung 0,38 €“ in Rot, nicht „(ausgeglichen) ≈ 0 €“', /Nachzahlung 0,38\s€/.test(txt(b)) && !/ausgeglichen/.test(txt(b)) && !!b?.querySelector('.ton-fehler') && b.classList.contains('infobox--achtung'), `${b?.className} | ${txt(b).slice(0, 120)}`);
+        stubBalance(-3.5, { low: -5.5, high: -1.5, half: 2, level_pct: 80, estimated_days: 50, weather: 1, model: 1 });
+        b = await box();
+        t('Prognose: 3,50 € Guthaben mit Breite „Guthaben ≈ 4 €“ in Grün, Box im Ton', /Guthaben ≈ 4\s€/.test(txt(b)) && !!b?.querySelector('.ton-ok') && b.classList.contains('infobox--erfolg'), `${b?.className} | ${txt(b).slice(0, 120)}`);
+      } catch (e) { t('Prognose: Saldo wie die Karte', false, e.stack || e.message); }
+      finally { global.fetch = realFetch; }
+    }
+
+    // Ein Ausfall erscheint als Ausfall: Fehlerzeile mit Fehler-ID statt „Gerade nichts“ bzw. „Noch kein Vertrag“
+    {
+      const realFetch = global.fetch;
+      const fail = (re) => {
+        global.fetch = async (input, init) => {
+          const path = new URL(String(input), 'http://x/').pathname.replace(/^.*\/api\.php/, '');
+          if (re.test(path)) {
+            return new Response(JSON.stringify({ success: false, error: 'Interner Fehler (e7f3a9c2). Die Einzelheiten stehen im Server-Log.', code: 'errors.http.internal', error_id: 'e7f3a9c2' }),
+              { status: 500, headers: { 'Content-Type': 'application/json' } });
+          }
+          return realFetch(input, init);
+        };
+      };
+      try {
+        fail(/^\/api\/agenda$/);
+        let { view } = await renderView(`${ROOT}/views/dashboard.js`);
+        await sleep(300);
+        let todo = view.querySelector('[data-role="todo"]');
+        t('Übersicht: Agenda mit 500 → Fehlerzeile mit Fehler-ID, nicht „Gerade nichts“', /e7f3a9c2/.test(txt(todo)) && !/Gerade nichts/.test(txt(todo)) && !!todo?.querySelector('.infobox--fehler'), txt(todo).slice(0, 200));
+        fail(/^\/api\/summary$/);
+        ({ view } = await renderView(`${ROOT}/views/dashboard.js`));
+        await sleep(300);
+        const money = view.querySelector('[aria-labelledby="dash-a-money"]');
+        t('Übersicht: Summary mit 500 → Fehlerzeile, nicht „Noch kein Vertrag mit Abschlag“', /e7f3a9c2/.test(txt(money)) && !/Noch kein Vertrag/.test(txt(money)) && !!money?.querySelector('.infobox--fehler'), txt(money).slice(0, 200));
+        fail(/^\/api\/utility\/gas\/consumption$/);
+        ({ view } = await renderView(`${ROOT}/views/dashboard.js`));
+        await sleep(300);
+        const trend = view.querySelector('[aria-labelledby="dash-a-trend"]');
+        t('Übersicht: Verbrauch einer Art mit 500 → die Art steht mit Fehler in „Mehr oder weniger“', /Gas:/.test(txt(trend)) && /e7f3a9c2/.test(txt(trend)), txt(trend).slice(0, 200));
+        // alle Quellen der Liste fehlen: ohne Zeilen stünde sonst der Leerzustand da
+        fail(/^\/api\/(agenda|recommendations|inbox)$/);
+        const tv = (await renderView(`${ROOT}/views/todo.js`, [], { query: new URLSearchParams('') })).view;
+        await sleep(200);
+        t('Zu tun: Liste nicht geladen → Fehler, aber nicht zugleich „Gerade wartet nichts“', !!tv.querySelector('.infobox--fehler') && !tv.querySelector('[data-role="todo-empty"]')
+          && /e7f3a9c2/.test(txt(tv.querySelector('.infobox--fehler'))) && /Die Liste konnte nicht geladen werden/.test(txt(tv.querySelector('.infobox--fehler'))), txt(tv).slice(0, 240));
+        fail(/^\/api\/inbox$/);
+        const tv2 = (await renderView(`${ROOT}/views/todo.js`, [], { query: new URLSearchParams('') })).view;
+        await sleep(200);
+        t('Zu tun: Posteingang nicht geladen → Hinweis, ein Teil fehlt', !!tv2.querySelector('.infobox--fehler'), txt(tv2.querySelector('.infobox--fehler')));
+      } catch (e) { t('Ausfall als Ausfall', false, e.stack || e.message); }
+      finally { global.fetch = realFetch; }
+    }
+
+    // Zusammengefasste Ablesungen nennen Art und Zähler wie die Einzelzeile
+    try {
+      const dash = await import(`${ROOT}/views/dashboard.js?m7r=${Date.now()}`);
+      const ev = (label) => ({ due_now: true, kind: 'reading_due', href: '#/zaehlerstaende', params: { label, meter: 'Hauptzähler' }, ref: { days_since_reading: 40 } });
+      const items = dash.buildTodo([ev('Gas'), ev('Strom'), ev('Wasser')], []);
+      t('Übersicht: „3 Zähler warten“ nennt Gas · Hauptzähler, Strom · Hauptzähler, Wasser · Hauptzähler', items.length === 1 && items[0].sub === 'Gas · Hauptzähler, Strom · Hauptzähler, Wasser · Hauptzähler', items[0]?.sub);
+    } catch (e) { t('Übersicht: Sammelzeile Ablesungen', false, e.stack || e.message); }
+  }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

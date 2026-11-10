@@ -37,7 +37,8 @@ names the provision with source and date, and offers a letter where it fits.
 ## Principles
 
 - **Germany only.** The checks run only if the country in the settings is
-  Germany. In any other country the app shows no notes on rights and no letters.
+  Germany. In any other country the app shows no notes on rights. Of the letters
+  only the neutral termination on the contract card remains there (v3.12.0).
 - **A note, not a verdict.** The app describes the rule and your figures.
   Whether your case falls under it is your decision, with advice if in doubt.
 - **Every statement has a source.** The rules sit in one place in the code, each
@@ -72,7 +73,7 @@ Each norm in the footer links to its source. The date is the day the source was
 last read. The app names the energy arbitration board only for electricity and
 gas.
 
-![Recommendations “Rights” with norm, “Draft a letter” and “What the app checks”](../../ui/screenshots/en/rechte-hinweis.png)
+![To do, filter “Rights”: hints with norm, “Draft a letter” and “What the app checks”](../../ui/screenshots/en/rechte-hinweis.png)
 
 You find a note here:
 
@@ -347,21 +348,40 @@ entered the date of the notice. The date is the notice date plus four days plus
 one month; if that day does not exist in the month, the last day of the month.
 With a date of service (certificate of service) that one counts. The app counts
 from the notice date on purpose: it is the earliest possible end of the period.
+
+- **A later receipt moves the deadline.** If the notice only arrived after the
+  fourth day, the fourth day does not apply (§ 41 Abs. 2 Satz 3 VwVfG, § 122
+  Abs. 2 AO, letzter Halbsatz). Enter “Received on” on the bill: the app then
+  counts the month from that day **at the earliest**. The notice is notified on
+  the later of the fourth day after posting and the day it arrived; it was posted
+  on the day it arrived at the latest. So the end lies between the month from the
+  receipt and the month from the fourth day after it. An earlier receipt changes
+  nothing, a service takes precedence *(v3.12.0; before, only the service
+  counted)*.
+- **After the earliest end “possibly expired”.** When the app counts from the
+  notice date, it says “possibly expired, check when the notice arrived” for
+  7 days after the end of the deadline (threshold below). With an entered receipt
+  the same applies up to the latest end (the month from the fourth day after the
+  receipt). During this time the entry stays under “To do”, and the letter stays,
+  with a note in the dialog. Only with a service is the end certain, so there is
+  no such time *(v3.12.0; before, the deadline counted as expired on the day
+  after the earliest end, with an entered receipt up to four days too early)*.
 If that day is a Saturday, Sunday or a public holiday that applies throughout
 Germany, the deadline ends on the next working day (§ 57 Abs. 2 VwGO with
 § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG); date, “To do”, calendar and letter name
 this day *(v3.11.0, follow-up review; before, a deadline ending on a Sunday
 already counted as expired on the Monday)*.
-After the date the note disappears from “To do”. In “Check bill” it then says
-that the deadline has expired; one year applies only without or with incorrect
+Once the deadline has surely expired, the note disappears from “To do”. In
+“Check bill” it then says that the deadline has expired; one year applies only without or with incorrect
 instructions on legal remedies (§ 58 Abs. 2 VwGO), and the app shows this
 sentence as long as less than a year has passed since notification *(v3.11.0;
 until then it still said “a legal remedy is possible” afterwards)*.
 
 **Letter.** The app offers an objection only if “objection” (Widerspruch) is
-entered as the legal remedy on the bill and the deadline is still running, and
-the dialog asks you to confirm that the instructions on legal remedies name it.
-After the deadline the server refuses the letter. If the instructions name an
+entered as the legal remedy on the bill and the deadline is still running or
+has possibly expired, and the dialog asks you to confirm that the instructions on
+legal remedies name it. Only once the deadline has surely expired does the server
+refuse the letter (`POST /api/letters/render` follows the same rule). If the instructions name an
 action, there is no letter, only the advice to seek help.
 
 **Limits.** The app does not know public holidays that apply only in some states
@@ -388,8 +408,10 @@ customer portal.
 
 - The letter is always in German, because the recipient is in Germany; the
   dialog speaks the language of the interface.
-- The app does not store sender and recipient. If you wish, the browser
-  remembers the sender, on this device only.
+- *Since v3.12.0* the dialog prefills the sender and the supply address from the
+  household and the supplier’s address from the contract, if you entered them
+  there (optional, [Writing a letter](../anleitungen/brief-schreiben.md#6-what-the-app-stores)).
+  What you change in the dialog only applies to this letter.
 - If a detail is missing (customer number, supplier’s address), a visible gap
   `[…]` remains; the app invents nothing. A long supplier name is wrapped at word
   boundaries onto up to three lines.
@@ -403,6 +425,9 @@ customer portal.
 - “Mark as sent” ticks the note off under “To do”, with date, note and, if you
   wish, the letter as a receipt.
 - In the demo on GitHub Pages only the first draft is precomputed.
+- Since v3.12.0 the contract card has **“Write a letter”**: a request to adjust the
+  advance payment and a termination at the next possible date, without a note too.
+  The special termination still only comes from a note, because it claims a right.
 
 ![Dialog “Draft a letter” with preview](../../ui/screenshots/en/brief-dialog.png)
 
@@ -457,6 +482,7 @@ to avoid false alarms. A test keeps them tied to the values in the code.
 | … and an effect of at least <!-- doc-claim: rights-threshold ESTIMATE_MIN_EUR --> | 10 € (as for the advance payment; without prices only the quantity) | Estimate despite your own reading |
 | Rounding of the metering charge <!-- doc-claim: rights-threshold METERING_TOLERANCE_EUR --> | 1 € a year | Metering charge above the cap |
 | Date under “To do” <!-- doc-claim: rights-threshold DEADLINE_REMIND_DAYS --> | 14 days before the deadline | Special termination, fee assessment |
+| “Possibly expired” after the earliest end <!-- doc-claim: rights-threshold NOTICE_SOFT_DAYS --> | 7 days | Fee assessment without service and without a later receipt: letter and “To do” stay |
 | New notes without a date <!-- doc-claim: rights-threshold WINDOW_DAYS --> | 120 days after the occasion | all checks without a date |
 | Advance payment in a price change letter rises more than the costs <!-- doc-claim: rights-threshold ADVANCE_EXCESS_PCT --> | 5 percentage points | Inbox: pointer to the rule for advance payments |
 
@@ -466,8 +492,9 @@ Examples, recalculated with the code by a test:
 |---|---|---|
 | Bill came late <!-- doc-claim: rights-example bill_late --> | Period ends 2026-03-31 | Deadline ends 2026-05-12; a bill dated 2026-05-14 gets no note, from 2026-05-15 there is one |
 | Special termination <!-- doc-claim: rights-example special_termination --> | Price change on 2026-12-01 | Termination must arrive by 2026-11-30, appears under “To do” from 2026-11-16; notice in a special contract by 2026-11-01 at the latest, in basic supply 2026-10-20 |
-| Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-27 | notified 2026-01-31, by the calendar 2026-02-28 (a Saturday), deadline ends 2026-03-02 |
-| Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-28 | notified 2026-02-01, by the calendar 2026-03-01 (a Sunday), deadline ends 2026-03-02 |
+| Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-27 | notified 2026-01-31, by the calendar 2026-02-28 (a Saturday), deadline ends 2026-03-02 at the earliest, possibly expired until 2026-03-09 |
+| Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-28 | notified 2026-02-01, by the calendar 2026-03-01 (a Sunday), deadline ends 2026-03-02 at the earliest, possibly expired until 2026-03-09 |
+| Fee assessment, received later <!-- doc-claim: rights-example fee_notice_received --> | Notice dated 2026-09-28, received on 2026-10-13 | notified 2026-10-13 at the earliest, by the calendar 2026-11-13 (a Friday), deadline ends 2026-11-13 at the earliest, possibly expired until 2026-11-17 (month from the fourth day after the receipt) |
 
 ## What you can enter
 

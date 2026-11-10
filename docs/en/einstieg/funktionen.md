@@ -6,7 +6,8 @@
 
 The detailed feature overview. What the views look like is shown in the
 [view reference](../referenz/ansichten.md); how things are calculated is in
-[Basics & methodology](../verstehen/00-overview.md).
+[Basics & methodology](../verstehen/00-overview.md); which way suits you is shown in the
+[setup guide](wegweiser.md).
 
 ---
 
@@ -175,8 +176,9 @@ The detailed feature overview. What the views look like is shown in the
 
 - **Switch decision**: the expected annual consumption to take to a comparison
   portal, the switch date from contract end and notice period, offers you found
-  ranked by the ongoing cost from year two, with the **break-even** ("pays off
-  from …") and the cost per month.
+  ranked by the ongoing cost from year two (months 13 to 24 at the prices that
+  apply then), with the **break-even** (column "Pays off":
+  "from …" or "up to …") and the cost per month.
 - The **chain of commitments** counts: if the follow-up contract is already
   signed, the date follows its end.
 - **Look back**: the same offers laid over the consumption actually measured —
@@ -211,7 +213,10 @@ The detailed feature overview. What the views look like is shown in the
   is a note, not legal advice, and offers a letter as PDF or text where it fits.
   See [Your rights as a customer](../verstehen/17-rechte.md),
   [Legal basis](../referenz/rechtsgrundlagen.md) and
-  [Writing a letter](../anleitungen/brief-schreiben.md).
+  [Writing a letter](../anleitungen/brief-schreiben.md). Since v3.12.0 these notes
+  come first within their urgency, and the contract card has **“Write a letter”**
+  without a note too: a request to adjust the advance payment and a termination at
+  the next possible date.
 - **Contracts contradict each other** (v3.11.0): if a contract runs into a later
   one according to its entry, or probably carries the tariff of another utility,
   the app says so on the contract card, under “To do” and in the billing year,
@@ -315,7 +320,7 @@ The detailed feature overview. What the views look like is shown in the
   contrast per WCAG AA, installable as an app — see
   [Use on your phone](handy.md).
 - **Help in the app**: first steps with ticks from your data, a glossary with
-  44 terms and an ⓘ next to every key figure. Since v3.4.0 also the whole
+  44 terms and an ⓘ next to technical terms. Since v3.4.0 also the whole
   **handbook** (German and English) from your own server, matching the version
   and without internet access, with a table of contents and a language switch;
   the use cases as short texts in all seven languages, each with a jump to its
@@ -367,7 +372,7 @@ The detailed feature overview. What the views look like is shown in the
 - **Users in the household** (v3.2.0): with sign-in, people of their own with
   name and password or reported by the proxy, the roles admin and member,
   level and language per person; since v3.9.0 people for “Responsible” also
-  without sign-in (Settings → Household & building) — see
+  without sign-in (Household → Building) — see
   [Users in the household](../anleitungen/benutzer.md).
 - **Diagnostics** under Settings → System and `GET /api/health` for the Docker
   health check and uptime monitors.

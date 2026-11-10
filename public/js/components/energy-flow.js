@@ -36,6 +36,7 @@ import { t, tp } from '../lib/i18n.js';
 import { fmt, escapeHtml, intlLocale } from '../lib/format.js';
 import { api } from '../api.js';
 import { info } from './info.js';
+import { icon } from '../lib/icons.js';
 
 const esc = escapeHtml;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -484,7 +485,7 @@ export function energyFigureHtml(input, opts = {}) {
     <div class="ef-chips" role="group" aria-label="${esc(t('explainer.energy.chipsGroup'))}">${v.chips}</div>
     <p class="ef-detail" aria-live="polite"></p>
     <ul class="sr-only ef-list">${v.items.map(i => `<li>${esc(i.text)}</li>`).join('')}</ul>
-    <p class="ef-note"${v.note ? '' : ' hidden'}>${esc(v.note)}</p>
+    <p class="fussnote"${v.note ? '' : ' hidden'}>${esc(v.note)}</p>
     <p class="explainer__text">${esc(v.caption)}</p>
   </figure>`;
 }
@@ -508,9 +509,9 @@ function controlsHtml(st, label) {
   return `<div class="ef-period" role="group" aria-label="${esc(t('explainer.energy.periodGroup'))}">
       <span class="ef-seg">${seg('year')}${seg('month')}${daySeg}</span>
       <span class="ef-step">
-        <button type="button" class="ef-step__btn" data-ef-step="-1" aria-label="${esc(t('explainer.energy.prev'))}"${i <= 0 ? ' disabled' : ''}>‹</button>
+        <button type="button" class="ef-step__btn" data-ef-step="-1" aria-label="${esc(t('explainer.energy.prev'))}"${i <= 0 ? ' disabled' : ''}>${icon('links', { size: 16 })}</button>
         <span class="ef-period__label" aria-live="polite">${esc(label)}</span>
-        <button type="button" class="ef-step__btn" data-ef-step="1" aria-label="${esc(t('explainer.energy.next'))}"${i >= list.length - 1 ? ' disabled' : ''}>›</button>
+        <button type="button" class="ef-step__btn" data-ef-step="1" aria-label="${esc(t('explainer.energy.next'))}"${i >= list.length - 1 ? ' disabled' : ''}>${icon('rechts', { size: 16 })}</button>
       </span>
     </div>`;
 }
@@ -601,7 +602,7 @@ function update(fig, st) {
   if (chips) chips.innerHTML = v.chips;
   const list = fig.querySelector('.ef-list');
   if (list) list.innerHTML = v.items.map(i => `<li>${esc(i.text)}</li>`).join('');
-  const note = fig.querySelector('.ef-note');
+  const note = fig.querySelector('.fussnote');
   if (note) { note.textContent = v.note; note.hidden = !v.note; }
   const text = fig.querySelector('.explainer__text');
   if (text) text.textContent = v.caption;
@@ -944,7 +945,7 @@ function renderDayFrame(fig, st) {
     if (M && D.status === 'ready') {
       const slot = M.slots[D.i] || {};
       const play = reduceMotion() ? ''
-        : `<button type="button" class="ef-play" aria-label="${esc(t('explainer.energy.day.play'))}"><span aria-hidden="true">▶</span></button>`;
+        : `<button type="button" class="ef-play" aria-label="${esc(t('explainer.energy.day.play'))}">${icon('abspielen')}</button>`;
       player.innerHTML = `<div class="ef-player__row">${play}
           <input type="range" class="ef-slider" min="0" max="${Math.max(0, M.slots.length - 1)}" step="1" value="${D.i}" aria-label="${esc(t('explainer.energy.day.time'))}" aria-valuetext="${esc(timeText(slot))}">
           <output class="ef-time" aria-hidden="true">${esc(timeText(slot))}</output>
@@ -1009,7 +1010,7 @@ function renderDaySlot(fig, st, { full = false } = {}) {
   if (sums) { sums.hidden = false; sums.textContent = t('explainer.energy.day.sums', { time: v.time }); }
   const list = fig.querySelector('.ef-list');
   if (list) list.innerHTML = v.items.map(x => `<li>${esc(x.text)}</li>`).join('');
-  const note = fig.querySelector('.ef-note');
+  const note = fig.querySelector('.fussnote');
   if (note) { note.textContent = v.note; note.hidden = !v.note; }
   const text = fig.querySelector('.explainer__text');
   if (text) text.textContent = v.caption;
@@ -1047,7 +1048,7 @@ function setPlayButton(fig, D) {
   b.setAttribute('aria-label', t(D.playing ? 'explainer.energy.day.pause' : 'explainer.energy.day.play'));
   b.classList.toggle('ef-play--on', D.playing);
   const sym = b.querySelector('span');
-  if (sym) sym.textContent = D.playing ? '❚❚' : '▶';
+  if (sym) sym.innerHTML = icon(D.playing ? 'pause' : 'abspielen', { size: 16 });
 }
 
 /**

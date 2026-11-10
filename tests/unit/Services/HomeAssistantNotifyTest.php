@@ -142,6 +142,42 @@ final class HomeAssistantNotifyTest extends ServiceTestCase
         self::assertSame("Strom: letzter Tag für die Kündigung (Testwerk)\nFällig am " . date('d.m.Y', $this->now + 9 * 86400) . '.', $c['body']['message']);
     }
 
+    /**
+     * v3.12.0 — ein Rechte-Hinweis nennt sein Ziel in der App: `href` (Webhook, Sprungmarke auf die Empfehlung),
+     * dazu ein Satz im Text. Einen Link zum Anklicken gibt es nicht, weil die App ihre Adresse nicht kennt.
+     */
+    public function testARightsNotePointsToItsRecommendation(): void
+    {
+        $s = $this->service();
+        $this->webhook($s);
+        $id = 'rights-bonus_missing-0123456789ab';
+        $rights = fn(string $uid) => ['href' => '#/todo?art=rec&rec=' . $uid, 'ref' => ['recommendation_id' => $uid]] + $this->event('rights', $uid, 0, 'due', 'Bonus nicht gutgeschrieben');
+        $hidden = ['href' => '#/bill-check?utility=strom', 'ref' => []] + $this->event('rights', 'rights-bill_late-0123456789ab', 0, 'due', 'Rechnung kam spät');
+        $this->events = [$rights($id), $hidden, $this->event('cancel_by', 'cancel_by-c1', 0, 'due', 'Kündigung')];
+        $s->tick();
+        $bodies = array_column($this->calls, 'body');
+        self::assertCount(3, $bodies);
+        $of = function (string $start) use ($bodies): array {
+            foreach ($bodies as $b) if (str_starts_with($b['message'], $start)) return $b;
+            self::fail("keine Nachricht „{$start}“");
+        };
+        self::assertSame('#/todo?art=rec&rec=' . $id, $of('Bonus')['href']);
+        self::assertSame("Bonus nicht gutgeschrieben\nHeute fällig.\nMehr dazu in der App unter „Empfehlungen“.", $of('Bonus')['message']);
+        self::assertArrayNotHasKey('href', $of('Rechnung'), 'ausgeblendet: keine Empfehlung, kein Sprung');
+        self::assertArrayNotHasKey('href', $of('Kündigung'), 'andere Arten bleiben, wie sie waren');
+        self::assertStringNotContainsString('Empfehlungen', $of('Kündigung')['message']);
+
+        // notify.*: nur Titel und Text (das Schema lässt nichts anderes zu), der Satz bleibt
+        $this->calls = [];
+        $this->now += 86400;   // die tägliche Prüfung lief heute schon
+        $s2 = $this->service();
+        $s2->update(['target' => 'token', 'url' => 'http://homeassistant.local:8123/', 'token' => str_repeat('t', 40), 'service' => 'notify.mobile_app_pixel', 'enabled' => true]);
+        $this->events = [$rights('rights-bonus_missing-ba9876543210')];
+        $s2->tick();
+        self::assertSame(['title', 'message'], array_keys($this->calls[0]['body']));
+        self::assertStringContainsString('Empfehlungen', $this->calls[0]['body']['message']);
+    }
+
     public function testATokenAndANotifyServiceForThePhone(): void
     {
         $s = $this->service();

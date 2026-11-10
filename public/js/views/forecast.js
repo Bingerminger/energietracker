@@ -20,17 +20,19 @@ import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr, toastOk } from '../components/toast.js';
-import { t, tp } from '../lib/i18n.js';
+import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { info } from '../components/info.js';
-import { balanceView, isFeedIn, uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';
+import { balanceView, balanceHtml, tHtml, isFeedIn, uncertainRangeText, uncertainRangeHtml, expectedBalance, bandText } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
 import * as S from '../lib/scenario.js';
+import { rich } from '../lib/rich.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
 import { docUrl } from '../lib/docs.js';
 // v3.6.0 — derselbe Aufklappbereich wie „CO₂-Emissionsfaktoren“ in den Einstellungen
 import { disclosureHtml, wireDisclosures } from '../components/disclosure.js';
 import { fillHeatLimitSlot } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+import { icon } from '../lib/icons.js';
 
 const esc = escapeHtml;
 let chart = null;
@@ -43,13 +45,20 @@ const reducedMotion = () => {
 const signed = (v, f) => (v > 0 ? '+' : v < 0 ? '−' : '') + f(Math.abs(v));
 // Prozent über Intl („10 %“, „10%“ je Sprache); die API liefert Prozentpunkte
 const pctSigned = (v, d = 1) => signed(v, x => fmt.pct(x / 100, d));
+// v3.12.0 (F1040) — die angenommenen Zahlen eines Beispiels für seinen Hinweis;
+// {minor} ist die Untereinheit der Währung (ct, Rp., p), nie fest im Katalog
+const presetParams = (assumed) => ({
+  minor: getCurrencyMinor(),
+  ...Object.fromEntries(Object.entries(assumed || {}).map(([k, v]) =>
+    [k, k === 'pct' ? fmt.pct(v / 100, 0) : fmt.num(v, Number.isInteger(v) ? 0 : 1)])),
+});
 
 export async function render(container, params = [], ctx = {}) {
   container.innerHTML = `<div class="loading">${t('forecast.loading')}</div>`;
   // v2.2.0 — nur aktive Verbrauchsarten anbieten, wie Dashboard und Seitenleiste
   const utilities = await activeUtilities();
   if (!utilities.length) {
-    container.innerHTML = `<div class="banner banner--info">${esc(t('forecast.noUtilities'))}</div>`;
+    container.innerHTML = `<div class="infobox infobox--info">${esc(t('forecast.noUtilities'))}</div>`;
     return;
   }
   // Die Werkstatt rechnet für Arten mit Zählerständen und Verträgen; Lieferungen
@@ -62,24 +71,25 @@ export async function render(container, params = [], ctx = {}) {
       <h1>${esc(t('scenario.title'))}</h1>
       <div class="section-actions">
         <select class="select" id="util-select" aria-label="${esc(t('forecast.selectUtility'))}">
-          ${utilities.map(u => `<option value="${u.key}"${u.key === first.key ? ' selected' : ''}>${u.icon} ${esc(u.label)}</option>`).join('')}
+          ${utilities.map(u => `<option value="${u.key}"${u.key === first.key ? ' selected' : ''}>${esc(u.label)}</option>`).join('')}
         </select>
         <select class="select" id="meter-select" aria-label="${esc(t('forecast.selectMeter'))}"></select>
       </div>
     </div>
-    <p class="ws-lead">${t('scenario.lead')} <a href="${docUrl('whatIf')}">${esc(t('scenario.guide'))}</a></p>
+    <p class="ws-lead"><span id="ws-lead">${t('scenario.lead')}</span> <a href="${docUrl('whatIf')}">${esc(t('scenario.guide'))}</a></p>
     <div class="ws-presets" role="group" aria-label="${esc(t('scenario.presets.label'))}" id="ws-presets"></div>
     <div class="ws" id="ws">
       <form class="card ws__controls" id="ws-form" novalidate autocomplete="off">
         <h2 class="card__title">${esc(t('scenario.controls'))}${info('scenario')}</h2>
         <!-- Telefon: das Ergebnis klebt über den Reglern (die Karte steht darunter, aria-live dort) -->
         <div class="ws-mini" id="ws-mini" aria-hidden="true"></div>
+        <p class="infobox infobox--neutral" id="ws-no-heat" hidden>${rich('scenario.profile.noHeatModel')}</p>
         <div class="ws-range" data-cap="heat_model">
           <div class="ws-range__head"><label for="ws-winter">${esc(t('scenario.winter.label'))}</label><output for="ws-winter" id="ws-winter-out"></output></div>
           <input type="range" id="ws-winter" min="-30" max="30" step="1" value="0">
           <p class="ws-range__hint" id="ws-winter-hint">${esc(t('scenario.winter.hint'))}</p>
         </div>
-        <div class="ws-range">
+        <div class="ws-range" data-lever="saving">
           <div class="ws-range__head"><label for="ws-saving">${esc(t('scenario.saving.label'))}</label><output for="ws-saving" id="ws-saving-out"></output></div>
           <input type="range" id="ws-saving" min="0" max="50" step="1" value="0">
           <p class="ws-range__hint">${esc(t('scenario.saving.hint'))}</p>
@@ -88,11 +98,42 @@ export async function render(container, params = [], ctx = {}) {
           <label for="ws-tariff">${esc(t('scenario.tariff.label'))}</label>
           <select class="select" id="ws-tariff"></select>
         </div>
+        <p class="infobox infobox--neutral" id="ws-tariff-none" hidden>${rich('scenario.tariff.noneWater')}</p>
         <div class="fgrid" id="ws-custom" hidden>
           <div class="field field--s"><label for="ws-wp">${esc(t('scenario.tariff.workingPrice'))}</label>
             <input class="input" id="ws-wp" type="text" inputmode="decimal"></div>
           <div class="field field--s"><label for="ws-bp">${esc(t('scenario.tariff.basePrice'))}</label>
             <input class="input" id="ws-bp" type="text" inputmode="decimal"></div>
+        </div>
+        <!-- v3.12.0 (F1040, Phase 2) — Heizöl und Pellets: Preis je Liter bzw. kg -->
+        <div class="ws-range" data-lever="price">
+          <div class="ws-range__head"><label for="ws-price">${esc(t('scenario.price.label'))}</label><output for="ws-price" id="ws-price-out"></output></div>
+          <input type="range" id="ws-price" min="-30" max="50" step="5" value="0">
+          <p class="ws-range__hint" id="ws-price-hint">${esc(t('scenario.price.hint'))}</p>
+        </div>
+        <!-- v3.12.0 (F1040, Phase 2) — PV im Haushalt: Anlage, Speicher, Eigenverbrauch, Vergütung -->
+        <div class="ws-range" data-lever="pv_size">
+          <div class="ws-range__head"><label for="ws-pv-size">${esc(t('scenario.pv.size.label'))}</label><output for="ws-pv-size" id="ws-pv-size-out"></output></div>
+          <input type="range" id="ws-pv-size" min="0" max="200" step="10" value="0">
+          <p class="ws-range__hint">${esc(t('scenario.pv.size.hint'))}</p>
+        </div>
+        <div class="fgrid" data-lever="pv_size">
+          <div class="field field--s"><label for="ws-pv-kwp">${esc(t('scenario.pv.kwp'))}</label>
+            <input class="input" id="ws-pv-kwp" type="text" inputmode="decimal" placeholder="${esc(t('scenario.pv.kwpPlaceholder'))}"></div>
+        </div>
+        <div class="ws-range" data-lever="battery">
+          <div class="ws-range__head"><label for="ws-battery">${esc(t('scenario.pv.battery.label'))}</label><output for="ws-battery" id="ws-battery-out"></output></div>
+          <input type="range" id="ws-battery" min="0" max="20" step="1" value="0">
+          <p class="ws-range__hint">${esc(t('scenario.pv.battery.hint'))}</p>
+        </div>
+        <div class="ws-range" data-lever="self_use">
+          <div class="ws-range__head"><label for="ws-self-use">${esc(t('scenario.pv.selfUse.label'))}</label><output for="ws-self-use" id="ws-self-use-out"></output></div>
+          <input type="range" id="ws-self-use" min="-30" max="30" step="5" value="0">
+          <p class="ws-range__hint">${esc(t('scenario.pv.selfUse.hint'))}</p>
+        </div>
+        <div class="fgrid" data-lever="feed_in">
+          <div class="field field--s"><label for="ws-feed-in">${esc(t('scenario.pv.feedIn.label'))}</label>
+            <input class="input" id="ws-feed-in" type="text" inputmode="decimal"></div>
         </div>
 
         <div class="ws-group" data-min-level="advanced">
@@ -102,24 +143,52 @@ export async function render(container, params = [], ctx = {}) {
             <input type="range" id="ws-room" min="-3" max="3" step="0.5" value="0">
             <p class="ws-range__hint">${esc(t('scenario.room.hint'))}</p>
           </div>
-          <div class="ws-range">
-            <div class="ws-range__head"><label for="ws-baseload">${esc(t('scenario.baseload.label'))}</label><output for="ws-baseload" id="ws-baseload-out"></output></div>
+          <div class="ws-range" data-lever="baseload">
+            <div class="ws-range__head"><label for="ws-baseload" id="ws-baseload-label">${esc(t('scenario.base.baseload.label'))}</label><output for="ws-baseload" id="ws-baseload-out"></output></div>
             <input type="range" id="ws-baseload" min="-50" max="50" step="5" value="0">
-            <p class="ws-range__hint">${esc(t('scenario.baseload.hint'))}</p>
+            <p class="ws-range__hint" id="ws-baseload-hint">${esc(t('scenario.base.baseload.hint'))}</p>
           </div>
-          <div class="field">
+          <div class="field" data-lever="model">
             <label for="ws-model">${esc(t('scenario.model.label'))}${info('models')}</label>
             <select class="select" id="ws-model">
               ${['standard', 'last_year', 'trend'].map(m => `<option value="${m}">${esc(t(`scenario.model.${m}`))}</option>`).join('')}
             </select>
           </div>
-          <h3 class="ws-group__sub">${esc(t('scenario.measures.title'))}</h3>
-          <p class="ws-note">${esc(t('scenario.measures.hint'))}</p>
-          <div class="ws-measures" id="ws-measures"></div>
-          <button type="button" class="btn btn--ghost btn--sm" id="ws-add-measure">${esc(t('scenario.measures.add'))}</button>
+          <div data-lever="measures">
+            <h3 class="ws-group__sub">${esc(t('scenario.measures.title'))}</h3>
+            <p class="infobox infobox--neutral" id="ws-measures-hint">${esc(t('scenario.base.baseload.measures'))}</p>
+            <div class="ws-measures" id="ws-measures"></div>
+            <button type="button" class="btn btn--ghost btn--sm" id="ws-add-measure">${esc(t('scenario.measures.add'))}</button>
+          </div>
+          <!-- v3.12.0 (F1040, Phase 2) — Heizungstausch: eine zweite Rechnung über dieselbe Wärme -->
+          <div data-lever="replacement">
+            <h3 class="ws-group__sub">${esc(t('scenario.replace.title'))}</h3>
+            <div class="field">
+              <label for="ws-replace">${esc(t('scenario.replace.label'))}</label>
+              <select class="select" id="ws-replace">
+                <option value="">${esc(t('scenario.replace.none'))}</option>
+                ${['heat_pump', 'pellets'].map(k => `<option value="${k}">${esc(t(`scenario.replace.to.${k}`))}</option>`).join('')}
+              </select>
+            </div>
+            <div class="fgrid" id="ws-replace-fields" hidden>
+              <div class="field field--s" data-to="heat_pump"><label for="ws-rep-jaz">${esc(t('scenario.replace.jaz'))}</label>
+                <input class="input" id="ws-rep-jaz" type="text" inputmode="decimal" data-assumed="jaz"></div>
+              <div class="field field--s" data-to="heat_pump"><label for="ws-rep-power">${esc(t('scenario.replace.powerCt'))}</label>
+                <input class="input" id="ws-rep-power" type="text" inputmode="decimal" data-assumed="power_ct"></div>
+              <div class="field field--s" data-to="pellets"><label for="ws-rep-pellet">${esc(t('scenario.replace.pelletCt'))}</label>
+                <input class="input" id="ws-rep-pellet" type="text" inputmode="decimal" data-assumed="pellet_ct"></div>
+              <div class="field field--s" data-to="pellets"><label for="ws-rep-eff-new">${esc(t('scenario.replace.effNew'))}</label>
+                <input class="input" id="ws-rep-eff-new" type="text" inputmode="decimal" data-assumed="efficiency_new" data-pct></div>
+              <div class="field field--s"><label for="ws-rep-eff-old">${esc(t('scenario.replace.effOld'))}</label>
+                <input class="input" id="ws-rep-eff-old" type="text" inputmode="decimal" data-assumed="efficiency_old" data-pct></div>
+              <div class="field field--s"><label for="ws-rep-invest">${esc(t('scenario.replace.invest'))}</label>
+                <input class="input" id="ws-rep-invest" type="text" inputmode="decimal"></div>
+            </div>
+            <p class="ws-range__hint">${rich('scenario.replace.hint')}</p>
+          </div>
           <!-- v3.7.0 (Paket reifegrad) — E-Auto und Jahresarbeitszahl ab Erfahren (bis v3.6
                Experte): Maßnahmen für Haushalte mit Wallbox oder Wärmepumpe, kein Rechenparameter -->
-          <div class="fgrid" data-cap="ev">
+          <div class="fgrid" data-lever="ev">
             <div class="field field--s"><label for="ws-ev-km">${esc(t('scenario.ev.km'))}</label>
               <input class="input" id="ws-ev-km" type="text" inputmode="numeric"></div>
             <div class="field field--s"><label for="ws-ev-kwh">${esc(t('scenario.ev.kwh'))}</label>
@@ -135,13 +204,14 @@ export async function render(container, params = [], ctx = {}) {
 
         <div class="ws-group" data-min-level="expert">
           <h3>${esc(t('scenario.group.expert'))}</h3>
-          <div class="field">
+          <!-- v3.12.0 (F1040, Phase 2) — die Heizkurve nur, wo ein Heizmodell wirkt (nicht bei Wasser, Strom, Lieferungen, PV) -->
+          <div class="field" data-cap="regression">
             <label for="ws-regression">${esc(t('scenario.regression'))}</label>
             <select class="select" id="ws-regression">
               ${REGRESSION_MODELS.map(m => `<option value="${m}">${esc(t(`forecast.models.${m}`))}</option>`).join('')}
             </select>
           </div>
-          <div class="fgrid">
+          <div class="fgrid" data-lever="budget">
             <div class="field field--m"><label for="ws-budget">${esc(t('scenario.budget.label'))}</label>
               <input class="input" id="ws-budget" type="text" inputmode="decimal" placeholder="${esc(t('scenario.budget.placeholder'))}"></div>
           </div>
@@ -153,7 +223,7 @@ export async function render(container, params = [], ctx = {}) {
             <div class="field field--l"><label for="ws-name">${esc(t('scenario.save.name'))}</label>
               <input class="input" id="ws-name" type="text" maxlength="60"></div>
             <div class="field field--s"><span class="sr-only">${esc(t('scenario.save.button'))}</span>
-              <button type="button" class="btn btn--util" id="ws-save">${esc(t('scenario.save.button'))}</button></div>
+              <button type="button" class="btn btn--primary" id="ws-save">${esc(t('scenario.save.button'))}</button></div>
           </div>
           <div class="field" id="ws-saved-wrap" hidden>
             <label for="ws-saved">${esc(t('scenario.save.list'))}</label>
@@ -164,7 +234,7 @@ export async function render(container, params = [], ctx = {}) {
               <button type="button" class="btn btn--ghost btn--sm" id="ws-compare-btn">${esc(t('scenario.compare.button'))}</button>
             </div>
           </div>
-          <p class="ws-note">${esc(t('scenario.save.local'))}</p>
+          <p class="infobox infobox--neutral">${esc(t('scenario.save.local'))}</p>
         </div>
       </form>
 
@@ -172,6 +242,8 @@ export async function render(container, params = [], ctx = {}) {
         <div id="ws-banner"></div>
         <div id="ws-card"></div>
         <div class="kpi-grid ws-kpis" id="ws-kpis"></div>
+        <!-- v3.12.0 (F1040, Phase 2) — Tank und Heizungstausch bzw. das PV-Jahr -->
+        <div class="card" id="ws-extra" hidden></div>
         <div class="card">
           <h3 class="card__title">${esc(t('scenario.chart.cumTitle'))}</h3>
           <div class="chart-wrap short"><canvas id="ws-chart-cum"></canvas></div>
@@ -191,7 +263,7 @@ export async function render(container, params = [], ctx = {}) {
           <button type="button" class="btn btn--ghost" id="ws-print">${esc(t('scenario.share.print'))}</button>
           <button type="button" class="btn btn--ghost" id="ws-csv" data-min-level="expert">${esc(t('scenario.share.csv'))}</button>
         </div>
-        <p class="ws-note" id="ws-honesty"></p>
+        <p class="infobox infobox--neutral" id="ws-honesty"></p>
         <div data-role="heat-limit-slot-ws"></div>
       </div>
     </div>
@@ -224,7 +296,7 @@ export async function render(container, params = [], ctx = {}) {
             <input class="input" id="co2-scenario" type="text" inputmode="decimal" autocomplete="off" placeholder="${esc(t('forecast.co2Scenario.placeholder'))}">
           </div>
         </div>
-        <div class="form-actions"><button class="btn btn--util" id="btn-go">${t('forecast.update')}</button></div>
+        <div class="form-actions"><button class="btn btn--primary" id="btn-go">${t('forecast.update')}</button></div>
       </div>
       <div class="card" style="margin-top: var(--sp-5)">
         <h3 class="card__title">${t('forecast.history')}</h3>
@@ -278,6 +350,23 @@ export async function render(container, params = [], ctx = {}) {
     $('#ws-room-out').textContent = r === 0 ? t('scenario.none') : `${r > 0 ? '+' : '−'}${fmt.dec(Math.abs(r), 1)} °C`;
     const b = Number($('#ws-baseload').value);
     $('#ws-baseload-out').textContent = b === 0 ? t('scenario.none') : pctSigned(b, 0);
+    // v3.12.0 (F1040, Phase 2)
+    const pct = (id) => { const v = Number($(id).value); $(`${id}-out`).textContent = v === 0 ? t('scenario.none') : pctSigned(v, 0); };
+    pct('#ws-price'); pct('#ws-pv-size'); pct('#ws-self-use');
+    const bat = Number($('#ws-battery').value);
+    $('#ws-battery-out').textContent = bat === 0 ? t('scenario.none') : `${fmt.num(bat, 0)} kWh`;
+  }
+
+  // v3.12.0 (F1040, Phase 2) — Heizungstausch: Felder des Ziels, Annahmen als Platzhalter (vom Server)
+  function syncReplace() {
+    const to = $('#ws-replace').value;
+    $('#ws-replace-fields').hidden = !to;
+    for (const f of container.querySelectorAll('#ws-replace-fields [data-to]')) f.hidden = f.dataset.to !== to;
+    const a = result?.delivery?.assumed_replace || {};
+    for (const el of container.querySelectorAll('#ws-replace-fields [data-assumed]')) {
+      const v = a[el.dataset.assumed];
+      el.placeholder = v == null ? '' : t('scenario.replace.assumed', { value: el.hasAttribute('data-pct') ? fmt.pct(v, 0) : fmt.num(v, 1) });
+    }
   }
 
   /** Formular → Zustand. Ungültige Felder werden markiert und zählen als leer. */
@@ -310,6 +399,16 @@ export async function render(container, params = [], ctx = {}) {
     const jt = dec('#ws-jaz-to', n => n >= 1 && n <= 8);
     const evKm = dec('#ws-ev-km', n => n >= 0 && n <= 100000) ?? 0;
     const evKwh = dec('#ws-ev-kwh', n => n >= 5 && n <= 60);
+    // v3.12.0 (F1040, Phase 2) — Heizungstausch; Nutzungsgrade stehen im Feld in Prozent
+    const to = $('#ws-replace').value;
+    const pctField = (id) => { const n = dec(id, v => v >= 50 && v <= 100); return n != null ? n / 100 : null; };
+    const replace = to ? {
+      to,
+      ...(to === 'heat_pump' ? { jaz: dec('#ws-rep-jaz', n => n >= 1 && n <= 8), power_ct: dec('#ws-rep-power', n => n >= 0 && n <= 200) }
+        : { pellet_ct: dec('#ws-rep-pellet', n => n >= 0 && n <= 200), efficiency_new: pctField('#ws-rep-eff-new') }),
+      efficiency_old: pctField('#ws-rep-eff-old'),
+      invest_eur: dec('#ws-rep-invest', n => n >= 0 && n <= 1e7),
+    } : null;
     return {
       ...state,
       utility: utilSel.value, meter_id: meterSel.value,
@@ -321,6 +420,10 @@ export async function render(container, params = [], ctx = {}) {
       jaz_from: jf != null && jt != null ? jf : null, jaz_to: jf != null && jt != null ? jt : null,
       tariff: tariff.kind === 'custom' && tariff.working_price_ct == null ? { kind: 'current' } : tariff,
       measures, budget_eur: dec('#ws-budget', n => n >= 0 && n <= 1e7),
+      price_pct: Number($('#ws-price').value), replace,
+      pv_size_pct: Number($('#ws-pv-size').value), pv_kwp_now: dec('#ws-pv-kwp', n => n >= 0.1 && n <= 1000),
+      battery_kwh: Number($('#ws-battery').value), self_use_pct: Number($('#ws-self-use').value),
+      feed_in_ct: dec('#ws-feed-in', n => n >= 0 && n <= 100),
     };
   }
 
@@ -329,22 +432,42 @@ export async function render(container, params = [], ctx = {}) {
     return `<div class="ws-measure" id="${id}" data-id="${esc(m.id)}">
       <div class="ws-measure__head">
         <label><input type="checkbox" data-f="active"${m.active !== false ? ' checked' : ''}> ${esc(t('scenario.measures.active'))}</label>
-        <button type="button" class="btn btn--ghost btn--sm" data-f="remove" aria-label="${esc(t('scenario.measures.remove'))}">✕</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-f="remove" aria-label="${esc(t('scenario.measures.remove'))}">${icon('kreuz', { size: 16 })}</button>
       </div>
       <div class="fgrid">
         <div class="field field--m"><label for="${id}-kind">${esc(t('scenario.measures.kind'))}</label>
-          <select class="select" id="${id}-kind" data-f="kind">${S.MEASURE_KINDS.map(k => `<option value="${k}"${k === (m.kind || 'other') ? ' selected' : ''}>${esc(t(`scenario.measure.kind.${k}`))}</option>`).join('')}</select></div>
+          <select class="select" id="${id}-kind" data-f="kind"><option value="${esc(m.kind || 'other')}" selected></option></select></div>
         <div class="field field--l"><label for="${id}-label">${esc(t('scenario.measures.labelField'))}</label>
           <input class="input" id="${id}-label" data-f="label" type="text" maxlength="80" value="${esc(m.label || '')}"></div>
         <div class="field field--s"><label for="${id}-heat">${esc(t('scenario.measures.heat'))}</label>
           <input class="input" id="${id}-heat" data-f="heat" type="text" inputmode="decimal" value="${m.heat_pct ? esc(formatForInput(m.heat_pct)) : ''}"></div>
-        <div class="field field--s"><label for="${id}-base">${esc(t('scenario.measures.base'))}</label>
+        <div class="field field--s"><label for="${id}-base" data-f="base-label">${esc(t('scenario.base.baseload.field'))}</label>
           <input class="input" id="${id}-base" data-f="base" type="text" inputmode="decimal" value="${m.base_pct ? esc(formatForInput(m.base_pct)) : ''}"></div>
         <div class="field field--s"><label for="${id}-cost">${esc(t('scenario.measures.cost'))}</label>
           <input class="input" id="${id}-cost" data-f="cost" type="text" inputmode="decimal" value="${m.cost_eur != null ? esc(formatForInput(m.cost_eur)) : ''}"></div>
       </div>
+      <p class="infobox infobox--info" data-f="mismatch" hidden>${rich('scenario.measures.mismatch')}</p>
     </div>`;
   }
+
+  // v3.12.0 (F1040) — Arten und Felder einer Maßnahme aus dem Profil. Was gespeichert
+  // ist und nicht mehr passt, bleibt sichtbar und ist markiert.
+  function syncMeasure(row) {
+    const sel = row.querySelector('[data-f="kind"]');
+    const field = (f) => row.querySelector(`[data-f="${f}"]`);
+    const v = S.measureView(result, { kind: sel.value, heat_pct: field('heat').value.trim(), base_pct: field('base').value.trim() });
+    const sig = v.kinds.join();
+    if (sel.dataset.sig !== sig) {
+      sel.innerHTML = v.kinds.map(k => `<option value="${esc(k)}">${esc(t(`scenario.measure.kind.${k}`))}</option>`).join('');
+      sel.dataset.sig = sig;
+    }
+    sel.value = v.kind;
+    field('heat').closest('.field').hidden = !v.heat;
+    field('base').closest('.field').hidden = !v.base;
+    field('base-label').textContent = t(`scenario.base.${S.baseWord(result)}.field`);
+    field('mismatch').hidden = v.fits;
+  }
+  const syncMeasures = () => container.querySelectorAll('.ws-measure').forEach(syncMeasure);
 
   /** Zustand → Formular (Beispielszenario, gespeichertes Szenario). */
   function writeForm(st) {
@@ -365,7 +488,21 @@ export async function render(container, params = [], ctx = {}) {
     $('#ws-jaz-from').value = st.jaz_from != null ? formatForInput(st.jaz_from) : '';
     $('#ws-jaz-to').value = st.jaz_to != null ? formatForInput(st.jaz_to) : '';
     $('#ws-budget').value = st.budget_eur != null ? formatForInput(st.budget_eur) : '';
+    // v3.12.0 (F1040, Phase 2)
+    $('#ws-price').value = String(st.price_pct ?? 0);
+    $('#ws-pv-size').value = String(st.pv_size_pct ?? 0);
+    $('#ws-pv-kwp').value = st.pv_kwp_now != null ? formatForInput(st.pv_kwp_now) : '';
+    $('#ws-battery').value = String(st.battery_kwh ?? 0);
+    $('#ws-self-use').value = String(st.self_use_pct ?? 0);
+    $('#ws-feed-in').value = st.feed_in_ct != null ? formatForInput(st.feed_in_ct) : '';
+    const rep = st.replace || {};
+    $('#ws-replace').value = rep.to || '';
+    const put = (id, v, pct = false) => { $(id).value = v != null ? formatForInput(pct ? v * 100 : v) : ''; };
+    put('#ws-rep-jaz', rep.jaz); put('#ws-rep-power', rep.power_ct); put('#ws-rep-pellet', rep.pellet_ct);
+    put('#ws-rep-eff-new', rep.efficiency_new, true); put('#ws-rep-eff-old', rep.efficiency_old, true); put('#ws-rep-invest', rep.invest_eur);
+    syncReplace();
     $('#ws-measures').innerHTML = (st.measures || []).map(measureRow).join('');
+    syncMeasures();
     $('#ws-add-measure').disabled = (st.measures || []).length >= S.MAX_MEASURES;
     outputs();
   }
@@ -397,6 +534,41 @@ export async function render(container, params = [], ctx = {}) {
     for (const opt of $('#ws-model').options) opt.disabled = caps?.models ? caps.models[opt.value] === false : false;
   }
 
+  // v3.12.0 (F1040) — Regler, Worte und Hinweise der Fachgruppe. Ein Regler, der hier
+  // nicht vorgesehen ist, aber in einem gespeicherten Szenario einen Wert hat, bleibt sichtbar.
+  // v3.12.0 (F1040, Phase 2) — Regler, die es bis v3.11 überall gab: sichtbar, solange das Profil sie nicht abschaltet
+  const LEVERS_ON_BY_DEFAULT = new Set(['saving', 'model', 'measures', 'budget']);
+  function applyProfile(p) {
+    const inUse = { baseload: () => Number($('#ws-baseload').value) !== 0, ev: () => $('#ws-ev-km').value.trim() !== '' };
+    for (const el of container.querySelectorAll('[data-lever]')) {
+      const key = el.dataset.lever;
+      const on = p?.levers?.[key];
+      el.hidden = LEVERS_ON_BY_DEFAULT.has(key) ? on === false && !inUse[key]?.() : !(on || inUse[key]?.());
+    }
+    $('#ws-tariff-none').hidden = !p || p.levers.tariff;
+    // v3.12.0 (F1040, Phase 2) — der Satz „kein Tarif zur Wahl“ gilt dem Wasser; Lieferungen haben ihren Preis, die PV ihre Vergütung
+    if (p && p.group !== 'water') $('#ws-tariff-none').hidden = true;
+    $('#ws-no-heat').hidden = !p?.no_heat_model;
+    const targets = p?.replace_targets || [];
+    for (const o of $('#ws-replace').options) if (o.value) o.hidden = !targets.includes(o.value);
+    if ($('#ws-replace').value && !targets.includes($('#ws-replace').value)) $('#ws-replace').value = '';
+    syncReplace();
+    const feedCt = result?.pv?.prices?.feed_ct;
+    $('#ws-feed-in').placeholder = feedCt != null ? t('scenario.pv.feedIn.placeholder', { ct: fmt.num(feedCt, 2) }) : '';
+    // v3.12.0 (F1040, Phase 2) — eine Gruppe, in der alles verborgen ist (PV: Mehr Stellschrauben, Für Fachleute), verschwindet ganz
+    for (const g of container.querySelectorAll('#ws-form .ws-group')) {
+      const kids = [...g.children].filter(c => c.tagName !== 'H3');
+      g.hidden = kids.length > 0 && kids.every(c => c.hidden);
+    }
+    if (!p) { $('#ws-lead').innerHTML = t('scenario.lead'); return; }
+    const word = S.baseWord(result);
+    $('#ws-lead').innerHTML = rich(`scenario.profile.${p.group}.lead`);
+    $('#ws-baseload-label').textContent = t(`scenario.base.${word}.label`);
+    $('#ws-baseload-hint').textContent = t(`scenario.base.${word}.hint`);
+    $('#ws-measures-hint').textContent = t(`scenario.base.${word}.measures`);
+    syncMeasures();
+  }
+
   // ── Rechnen (entprellt; nur der zuletzt gestartete Lauf zeichnet) ──────
   let wsSeq = 0;
   let timer = null;
@@ -418,9 +590,9 @@ export async function render(container, params = [], ctx = {}) {
     } catch (e) {
       if (my !== wsSeq) return;
       if (e.code === 'demo.scenarioPresetsOnly') {
-        $('#ws-banner').innerHTML = `<div class="banner banner--info">${esc(t('scenario.demoNote'))}</div>`;
+        $('#ws-banner').innerHTML = `<div class="infobox infobox--info">${esc(t('scenario.demoNote'))}</div>`;
       } else {
-        $('#ws-banner').innerHTML = `<div class="banner banner--warning">${esc(e.message)}</div>`;
+        $('#ws-banner').innerHTML = `<div class="infobox infobox--achtung">${esc(e.message)}</div>`;
       }
     } finally {
       if (my === wsSeq) res.setAttribute('aria-busy', 'false');
@@ -439,16 +611,18 @@ export async function render(container, params = [], ctx = {}) {
     const name = scenarioTitle();
     const amount = fmt.eur0(Math.abs(d.cost));
     const facts = [
-      { label: t('scenario.kpi.qty'), value: d.qty_pct != null ? pctSigned(d.qty_pct) : '–' },
+      // v3.12.0 (F1040, Phase 2) — bei der PV ist die Menge der Netzbezug
+      { label: t(result.calc === 'pv' ? 'scenario.pv.kpi.import' : 'scenario.kpi.qty'), value: d.qty_pct != null ? pctSigned(d.qty_pct) : '–' },
     ];
+    if (result.calc === 'pv' && result.pv?.scenario?.autarky != null) facts.push({ label: t('scenario.pv.kpi.autarky'), value: fmt.pct(result.pv.scenario.autarky, 0) });
     if (d.co2_kg != null) facts.push({ label: t('scenario.kpi.co2'), value: `${signed(d.co2_kg, fmt.int)} kg` });
     if (result.advance?.scen_recommended != null) facts.push({ label: t('scenario.kpi.advance'), value: advanceAmountText(result.advance.scen_recommended, result.advance.every_months) });   // H1
     return {
       brand: t('scenario.card.brand'), title: name, tone, facts,
       big: tone === 'same' ? '±0' : `${d.cost > 0 ? '+' : '−'}${amount}`,
       // Beispielszenario mit erwarteter Richtung: der eigene Satz („Ein kalter Winter kostet dich …“)
-      sentence: activePreset && tone === (activePreset === 'cold_winter' ? 'more' : 'less') && !scenarioName
-        ? t(`scenario.preset.${activePreset}.sentence`, { amount })
+      sentence: activePreset && tone === S.presetOf(result, activePreset)?.direction && !scenarioName
+        ? t(`scenario.preset.${activePreset}.${S.presetOf(result, activePreset)?.sentence || 'sentence'}`, { amount })
         : tone === 'same' ? t('scenario.card.same', { name })
         : t(tone === 'more' ? 'scenario.card.more' : 'scenario.card.less', { name, amount }),
       // v3.10.0 (Skeptiker N6) — „erstellt am“ in Ortszeit (UTC zeigte kurz nach Mitternacht den Vortag)
@@ -461,13 +635,17 @@ export async function render(container, params = [], ctx = {}) {
     if (!result.supported || !result.valid) {
       $('#ws-card').innerHTML = '';
       $('#ws-kpis').innerHTML = '';
-      $('#ws-banner').innerHTML = `<div class="banner banner--info">${esc(t(!result.supported ? 'scenario.unsupported' : 'scenario.tooFew', { label: u?.label || '' }))}</div>`;
-      for (const id of ['#ws-ranking', '#ws-models', '#ws-opt', '#ws-honesty']) $(id).innerHTML = '';
+      $('#ws-banner').innerHTML = `<div class="infobox infobox--info">${esc(t(!result.supported ? 'scenario.unsupported'
+        : result.reason_code === 'pv_incomplete' ? 'scenario.pvIncomplete' : 'scenario.tooFew', { label: u?.label || '' }))}</div>`;
+      for (const id of ['#ws-ranking', '#ws-models', '#ws-opt', '#ws-honesty', '#ws-extra']) $(id).innerHTML = '';
+      $('#ws-extra').hidden = true;
       applyCaps(null);
+      applyProfile(null);
       renderPresets();
       return;
     }
     applyCaps(result.capabilities);
+    applyProfile(result.profile);
     fillTariffs();
     renderPresets();
     const unit = result.unit;
@@ -483,7 +661,13 @@ export async function render(container, params = [], ctx = {}) {
     const dc = tot.delta.cost;
     const billing = result.billing;
     const balScen = billing ? balanceView(billing.scen_end_balance, u) : null;
-    $('#ws-kpis').innerHTML = [
+    // v3.12.0 (F1040, Phase 2) — Lieferungen und PV: eigene Kennzahlen, kein Abschlag, keine Abrechnung
+    const calc = result.calc || 'consumption';
+    for (const id of ['#ws-models', '#ws-opt']) $(id).hidden = calc === 'pv';
+    renderExtra(calc, u);
+    if (calc !== 'consumption') {
+      $('#ws-kpis').innerHTML = calc === 'pv' ? pvKpis(kpi) : deliveryKpis(kpi, dc);
+    } else $('#ws-kpis').innerHTML = [
       kpi(t('scenario.kpi.cost'), esc(fmt.eur(tot.scenario.cost)),
         esc(t('scenario.kpi.vsBase', { delta: signed(dc, fmt.eur), base: fmt.eur(tot.base.cost) })), dc > 0.5 ? 'negative' : dc < -0.5 ? 'positive' : ''),
       kpi(t('scenario.kpi.qtyYear'), esc(fmt.unit(tot.scenario.qty, unit)),
@@ -503,11 +687,11 @@ export async function render(container, params = [], ctx = {}) {
       // v3.9.0 (Skeptiker H3) — unsichere Schätzung der Karte: hier dieselbe Spanne, kein sicherer Betrag
       ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }),
         Array.isArray(billing.scen_end_range)
-          ? `<span data-role="ws-balance-range">${esc(uncertainRangeText({ projected_range: billing.scen_end_range }))}</span>`
-          : `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
-        esc(Array.isArray(billing.base_end_range)
-          ? t('scenario.kpi.balanceBase', { amount: uncertainRangeText({ projected_range: billing.base_end_range }) }) + ' · ' + t('balanceUncertain.verdict')
-          : t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
+          ? `<span data-role="ws-balance-range">${uncertainRangeHtml({ projected_range: billing.scen_end_range })}</span>`
+          : balanceHtml(billing.scen_end_balance, u),
+        Array.isArray(billing.base_end_range)
+          ? tHtml('scenario.kpi.balanceBase', {}, { amount: uncertainRangeHtml({ projected_range: billing.base_end_range }) }) + ' · ' + esc(t('balanceUncertain.verdict'))
+          : tHtml('scenario.kpi.balanceBase', {}, { amount: balanceHtml(billing.base_end_balance, u) || '–' }), '', 'advanced')] : []),
       ...(tot.delta.co2_kg != null ? [kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`),
         esc(`${signed(tot.delta.co2_kg, fmt.int)} kg`), tot.delta.co2_kg > 0 ? 'negative' : tot.delta.co2_kg < 0 ? 'positive' : '', 'advanced')] : []),
     ].join('');
@@ -517,6 +701,111 @@ export async function render(container, params = [], ctx = {}) {
     renderModels(u);
     renderOptimization();
     renderHonesty();
+  }
+
+  // ── v3.12.0 (F1040, Phase 2) — Lieferungen und PV: Kennzahlen und Zusatzkarte ──
+  // Alles kommt fertig vom Server (ScenarioService::computeDelivery, ScenarioPv); hier wird nur formatiert.
+  const signedCls = (v) => (v > 0.5 ? 'negative' : v < -0.5 ? 'positive' : '');
+  const range = (lo, hi, f) => t('scenario.pv.range', { low: f(Math.min(lo, hi)), high: f(Math.max(lo, hi)) });
+
+  function deliveryKpis(kpi, dc) {
+    const tot = result.totals;
+    const d = result.delivery || {};
+    const tank = result.tank;
+    const replaced = !!result.replacement;
+    const out = [
+      kpi(t(replaced ? 'scenario.kpi.cost' : 'scenario.kpi.deliveryCost'), esc(fmt.eur(tot.scenario.cost)),
+        esc(t('scenario.kpi.vsBase', { delta: signed(dc, fmt.eur), base: fmt.eur(tot.base.cost) })), signedCls(dc)),
+      kpi(t(replaced ? 'scenario.kpi.energyYear' : 'scenario.kpi.qtyYear'), esc(fmt.unit(tot.scenario.qty, result.unit)),
+        esc(d.scen_units != null ? t('scenario.kpi.units', { qty: fmt.unit(d.scen_units, d.unit) }) : t('scenario.replace.to.' + result.replacement.to))),
+    ];
+    if (tank) {
+      const o = tank.scenario || tank.base;
+      out.push(kpi(t('scenario.tank.empty'), esc(o.empty_on ? fmt.date(o.empty_on) : t('scenario.tank.beyond')),
+        esc([o.refill_on ? t('scenario.tank.refill', { date: fmt.date(o.refill_on) }) : '', t('scenario.modelValue')].filter(Boolean).join(' · '))));
+    }
+    if (tot.delta.co2_kg != null) out.push(kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`), esc(`${signed(tot.delta.co2_kg, fmt.int)} kg`), signedCls(tot.delta.co2_kg), 'advanced'));
+    return out.join('');
+  }
+
+  function pvKpis(kpi) {
+    const p = result.pv;
+    const s = p.scenario, b = p.base, lo = p.scenario_low, hi = p.scenario_high;
+    const kwh = (v) => fmt.unit(v, 'kWh');
+    const sub = (f, fn) => esc([lo && hi ? range(lo[f], hi[f], fn) : t('scenario.modelValue'), t('scenario.pv.today', { value: fn(b[f]) })].join(' · '));
+    return [
+      kpi(t('scenario.pv.kpi.net'), esc(fmt.eur(s.net_cost)), sub('net_cost', fmt.eur), signedCls(s.net_cost - b.net_cost)),
+      kpi(t('scenario.pv.kpi.import'), esc(kwh(s.import)), sub('import', kwh), signedCls(s.import - b.import)),
+      kpi(t('scenario.pv.kpi.feedIn'), esc(kwh(s.feed_in)), sub('feed_in', kwh)),
+      kpi(t('scenario.pv.kpi.autarky'), esc(s.autarky != null ? fmt.pct(s.autarky, 0) : '–'),
+        b.autarky != null ? sub('autarky', (v) => fmt.pct(v, 0)) : ''),
+      kpi(t('scenario.pv.kpi.revenue'), esc(fmt.eur(s.feed_revenue)),
+        esc([t('scenario.pv.kpi.importCost', { cost: fmt.eur(s.import_cost) }), t('scenario.modelValue')].join(' · ')), '', 'advanced'),
+    ].join('');
+  }
+
+  function renderExtra(calc, u) {
+    const box = $('#ws-extra');
+    box.hidden = calc === 'consumption';
+    if (calc === 'consumption') { box.innerHTML = ''; return; }
+    if (calc === 'delivery') {
+      const tk = result.tank, x = result.replacement, d = result.delivery || {};
+      const day = (v) => (v ? fmt.date(v) : t('scenario.tank.beyond'));
+      // v3.12.0 — Untereinheit der Währung (ct, Rp., p), nie fest
+      const minor = getCurrencyMinor();
+      const price = d.base_ct_per_unit ? `<p>${rich('scenario.price.now', { price: `${fmt.num(d.base_ct_per_unit, 1)} ${minor}/${d.unit}`, scen: `${fmt.num(d.scen_ct_per_unit, 1)} ${minor}/${d.unit}` })}</p>` : '';
+      const tank = `<h3 class="card__title">${esc(t('scenario.tank.title'))}</h3>${tk ? `
+        <p>${rich('scenario.tank.now', { stock: fmt.unit(tk.stock, tk.unit), date: fmt.date(tk.as_of), capacity: tk.capacity != null ? fmt.unit(tk.capacity, tk.unit) : '–' })}</p>
+        ${price}
+        <div class="table-wrap"><table class="table table--compact"><thead><tr><th scope="col"></th>
+          <th scope="col" class="num">${esc(t('scenario.chart.base'))}</th><th scope="col" class="num">${esc(t('scenario.chart.scenario'))}</th></tr></thead><tbody>
+          <tr><th scope="row">${esc(t('scenario.tank.empty'))}</th><td class="num">${esc(day(tk.base.empty_on))}</td><td class="num">${esc(tk.scenario ? day(tk.scenario.empty_on) : '–')}</td></tr>
+          ${tk.refill_level != null ? `<tr><th scope="row">${esc(t('scenario.tank.refillAt', { pct: fmt.pct(tk.refill_pct / 100, 0) }))}</th><td class="num">${esc(day(tk.base.refill_on))}</td>
+            <td class="num">${esc(tk.scenario ? day(tk.scenario.refill_on) : '–')}</td></tr>` : ''}
+        </tbody></table></div>
+        <p class="infobox infobox--neutral">${rich('scenario.tank.hint')}</p>` : price}`;
+      const rep = x ? `<h3 class="card__title">${esc(t('scenario.replace.compare', { to: t(`scenario.replace.to.${x.to}`) }))}</h3>
+        <div class="table-wrap"><table class="table table--compact"><thead><tr><th scope="col"></th>
+          <th scope="col" class="num">${esc(u?.label || '')}</th><th scope="col" class="num">${esc(t(`scenario.replace.to.${x.to}`))}</th></tr></thead><tbody>
+          <tr><th scope="row">${esc(t('scenario.replace.heat'))}</th><td class="num" colspan="2">${esc(fmt.unit(x.heat_kwh, 'kWh'))}</td></tr>
+          <tr><th scope="row">${esc(t('scenario.replace.energy'))}</th><td class="num">${esc(fmt.unit(result.totals.base.qty, 'kWh'))}</td>
+            <td class="num">${esc(fmt.unit(x.energy_kwh, 'kWh'))}${x.energy_units != null ? ` (${esc(fmt.unit(x.energy_units, x.units_label))})` : ''}</td></tr>
+          <tr><th scope="row">${esc(t('scenario.kpi.cost'))}</th><td class="num">${esc(fmt.eur(x.fuel_cost))}</td><td class="num">${esc(fmt.eur(x.cost))}</td></tr>
+          ${x.co2_kg != null && x.fuel_co2_kg != null ? `<tr><th scope="row">${esc(t('scenario.kpi.co2Year'))}</th><td class="num">${esc(`${fmt.int(x.fuel_co2_kg)} kg`)}</td><td class="num">${esc(`${fmt.int(x.co2_kg)} kg`)}</td></tr>` : ''}
+        </tbody></table></div>
+        <p>${rich(x.saving_eur >= 0 ? 'scenario.replace.less' : 'scenario.replace.more', { amount: fmt.eur(Math.abs(x.saving_eur)) })}
+          ${x.payback_years != null ? esc(t('scenario.opt.payback', { n: fmt.num(x.payback_years, 1) })) : ''}</p>
+        <p class="infobox infobox--neutral">${esc(replaceAssumed(x))}</p>` : '';
+      box.innerHTML = tank + rep;
+      return;
+    }
+    // PV: das Jahr je Monat, Ausgangsfall gemessen, Szenario als Modellwert (ohne Viertelstunden mit Spanne)
+    const p = result.pv;
+    const kwh = (v) => fmt.int(v);
+    // ohne Viertelstunden die Mitte der Spanne; die Spanne des Jahres steht in den Kennzahlen
+    const cell = (m, f) => kwh(m.pv.scenario[f]);
+    const pct = (v) => (v != null ? fmt.pct(v, 0) : '–');
+    box.innerHTML = `<h3 class="card__title">${esc(t('scenario.pv.title'))}</h3>
+      <p>${rich(p.source === 'intervals' ? 'scenario.pv.basisIntervals' : 'scenario.pv.basisMonths', { year: p.year ?? '', from: fmt.month(result.from), to: fmt.month(result.to) })}</p>
+      ${p.kwp ? `<p>${esc(t('scenario.pv.kwpNew', { now: fmt.num(p.kwp.now, 1), new: fmt.num(p.kwp.new, 1) }))}</p>` : ''}
+      <div class="table-wrap"><table class="table table--compact"><thead><tr><th scope="col">${esc(t('forecast.col.month'))}</th>
+        <th scope="col" class="num">${esc(t('scenario.pv.col.generation'))}</th><th scope="col" class="num">${esc(t('scenario.pv.col.selfUse'))}</th>
+        <th scope="col" class="num">${esc(t('scenario.pv.col.feedIn'))}</th><th scope="col" class="num">${esc(t('scenario.pv.col.import'))}</th>
+        <th scope="col" class="num">${esc(t('scenario.pv.col.autarky'))}</th></tr></thead>
+        <tbody>${result.months.map(m => `<tr><th scope="row">${esc(fmt.month(m.ym))}</th><td class="num">${kwh(m.pv.scenario.generation)}</td>
+          <td class="num">${cell(m, 'self_use')}</td><td class="num">${cell(m, 'feed_in')}</td><td class="num">${cell(m, 'import')}</td>
+          <td class="num">${esc(t('scenario.pv.fromTo', { from: pct(m.pv.base.autarky), to: pct(m.pv.scenario.autarky) }))}</td></tr>`).join('')}</tbody>
+      </table></div>
+      <p class="infobox infobox--neutral">${rich(p.source === 'intervals' ? 'scenario.pv.assumedIntervals' : 'scenario.pv.assumedMonths',
+        { eta: fmt.pct(p.assumed.battery_efficiency, 0), rate: fmt.num(p.assumed.battery_c_rate ?? 0, 1) })}</p>`;
+  }
+
+  /** Die genannten Annahmen des Heizungstauschs in einem Satz. */
+  function replaceAssumed(x) {
+    const a = x.assumed || {};
+    return x.to === 'heat_pump'
+      ? t('scenario.replace.assumedHeatPump', { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
+      : t('scenario.replace.assumedPellets', { ct: fmt.num(a.pellet_ct, 1), eff: fmt.pct(a.efficiency_old, 0), effNew: fmt.pct(a.efficiency_new, 0), kwh: fmt.num(a.kwh_per_kg, 1) });
   }
 
   function renderCharts(u) {
@@ -552,7 +841,7 @@ export async function render(container, params = [], ctx = {}) {
       options: { responsive: true, maintainAspectRatio: false, ...anim,
         plugins: { legend: { labels: { filter: (item) => item.text !== '' } } },
         scales: { y: { title: { display: true, text: result.unit } } } },
-    }, { label: t('scenario.chart.monthAlt', { unit: result.unit }) });
+    }, { label: t(result.calc === 'pv' ? 'scenario.pv.monthAlt' : 'scenario.chart.monthAlt', { unit: result.unit }) });
     container.querySelector('[data-role="ws-month-data"]').innerHTML = chartTableHtml({
       caption: t('scenario.chart.monthTitle'),
       columns: [t('forecast.col.month'), `${t('scenario.chart.base')} (${result.unit})`, `${t('scenario.chart.scenario')} (${result.unit})`, t('scenario.chart.costBase'), t('scenario.chart.costScen')],
@@ -567,19 +856,20 @@ export async function render(container, params = [], ctx = {}) {
     }
     if (x.kind === 'tariff') return x.tariff_kind === 'custom' ? t('scenario.tariff.custom')
       : t('scenario.tariff.offer', { label: contractLabel(result.tariff.contract_id) });
+    if (x.kind === 'baseload') return t(`scenario.base.${S.baseWord(result)}.label`);
     return t(`scenario.lever.${x.kind}`);
   }
 
   function renderRanking() {
     const list = result.ranking || [];
     $('#ws-ranking').innerHTML = `<h3 class="card__title">${esc(t('scenario.ranking.title'))}</h3>
-      <p class="ws-note">${esc(t('scenario.ranking.hint'))}</p>
+      <p class="infobox infobox--neutral">${esc(t(result.calc === 'pv' ? 'scenario.ranking.hintPv' : 'scenario.ranking.hint'))}</p>
       ${list.length ? `<div class="table-wrap"><table class="table table--compact">
         <thead><tr><th scope="col">${esc(t('scenario.ranking.lever'))}</th><th scope="col" class="num">${esc(t('scenario.ranking.saving'))}</th>
           <th scope="col" class="num">${esc(t('scenario.ranking.qty', { unit: result.unit }))}</th><th scope="col" class="num">${esc(t('scenario.ranking.cost'))}</th>
           <th scope="col" class="num">${esc(t('scenario.ranking.payback'))}</th></tr></thead>
         <tbody>${list.map(x => `<tr><th scope="row">${esc(leverLabel(x))}</th>
-          <td class="num ${x.saving_eur > 0.5 ? 'success-text' : x.saving_eur < -0.5 ? 'danger-text' : ''}">${esc(signed(x.saving_eur, fmt.eur))}</td>
+          <td class="num ${x.saving_eur > 0.5 ? 'ton-ok' : x.saving_eur < -0.5 ? 'ton-fehler' : ''}">${esc(signed(x.saving_eur, fmt.eur))}</td>
           <td class="num">${esc(signed(x.saving_qty, fmt.int))}</td>
           <td class="num">${x.cost_eur != null ? esc(fmt.eur(x.cost_eur)) : '<span class="dim">–</span>'}</td>
           <td class="num">${x.payback_years != null ? esc(t('scenario.ranking.years', { n: fmt.num(x.payback_years, 1) })) : '<span class="dim">–</span>'}</td></tr>`).join('')}</tbody>
@@ -600,14 +890,14 @@ export async function render(container, params = [], ctx = {}) {
           <th scope="col" class="num">${esc(t('scenario.models.baseCost'))}</th><th scope="col" class="num">${esc(t('scenario.models.scenQty'))}</th>
           <th scope="col" class="num">${esc(t('scenario.models.scenCost'))}</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
-      ${band ? `<p class="ws-note">${esc(t('scenario.models.band', { level: band.level_pct, low: fmt.int(band.scen_low), high: fmt.int(band.scen_high), unit: result.unit }))}</p>` : ''}`;
+      ${band ? `<p class="infobox infobox--neutral">${esc(t('scenario.models.band', { level: band.level_pct, low: fmt.int(band.scen_low), high: fmt.int(band.scen_high), unit: result.unit }))}</p>` : ''}`;
   }
 
   function renderOptimization() {
     const o = result.optimization;
     const box = $('#ws-opt');
     if (!o) {
-      box.innerHTML = `<h3 class="card__title">${esc(t('scenario.opt.title'))}</h3><p class="ws-note">${esc(t('scenario.opt.hint'))}</p>`;
+      box.innerHTML = `<h3 class="card__title">${esc(t('scenario.opt.title'))}</h3><p class="infobox infobox--neutral">${esc(t('scenario.opt.hint'))}</p>`;
       return;
     }
     const names = o.chosen.map(id => leverLabel({ kind: 'measure', id }));
@@ -616,15 +906,17 @@ export async function render(container, params = [], ctx = {}) {
         : o.chosen.length === 0 ? `<p>${esc(t('scenario.opt.none', { budget: fmt.eur(o.budget_eur) }))}</p>`
         : `<p>${esc(t('scenario.opt.result', { list: names.join(', '), budget: fmt.eur(o.budget_eur), cost: fmt.eur(o.cost_eur), saving: fmt.eur(o.saving_eur) }))}
             ${o.payback_years != null ? esc(t('scenario.opt.payback', { n: fmt.num(o.payback_years, 1) })) : ''}</p>
-           <button type="button" class="btn btn--util btn--sm" id="ws-opt-apply">${esc(t('scenario.opt.apply'))}</button>`}
-      ${o.lp ? `<p class="ws-note">${esc(t('scenario.opt.lp', { bound: fmt.eur(o.lp.bound_eur), value: fmt.num(o.lp.budget_value_per_eur * 100, 1), n: o.evaluated }))}</p>` : ''}`;
+           <button type="button" class="btn btn--primary btn--sm" id="ws-opt-apply">${esc(t('scenario.opt.apply'))}</button>`}
+      ${o.lp ? `<p class="infobox infobox--neutral">${esc(t('scenario.opt.lp', { bound: fmt.eur(o.lp.bound_eur), value: fmt.num(o.lp.budget_value_per_eur * 100, 1), n: o.evaluated }))}</p>` : ''}`;
   }
 
   function renderHonesty() {
     const b = result.basis || {};
-    const parts = [t('scenario.honesty.model', { month: b.last_measured ? fmt.month(b.last_measured) : '–' })];
+    // v3.12.0 (F1040, Phase 2) — Lieferungen rechnen mit dem Preis des Tanks, die PV mit dem gemessenen Jahr
+    const hk = { delivery: 'scenario.honesty.delivery', pv: 'scenario.honesty.pv' }[result.calc] || 'scenario.honesty.model';
+    const parts = [t(hk, { month: b.last_measured ? fmt.month(b.last_measured) : '–' })];
     if (b.heat_share_year != null) parts.push(t('scenario.honesty.heat', { pct: fmt.pct(b.heat_share_year, 0) }));
-    if (activePreset) parts.push(t(`scenario.preset.${activePreset}.note`, { pct: fmt.pct(state.winter_pct / 100, 0) }));
+    if (activePreset) parts.push(t(`scenario.preset.${activePreset}.note`, presetParams(S.presetOf(result, activePreset)?.assumed)));
     for (const w of result.warnings || []) parts.push(t(`scenario.warn.${w.code}`, { n: w.months ?? 0, pct: fmt.pct(w.ratio ?? 0, 0) }));
     $('#ws-honesty').textContent = parts.join(' ');
     heatLimitHint('ws', (result.warnings || []).some(w => w.code === 'poor_fit'), 'workshop', result.unit);
@@ -650,6 +942,8 @@ export async function render(container, params = [], ctx = {}) {
   });
   form.addEventListener('change', (e) => {
     if (e.target.id === 'ws-tariff') $('#ws-custom').hidden = e.target.value !== 'custom';
+    if (e.target.id === 'ws-replace') syncReplace();
+    if (e.target.matches('[data-f="kind"]')) syncMeasure(e.target.closest('.ws-measure'));
     if (e.target.matches('select, input[type="checkbox"]')) { activePreset = null; schedule(0); }
   });
   form.addEventListener('submit', (e) => { e.preventDefault(); schedule(0); });
@@ -663,6 +957,7 @@ export async function render(container, params = [], ctx = {}) {
     let id = `m${n + 1}`;
     while (container.querySelector(`.ws-measure[data-id="${id}"]`)) id += 'x';
     $('#ws-measures').insertAdjacentHTML('beforeend', measureRow({ id, kind: 'other', heat_pct: 0, base_pct: 0, cost_eur: null, active: true }));
+    syncMeasures();
     $('#ws-add-measure').disabled = n + 1 >= S.MAX_MEASURES;
     container.querySelector('.ws-measure:last-child select')?.focus();
   });
@@ -809,7 +1104,14 @@ export async function render(container, params = [], ctx = {}) {
 
   async function meterChanged() {
     contracts = await api.contracts(utilSel.value, meterSel.value || undefined).catch(() => []);
-    state = { ...readForm(), tariff: { kind: 'current' } };
+    // v3.12.0 (F1040) — ein aktives Beispiel gehört zu seiner Art: beim Wechsel gehen seine Hebel
+    // auf die Vorgabe zurück (sonst nahm etwa Heizöl die Sparbrause von Wasser mit). Eigene
+    // Eingaben ohne Beispiel bleiben wie bisher; Modell und Regression bleiben immer.
+    const form = readForm();
+    state = activePreset
+      ? { ...S.defaultState(utilSel.value, meterSel.value), model: form.model, regression: form.regression }
+      : { ...form, tariff: { kind: 'current' } };
+    if (activePreset) writeForm(state);
     $('#ws-tariff').value = 'current';
     activePreset = null;
     await Promise.all([compute({ ...state, utility: utilSel.value, meter_id: meterSel.value }), run()]);
@@ -839,8 +1141,8 @@ export async function render(container, params = [], ctx = {}) {
   state = S.defaultState(utilSel.value, meterSel.value);
   await Promise.all([compute(state), run()]);
   // Einstieg mit Beispielszenario (#/forecast?preset=cold_winter, Übersicht)
-  const want = ctx?.query?.get?.('preset');
-  if (want && result?.valid && S.presetsFor(result).includes(want)) {
+  const want = S.resolvePreset(ctx?.query?.get?.('preset'), result);
+  if (want) {
     activePreset = want;
     const next = S.presetState(want, state, result);
     writeForm(next);
@@ -859,7 +1161,7 @@ function renderResult(u, result, container, card = null) {
   const chartData = container.querySelector('[data-role="fc-chart-data"]');
   if (!result.valid) {
     if (chart) { chart.destroy(); chart = null; }
-    infoEl.innerHTML =`<span class="danger-text">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
+    infoEl.innerHTML =`<span class="ton-fehler">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
     tbl.innerHTML = '';
     if (chartData) chartData.innerHTML = '';
     return;
@@ -989,7 +1291,7 @@ function renderResult(u, result, container, card = null) {
     return '';
   }).filter(Boolean);
   infoEl.innerHTML = lines.join('<br>')
-    + (warn.length ? `<div class="banner banner--warning" style="margin-top: var(--sp-3)">${warn.map(escapeHtml).join('<br>')}</div>` : '');
+    + (warn.length ? `<div class="infobox infobox--achtung" style="margin-top: var(--sp-3)">${warn.map(escapeHtml).join('<br>')}</div>` : '');
 
   // F-02: the forecast now carries a full contract-aware finance projection.
   // `cost_estimated` uses the per-month working/base price of the active
@@ -1013,23 +1315,27 @@ function renderResult(u, result, container, card = null) {
   const calibNote = Number.isFinite(factor) && factor > 0 && Math.abs(factor - 1) >= 0.02
     ? `<p class="muted small" data-role="fc-calibration-note">${escapeHtml(t('forecast.calibrationNote', { pct: fmt.pct(Math.abs(factor - 1), 0),
         direction: t(factor > 1 ? 'forecast.calibrationMore' : 'forecast.calibrationLess') }))}</p>` : '';
+  // v3.12.0 — „wie die Saldo-Karte“ auch in der Form: Wort und Betrag über balanceView (auf den Cent, mit Breite
+  // „≈“ auf den Euro wie an der Karte), in der Farbe des Vorzeichens, die Box im Ton des Vorzeichens. Bis dahin
+  // hieß 0,38 € Nachzahlung hier „(ausgeglichen)“, und unter 5 € blieb die Box neutral, der Betrag schwarz.
+  const toneOf = (v) => (v == null || v.credit === null ? 'infobox--info' : v.credit ? 'infobox--erfolg' : 'infobox--achtung');
+  const cardMoney = cardExp?.band && Math.abs(cardBal) >= 1 ? (n) => `≈ ${fmt.eur0(n)}` : fmt.eur;
   tbl.innerHTML = `
     ${cardBal != null ? `
-      <div class="banner ${cardUnc ? 'banner--info' : cardBal > 5 ? 'banner--warning' : cardBal < -5 ? 'banner--success' : 'banner--info'}"
+      <div class="infobox ${cardUnc ? 'infobox--info' : toneOf(balanceView(cardBal, u))}"
            style="margin-bottom: var(--sp-3)" data-role="fc-card-balance">
         ${escapeHtml(t('forecast.balanceCard', { date: fmt.date(card.settle_on || card.effective_end) }))}
-        <strong>${escapeHtml(cardUnc ? uncertainRangeText(cardUnc) : `${Math.abs(cardBal) < 1 ? t('forecast.balanceBalanced') : (cardBal > 0 ? t('forecast.balanceSurcharge') : t('forecast.balanceCredit'))} ${cardExp.band ? `≈ ${fmt.eur0(Math.abs(cardBal))}` : fmt.eur(Math.abs(cardBal))}`)}</strong>
+        <strong>${cardUnc ? escapeHtml(uncertainRangeText(cardUnc)) : balanceHtml(cardBal, u, cardMoney)}</strong>
         ${!cardUnc && cardExp.band ? `<span class="muted" data-role="fc-card-band"> (${escapeHtml(bandText(cardExp.band))})</span>` : ''}
         <span class="muted"> ${escapeHtml(tp('forecast.balanceCardNote', fc.length, { count: fc.length, month: fc[0] ? fmt.month(fc[0].ym) : '–' }))}</span>
       </div>
       ${calibNote}
     ` : hasFinance && lastBalance != null ? `
-      <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
-           style="margin-bottom: var(--sp-3)">
-        ${t('forecast.balanceLabel')}
-        <strong>${fmt.eur(Math.abs(lastBalance))}</strong>
-        ${lastBalance > 5 ? t('forecast.balanceSurcharge') : lastBalance < -5 ? t('forecast.balanceCredit') : t('forecast.balanceBalanced')}
-        <span class="muted"> ${t('forecast.balanceNote')}</span>
+      <div class="infobox ${toneOf(balanceView(lastBalance, u))}"
+           style="margin-bottom: var(--sp-3)" data-role="fc-end-balance">
+        ${escapeHtml(t('forecast.balanceLabel'))}
+        <strong>${balanceHtml(lastBalance, u)}</strong>
+        <span class="muted"> ${escapeHtml(t('forecast.balanceNote'))}</span>
       </div>
     ` : ''}
     <div class="table-wrap"><table class="table">

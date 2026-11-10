@@ -37,7 +37,8 @@ bietet dir, wo es passt, einen Brief an.
 
 - **Nur Deutschland.** Die Prüfungen laufen nur, wenn unter Einstellungen das
   Land Deutschland eingestellt ist. In jedem anderen Land zeigt die App keine
-  Hinweise zu Rechten und keine Briefe.
+  Hinweise zu Rechten. Von den Briefen bleibt dort nur die neutrale Kündigung an
+  der Vertragskarte (v3.12.0).
 - **Hinweis statt Urteil.** Die App beschreibt die Regel und deine Zahlen. Ob
   dein Fall darunter fällt, entscheidest du, im Zweifel mit Beratung.
 - **Jede Aussage hat eine Quelle.** Die Regeln stehen an einer Stelle im Code,
@@ -74,7 +75,7 @@ Jede Norm in der Fußzeile ist ein Link zur Quelle. Der Stand ist der Tag, an de
 die Quelle zuletzt gelesen wurde. Die Schlichtungsstelle Energie nennt die App
 nur bei Strom und Gas.
 
-![Empfehlungen „Rechte“ mit Norm, „Brief entwerfen“ und „Was die App prüft“](../ui/screenshots/rechte-hinweis.png)
+![Zu tun, Filter „Rechte“: Hinweise mit Norm, „Brief entwerfen“ und „Was die App prüft“](../ui/screenshots/rechte-hinweis.png)
 
 Du findest einen Hinweis hier:
 
@@ -354,21 +355,42 @@ angekreuzt und das Datum des Bescheids eingetragen hast. Der Termin ist das
 Bescheiddatum plus vier Tage plus ein Monat; fehlt der Tag im Monat, der
 Monatsletzte. Mit einem Zustellungsdatum (Zustellungsurkunde) zählt dieses. Die
 App rechnet bewusst vom Bescheiddatum: Das ist der früheste mögliche Fristablauf.
+
+- **Ein späterer Zugang verschiebt die Frist.** Kam der Bescheid erst nach dem
+  vierten Tag an, gilt der vierte Tag nicht (§ 41 Abs. 2 Satz 3 VwVfG, § 122
+  Abs. 2 AO, letzter Halbsatz). Trag dann an der Rechnung „Erhalten am“ ein: Die
+  App rechnet den Monat **frühestens** ab diesem Tag. Bekannt gegeben ist der
+  Bescheid am späteren von viertem Tag nach der Aufgabe zur Post und Zugang; zur
+  Post ging er spätestens am Tag des Zugangs. Das Ende liegt also zwischen dem
+  Monat ab dem Zugang und dem Monat ab dem vierten Tag danach. Ein früherer Zugang
+  ändert nichts, eine Zustellung geht vor *(v3.12.0; vorher zählte nur die
+  Zustellung)*.
+- **Nach dem frühesten Ende „möglicherweise abgelaufen“.** Rechnet die App vom
+  Bescheiddatum, sagt sie nach dem Fristende 7 Tage lang „möglicherweise
+  abgelaufen, prüfe, wann der Bescheid zuging“ (Schwelle unten). Mit
+  eingetragenem Zugang gilt dasselbe bis zum spätesten Ende (Monat ab dem
+  vierten Tag nach dem Zugang). In dieser Zeit bleibt der Eintrag unter „Zu tun“,
+  und der Brief bleibt mit einem Hinweis im Dialog. Nur mit Zustellung ist das
+  Ende sicher, dann gibt es diese Zeit nicht *(v3.12.0; vorher galt die Frist am
+  Tag nach dem frühesten Ende als abgelaufen, mit eingetragenem Zugang bis zu
+  vier Tage zu früh)*.
+
 Fällt der Tag auf einen Samstag, Sonntag oder einen Feiertag, der in ganz
 Deutschland gilt, endet die Frist am nächsten Werktag (§ 57 Abs. 2 VwGO mit
 § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG); Termin, „Zu tun“, Kalender und Brief
 nennen diesen Tag *(v3.11.0, Nachprüfung; vorher galt die Frist an einem
 Montag nach einem Sonntagsende schon als abgelaufen)*.
-Nach dem Termin verschwindet der Hinweis aus „Zu tun“. In „Rechnung prüfen“ sagt
-er dann, dass die Frist abgelaufen ist; ein Jahr gilt nur ohne oder mit
+Ist die Frist sicher abgelaufen, verschwindet der Hinweis aus „Zu tun“. In
+„Rechnung prüfen“ sagt er dann, dass die Frist abgelaufen ist; ein Jahr gilt nur ohne oder mit
 unrichtiger Rechtsbehelfsbelehrung (§ 58 Abs. 2 VwGO), und diesen Satz zeigt die
 App, solange seit der Bekanntgabe noch kein Jahr vergangen ist *(v3.11.0; bis
 dahin stand auch danach „ist ein Rechtsbehelf möglich“)*.
 
 **Brief.** Einen Widerspruch bietet die App nur an, wenn an der Rechnung als
-Rechtsbehelf „Widerspruch“ eingetragen ist und die Frist noch läuft, und der
-Dialog verlangt die Bestätigung, dass die Rechtsbehelfsbelehrung ihn nennt. Nach
-dem Fristende lehnt der Server den Brief ab. Nennt die Belehrung die Klage,
+Rechtsbehelf „Widerspruch“ eingetragen ist und die Frist noch läuft oder
+möglicherweise abgelaufen ist, und der Dialog verlangt die Bestätigung, dass die
+Rechtsbehelfsbelehrung ihn nennt. Erst wenn die Frist sicher abgelaufen ist, lehnt
+der Server den Brief ab (`POST /api/letters/render` folgt derselben Regel). Nennt die Belehrung die Klage,
 gibt es keinen Brief, nur den Hinweis auf Beratung.
 
 **Grenzen.** Feiertage, die nur in einzelnen Ländern gelten (etwa Fronleichnam
@@ -395,8 +417,10 @@ kopierst den Text für E-Mail oder Kundenportal.
 
 - Der Brief ist immer auf Deutsch, weil der Empfänger in Deutschland sitzt; der
   Dialog spricht die Sprache der Oberfläche.
-- Absender und Empfänger speichert die App nicht. Auf Wunsch merkt sich der
-  Browser den Absender, nur auf diesem Gerät.
+- *Seit v3.12.0* füllt der Dialog den Absender und die Lieferanschrift aus dem
+  Haushalt vor und die Anschrift des Versorgers aus dem Vertrag, wenn du sie
+  dort eingetragen hast (freiwillig, [Brief schreiben](../anleitungen/brief-schreiben.md#6-was-die-app-speichert)).
+  Was du im Dialog änderst, gilt nur für diesen Brief.
 - Fehlt eine Angabe (Kundennummer, Anschrift des Versorgers), bleibt eine
   sichtbare Lücke `[…]`; die App erfindet nichts. Ein langer Versorgername steht
   auf bis zu drei Zeilen, an Wortgrenzen umbrochen.
@@ -410,6 +434,10 @@ kopierst den Text für E-Mail oder Kundenportal.
 - „Als verschickt markieren“ hakt den Hinweis unter „Zu tun“ ab, mit Datum,
   Notiz und auf Wunsch dem Brief als Beleg.
 - In der Demo auf GitHub Pages ist nur der erste Entwurf vorberechnet.
+- Seit v3.12.0 gibt es an der Vertragskarte **„Brief schreiben“**: Antrag auf
+  Abschlagsanpassung und Kündigung zum nächstmöglichen Termin, auch ohne Hinweis.
+  Die Sonderkündigung gibt es weiter nur aus einem Hinweis, denn sie behauptet ein
+  Recht.
 
 ![Dialog „Brief entwerfen“ mit Vorschau](../ui/screenshots/brief-dialog.png)
 
@@ -464,6 +492,7 @@ Fehlalarme vermeiden. Ein Test hält sie an den Werten im Code.
 | … und eine Wirkung von mindestens <!-- doc-claim: rights-threshold ESTIMATE_MIN_EUR --> | 10 € (wie beim Abschlag; ohne Preise nur die Menge) | Schätzung trotz eigener Ablesung |
 | Rundung beim Messentgelt <!-- doc-claim: rights-threshold METERING_TOLERANCE_EUR --> | 1 € im Jahr | Messentgelt über der Obergrenze |
 | Termin unter „Zu tun“ <!-- doc-claim: rights-threshold DEADLINE_REMIND_DAYS --> | 14 Tage vor der Frist | Sonderkündigung, Gebührenbescheid |
+| „Möglicherweise abgelaufen“ nach dem frühesten Ende <!-- doc-claim: rights-threshold NOTICE_SOFT_DAYS --> | 7 Tage | Gebührenbescheid ohne Zustellung und ohne späteren Zugang: Brief und „Zu tun“ bleiben |
 | Neue Hinweise ohne Termin <!-- doc-claim: rights-threshold WINDOW_DAYS --> | 120 Tage nach dem Anlass | alle Prüfungen ohne Termin |
 | Abschlag im Preisänderungsschreiben steigt stärker als die Kosten <!-- doc-claim: rights-threshold ADVANCE_EXCESS_PCT --> | 5 Prozentpunkte | Posteingang: Verweis auf die Regel für Abschläge |
 
@@ -473,8 +502,9 @@ Beispiele, von einem Test mit dem Code nachgerechnet:
 |---|---|---|
 | Rechnung kam spät <!-- doc-claim: rights-example bill_late --> | Zeitraum endet 2026-03-31 | Frist endet 2026-05-12; eine Rechnung vom 2026-05-14 bleibt ohne Hinweis, ab 2026-05-15 gibt es einen |
 | Sonderkündigung <!-- doc-claim: rights-example special_termination --> | Preisänderung zum 2026-12-01 | Kündigung muss bis 2026-11-30 zugehen, steht ab 2026-11-16 unter „Zu tun“; Ankündigung im Sondervertrag spätestens 2026-11-01, in der Grundversorgung 2026-10-20 |
-| Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-27 | bekannt gegeben 2026-01-31, rechnerisch 2026-02-28 (ein Samstag), Frist endet 2026-03-02 |
-| Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-28 | bekannt gegeben 2026-02-01, rechnerisch 2026-03-01 (ein Sonntag), Frist endet 2026-03-02 |
+| Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-27 | bekannt gegeben 2026-01-31, rechnerisch 2026-02-28 (ein Samstag), Frist endet frühestens 2026-03-02, möglicherweise abgelaufen bis 2026-03-09 |
+| Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-28 | bekannt gegeben 2026-02-01, rechnerisch 2026-03-01 (ein Sonntag), Frist endet frühestens 2026-03-02, möglicherweise abgelaufen bis 2026-03-09 |
+| Gebührenbescheid, später erhalten <!-- doc-claim: rights-example fee_notice_received --> | Bescheid vom 2026-09-28, erhalten am 2026-10-13 | bekannt gegeben frühestens 2026-10-13, rechnerisch 2026-11-13 (ein Freitag), Frist endet frühestens 2026-11-13, möglicherweise abgelaufen bis 2026-11-17 (Monat ab dem vierten Tag nach dem Zugang) |
 
 ## Was du eintragen kannst
 

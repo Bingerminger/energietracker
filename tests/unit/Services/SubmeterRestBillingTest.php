@@ -36,7 +36,12 @@ final class SubmeterRestBillingTest extends ServiceTestCase
             'parent_meter_id' => $this->parent])['id'];
     }
 
-    /** Monatliche Stände am Ersten: je Kalendermonat genau `perMonth`, 24 Monate ab 2024-01. */
+    /**
+     * Monatliche Stände am Ersten: je Kalendermonat genau `perMonth`, 24 Monate ab 2024-01.
+     * v3.12.0 — der Endstand liegt am 31.12.2025 (letzter Tag der Periode 2025, wie auf der
+     * Rechnung), nicht am 01.01.2026: Der Vertragsstatus rechnet am Stichtag 31.12.2025 (contractRow),
+     * und an diesem Tag gibt es den Stand vom 01.01.2026 noch nicht.
+     */
     private function monthlyReadings(array $perMeter, array $override = []): void
     {
         $all = [];
@@ -44,7 +49,7 @@ final class SubmeterRestBillingTest extends ServiceTestCase
             $dev = $this->meters->get('strom', $id)['devices'][0]['id'];
             $counter = 1000.0;
             for ($i = 0; $i <= 24; $i++) {
-                $date = date('Y-m-d', (int)strtotime("2024-01-01 +$i months"));
+                $date = $i === 24 ? '2025-12-31' : date('Y-m-d', (int)strtotime("2024-01-01 +$i months"));
                 $all[] = ['id' => "r_{$id}_$i", 'meter_id' => $id, 'device_id' => $dev, 'date' => $date, 'counter' => $counter,
                           'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false];
                 $counter += $override[$id][$date] ?? $perMonth;
@@ -92,7 +97,8 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         self::assertEqualsWithDelta(300.0, $p['billed_kwh'], 0.05);
         self::assertEqualsWithDelta(60.0, $p['cost'], 0.01);
         self::assertEqualsWithDelta(20.0, $p['working_price_ct'], 0.001);
-        self::assertSame(['measured' => 500.0, 'submeters' => [['meter_id' => $this->sub, 'name' => 'Wärmepumpe', 'kwh' => 200.0]], 'rest' => 300.0],
+        // v3.12.0 — dazu `billed`, die abgerechnete Menge (hier ohne Rest unter null gleich `rest`)
+        self::assertSame(['measured' => 500.0, 'submeters' => [['meter_id' => $this->sub, 'name' => 'Wärmepumpe', 'kwh' => 200.0]], 'rest' => 300.0, 'billed' => 300.0],
             $p['rest_of']);
 
         // Vertragsstatus in der laufenden Abrechnungsperiode 2025 (zwölf Monate)
@@ -366,7 +372,9 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         $this->monthlyReadings([$this->parent => 500.0, $this->sub => 200.0]);
         $pc = $this->contract($this->parent, 20.0, '2024-01-01', ['advance_payments' => [['from' => '2024-01-01', 'amount_eur' => 200.0, 'every_months' => 2]]]);
         $find = function () use ($pc): array {
-            $st = $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->parent), '2024-12-31');
+            // v3.12.0 — Stichtag am Tag der letzten Ablesung 2024 (01.12.): bis zu ihm ist alles gemessen, nichts
+            // geschätzt. Am 31.12. wäre der Dezember geschätzt (den Stand vom 01.01.2025 gibt es dann noch nicht).
+            $st = $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->parent), '2024-12-01');
             return array_values(array_filter($st['contracts'], fn($c) => $c['contract_id'] === $pc['id']))[0];
         };
         $gross = $find();

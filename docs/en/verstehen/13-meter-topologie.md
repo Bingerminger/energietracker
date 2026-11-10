@@ -98,7 +98,12 @@ Utility total                        500 kWh                                140 
 - **Remainder below zero:** if the submeter measures more than the parent meter
   in a month, a reading is usually wrong. The parent contract does not bill that
   month negatively (0 kWh, 0 € unit price); the note gives the amount
-  (`short_kwh`) and asks you to check the readings.
+  (`short_kwh`) and asks you to check the readings. *(v3.12.0)* The note leads
+  with the **billed** quantity (`billed`) and the line adds up: "488 kWh =
+  882 kWh measured − 644 kWh wallbox + 250 kWh", the 250 kWh being what the
+  submeter measures in one month above the meter in front of it. Up to v3.11 it
+  said 238 kWh, less than was billed. If a check period ends after the parent
+  meter's last reading, the app deducts the submeter only up to that reading.
 - **Per register** *(v3.10.0)*: if the parent meter has several registers (HT
   and NT, each a meter in a group), the app bills the remainder per register as
   the supplier does: HT minus HT, NT minus NT, each at its own price. A register

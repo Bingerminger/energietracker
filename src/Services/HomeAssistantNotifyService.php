@@ -230,7 +230,8 @@ final class HomeAssistantNotifyService
             if (in_array($id, $this->arrived, true) || $created >= $after) $new[] = $e;
         }
         if ($new === []) { $log['docs_pending'] = false; return ['sent' => 0]; }
-        $names = array_map(fn($e) => (string)($e['name'] ?? ''), $new);
+        // v3.12.0 — der Name ist Fremdtext (plain): kein Link, kein Bild, kein HTML in der Nachricht
+        $names = array_map(fn($e) => self::plain((string)($e['name'] ?? '')), $new);
         $n = count($new);
         $r = $this->send([
             'key' => 'doc:' . (string)$new[0]['id'], 'category' => 'document', 'kind' => 'document',
@@ -239,7 +240,7 @@ final class HomeAssistantNotifyService
             'message' => $n === 1
                 ? $this->i18n->t('haNotify.document.single', ['name' => $names[0]])
                 : $this->i18n->tp('haNotify.document.many', $n, ['names' => self::listText($names)]),
-            'items' => array_map(fn($e) => ['id' => (string)$e['id'], 'name' => (string)($e['name'] ?? '')], $new),
+            'items' => array_map(fn($e) => ['id' => (string)$e['id'], 'name' => self::plain((string)($e['name'] ?? ''))], $new),
         ]);
         $log['last'] = $this->lastEntry($r, 'document');
         $log['docs_sent_at'] = $now;
@@ -278,9 +279,16 @@ final class HomeAssistantNotifyService
                 if (!$this->cfg->wants($cat)) continue;
                 $key = 'todo:' . (string)($e['occurrence'] ?? $e['uid'] ?? '') . ':' . (string)($e['severity'] ?? 'due');
                 if (isset($sent[$key])) continue;
+                // v3.12.0 — Rechte-Hinweis: Ziel in der App als `href` (Webhook) und als Satz im Text. Einen Link zum
+                // Anklicken kann die Nachricht nicht tragen: Die App kennt ihre eigene Adresse nicht.
+                $rights = ($e['kind'] ?? '') === 'rights' && !empty($e['ref']['recommendation_id']);
+                // v3.12.0 — Titel aus Daten (Termin, Zähler, Anbieter, Dokument): Fremdtext (plain)
+                $subject = self::plain((string)($e['title'] ?? ''));
                 $items[] = ['key' => $key, 'category' => $cat, 'kind' => (string)($e['kind'] ?? ''), 'date' => (string)($e['date'] ?? $today),
                             'severity' => (string)($e['severity'] ?? 'due'), 'title' => $this->i18n->t("haNotify.title.$cat"),
-                            'message' => trim((string)($e['title'] ?? '') . "\n" . $this->when($e, $today)), 'subject' => (string)($e['title'] ?? '')];
+                            'message' => trim($subject . "\n" . $this->when($e, $today)
+                                . ($rights ? "\n" . $this->i18n->t('haNotify.rightsWhere', ['view' => $this->i18n->t('nav.recommendations')]) : '')),
+                            'subject' => $subject] + ($rights ? ['href' => (string)($e['href'] ?? '')] : []);
             }
         }
         if ($this->cfg->wants('warning')) {
@@ -290,7 +298,8 @@ final class HomeAssistantNotifyService
                 if (isset($sent[$key])) continue;
                 $items[] = ['key' => $key, 'category' => 'warning', 'kind' => (string)($r['category'] ?? ''), 'date' => $today,
                             'severity' => (string)$r['severity'], 'title' => $this->i18n->t('haNotify.title.warning'),
-                            'message' => trim((string)($r['title'] ?? '') . "\n" . (string)($r['detail'] ?? '')), 'subject' => (string)($r['title'] ?? '')];
+                            'message' => trim(self::plain((string)($r['title'] ?? '')) . "\n" . self::plain((string)($r['detail'] ?? ''), self::DETAIL_MAX)),
+                            'subject' => self::plain((string)($r['title'] ?? ''))];
             }
         }
         $single = count($items) > self::MAX_PER_RUN ? array_slice($items, 0, self::MAX_PER_RUN - 1) : $items;
@@ -309,7 +318,8 @@ final class HomeAssistantNotifyService
             $r = $this->send(['key' => 'more:' . $today, 'category' => 'more', 'kind' => 'more', 'date' => $today, 'severity' => 'info',
                 'title' => $this->i18n->t('haNotify.title.more'),
                 'message' => $this->i18n->tp('haNotify.more', count($rest)) . "\n" . implode("\n", $lines),
-                'items' => array_map(fn($it) => ['key' => $it['key'], 'category' => $it['category'], 'kind' => $it['kind'], 'title' => $it['subject'], 'date' => $it['date']], $rest)]);
+                'items' => array_map(fn($it) => ['key' => $it['key'], 'category' => $it['category'], 'kind' => $it['kind'], 'title' => $it['subject'], 'date' => $it['date']]
+                    + (isset($it['href']) ? ['href' => $it['href']] : []), $rest)]);
             $log['last'] = $this->lastEntry($r, 'more');
             if (!$r['ok']) return $this->failed($log, $now, $done, $r['error']);
             foreach ($rest as $it) $log['sent'][$it['key']] = date('c', $now);
@@ -337,6 +347,34 @@ final class HomeAssistantNotifyService
         return $this->i18n->t('haNotify.when.on', ['date' => $this->i18n->date($date)]);
     }
 
+    /** v3.12.0 — höchstens so viele Zeichen Fremdtext je Name oder Titel, je Text eines Hinweises DETAIL_MAX */
+    public const FOREIGN_MAX = 160;
+    public const DETAIL_MAX = 500;
+
+    /**
+     * v3.12.0 — Fremdtext für die Nachricht (Name eines Dokuments, Titel und Text von Terminen, Fristen und
+     * Hinweisen): Home Assistant stellt `message` als Markdown dar. Den Namen eines Dokuments bestimmt beim Weg über
+     * den Ordner oder die Weiterleitung der Absender; ein Link oder Bild daraus stand in der Benachrichtigung der App.
+     * Ohne Escape-Zeichen, damit es auch als reiner Text (notify.*, Webhook) lesbar bleibt:
+     *   - Steuer- und Formatzeichen und Zeilenumbrüche werden Leerraum (kein Block, keine Überschrift, keine Tabelle),
+     *     eine Überschrift oder ein Zitat am Anfang fällt weg;
+     *   - spitze und eckige Klammern werden runde ( ): kein HTML, kein Link und kein Bild in Markdown-Schreibweise
+     *     (keine Symbolzeichen in Ausgaben des Servers, tests/icons.test.mjs);
+     *   - nach „:“ vor „//“, nach „www“ und nach „@“ steht ein unsichtbarer Wortverbinder (U+2060): keine
+     *     Adresse und keine E-Mail wird von selbst zum Link;
+     *   - höchstens `$max` Zeichen, gekürzt mit „…“.
+     */
+    public static function plain(string $s, int $max = self::FOREIGN_MAX): string
+    {
+        $s = (string)preg_replace('/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/u', ' ', $s);
+        $s = trim((string)preg_replace('/\s+/u', ' ', $s));
+        $s = (string)preg_replace('/^[#>]+\s*/u', '', $s);
+        $s = strtr($s, ['<' => '(', '>' => ')', '[' => '(', ']' => ')']);
+        $s = (string)preg_replace(['~:(?=//)~u', '/(?<![\p{L}\p{N}])(www)(?=\.)/iu', '/@(?=\S)/u'], [":\u{2060}", "\$1\u{2060}", "@\u{2060}"], $s);
+        if (mb_strlen($s) > $max) $s = rtrim(mb_substr($s, 0, $max - 1)) . '…';
+        return $s;
+    }
+
     /** @param list<string> $names */
     private static function listText(array $names): string
     {
@@ -360,7 +398,7 @@ final class HomeAssistantNotifyService
                 'source' => 'energietracker', 'event' => $n['category'], 'kind' => $n['kind'], 'key' => $n['key'],
                 'title' => $n['title'], 'message' => $n['message'], 'date' => $n['date'], 'severity' => $n['severity'],
                 'language' => $this->i18n->locale(), 'instance_id' => $this->instance->id(), 'sent_at' => date('c', ($this->clock)()),
-            ] + (isset($n['items']) ? ['items' => $n['items']] : []);
+            ] + (isset($n['items']) ? ['items' => $n['items']] : []) + (isset($n['href']) ? ['href' => $n['href']] : []);
             return $this->transport->post($this->cfg->url() . '/api/webhook/' . rawurlencode($this->cfg->webhookId()), $payload);
         }
         [$domain, $service] = explode('.', $this->cfg->service(), 2);

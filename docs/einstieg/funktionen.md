@@ -6,7 +6,8 @@
 
 Die ausführliche Funktionsübersicht. Wie die Ansichten aussehen, zeigt die
 [Referenz der Ansichten](../referenz/ansichten.md); wie gerechnet wird, steht
-unter [Grundlagen & Methodik](../verstehen/00-overview.md).
+unter [Grundlagen & Methodik](../verstehen/00-overview.md); welcher Weg zu dir passt, zeigt der
+[Wegweiser](wegweiser.md).
 
 ---
 
@@ -176,7 +177,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Wechselentscheidung**: der erwartete Jahresverbrauch zum Mitnehmen ins
   Vergleichsportal, der Wechseltermin aus Vertragsende und Kündigungsfrist,
   gefundene Angebote als Rangliste nach den dauerhaften Kosten ab dem zweiten
-  Jahr, mit **Gewinnschwelle** („lohnt ab …“) und Kostenverlauf je Monat.
+  Jahr (Monate 13 bis 24 mit den dann geltenden Preisen), mit **Gewinnschwelle** (Spalte „Lohnt sich“: „ab …“ bzw. „bis …“) und Kostenverlauf je Monat.
 - Die **Bindungskette** zählt: Ist der Anschlussvertrag schon geschlossen,
   richtet sich der Termin nach dessen Ende.
 - **Rückblick**: dieselben Angebote auf den tatsächlich gemessenen Verbrauch
@@ -210,7 +211,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Rechtsberatung, und bietet, wo es passt, einen Brief als PDF oder Text. Siehe
   [Deine Rechte als Kunde](../verstehen/17-rechte.md),
   [Rechtsgrundlagen](../referenz/rechtsgrundlagen.md) und
-  [Einen Brief schreiben](../anleitungen/brief-schreiben.md).
+  [Einen Brief schreiben](../anleitungen/brief-schreiben.md). Seit v3.12.0 stehen
+  diese Hinweise in ihrer Dringlichkeit vorn, und an der Vertragskarte gibt es
+  **„Brief schreiben“** auch ohne Hinweis: Antrag auf Abschlagsanpassung und
+  Kündigung zum nächstmöglichen Termin.
 - **Verträge widersprechen sich** (v3.11.0): Läuft ein Vertrag laut Eintrag in
   einen späteren hinein oder trägt er wohl den Tarif einer anderen
   Verbrauchsart, sagt die App es an der Vertragskarte, unter „Zu tun“ und im
@@ -314,7 +318,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   44-px-Tippziele, Kontraste nach WCAG AA, installierbar als App — siehe
   [Auf dem Handy nutzen](handy.md).
 - **Hilfe in der App**: erste Schritte mit Häkchen aus den Daten, ein Glossar
-  mit 44 Begriffen und ein ⓘ an jeder Kennzahl. Seit v3.4.0 auch das ganze
+  mit 44 Begriffen und ein ⓘ neben Fachbegriffen. Seit v3.4.0 auch das ganze
   **Handbuch** (Deutsch und Englisch) vom eigenen Server, passend zur Version
   und ohne Internet, mit Inhaltsverzeichnis und Sprachumschalter; die
   Anwendungsfälle als Kurztext in allen sieben Sprachen, je mit dem Sprung in
@@ -366,7 +370,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Benutzer im Haushalt** (v3.2.0): mit Anmeldung eigene Personen mit Name
   und Passwort oder vom Proxy gemeldet, Rollen Verwaltung und Mitglied,
   Stufe und Sprache je Person; seit v3.9.0 Personen für „Zuständig“ auch ohne
-  Anmeldung (Einstellungen → Haushalt & Gebäude) — siehe
+  Anmeldung (Haushalt → Gebäude) — siehe
   [Benutzer im Haushalt](../anleitungen/benutzer.md).
 - **Diagnose** unter Einstellungen → System und `GET /api/health` für
   Docker-Healthcheck und Uptime-Monitore.

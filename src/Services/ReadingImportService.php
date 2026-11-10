@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Csv;
 use Energietracker\Support\Dates;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Support\Encoding;
@@ -66,19 +67,24 @@ final class ReadingImportService
         // v2.6.0 — BOM und Windows-1252 (Excel unter deutschem Windows)
         [$csv, $convertedFrom] = Encoding::normalizeCsv($csv);
 
-        $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
+        // v3.12.0 — Datensätze statt Zeilen (Support\Csv::records): Eine mehrzeilige Notiz des eigenen
+        // Exports steht in Anführungszeichen und gehört zu einem Datensatz. Bisher zerfiel sie, die
+        // Notiz endete nach der ersten Zeile, und „Geschätzt“ kippte auf nein.
         $rows = [];
         $errors = [];
         $skipped = 0;
         $otherMeter = 0;
         // Positionen: Datum, Stand, Notiz, geschätzt — oder aus der Kopfzeile.
-        $cols = ['date' => 0, 'counter' => 1, 'note' => 2, 'estimated' => 3, 'meter' => null];
+        $cols = ['date' => 0, 'counter' => 1, 'note' => 2, 'estimated' => 3, 'meter' => null, 'price' => null];
         $sep = null;
         $first = true;
 
-        foreach ($lines as $lineNo => $raw) {
-            $line = trim($raw);
-            if ($line === '') continue;
+        foreach (Csv::records($csv) as ['line' => $lineNum, 'text' => $raw]) {
+            $lineNo = $lineNum - 1;   // Meldungen zählen wie bisher ab 1 ($lineNo + 1)
+            // v3.12.0 — nur das Zeilenende weg, nicht den Leerraum der letzten Zelle (Notiz): Die Rundreise
+            // Export → Import kürzte „  Notiz  “ bisher auf „Notiz“
+            $line = rtrim($raw, "\r\n");
+            if (trim($line) === '') continue;
             $sep ??= str_contains($line, ';') ? ';' : ',';
             // str_getcsv statt explode: Der eigene Export setzt Zellen mit
             // Semikolon in Anführungszeichen (Notizen).
@@ -125,14 +131,32 @@ final class ReadingImportService
                 continue;
             }
 
-            $rows[] = [
+            $row = [
                 'line'         => $lineNo + 1,
                 'date'         => $iso,
                 'counter'      => $counter,
-                'note'         => $cols['note'] !== null && isset($parts[$cols['note']]) ? trim((string)$parts[$cols['note']]) : '',
+                // v3.12.0 — das Schutz-Apostroph des Exports fällt wieder weg (Support\Csv::unguard)
+                'note'         => $cols['note'] !== null && isset($parts[$cols['note']]) ? Csv::unguard((string)$parts[$cols['note']]) : '',   // v3.12.0 — ohne trim
                 'is_estimated' => $cols['estimated'] !== null && isset($parts[$cols['estimated']])
                     ? $this->parseBool(trim((string)$parts[$cols['estimated']])) : false,
             ];
+            // v3.12.0 — Preis je Ablesung, wenn die Kopfzeile ihn nennt (der eigene Export: „Preis (ct)“);
+            // ein leeres Feld lässt den Preis, wie er ist
+            $priceCell = $cols['price'] !== null ? trim((string)($parts[$cols['price']] ?? '')) : '';
+            if ($priceCell !== '') {
+                $price = $this->parseNum($priceCell);
+                if ($price === null || $price < 0) {
+                    $skipped++;
+                    $errors[] = $this->i18n->t('errors.import.priceNotNumeric', ['line' => $lineNo + 1, 'value' => $priceCell]);
+                    continue;
+                }
+                $row['price_cents'] = $price;
+            }
+            $rows[] = $row;
+        }
+        // v3.12.0 — keine Zeile erkannt und nichts gemeldet (etwa JSON statt CSV): 400 statt „0 übernommen“
+        if ($rows === [] && $errors === [] && $skipped === 0 && $otherMeter === 0) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.import.noRows'));
         }
 
         if ($dryRun) {
@@ -186,6 +210,7 @@ final class ReadingImportService
             'note'      => $find(['notiz', 'note', 'bemerkung'], 'csvLocal.readings.note'),
             'estimated' => $find(['geschaetzt', 'geschatzt', 'estimated'], 'csvLocal.readings.estimated'),
             'meter'     => $find(['zaehler-id', 'meter_id', 'meter-id'], 'csvLocal.readings.meterId'),
+            'price'     => $find(['preis', 'price', 'price_cents'], 'csvLocal.readings.price'),   // v3.12.0
         ];
     }
 

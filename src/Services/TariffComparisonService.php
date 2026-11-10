@@ -138,7 +138,8 @@ final class TariffComparisonService
 
         $rows = [];
         $dynamicNoData = false;
-        foreach (array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->list($utility, $meterId)) as $c) {
+        // v3.12.0 (Nachprüfung B4) — mit `runs_until`: Betrag und `bonus_items` nach derselben Regel wie die Monatszeilen
+        foreach (array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->withRunsUntil($this->contracts->list($utility, $meterId))) as $c) {
             // v3.1.0 (H6, MKT-12) — dynamischer Schattenvertrag: Monatspreise aus den Marktdaten
             if (($c['price_model'] ?? null) === 'dynamic') {
                 // v3.3.0 (F1021) — mit Viertelstunden: der eigene Lastgang statt des Monatsmittels

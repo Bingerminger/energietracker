@@ -44,7 +44,8 @@ final class TenancyBudgetService
             foreach ((array)($t['meter_ids'][$role] ?? []) as $mid) {
                 $meter = $this->meters->get($utility, (string)$mid);
                 if (!$meter) continue;
-                $series[$role][] = ['utility' => $utility, 'monthly' => $this->consumption->forMeter($utility, $meter)];
+                // v3.12.0 — Stand am Stichtag: Ablesungen danach sind noch nicht erfasst (bis v3.11 am echten Datum)
+                $series[$role][] = ['utility' => $utility, 'monthly' => $this->consumption->forMeter($utility, $meter, null, $asOf)];
             }
         }
 
@@ -61,7 +62,9 @@ final class TenancyBudgetService
             $monthEnd = "$ym-" . sprintf('%02d', $dim);
             $a = max($cur, $from);
             $b = min($monthEnd, $to);
-            $share = ((int)((strtotime($b) - strtotime($a)) / 86400) + 1) / $dim;
+            // v3.12.0 — Kalendertage (diff), nicht Sekunden ÷ 86.400: Mit Sommerzeit hat der März 30 Tage und
+            // 23 Stunden, das Abschneiden zählte ihn mit 30 von 31 Tagen
+            $share = ((new \DateTimeImmutable($a))->diff(new \DateTimeImmutable($b))->days + 1) / $dim;
             $mid = "$ym-15";
             $measured = $monthEnd <= $asOf;
 

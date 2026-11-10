@@ -42,6 +42,9 @@ final class BackupService
 {
     public const BACKUP_VERSION = '3.0';
 
+    /** v3.12.0 — Merker eines laufenden Einspielens (nicht im Backup): steht er nach dem Ende noch da, brach es ab. */
+    public const RESTORE_MARKER = 'restore_pending.json';
+
     /** Töpfe auf oberster Ebene: Schlüssel im Backup → Datei. */
     public const TOP_POTS = [
         'temperatures'              => 'temperatures.json',
@@ -78,6 +81,16 @@ final class BackupService
     public const UTILITY_POTS = ['meters', 'readings', 'contracts', 'deliveries', 'meter_groups',
         'periods',    // v3.1.0 (H3, B2) — Verbrauch je Zeitraum
         'bills'];     // v3.1.0 (H5, B3) — Versorgerrechnungen
+
+    /**
+     * v3.12.0 (m4b) — persönliche Angaben für Briefe: Topf → Felder. Sie stehen in der Sicherung (gehören zu den
+     * eigenen Daten), der Import prüft ihre Form (Text), der Rundreise-Test liest diese Liste
+     * (LetterDataPrivacyTest). Lesen tolerant: Was nicht in einen Brief passt, gilt dort als nicht angegeben.
+     */
+    public const PERSONAL_FIELDS = [
+        'settings'  => SettingsService::LETTER_KEYS,
+        'contracts' => ContractService::LETTER_FIELDS,
+    ];
 
     /** Aufbewahrung: manuelle Snapshots (Präfix `backup_`) … */
     private const KEEP_MANUAL = 10;
@@ -253,6 +266,14 @@ final class BackupService
 
         // Schreiben mit Rückweg: Scheitert eine Datei mittendrin (Platte voll),
         // werden die schon geschriebenen auf ihren alten Stand zurückgesetzt.
+        // v3.12.0 — und ein Merker für den Fall, dass der Prozess selbst endet (Abbruch, Speicher- oder
+        // Zeitlimit): Dann läuft kein catch, und es blieb ein Haushalt aus alten und neuen Dateien ohne
+        // Hinweis. Steht der Merker beim nächsten Gesundheitscheck noch da, meldet er `degraded` mit der
+        // Sicherung, die vor dem Einspielen entstand (HealthCheckService, Prüfung `restore`).
+        $this->store->write(self::RESTORE_MARKER, [
+            'started_at' => date('c'),
+            'snapshot'   => is_string($autoSnapshot) ? $autoSnapshot : null,
+        ]);
         $done = [];
         $newFiles = [];
         try {
@@ -275,8 +296,10 @@ final class BackupService
                 @file_put_contents($this->store->path($file), $before, LOCK_EX);
             }
             foreach ($newFiles as $rel) @unlink($this->store->path($rel));
+            $this->store->delete(self::RESTORE_MARKER);   // zurückgesetzt: wieder ein Stand aus einem Guss
             throw $e;
         }
+        $this->store->delete(self::RESTORE_MARKER);
 
         // v3.3.0 (F1021) — kam ein neuer Index, fallen Reihen ohne Eintrag weg
         // (sonst lägen nach einem Haushaltswechsel Reihen des vorigen herum)
@@ -327,9 +350,25 @@ final class BackupService
             if ($key === 'temperatures') {
                 foreach ($payload[$key] as $date => $v) {
                     if (!Dates::isIsoDate((string)$date) || !is_array($v)) { $problem($key, null, "entry:$date"); break; }
+                    // v3.12.0 — wie der Schreibweg: Tag 1900 bis 2100, Temperaturen endliche Zahlen in −90 … 60 °C
+                    if (!Dates::inInputRange((string)$date)) { $problem($key, null, "date_range:$date"); break; }
+                    foreach (['avg', 'min', 'max'] as $f) {
+                        if (isset($v[$f]) && (is_bool($v[$f]) || !is_numeric($v[$f]) || (float)$v[$f] < -90 || (float)$v[$f] > 60)) { $problem($key, null, "value:$date.$f"); break 2; }
+                    }
                 }
             }
-            if ($key === 'reminders') $this->checkList($payload[$key], $key, ['id'], [], $problem);
+            if ($key === 'reminders' && $this->checkList($payload[$key], $key, ['id'], [], $problem)) self::checkValues('reminders', $payload[$key], $key, $problem);
+            // v3.12.0 (m4b) — Angaben für Briefe: Text oder nichts
+            if ($key === 'settings') {
+                foreach (self::PERSONAL_FIELDS['settings'] as $f) {
+                    if (array_key_exists($f, $payload[$key]) && !is_string($payload[$key][$f]) && $payload[$key][$f] !== null) $problem($key, null, "personal:$f");
+                }
+                // v3.12.0 — jede Einstellung wie über PATCH /api/settings geprüft (SettingsService::problems):
+                // `forecast_model: []` legte nach dem Einspielen bisher 34 Ansichten lahm, ohne Meldung
+                $check = new SettingsService($this->store);
+                $check->attachI18n($this->i18n);
+                foreach ($check->problems($payload[$key]) as $k) $problem($key, null, "setting:$k");
+            }
             if ($key === 'ev_sessions') $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'charged_kwh'], ['date'], $problem);
             if ($key === 'tenancies') {
                 $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
@@ -447,7 +486,9 @@ final class BackupService
                     'bills'        => [['id', 'meter_id', 'period_from', 'period_to'], ['period_from', 'period_to']],
                 };
                 if ($this->checkList($list, "$key/$pot", $required, $dates, $problem)
-                    && (!in_array($pot, ResponsibilityService::POTS, true) || self::checkAssignees($list, "$key/$pot", $problem))) {
+                    && (!in_array($pot, ResponsibilityService::POTS, true) || self::checkAssignees($list, "$key/$pot", $problem))
+                    && self::checkPersonal($list, $pot, "$key/$pot", $problem)
+                    && self::checkValues($pot, $list, "$key/$pot", $problem)) {
                     $writes["$key/$pot.json"] = $list;
                 }
                 $counts[$pot] = is_array($list) ? count($list) : 0;
@@ -478,8 +519,13 @@ final class BackupService
             }
             foreach ($dates as $f) {
                 if (isset($row[$f]) && !Dates::isIsoDate($row[$f])) { $problem($pot, $i, "date:$f"); $ok = false; }
+                // v3.12.0 — derselbe Bereich wie auf den Schreibwegen (1900 bis 2100); ein Backup mit Jahr 0001
+                // ging bisher ohne Meldung durch
+                elseif (isset($row[$f]) && !Dates::inInputRange((string)$row[$f])) { $problem($pot, $i, "date_range:$f"); $ok = false; }
             }
-            if (isset($row['counter']) && !is_numeric($row['counter'])) { $problem($pot, $i, 'counter'); $ok = false; }
+            // v3.12.0 — Zählerstand wie beim Erfassen: endlich, ab 0, höchstens ReadingService::MAX_COUNTER
+            if (isset($row['counter']) && (is_bool($row['counter']) || !is_numeric($row['counter']) || !is_finite((float)$row['counter'])
+                || (float)$row['counter'] < 0 || (float)$row['counter'] > ReadingService::MAX_COUNTER)) { $problem($pot, $i, 'counter'); $ok = false; }
             if (isset($row['devices']) && (!is_array($row['devices']) || !array_is_list($row['devices']))) {
                 $problem($pot, $i, 'devices'); $ok = false;
             }
@@ -514,6 +560,106 @@ final class BackupService
             $id = $row['assignee_id'] ?? null;
             if ($id !== null && (!is_string($id) || !preg_match(PeopleService::ID, $id))) { $problem($pot, $i, 'assignee_id'); $ok = false; }
             if (array_key_exists('assignee_former', $row) && !is_bool($row['assignee_former'])) { $problem($pot, $i, 'assignee_former'); $ok = false; }
+        }
+        return $ok;
+    }
+
+    /**
+     * v3.12.0 — Was die Schreibwege abweisen, meldet der Import als Problem, statt es einzuspielen. Bisher
+     * ging ein Vertrag mit `end: []`, ein Wahrheitswert als Text, eine Preisliste als Text oder ein Betrag
+     * von 10³⁰⁸ ohne Meldung durch und legte danach Übersicht, Zu tun und Jahresbericht mit 500 lahm. Geprüft
+     * wird die Form, nicht jede fachliche Regel des Dienstes (das Backup einer älteren Version bleibt lesbar).
+     *
+     * @param list<array<string,mixed>> $list
+     * @param callable(string, ?int, string): void $problem
+     */
+    private static function checkValues(string $pot, array $list, string $name, callable $problem): bool
+    {
+        $ok = true;
+        $bad = function (int $i, string $what) use ($name, $problem, &$ok): void { $problem($name, $i, $what); $ok = false; };
+        $isBool = static fn(mixed $v): bool => $v === null || \Energietracker\Support\Input::bool($v) !== null;
+        $dateOrEmpty = static fn(mixed $v): bool => $v === null || $v === '' || (Dates::isIsoDate($v) && Dates::inInputRange((string)$v));
+        $amount = static fn(mixed $v, bool $nonNeg): bool => $v === null || $v === ''
+            || (!is_bool($v) && is_numeric($v) && is_finite((float)$v) && abs((float)$v) <= ContractService::AMOUNT_MAX && (!$nonNeg || (float)$v >= 0));
+        $flags = match ($pot) {
+            'readings'  => ['is_estimated', 'is_suspect', 'is_billing_only', 'is_verified', 'is_future'],
+            'contracts' => ['is_shadow', 'auto_renews'],
+            'meters'    => ['active'],
+            'deliveries' => ['is_planned', 'fill_to_full'],
+            'periods'   => ['is_estimated'],
+            'reminders' => ['active'],
+            default     => [],
+        };
+        $optionalDates = match ($pot) {
+            'contracts' => ['end', 'min_term_end', 'price_guarantee_until'],
+            'bills'     => ['issued_on', 'received_on', 'end_reading_on'],
+            'reminders' => ['next_due', 'last_done'],
+            default     => [],
+        };
+        foreach ($list as $i => $row) {
+            foreach ($flags as $f) if (array_key_exists($f, $row) && !$isBool($row[$f])) $bad($i, "bool:$f");
+            foreach ($optionalDates as $f) if (array_key_exists($f, $row) && !$dateOrEmpty($row[$f])) $bad($i, "date:$f");
+            if ($pot === 'contracts') {
+                $lists = ['working_prices' => 'ct_per_kwh', 'base_prices' => 'eur_per_month', 'advance_payments' => 'amount_eur',
+                          'bonuses' => 'amount_eur', 'special_payments' => 'amount_eur'];
+                foreach ($lists as $f => $amt) {
+                    if (!array_key_exists($f, $row) || $row[$f] === null) continue;
+                    if (!is_array($row[$f]) || !array_is_list($row[$f])) { $bad($i, "list:$f"); continue; }
+                    foreach ($row[$f] as $e) {
+                        if (!is_array($e) || !$amount($e[$amt] ?? null, $f !== 'special_payments' && $f !== 'bonuses')) { $bad($i, "amount:$f"); break; }
+                    }
+                }
+                foreach (['trinkwasser', 'schmutzwasser'] as $block) {
+                    if (!isset($row[$block])) continue;
+                    if (!is_array($row[$block])) { $bad($i, "object:$block"); continue; }
+                    foreach (['working_prices' => 'ct_per_m3', 'base_prices' => 'eur_per_month'] as $f => $amt) {
+                        if (!isset($row[$block][$f])) continue;
+                        if (!is_array($row[$block][$f]) || !array_is_list($row[$block][$f])) { $bad($i, "list:$block.$f"); continue; }
+                        foreach ($row[$block][$f] as $e) if (!is_array($e) || !$amount($e[$amt] ?? null, true)) { $bad($i, "amount:$block.$f"); break; }
+                    }
+                }
+                foreach (['notice_period_months' => 24, 'notice_period_days' => 730] as $f => $max) {
+                    $v = $row[$f] ?? null;
+                    if ($v !== null && $v !== '' && (is_bool($v) || !is_numeric($v) || (float)$v < 0 || (float)$v > $max || floor((float)$v) != (float)$v)) $bad($i, "number:$f");
+                }
+                if (!$amount($row['signup_bonus_eur'] ?? null, true)) $bad($i, 'number:signup_bonus_eur');
+            }
+            if ($pot === 'deliveries') {
+                foreach (DeliveryService::LIMITS as $f => $max) {
+                    $v = $row[$f] ?? null;
+                    if ($v !== null && $v !== '' && (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v > $max)) $bad($i, "number:$f");
+                }
+            }
+            if ($pot === 'periods') {
+                $v = $row['value'] ?? null;
+                if ($v !== null && (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v < 0 || (float)$v > ReadingService::MAX_COUNTER)) $bad($i, 'number:value');
+            }
+            if ($pot === 'reminders') {
+                if (isset($row['recurrence']) && !in_array($row['recurrence'], ReminderService::RECURRENCES, true)) $bad($i, 'recurrence');
+                $m = $row['recurrence_months'] ?? null;
+                if ($m !== null && (is_bool($m) || !is_numeric($m) || (float)$m < 0 || (float)$m > 1200 || floor((float)$m) != (float)$m)) $bad($i, 'number:recurrence_months');
+            }
+            if ($pot === 'bills') {
+                foreach (['invoice', 'co2'] as $f) if (isset($row[$f]) && !is_array($row[$f])) $bad($i, "object:$f");
+                foreach (['items', 'factors'] as $f) if (isset($row[$f]) && (!is_array($row[$f]) || !array_is_list($row[$f]))) $bad($i, "list:$f");
+            }
+        }
+        return $ok;
+    }
+
+    /**
+     * v3.12.0 (m4b) — Angaben für Briefe in einem Topf je Verbrauchsart (PERSONAL_FIELDS): Text, wenn vorhanden.
+     *
+     * @param list<array<string,mixed>> $list
+     * @param callable(string, ?int, string): void $problem
+     */
+    private static function checkPersonal(array $list, string $pot, string $name, callable $problem): bool
+    {
+        $ok = true;
+        foreach ($list as $i => $row) {
+            foreach (self::PERSONAL_FIELDS[$pot] ?? [] as $f) {
+                if (array_key_exists($f, $row) && !is_string($row[$f]) && $row[$f] !== null) { $problem($name, $i, "personal:$f"); $ok = false; }
+            }
         }
         return $ok;
     }
@@ -567,6 +713,9 @@ final class BackupService
             @unlink($tmp);
             throw new \RuntimeException('Snapshot lässt sich nicht ablegen');
         }
+        // v3.12.0 — Dateizeit ausdrücklich aus der Uhr, mit der rotate() vergleicht: Liefen Dateisystem-
+        // und PHP-Uhr auseinander, verwarf die Rotation eben angelegte automatische Sicherungen als alt
+        @touch("$dir/$name", time());
         $this->rotate();
         return $name;
     }
@@ -650,20 +799,40 @@ final class BackupService
                 'reason'     => self::reasonOf($name),
             ];
         }
-        usort($out, fn($a, $b) => strcmp($b['created_at'] . $b['name'], $a['created_at'] . $a['name']));
+        // v3.12.0 — neueste zuerst nach Zeit, Zeitstempel im Namen und laufender Nummer: Entstanden
+        // mehrere in derselben Sekunde, sortierte der Text „…-10“ vor „…-9“, und die Rotation löschte
+        // ausgerechnet den gerade angelegten
+        usort($out, fn($a, $b) => self::snapshotOrder($b) <=> self::snapshotOrder($a));
         return $out;
     }
 
-    /** Anlass eines Snapshots aus seinem Namen. */
+    /** v3.12.0 — Sortierschlüssel eines Snapshots: [Zeit, Zeitstempel im Namen, Nummer (ohne = 1), Name]. */
+    private static function snapshotOrder(array $s): array
+    {
+        preg_match('/(\d{4}-\d{2}-\d{2}_\d{6})(?:-(\d+))?\.json$/D', (string)$s['name'], $m);
+        return [(string)$s['created_at'], $m[1] ?? '', isset($m[2]) ? (int)$m[2] : 1, (string)$s['name']];
+    }
+
+    /**
+     * Anlass eines Snapshots aus seinem Namen.
+     *
+     * v3.12.0 — `manual` heißt jetzt nur noch, was jemand selbst angelegt hat (`backup_…`).
+     * Bis v3.11 galt jedes unbekannte Präfix als eigener Snapshot: die automatischen vor dem
+     * Messkonzept (`concept_…`) rotierten mit den eigenen, und nach zehn Läufen des Assistenten
+     * war eine selbst angelegte Sicherung ohne Hinweis gelöscht. Unbekannte Präfixe sind
+     * automatisch (`auto`) und verdrängen nie eine eigene.
+     */
     public static function reasonOf(string $name): string
     {
         return match (true) {
+            str_starts_with($name, 'backup_')        => 'manual',
             str_starts_with($name, 'pre-restore-')   => 'restore',
             str_starts_with($name, 'pre-migration-') => 'migration',
             str_starts_with($name, 'pre-demo-')      => 'demo',
             str_starts_with($name, 'pre-v09-')       => 'v09',
             str_starts_with($name, 'pre-inbox-')     => 'inbox',   // v3.7.0 — vor „Haushalt aus Dokumenten übernehmen“
-            default                                  => 'manual',
+            str_starts_with($name, 'concept_')       => 'concept', // v3.9.0 (F1032) — vor dem Messkonzept
+            default                                  => 'auto',
         };
     }
 

@@ -18,8 +18,8 @@ is explained in
 [Security & network operation](../betrieb/sicherheit.md#1-the-operating-model-in-one-sentence).
 Since **v3.6.0** the app also keeps every person in a **register of people**
 with a running number, which is part of the backup (§ 7). Since **v3.9.0** you
-also add people **without sign-in**, under Settings → Household & building →
-“People in the household” ([People in the household](#people-in-the-household-v390)):
+also add people **without sign-in**, under Household →
+People ([People in the household](#people-in-the-household-v390)):
 they can be chosen under “Responsible” for reminders, meters and contracts, at
 every level.
 
@@ -29,15 +29,15 @@ every level.
 
 | Mode | Who signs people in | How people are created |
 |---|---|---|
-| **Password sign-in** | the Energietracker itself: name and password | someone who manages the installation adds them under Settings → Access |
+| **Password sign-in** | the Energietracker itself: name and password | someone who manages the installation adds them under Settings → Access and security |
 | **Sign-in via upstream proxy** | a sign-in service in front of the app, such as Authelia, Authentik or Home Assistant under Ingress | automatically on the first visit, under the name the proxy reports |
 
-Switching it on: the password under Settings → Access → “Sign-in & access”
+Switching it on: the password under Settings → Access and security → “Sign-in & access”
 ([Security § 3](../betrieb/sicherheit.md#3-switching-sign-in-on)), the proxy
 with `ET_AUTH=proxy` and `ET_TRUSTED_PROXIES`
 ([Security § 6](../betrieb/sicherheit.md#6-sign-in-via-an-upstream-proxy)).
 
-The page **Settings → Access** belongs to the “Expert” level. At a lower level
+The page **Settings → Access and security** belongs to the “Expert” level. At a lower level
 it is missing from the navigation; the address `#/settings/access` still opens
 it — with a note and the button to switch
 ([Experience levels](../einstieg/einrichtung.md#3-experience-levels)).
@@ -65,7 +65,7 @@ cannot be deleted.
 
 **With a proxy.** Whoever arrives first through the proxy manages; everyone
 after that is a member. Roles can be changed afterwards under Settings →
-Access. A person “admin” from earlier password operation stays in the list but
+Access and security. A person “admin” from earlier password operation stays in the list but
 does not count as an admin in proxy operation.
 
 ---
@@ -74,7 +74,7 @@ does not count as an admin in proxy operation.
 
 Only in password mode and only for someone who manages the installation:
 
-1. **Settings → Access → “Users and roles”**.
+1. **Settings → Access and security → “Users and roles”**.
 2. Under **“Add a person”**:
    - **Name** — up to 40 characters. Upper and lower case do not matter when
      signing in; two people with the same name are not possible — since v3.6.0
@@ -98,7 +98,7 @@ browser then stays signed in for 30 days; “Sign out” is in the top bar.
 
 ### Deleting people
 
-**Only admins** see “Delete person” in the row; under Settings → Access,
+**Only admins** see “Delete person” in the row; under Settings → Access and security,
 members only see the note that admins take care of it. Via the API the app
 answers a member with **403** (`errors.auth.adminOnly`). Your own person is
 deleted by another person who manages.
@@ -135,7 +135,7 @@ reassigns them.
 ### People in the household *(v3.9.0)*
 
 Assigning reminders, meters or contracts to a person needs no sign-in. The card
-**Settings → Household & building → “People in the household”** is there at
+**Household → People** is there at
 every level:
 
 1. Enter the name under **“New person”** (up to 40 characters, not twice, as
@@ -146,7 +146,7 @@ every level:
 The list shows everyone with their number. **“Rename”** and **“Delete person”**
 apply to people without sign-in, with the same rules and the same dialog as
 under Access (below). People with an account are listed with the note
-**“with sign-in”**; their name, role and password stay under Settings → Access.
+**“with sign-in”**; their name, role and password stay under Settings → Access and security.
 Admins add, rename and delete people; without sign-in anyone who reaches the
 address may. Members only see the names.
 
@@ -200,11 +200,13 @@ them; the dialog says so beforehand.
 | switch sign-in on and off, API keys, Home Assistant token | ✓ | — |
 | restore a backup, restore a snapshot, load a sample household | ✓ | — |
 | addresses in the network: embedding, text recognition, evcc | ✓ | — |
+| the default for everyone: language, country, currency, time zone *(v3.12.0)* | ✓ | — |
+| notice of new versions, location and weather sync *(v3.12.0)* | ✓ | — |
 
 Restoring and loading replace all data; the addresses make the server talk to
 other machines. That is why they are reserved for admins. If a member tries
 anyway, the app answers “Only someone who manages this installation may do
-that.” Under Settings → Access, members only see the note on who manages
+that.” Under Settings → Access and security, members only see the note on who manages
 access.
 
 **At least one person manages.** The last person with the role “Admin” can
@@ -218,8 +220,8 @@ everything an admin may; “Read” may only fetch data
 
 ## 5. Forgotten password
 
-**Someone who manages resets it:** Settings → Access → “People in the
-household” → “Reset password” in the row → new password (at least 8
+**Someone who manages resets it:** Settings → Access and security → “Users and
+roles” → “Reset password” in the row → new password (at least 8
 characters) → “Save”. For “admin” this changes the password for signing in
 without a name. People from proxy operation have no password here; they
 change it at the sign-in service.
@@ -248,7 +250,7 @@ helps:
 
 ## 6. Your own account: password, level, language
 
-Every person sets these under **Settings → General**:
+Every person sets these under **Settings → For you**:
 
 - **Password** — card “My account: …” with your own role: enter “Current
   password” and “New password” → “Change password”. This browser stays signed
@@ -257,7 +259,7 @@ Every person sets these under **Settings → General**:
 - **Experience level** — card “Experience level and setup” or the selector in
   the top bar. With sign-in it is your level on all your devices (“Applies to
   you (…) on all devices.”); the installation’s level stays as it is.
-- **Language** — “Language on this device” in the card “Language & country”.
+- **Language** — “Your language” in the card “Language & country”.
   With sign-in it becomes your language on all your devices. The “Default
   language of the installation” still applies to the annual report, CSV
   files, Home Assistant and everyone who has not chosen one.
@@ -307,10 +309,10 @@ reminders and history entries belong to them again
 | “The role must be “Admin” or “Member” (API: admin, member).” | A different role was sent via the API. |
 | “This person no longer exists.” | Someone deleted them in the meantime. Reload the page. |
 | “Wrong password.” | Name or password is wrong — the app deliberately does not say which. |
-| “Too many failed attempts – please wait 5 minutes.” | Five failed attempts within 15 minutes lock sign-in for 5 minutes — for the whole installation, not per person. |
+| “Too many failed attempts. Please wait 5 minutes.” | Five failed attempts within 15 minutes lock sign-in for 5 minutes — for the whole installation, not per person. |
 | “When you sign in through the service in front of the app, change the password there.” | In proxy operation the app knows no password. |
 | “The password is set via the environment (ET_ADMIN_PASSWORD_HASH) and cannot be changed here.” | The password of “admin” is in the environment; change it there. “admin” cannot be deleted then either. |
-| “Without sign-in there are no personal settings — the level then applies to the whole installation.” | Personal settings via the API without a signed-in person (e.g. with an API key). |
+| “Without sign-in there are no personal settings. The level then applies to the whole installation.” | Personal settings via the API without a signed-in person (e.g. with an API key). |
 
 ---
 

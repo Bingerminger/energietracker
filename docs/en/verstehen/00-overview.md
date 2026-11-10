@@ -929,7 +929,7 @@ checked against the same months (`base_load.reference`, `reference_months`).
 
 With `poor`, the anomaly table says so, names the limit `detect_floor` below
 which it detects nothing, for the base load also model and measurement per day,
-and points to the heating limit (Settings › Utilities & billing › Physical
+and points to the heating limit (Household › Utilities › Physical
 constants, from the Experienced level). A well-fitting model detects at 2σ from
 20 % of a typical month; above 15 % only from 30 %, one and a half times as
 late. 15 % is also the bound ASHRAE Guideline 14 names for calibrated models on
@@ -1096,6 +1096,17 @@ poor model:         every assumption additionally × (1 ± ratio of the quality 
 range               = expected balance + (energy_assumption − estimated energy), smallest to largest
 advance             = current advance + range / remaining months
 ```
+
+**Group whose members were read at different times (since v3.12.0).** The group
+counts as measured up to the **earliest** last reading of its members. From there on
+the app estimates the whole group; what the member read later has already measured
+after that day does not count on top, otherwise those days would be in the balance
+twice. Daily rates and calibration also come only from months in which all members
+are read; a month without one member would otherwise look like lower consumption.
+If the readings are **more than 62 days** apart, the balance is marked uncertain
+(`group_readings_differ`): the range gives the days without any reading ± 50 %. The
+balance of measured values only (`balance_measured`) ends at the earliest reading
+anyway. **Reading all members on the same day** makes the estimate unnecessary.
 
 Without a heating model (electricity, water) there is neither a quality gate nor a
 heating share carried forward over the year; a calendar month never measured takes
@@ -1370,8 +1381,13 @@ basic_supply`, [legal basis no. 26](../referenz/rechtsgrundlagen.md#price-change
 ```text
 Cancel by (fixed term)   = contract end − notice period
 Switch date (any time)   = today + notice period, to month end or to any day
-Switch date (renewed)    = today + min(notice period, 1 month)
+Switch date (renewed)    = as stated in the contract (the app calculates none; district heating and basic supply see above)
 ```
+
+*(v3.12.0)* Up to v3.11 this line said “today + min(notice period, 1 month)” for a
+renewed contract; the app does not calculate it that way (legal basis no. 59). The termination at the next possible
+date then leaves the date open and the dialog says why (deadline missed, contract
+continues, no notice period entered).
 
 Notice periods can be given in months, weeks or days (`notice_period_months` or
 `notice_period_days`), plus the notice mode (`notice_mode`: at the end of the

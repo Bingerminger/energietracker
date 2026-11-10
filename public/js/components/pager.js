@@ -16,6 +16,7 @@
 
 import { t } from '../lib/i18n.js';
 import { fmt, escapeHtml } from '../lib/format.js';
+import { icon } from '../lib/icons.js';
 
 export const PAGE_SIZES = [25, 50, 100];
 export const DEFAULT_PAGE_SIZE = 25;
@@ -64,7 +65,7 @@ export function paginate(items, { page = 1, size = DEFAULT_PAGE_SIZE, threshold 
 export function pagerHtml(p, { listKey }) {
   if (!p?.active) return '';
   const btn = (dir, disabled) => `<button type="button" class="btn btn--ghost btn--sm" data-pager-go="${dir}"${disabled ? ' disabled' : ''}>`
-    + (dir === 'prev' ? `<span aria-hidden="true">‹</span> ${escapeHtml(t('pager.prev'))}` : `${escapeHtml(t('pager.next'))} <span aria-hidden="true">›</span>`)
+    + (dir === 'prev' ? `${icon('links')} ${escapeHtml(t('pager.prev'))}` : `${escapeHtml(t('pager.next'))} ${icon('rechts')}`)
     + '</button>';
   return `<nav class="pager" aria-label="${escapeHtml(t('pager.label'))}" data-pager="${escapeHtml(listKey)}">
     ${btn('prev', p.page <= 1)}

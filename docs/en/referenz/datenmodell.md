@@ -56,6 +56,7 @@ data/
 ├── people.json               # register of people: number, name, role, deletion note (v3.6.0) — in the backup, without passwords
 ├── inbox.json                # inbox: supplier mail with its reading (v3.7.0) — created with the first document
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
+├── mcp/                      # AI interface (v3.12.0): open proposals (pending.json), access log, rate-limit counters, each with a lock of its own — created on first use, not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -95,7 +96,7 @@ used for gas, electricity, water and district heating.
 **Heat (`waerme/`, v3.1.0).** The ninth utility: heat arriving in the home, in
 kWh. Its folder is created empty with schema 1.7.0, in existing installations
 too; there are no default meters, and it only becomes active once chosen under
-Settings → Utilities & billing (`active_utilities`). More in
+Household → Utilities (`active_utilities`). More in
 [Heat](../verstehen/15-waerme.md).
 
 **`instance.json` (v3.1.0).** `{instance_id, created_at}` — the identifier of
@@ -358,7 +359,8 @@ included in the consumption calculation.
 Two optional fields since v2.6.0 (additive, only present when set):
 
 - `source`: `ingest` (Home Assistant), `csv` (CSV import) or, since v3.7.0,
-  `inbox` (taken over from a document in the [inbox](#inbox-v370)).
+  `inbox` (taken over from a document in the [inbox](#inbox-v370)) or, since
+  v3.12.0, `mcp` (proposed by an AI assistant and applied after confirmation).
 - `is_suspect: true`: a falling reading from the ingest; it does not count until
   confirmed (`PATCH` with `is_suspect: false`) or corrected.
 
@@ -791,6 +793,13 @@ document from the [inbox](#inbox-v370); an unknown ID is rejected,
 `errors.attachment.notFound`). The inbox assigns documents by these
 numbers. No schema step.
 
+**Supplier’s address (v3.12.0)** — optional: `provider_address` (text, up to
+four lines of 60 characters each, without the name; empty removes the field,
+longer → `400` `errors.settings.letterLines`). The letter dialog prefills the
+recipient with it. No AI tool hands the field out, the inbox neither reads nor
+writes it. No schema step; see also the details for letters in the household
+(`letter_*` in `settings.json`, [Settings](einstellungen.md#details-for-letters-v3120)).
+
 Water additionally uses a three-component model (drinking/waste/rainwater), see
 [Water](../verstehen/03-wasser.md).
 
@@ -1019,13 +1028,13 @@ first entry, if it is missing the history is empty. No schema step.
 |---|---|
 | `id` | `act_` and 12 hex digits |
 | `action` | `done` (ticked off by hand), `auto_done` (done from the data: follow-on contract without a gap, reading, delivery, service-charge statement; since v3.5.0 new period, supplier’s bill), `dismissed` (recommendation hidden) or since v3.5.0 `updated` (changed service-charge statement, `subject.kind: "tenancy_statement"` — proof only, clears nothing) |
-| `subject` | `kind` = kind as in the agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) or `contract` (follow-on contract) or `recommendation`; `uid` as in the agenda; `occurrence` = `uid@anchor` — contract: its end or `renewed`/`open`, tank: last delivery, reminder: due date, deadlines: their date. A tick only applies to this occurrence |
+| `subject` | `kind` = kind as in the agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) or `contract` (follow-on contract) or `recommendation`; *(v3.12.0)* `reading` (reading applied by an AI, `action: updated`, `ref.reading_id` and `ref.proposal_id`); `uid` as in the agenda; `occurrence` = `uid@anchor` — contract: its end or `renewed`/`open`, tank: last delivery, reminder: due date, deadlines: their date. A tick only applies to this occurrence |
 | `ref` | references: `utility`, `meter_id` or `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (the cancellation set `auto_renews` to `false`) |
 | `title_key`, `params` | catalogue key and parts — the title can be rendered again in any language; days are stored as `YYYY-MM-DD` |
 | `title` | title as a snapshot in the language at the time it was done |
 | `done_on` | day of the deed, may be backdated, not in the future |
 | `recorded_at` | time of the entry (ISO 8601) |
-| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}`; *(v3.6.0)* otherwise after deletion `{type: "person", id, name, deleted: true}` (“Name (deleted)”) |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key; *(v3.12.0)* with `via: "mcp"` when an AI applied a proposal through its key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}`; *(v3.6.0)* otherwise after deletion `{type: "person", id, name, deleted: true}` (“Name (deleted)”) |
 | `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; since v3.5.0 `…period` (new period), `…bill` (supplier’s bill recorded), when ticking off `bill_expected` `…billWithout` (“arrived without being recorded”) |
 | `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}`, *(v3.6.0)* after deletion `{name, id, deleted: true}`; *(v3.7.0)* also for deadlines and reminders with inherited responsibility (contract, meter) |
 | `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
@@ -1108,7 +1117,7 @@ read, in the order `created_at`, then `id`.
 
 An entry without an account is a **person without sign-in** — from a backup or
 a sample household. They can be chosen under “Responsible” and appear under
-Settings → Access with “no sign-in”, where they can be deleted and, since
+Settings → Access and security with “no sign-in”, where they can be deleted and, since
 v3.6.0, renamed and given another role (then `name` follows the rules of an
 account: 1–40 characters, unique); a new account with the same name takes over
 their id and number. **Backup:** pot `people`; the
@@ -1164,6 +1173,11 @@ file is created with the first document, no schema step.
 - **Types** (`type`): `invoice`, `contract_confirmation`, `price_change`,
   `cancellation`, `supply_start`, `meter_change`, `reading_request`,
   `advance_change`; only recognised and filed: `dunning`, `withdrawal`, `other`.
+- **Filed with an AI key** *(v3.12.0)*: `source: "mcp"` on the entry.
+- **Read by an AI** *(v3.12.0)*: `extraction.provider` is then `mcp_client`,
+  `model` the client’s name (self-reported, display only), `type_confidence`
+  `null`, `text` only `{chars}`; checked like any reading, the `cache` stays
+  untouched ([AI interface](api.md#changing-data-proposal-and-apply-v3120)).
 - **Field status:** `ok` or `check` with reasons (`empty`, `no_quote`,
   `quote_not_found`, `value_not_in_quote`, `unreadable`, `estimated`,
   `mandatory`, `price_from_invoice`, `sum_mismatch`, `inconsistent`,

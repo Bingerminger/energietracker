@@ -10,6 +10,8 @@
 //   - Ändern dürfen nur Verwalter (der Server prüft es ebenfalls, 403).
 //   - Eigene Speichern-Taste; die Felder tragen kein data-key, die
 //     Speicherleiste der Seite sieht sie nicht.
+//   - v3.12.0: Adresse und Dienst nennen die Ziele, die sie zeigen
+//     (`data-shown-by`), für den Sprung ans Feld (lib/field-jump.js).
 // =====================================================================
 
 import { api } from '../api.js';
@@ -18,6 +20,7 @@ import { escapeHtml, intlLocale } from '../lib/format.js';
 import { haWebhookAutomationYaml } from '../lib/ha-snippet.js';
 import { copyText } from '../lib/clipboard.js';
 import { toastOk, toastErr } from './toast.js';
+import { icon } from '../lib/icons.js';
 
 const TARGETS = ['supervisor', 'webhook', 'token'];
 const EVENTS = ['reminder', 'deadline', 'warning', 'document'];
@@ -57,9 +60,9 @@ export function newWebhookId() {
 const shownTarget = (s) => (s.target === 'supervisor' && !s.supervisor_available ? 'webhook' : (TARGETS.includes(s.target) ? s.target : 'webhook'));
 
 function stateOf(s) {
-  if (s.enabled && s.ready) return { cls: 'banner--success', text: t('settings.haNotify.state.on', { target: t(`settings.haNotify.target.${s.target}`) }) };
-  if (s.enabled) return { cls: 'banner--warning', text: t('settings.haNotify.state.incomplete') };
-  return { cls: 'banner--info', text: t('settings.haNotify.state.off') };
+  if (s.enabled && s.ready) return { cls: 'infobox--erfolg', text: t('settings.haNotify.state.on', { target: t(`settings.haNotify.target.${s.target}`) }) };
+  if (s.enabled) return { cls: 'infobox--achtung', text: t('settings.haNotify.state.incomplete') };
+  return { cls: 'infobox--info', text: t('settings.haNotify.state.off') };
 }
 
 function lastText(s) {
@@ -82,25 +85,25 @@ export function renderHaNotifyCard(status, isAdmin = true) {
   };
   const hours = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${h === Number(s.hour) ? 'selected' : ''}>${escapeHtml(t('settings.haNotify.hourOption', { hour: String(h).padStart(2, '0') }))}</option>`).join('');
   return `<div class="card settings-card" id="ha-notify-card">
-    <h2 class="card__title"><span aria-hidden="true">🔔</span> ${escapeHtml(t('settings.haNotify.title'))}</h2>
+    <h2 class="card__title">${icon('glocke')} ${escapeHtml(t('settings.haNotify.title'))}</h2>
     <p class="settings-card__hint">${escapeHtml(t('settings.haNotify.intro'))}</p>
-    <p class="banner ${state.cls}" data-role="han-state">${escapeHtml(state.text)}</p>
+    <p class="infobox ${state.cls}" data-role="han-state">${escapeHtml(state.text)}</p>
     <p class="settings-field__hint" data-role="han-privacy">${escapeHtml(t('settings.haNotify.privacy'))}</p>
     ${isAdmin ? '' : `<p class="muted" data-role="han-admin-only">${escapeHtml(t('settings.haNotify.adminOnly'))}</p>`}
     <form class="settings-fields" data-role="han-form" autocomplete="off" novalidate>
       <div class="field settings-field">
         <label class="settings-field__check">
-          <input type="checkbox" id="han-enabled" ${s.enabled ? 'checked' : ''}${dis}> ${escapeHtml(t('settings.haNotify.enabled'))}
+          <input type="checkbox" id="han-enabled" data-field="ha_notify_enabled" ${s.enabled ? 'checked' : ''}${dis}> ${escapeHtml(t('settings.haNotify.enabled'))}
         </label>
       </div>
-      <fieldset class="field settings-field" data-role="han-targets">
+      <fieldset class="field settings-field" data-role="han-targets" data-field="ha_notify_target">
         <legend class="settings-field__label">${escapeHtml(t('settings.haNotify.targetLabel'))}</legend>
         ${TARGETS.map(radio).join('')}
         ${s.supervisor_available ? '' : `<span class="settings-field__hint" data-role="han-no-supervisor">${escapeHtml(t('settings.haNotify.supervisorMissing'))}</span>`}
       </fieldset>
-      <div class="field settings-field" data-role="han-url-field">
+      <div class="field settings-field" data-role="han-url-field" data-shown-by="han-target=webhook han-target=token">
         <label for="han-url">${escapeHtml(t('settings.haNotify.url'))}</label>
-        <input class="input input--text" type="text" inputmode="url" id="han-url" spellcheck="false" autocapitalize="off"
+        <input class="input input--text" type="text" inputmode="url" id="han-url" data-field="ha_notify_url" spellcheck="false" autocapitalize="off"
                value="${escapeHtml(s.url || '')}" placeholder="http://192.168.178.10:8123" aria-describedby="han-url-hint"${dis}>
         <span class="settings-field__hint" id="han-url-hint">${escapeHtml(t('settings.haNotify.urlHint'))}</span>
       </div>
@@ -121,19 +124,19 @@ export function renderHaNotifyCard(status, isAdmin = true) {
         <span class="settings-field__hint" id="han-token-hint">${escapeHtml(t('settings.haNotify.tokenHint'))}</span>
         ${isAdmin && s.has_token ? `<div><button type="button" class="btn btn--ghost btn--sm" data-role="han-clear-token">${escapeHtml(t('settings.haNotify.secretClear'))}</button></div>` : ''}
       </div>
-      <div class="field settings-field" data-role="han-service-field">
+      <div class="field settings-field" data-role="han-service-field" data-shown-by="han-target=token han-target=supervisor">
         <label for="han-service">${escapeHtml(t('settings.haNotify.service'))}</label>
-        <input class="input input--text" type="text" id="han-service" spellcheck="false" autocapitalize="off"
+        <input class="input input--text" type="text" id="han-service" data-field="ha_notify_service" spellcheck="false" autocapitalize="off"
                value="${escapeHtml(s.service || 'persistent_notification.create')}" aria-describedby="han-service-hint"${dis}>
         <span class="settings-field__hint" id="han-service-hint">${escapeHtml(t('settings.haNotify.serviceHint'))}</span>
       </div>
-      <fieldset class="field settings-field" data-role="han-events">
+      <fieldset class="field settings-field" data-role="han-events" data-field="ha_notify_events">
         <legend class="settings-field__label">${escapeHtml(t('settings.haNotify.events'))}</legend>
         ${EVENTS.map(e => `<label class="settings-field__check"><input type="checkbox" data-han-event="${e}" ${(s.events || []).includes(e) ? 'checked' : ''}${dis}> ${escapeHtml(t(`settings.haNotify.event.${e}`))}</label>`).join('')}
       </fieldset>
       <div class="field settings-field">
         <label for="han-hour">${escapeHtml(t('settings.haNotify.hour'))}</label>
-        <select class="select" id="han-hour" aria-describedby="han-hour-hint"${dis}>${hours}</select>
+        <select class="select" id="han-hour" data-field="ha_notify_hour" aria-describedby="han-hour-hint"${dis}>${hours}</select>
         <span class="settings-field__hint" id="han-hour-hint">${escapeHtml(t('settings.haNotify.hourHint'))}</span>
       </div>
       <div class="section-actions">
@@ -143,7 +146,7 @@ export function renderHaNotifyCard(status, isAdmin = true) {
       <p class="settings-field__hint" data-role="han-last">${escapeHtml(lastText(s))}</p>
       <div data-role="han-yaml-block">
         <h4 class="settings-subhead">${escapeHtml(t('settings.haNotify.yamlTitle'))}</h4>
-        <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">${escapeHtml(t('settings.haNotify.yamlHint'))}</p>
+        <p class="muted" style="font-size:var(--fs-xs);margin:0 0 var(--sp-2)">${escapeHtml(t('settings.haNotify.yamlHint'))}</p>
         <pre class="code-block" id="han-yaml"><code>${escapeHtml(haWebhookAutomationYaml(''))}</code></pre>
         <div class="section-actions"><button type="button" class="btn btn--sm" data-role="han-copy">${escapeHtml(t('settings.ha.copyYaml'))}</button></div>
       </div>

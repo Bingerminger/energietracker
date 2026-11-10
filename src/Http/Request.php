@@ -121,6 +121,21 @@ final class Request
         $this->body = is_array($decoded) ? $decoded : null;
     }
 
+    /**
+     * v3.12.0 — als JSON angekündigt (`Content-Type: …json`), aber weder Objekt noch
+     * Liste: kaputt, abgeschnitten oder nur ein einzelner Wert. Bisher galt so ein
+     * Körper still als leer; ein PATCH antwortete 200 ohne Änderung, ein Termin
+     * meldete „Titel fehlt“, der Ingest „unbekannte Verbrauchsart“. Rohe Körper
+     * (CSV, PDF, Bilder) kommen mit eigenem Typ und sind nicht betroffen.
+     */
+    public function jsonBodyInvalid(): bool
+    {
+        $type = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''));
+        if (!str_contains($type, 'json')) return false;
+        $this->loadBody();
+        return trim($this->rawBody) !== '' && !is_array($this->body);
+    }
+
     public function param(string $name, mixed $default = null): mixed
     {
         return $this->params[$name] ?? $default;

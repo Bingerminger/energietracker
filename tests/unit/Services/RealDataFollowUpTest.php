@@ -345,7 +345,10 @@ final class RealDataFollowUpTest extends ServiceTestCase
     {
         $this->loadMessy();
         $this->store->write('strom/contracts.json', []);   // die Ampel zeigt dann den Gasvertrag
-        $c = $this->consumption->contractStatus('gas', $this->meters->list('gas')[0])['contracts'][0];
+        // v3.12.0 — fester Stichtag und Berichtsjahr 2025 (die Ablesungen enden im Januar 2026): Mit dem
+        // echten Datum war der Bericht ab 2028 leer (TypeError ohne Salden)
+        $today = '2026-11-10';
+        $c = $this->consumption->contractStatus('gas', $this->meters->list('gas')[0], $today)['contracts'][0];
         $u = $c['projection_uncertain'];
         self::assertNotNull($u);
         self::assertContains('poor_fit', $u['reasons']);
@@ -357,7 +360,7 @@ final class RealDataFollowUpTest extends ServiceTestCase
         self::assertSame(AnomalyService::POOR_FIT_RATIO < (float)$u['fit_ratio'], true);
 
         // Jahresbericht: ein Hinweis mit der Spanne, keine Aufgabe „Abschlag anpassen“
-        $m = $this->reportServices()['model']->build((int)date('Y') - 1);
+        $m = $this->reportServices()['model']->build(2025, ['today' => $today]);
         self::assertSame([], array_values(array_filter($m['tasks'], fn($t) => $t['rule'] === 'advance' && $t['utility'] === 'gas')));
         $info = array_values(array_filter($m['infos'], fn($t) => $t['rule'] === 'advanceUncertain' && $t['utility'] === 'gas'));
         self::assertCount(1, $info);
@@ -749,20 +752,23 @@ final class RealDataFollowUpTest extends ServiceTestCase
      */
     public function testAModelOnTheReadingIntervalsStaysUncertainEvenIfTheGateCanCheck(): void
     {
-        $first = date('Y-01-01', strtotime('-3 years'));
-        $monthlyFrom = date('Y-m-01', strtotime(date('Y-m-01') . ' -7 months'));
+        // v3.12.0 — fester Stichtag: Mit dem echten Datum hing die Grundlage des Heizmodells an der
+        // Jahreszeit der sieben monatlich abgelesenen Monate (von Dezember bis März „Monate“)
+        $today = '2026-11-10';
+        $first = date('Y-01-01', strtotime("$today -3 years"));
+        $monthlyFrom = date('Y-m-01', strtotime(substr($today, 0, 7) . '-01 -7 months'));
         $skip = [];
         for ($t = strtotime($first); date('Y-m-d', $t) < $monthlyFrom; $t = strtotime('+1 month', $t)) {
             if (!in_array((int)date('n', $t), [1, 4, 7, 10], true)) $skip[] = date('Y-m-d', $t);
         }
-        $meter = $this->formulaHousehold(fn($d, $h) => 5.0 + 0.3 * $h, $first, date('Y-m-d'), $skip);
+        $meter = $this->formulaHousehold(fn($d, $h) => 5.0 + 0.3 * $h, $first, $today, $skip);
         $this->contracts->create('gas', ['meter_id' => $meter['id'], 'provider' => 'Testgas', 'start' => $first,
             'working_prices' => [['from' => $first, 'ct_per_kwh' => 10]], 'advance_payments' => [['from' => $first, 'amount_eur' => 20]]]);
-        $rows = $this->consumption->forMeter('gas', $meter);
+        $rows = $this->consumption->forMeter('gas', $meter, null, $today);
         self::assertSame('intervals', $this->consumption->heatModel('gas', $rows, $meter)['basis']);
         self::assertNotNull($this->anomalies->quality('gas', $rows), 'die Gütesperre kann prüfen');
-        self::assertContains('few_measured', $this->consumption->contractStatus('gas', $meter)['contracts'][0]['projection_uncertain']['reasons'] ?? []);
-        self::assertSame('few_measured', $this->forecastService()->forMeter('gas', $meter)['annual']['withheld'] ?? null);
+        self::assertContains('few_measured', $this->consumption->contractStatus('gas', $meter, $today)['contracts'][0]['projection_uncertain']['reasons'] ?? []);
+        self::assertSame('few_measured', $this->forecastService()->forMeter('gas', $meter, ['today' => $today])['annual']['withheld'] ?? null);
     }
 
     /** N3 — ein dünner Zähler (vier gemessene Monate): Die Gütesperre kann nicht prüfen, also eine Spanne. */
@@ -940,17 +946,20 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $this->loadMessy();
         $this->store->write('strom/meters.json', []);   // nur die Heizart: Kachel und Ampel hängen dann an ihr
         $meter = $this->meters->list('gas')[0];
-        $rows = $this->consumption->forMeter('gas', $meter);
+        // v3.12.0 — fester Stichtag und Berichtsjahr 2025 (die Ablesungen enden im Januar 2026): Mit dem
+        // echten Datum lag ab 2028 kein Monat mehr im Fenster der Empfehlungen (TypeError)
+        $today = '2026-11-10';
+        $rows = $this->consumption->forMeter('gas', $meter, null, $today);
         self::assertSame('poor', $this->anomalies->quality('gas', $rows)['model_quality']);
         // dieselben Monate mit Ausreißern: R1 meldet bei nicht bestandener Gütesperre nichts
         $rule = new \ReflectionMethod(\Energietracker\Services\RecommendationService::class, 'ruleWeatherIndependent');
         $recs = new \Energietracker\Services\RecommendationService($this->store, $this->meters, $this->consumption, $this->settings,
             new \Energietracker\Services\BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n),
             new \Energietracker\Services\DeliveryService($this->store, $this->meters, $this->i18n), $this->i18n);
-        self::assertSame([], $rule->invoke($recs, 'gas', $meter, $rows));
+        self::assertSame([], $rule->invoke($recs->atDate($today), 'gas', $meter, $rows));
 
-        $year = (int)date('Y') - 1;
-        $m = $this->reportServices()['model']->build($year, ['detail' => true]);
+        $year = 2025;
+        $m = $this->reportServices()['model']->build($year, ['detail' => true, 'today' => $today]);
         $gas = array_column($m['pages'], null, 'utility')['gas'];
         self::assertNull($gas['weather'], 'kein „kälter oder mehr verbraucht?“');
         self::assertNotSame([], array_filter($gas['notes'], fn($n) => str_contains($n, 'vergleicht hier nicht witterungsbereinigt')), 'der Hinweis an seiner Stelle');
@@ -1033,22 +1042,26 @@ final class RealDataFollowUpTest extends ServiceTestCase
      */
     public function testAClampedPartialFactorCounts(): void
     {
-        $first = date('Y-m-01', strtotime('-40 months'));
-        $cut = date('Y-m-01', strtotime(date('Y-m-01') . ' -12 months'));
-        $keep = [$cut, date('Y-m-01')];
+        // v3.12.0 — fester Stichtag: Mit dem echten Datum verschob sich, welche Monate des letzten Jahres
+        // gemessen sind, und die Gütesperre urteilte je nach Monat „gut“ oder „schlecht“
+        $today = '2026-11-10';
+        $month = substr($today, 0, 7) . '-01';
+        $first = date('Y-m-01', strtotime("$today -40 months"));
+        $cut = date('Y-m-01', strtotime("$month -12 months"));
+        $keep = [$cut, $month];
         for ($k = 12; $k >= 1; $k--) {
-            $m0 = date('Y-m-01', strtotime(date('Y-m-01') . " -$k months"));
+            $m0 = date('Y-m-01', strtotime("$month -$k months"));
             if (in_array((int)date('n', strtotime($m0)), [1, 2, 7, 8], true)) array_push($keep, $m0, date('Y-m-d', strtotime("$m0 +1 month")));
         }
         $skip = [];
-        for ($t = strtotime("$cut +1 month"); $t <= time(); $t = strtotime('+1 month', $t)) {
+        for ($t = strtotime("$cut +1 month"); $t <= strtotime($today); $t = strtotime('+1 month', $t)) {
             if (!in_array(date('Y-m-d', $t), $keep, true)) $skip[] = date('Y-m-d', $t);
         }
-        $meter = $this->formulaHousehold(fn($d, $h) => ($d >= $cut ? 1.6 : 1.0) * 5.0 + 0.3 * $h, $first, date('Y-m-d'), $skip);
+        $meter = $this->formulaHousehold(fn($d, $h) => ($d >= $cut ? 1.6 : 1.0) * 5.0 + 0.3 * $h, $first, $today, $skip);
         $this->contracts->create('gas', ['meter_id' => $meter['id'], 'provider' => 'Testgas', 'start' => $first,
             'working_prices' => [['from' => $first, 'ct_per_kwh' => 10]], 'advance_payments' => [['from' => $first, 'amount_eur' => 80]]]);
-        $qq = $this->anomalies->quality('gas', $this->consumption->forMeter('gas', $meter)); self::assertSame('good', $qq['model_quality'], json_encode([$qq['reasons'], $qq['ratio'], $qq['base_load']]));
-        $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
+        $qq = $this->anomalies->quality('gas', $this->consumption->forMeter('gas', $meter, null, $today)); self::assertSame('good', $qq['model_quality'], json_encode([$qq['reasons'], $qq['ratio'], $qq['base_load']]));
+        $c = $this->consumption->contractStatus('gas', $meter, $today)['contracts'][0];
         self::assertSame([1.5, 'base', ['factor_clamped']], [$c['projection_factor_base'], $c['projection_uncertain']['factor_part'] ?? null, $c['projection_uncertain']['reasons'] ?? null]);
         self::assertGreaterThan(ConsumptionService::PROJECTION_FACTOR_MIN, $c['projection_factor_heat']);
         self::assertLessThan(ConsumptionService::PROJECTION_FACTOR_MAX, $c['projection_factor_heat']);

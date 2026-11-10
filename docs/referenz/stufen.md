@@ -78,6 +78,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 |---|---|---|---|---|
 | <a id="level-readings-entry"></a>**Zählerstände** — alle Zähler in einem Durchgang, Foto als Beleg, ohne Netz in der Warteschlange | ✓ | ✓ | ✓ | den Stand eintragen; mit eingerichteter Texterkennung schlägt das Foto ihn vor |
 | <a id="level-contracts-overview"></a><a id="level-contracts"></a>**Verträge & Abschläge** — Anbieter, Laufzeit, Arbeits- und Grundpreis, Abschlag | ✓ | ✓ | ✓ | was es kostet, ob der Abschlag reicht |
+| <a id="level-contracts-past"></a>**Frühere Verträge** — beendete und abgelöste Verträge mit Laufzeit, Preisen, Saldo und Rechnung *(v3.12.0)* | ✓ | ✓ | ✓ | was ein Vertrag am Ende gebracht hat |
 | <a id="level-el-notice"></a>Vertrag: **Kündigungsfrist** | ✓ | ✓ | ✓ | *seit v3.7.0 für alle:* Aus ihr entsteht „Kündigen bis …“ in „Zu tun“ |
 | <a id="level-el-fw-prices"></a>Fernwärme: **Leistungspreis, Messpreis, Anschlussleistung** | ✓ | ✓ | ✓ | *seit v3.7.0 für alle:* stehen auf jeder Fernwärmerechnung |
 | <a id="level-el-contract-terms"></a>Vertrag: Preisgarantie, „Kündigung wirkt“, Mindestlaufzeit, „Verlängert sich ohne Kündigung“ | – | ✓ | ✓ | Wechsel planen |
@@ -85,8 +86,8 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-contract-expert"></a>Vertrag: Kennwerte der Fernwärme (CO₂, Primärenergie), Preise je Zähler einer Gruppe, § 14a Modul 1 und Modul 3, Gutschriften des Direktvermarkters, „Monatspreise importieren“, Zählungen je Vertrag | – | – | ✓ | Sonderfälle von Tarif und Netzentgelt |
 | Ablesung: **„Nur für die Abrechnung“** und **„Stand ist richtig“** im Bearbeiten-Dialog *(v3.9.0)* | ✓ | ✓ | ✓ | ein Stand, mit dem der Versorger abgerechnet hat, der aber die Monate verzieht |
 | Vertrag: **Abschlag im Rhythmus** (alle 2 oder 3 Monate, Termine laut Rechnung) *(v3.9.0)* | ✓ | ✓ | ✓ | wie der Versorger abbucht; Saldo und Vorschlag zählen je Termin |
-| <a id="level-meters"></a>**Zähler-Aufbau** — Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | – | ✓ | ✓ | Zähler einer Art verwalten (Link „⚙️ Zähler“ in der Verbrauchsansicht) |
-| Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Einstellungen → Verbrauchsarten & Abrechnung und die Ersteinrichtung; der Knopf auf der Zählerseite ab Erfahren |
+| <a id="level-household"></a><a id="level-household-meters"></a>Haushalt → **Zähler** — alle Zähler an einem Ort: Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | ✓ | ✓ | ✓ | Zähler einer Art verwalten (Link „⚙️ Zähler“ in der Verbrauchsansicht) |
+| Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Haushalt → Verbrauchsarten und die Ersteinrichtung; der Knopf auf der Zählerseite ab Erfahren |
 | <a id="level-el-meter-plant"></a>Zähler: **PV-Anlage** (Investition, Inbetriebnahme, Speicher, Balkonkraftwerk), **Stromzähler der Wärmepumpe** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Grundlage für Amortisation und Jahresarbeitszahl |
 | <a id="level-el-meter-expert"></a>Zähler: Zählergruppe, Analyse-Zäsuren, „Zeitreihe importieren“ | – | – | ✓ | Gruppenvertrag, Rechnen ab einer Sanierung, Viertelstunden aus Portalen |
 
@@ -95,20 +96,20 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | Funktion | 🌱 | 🌿 | 🌳 | Wofür |
 |---|---|---|---|---|
 | <a id="level-dashboard"></a>**Übersicht** | drei Antworten | alle Kennzahlen | alle Kennzahlen | Geld zurück? Mehr als im Vorjahr? Was ist zu tun? Zur Miete dazu „Reicht die Vorauszahlung?“ |
-| <a id="level-el-dash-explainers"></a>Übersicht: Abschnitt **„Schaubilder“** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Geld, Zeitstrahl, Energiefluss, Wetter auf einen Blick (Einsteiger haben „Wohin geht mein Geld?“) |
 | <a id="level-utility"></a>**Verbrauch je Art** — Kennzahlen, Monatsverlauf, Saldo, Schaubilder; bei Heizöl und Pellets Tank und Lieferungen | ✓ | ✓ | ✓ | auch PV, Wallbox und Wärmepumpe haben ihre Seite in jeder Stufe |
 | <a id="level-el-utility-advanced"></a>Verbrauch: Monatstabelle, „Gemessen“/„Witterungsbereinigt“, CO₂-Kachel, Energiefluss je Monat der PV | – | ✓ | ✓ | Monate vergleichen, Wetter herausrechnen |
 | <a id="level-el-pv-extras"></a>PV-Erzeugung: **Speicher** und **Amortisation** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Hat sich die Anlage gelohnt, was verliert der Speicher? |
 | <a id="level-el-heat-pump"></a>Karte **„Wärmepumpe“** mit Jahresarbeitszahl | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* wie effizient die Wärmepumpe arbeitet |
 | <a id="level-el-utility-expert"></a>Verbrauch: Warmwasser-Wärme, CO₂-Preis im Brennstoff | – | – | ✓ | Rechengrößen hinter den Kosten |
-| <a id="level-recommendations"></a>**Empfehlungen** | ✓ | ✓ | ✓ | Hinweise aus deinen Daten |
+| <a id="level-todo"></a>**Zu tun** — Offen: Fristen, Empfehlungen, Rechte, Post, für Verwalter die Vorschläge der KI *(v3.12.0)* | ✓ | ✓ | ✓ | alles, was auf dich wartet |
 | „Zu tun“: **Heizgrenze anpassen** mit „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“, auch an Saldo-Karte, Prognose und Werkstatt *(v3.9.0)* | ✓ | ✓ | ✓ | ob der Abschlag reicht, hängt an der Heizgrenze |
 | „Zu tun“: **Ablesung prüfen**, doppelte Stände, Hinweis auf die Analyse-Zäsur *(v3.9.0)* | ✓ | ✓ | ✓ | ein vertippter Stand verzieht sonst still die Monate |
 | <a id="level-report"></a><a id="level-report-print"></a>**Jahresbericht** — auch als PDF und zum Drucken | ✓ | ✓ | ✓ | das Jahr auf einer Seite |
+| <a id="level-figures"></a>**Kennzahlen** — Effizienz, Einordnung, Tanks, Strom-Saldo, Schaubilder *(v3.12.0, bis dahin auf der Übersicht)* | – | ✓ | ✓ | wie der Haushalt dasteht |
 | <a id="level-analysis"></a>**Analyse** — Heizsignatur, Jahre im Vergleich | – | ✓ | ✓ | Verbrauch und Temperatur nebeneinander |
 | <a id="level-el-baseline"></a>Analyse: Zäsur und „Wirkung der Maßnahme“ | – | – | ✓ | vorher und nachher einer Sanierung |
 | <a id="level-temperatures"></a>**Wetterdaten** — Standort, Abgleich, CSV | – | ✓ | ✓ | Grundlage der Wetterbereinigung |
-| <a id="level-help"></a><a id="level-help-doc"></a>**Hilfe**, Glossar und Handbuch | ✓ | ✓ | ✓ | Begriffe und Anleitungen |
+| <a id="level-help"></a><a id="level-help-doc"></a><a id="level-help-setups"></a>**Hilfe**, Glossar, Handbuch und Wegweiser | ✓ | ✓ | ✓ | Begriffe und Anleitungen |
 
 ### Prüfen und vergleichen
 
@@ -142,42 +143,49 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-inbox"></a>**Posteingang** — PDF ablegen, auslesen lassen, jede Angabe mit Belegstelle prüfen, übernehmen; von Hand neben dem Dokument | ✓ | ✓ | ✓ | die Post vom Versorger liest die App |
 | <a id="level-inbox-draft"></a>Entwurf aus Dokumenten — den Haushalt aus vielen Dokumenten auf einmal anlegen *(v3.7.0)* | ✓ | ✓ | ✓ | Erstbefüllung ohne Tippen |
 | Akte je Vertrag und Zähler — alle Dokumente in zeitlicher Folge *(v3.7.0)* | ✓ | ✓ | ✓ | nur eine Liste der Dokumente |
-| Auslesen einrichten — Karte „Auslesen“ (Lokal oder Cloud) unter Einstellungen → Experte | – | – | ✓ | einmal einrichten, meist durch die Person, die die Installation verwaltet; Posteingang und Einrichtungsassistent öffnen dieselbe Karte als Dialog, auf jeder Stufe |
+| Auslesen einrichten — Karte „Auslesen“ (Lokal oder Cloud) unter Verbindungen → Post und Fotos auslesen | – | – | ✓ | einmal einrichten, meist durch die Person, die die Installation verwaltet; Posteingang und Einrichtungsassistent öffnen dieselbe Karte als Dialog, auf jeder Stufe |
 | Kurzbefehl „Teilen → Energietracker“, überwachter Ordner *(v3.7.0)* | – | ✓ | ✓ | Eingangskanäle, wie die Integrationen |
 
 ### Haushalt und Personen
 
 | Funktion | 🌱 | 🌿 | 🌳 | Wofür |
 |---|---|---|---|---|
-| <a id="level-reminders"></a>**Termine & Wartung** und „Zu tun“ — mit Zuständigen, als Kalender-Abo | ✓ | ✓ | ✓ | nichts verpassen |
-| <a id="level-activity"></a>**Erledigt** — wer was wann erledigt hat | – | ✓ | ✓ | nachsehen und zurücknehmen |
-| <a id="level-settings-general"></a>Einstellungen → **Allgemein** — Sprache und Land, Stufe, eigenes Konto, Hinweis auf neue Versionen | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-general"></a>Allgemein: Anzeige, Erinnerungen | – | ✓ | ✓ | Zeiträume und Vorlauf der Erinnerungen |
-| <a id="level-settings-household"></a>Einstellungen → **Haushalt & Gebäude** — Wohnfläche, Gebäude, Wohnverhältnis, Heizung und Warmwasser | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-household"></a>Haushalt: eigene Vergleichswerte, Wasser-Referenzwerte | – | ✓ | ✓ | Einordnung mit eigenen Zahlen |
-| <a id="level-settings-utilities"></a>Einstellungen → **Verbrauchsarten & Abrechnung** — aktive Arten, Abrechnungsstichtage | ✓ | ✓ | ✓ | |
+| <a id="level-reminders"></a>**Zu tun → Termine** — mit Zuständigen, als Kalender-Abo | ✓ | ✓ | ✓ | nichts verpassen |
+| <a id="level-activity"></a><a id="level-activity-ai"></a>**Zu tun → Verlauf** — wer was wann erledigt hat; für Verwalter die Zugriffe der KI *(seit v3.12.0 ab Einsteiger)* | ✓ | ✓ | ✓ | nachsehen und zurücknehmen |
+| <a id="level-settings-general"></a>Einstellungen → **Übersicht** — Suche, Stufe, eigene Sprache, Darstellung, eigenes Konto | ✓ | ✓ | ✓ | |
+| <a id="level-settings-region"></a>Einstellungen → **Region und Sprache** — Vorgabe der Sprache, Land, Währung, Zeitzone | ✓ | ✓ | ✓ | |
+| <a id="level-settings-display"></a>Einstellungen → **Anzeige und Erinnerungen** — Hinweis auf neue Versionen, Unterstützen, Umgebung | ✓ | ✓ | ✓ | |
+| <a id="level-el-settings-display"></a>Anzeige und Erinnerungen: Anzeige, Erinnerungen | – | ✓ | ✓ | Zeiträume und Vorlauf der Erinnerungen |
+| <a id="level-household-people"></a>Haushalt → **Personen** — Namen für „Zuständig“ | ✓ | ✓ | ✓ | |
+| <a id="level-household-building"></a>Haushalt → **Gebäude** — Wohnfläche, Gebäude, Wohnverhältnis, Heizung und Warmwasser | ✓ | ✓ | ✓ | |
+| <a id="level-el-settings-household"></a>Gebäude: eigene Vergleichswerte, Wasser-Referenzwerte | – | ✓ | ✓ | Einordnung mit eigenen Zahlen |
+| <a id="level-household-utilities"></a>Haushalt → **Verbrauchsarten** — aktive Arten, Messkonzept, Abrechnungsstichtage | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-utilities"></a>Verbrauchsarten: physikalische Konstanten, Energieträger (Lieferung), eigene Werte der Flexibilität, Photovoltaik | – | ✓ | ✓ | Photovoltaik *seit v3.7.0 ab Erfahren* |
-| <a id="level-el-settings-co2"></a>Verbrauchsarten: CO₂-Emissionsfaktoren | – | – | ✓ | Rechenparameter |
-| **Personen im Haushalt** anlegen, umbenennen, löschen (Einstellungen → Haushalt & Gebäude), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
-| Zugänge und Rollen (Einstellungen → Zugriff → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
+| <a id="level-el-settings-co2"></a>Rechnen: CO₂-Emissionsfaktoren | – | – | ✓ | Rechenparameter |
+| **Personen im Haushalt** anlegen, umbenennen, löschen (Haushalt → Gebäude), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
+| Zugänge und Rollen (Einstellungen → Zugang und Sicherheit → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
 
 ### Anbinden
 
 | Funktion | 🌱 | 🌿 | 🌳 | Wofür |
 |---|---|---|---|---|
-| <a id="level-settings-data"></a>Einstellungen → **Daten** — Export, Sicherung, Wiederherstellung, Beispieldaten | ✓ | ✓ | ✓ | deine Daten gehören dir |
-| <a id="level-settings-integrations"></a>Einstellungen → **Integrationen** — Home Assistant: Token, Alias, Vorlagen; seit v3.9.0 Benachrichtigungen an Home Assistant | – | ✓ | ✓ | Zählerstände von außen, Fristen und neue Post nach Home Assistant |
+| <a id="level-settings-data"></a>Einstellungen → **Daten und Sicherung** — Export, Sicherung, Wiederherstellung, Beispieldaten; Belege ab Experte | ✓ | ✓ | ✓ | deine Daten gehören dir |
+| <a id="level-connections"></a>**Verbindungen** — die Liste steht in jeder Stufe, was darüber liegt, zeigt „Weitere Verbindungen zeigen“ *(v3.12.0)* | ✓ | ✓ | ✓ | was mit der App spricht |
+| <a id="level-connections-reading"></a><a id="level-connections-calendar"></a>Verbindungen → **Post und Fotos auslesen**, **Kalender** | ✓ | ✓ | ✓ | Auslesen ab Einsteiger, Kalender-Abo |
+| <a id="level-connections-homeassistant"></a>Verbindungen → **Home Assistant** — Token, Zähler zuordnen, Benachrichtigungen, Vorlagen | – | ✓ | ✓ | Zählerstände automatisch |
+| <a id="level-connections-ai"></a>Verbindungen → **KI-Assistenten** — Stand, Schlüssel, Vorlagen je Programm; nur Verwalter | – | ✓ | ✓ | deine KI fragt nach, du bestätigst |
+| <a id="level-connections-keys"></a><a id="level-connections-evcc"></a><a id="level-connections-homenet"></a>Verbindungen → **Schlüssel**, **evcc**, **Sicherheit im Heimnetz** | – | – | ✓ | Zugang von außen, Wallbox, eigene Zertifikate |
 | <a id="level-el-evcc"></a>Wallbox: **„Ladevorgänge aus evcc“** | – | ✓ | ✓ | Ladevorgänge hochladen oder abrufen |
-| <a id="level-settings-access"></a>Einstellungen → **Zugriff** — Anmeldung, Benutzer und Rechte, API-Schlüssel, Einbetten, Hostnamen | – | – | ✓ | wer hineinkommt |
-| <a id="level-settings-expert"></a>Einstellungen → **Experte** — Auslesen, Belege, Texterkennung, evcc-Adresse; eingeklappt die Rechenparameter | – | – | ✓ | Dienste im Heimnetz, Feinabstimmung |
-| <a id="level-settings-system"></a>Einstellungen → **System** — Version, Diagnose, Sicherheits-Check | – | – | ✓ | Betrieb |
+| <a id="level-settings-access"></a>Einstellungen → **Zugang und Sicherheit** — Anmeldung, Benutzer und Rechte, Einbetten, Hostnamen, Sicherheits-Check | – | – | ✓ | wer darf was |
+| <a id="level-settings-calculation"></a>Einstellungen → **Rechnen** — Rechenparameter, CO₂-Faktoren, CO₂-Preis, korrigierte Standardwerte | – | – | ✓ | wie gerechnet wird |
+| <a id="level-settings-system"></a>Einstellungen → **System** — Version, Diagnose, Unterstützen | – | – | ✓ | Betrieb |
 
 ---
 
 ## 3. Die App schlägt vor
 
 Braucht dein Haushalt mehr, als die Stufe zeigt, schlägt die Übersicht die
-nächste Stufe vor: „Dein Haushalt hat mehr, als diese Stufe zeigt — „…“ blendet
+nächste Stufe vor: „Dein Haushalt hat mehr, als diese Stufe zeigt. „…“ blendet
 es ein.“ Darunter steht der Anlass.
 
 | Stufe | Anlass | Vorschlag | Was dazukommt |

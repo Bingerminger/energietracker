@@ -14,7 +14,8 @@ Danke fürs Mitmachen! Am meisten helfen:
   ein Issue, damit Migration und Stabilitätszusage durchdacht sind.
 
 Sicherheitslücken bitte **nicht** als Issue, sondern wie in
-[SECURITY.md](SECURITY.md) beschrieben melden.
+[SECURITY.md](SECURITY.md) beschrieben melden. Für alle gelten die
+[Verhaltensregeln](CODE_OF_CONDUCT.md#deutsch): freundlich, beim Thema, keine echten Daten.
 
 Du arbeitest mit einem KI-Agenten für Code? [AGENTS.md](AGENTS.md) fasst
 zusammen, was er wissen muss: Tests ausführen, Konventionen, keine
@@ -23,8 +24,8 @@ Nutzerdaten, keine Fremdpakete (auf Englisch).
 ## Wünsche, Planung und Status
 
 - **Ideen und Wünsche** gehören unter
-  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas);
-  dort kann jeder mit 👍 abstimmen. Fehler gehören in ein Issue (Formular
+  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas),
+  mit einer kurzen Vorlage; dort kann jeder mit 👍 abstimmen. Fehler gehören in ein Issue (Formular
   „Fehler melden“).
 - **Was geplant ist**, zeigen das
   [Projektboard](https://github.com/users/Bingerminger/projects/1) und die

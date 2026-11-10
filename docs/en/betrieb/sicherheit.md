@@ -50,16 +50,28 @@ devices on the network** — that is what sign-in is for.
 
 ## 3. Switching sign-in on
 
-**In the app:** Settings → Access → "Sign-in & access" → enter a password (at
+**In the app:** Settings → Access and security → "Sign-in & access" → enter a password (at
 least 8 characters) twice → "Switch sign-in on". This browser stays signed in;
 every other one asks for the password once and then stays signed in — since
 v3.4.0 for **30 days after the last use** (sliding; up to v3.3 30 days after
-signing in). Sign out with the button in the top bar. Signing out deletes this
-browser's cookie and the app's stored responses in its cache (complete again
-since v3.4.0; v3.1 to v3.3 left them behind).
+signing in). Sign out with the button in the top bar.
 
-**Sign out everywhere** *(v3.4.0)*: Settings → General → "My account" or
-Settings → Access. All sessions of this person end on every device, including
+<!-- doc-claim: logout-clears-cache (AttachmentCacheTest) -->
+**Signing out deletes what this browser keeps from the app:**
+
+- **the session cookie**;
+- **the app's stored responses** for offline use (complete again since v3.4.0;
+  v3.1 to v3.3 left them behind);
+- **the browser cache** for this address *(v3.12.0)*: the sign-out response
+  carries `Clear-Site-Data: "cache"`. Browsers only honour it over HTTPS and on
+  `localhost`.
+- **Receipts** (photos, bills) come with `Cache-Control: private, no-cache`
+  since v3.12.0: the browser asks the server again before every display. After
+  signing out the server answers `401` and the receipt stays hidden, **even
+  without HTTPS**.
+
+**Sign out everywhere** *(v3.4.0)*: Settings → For you → "My account" or
+Settings → Access and security. All sessions of this person end on every device, including
 this one — for example after a lost phone or if someone might have copied the
 cookie. API keys and the Home Assistant token stay valid; revoke them
 individually.
@@ -114,7 +126,7 @@ The **token** protects only the push endpoint `/api/ingest` — not the rest of
 the API. Without sign-in it is optional; with sign-in it is mandatory. Setup:
 [Home Assistant](../anleitungen/home-assistant.md).
 
-- Settings → Integrations → "Home Assistant integration" shows when a value last
+- Connections → Home Assistant shows when a value last
   arrived with the token (accurate to the hour) — the first question when
   troubleshooting.
 - A new token invalidates the old one immediately — then enter the new one in
@@ -130,8 +142,8 @@ the API. Without sign-in it is optional; with sign-in it is mandatory. Setup:
 
 ## 5. API keys for scripts
 
-With sign-in switched on, scripts and other programs need a key: Settings →
-Access → "Sign-in & access" → "API keys for scripts". The key (`etk_…`) is shown
+With sign-in switched on, scripts and other programs need a key: Connections → Keys →
+"API keys for scripts". The key (`etk_…`) is shown
 **once**; only its hash is stored.
 
 | Permission | may |
@@ -140,12 +152,16 @@ Access → "Sign-in & access" → "API keys for scripts". The key (`etk_…`) is
 | Manage (`admin`) | everything, including changing and deleting — e.g. for a backup script that also restores |
 | Calendar (`calendar`, since v3.1.0) | only the calendar subscription `GET /api/calendar.ics`, and only as `?token=…` in the link |
 | Inbox only (`inbox`, since v3.7.0) | only put a PDF into the inbox (`POST /api/inbox`) — for the [shortcut](../anleitungen/posteingang.md#with-a-shortcut-from-the-iphone-or-ipad) and [email via Home Assistant](../anleitungen/posteingang.md#by-email-via-home-assistant); any other route `401` |
+| AI read (`mcp`, since v3.12.0) | only the AI interface `POST /api/mcp`, reading ([Connect an AI assistant](../anleitungen/ki-assistent.md)) |
+| AI read and propose (`mcp_write`, since v3.12.0) | in addition create and apply proposals and put a PDF into the inbox (`POST /api/inbox`) |
 
 ```bash
 curl -H "Authorization: Bearer etk_…" https://energy.example.org/api.php/api/backup/export > backup.json
 ```
 
-The list shows for every key when it was last used. Revoke keys you no longer
+The list shows for every key when it was last used. **Since v3.12.0 only a
+request the app accepted with the key counts**; a rejected attempt (wrong
+scope, wrong route) leaves the value unchanged. Revoke keys you no longer
 need.
 
 **Calendar key.** Calendar apps cannot send a header; the key therefore sits in
@@ -154,13 +170,36 @@ scoped:
 
 - It only works for `/api/calendar.ics` and only as `?token=…`. On any other
   route, including as an `Authorization` header, the app answers `401`.
+- **It does not appear in the app's log or in the image's access log**
+  *(v3.12.0)*, see [§ 10](#10-logging-and-troubleshooting). For your own web
+  server, see the note there.
 - A `read` or `admin` key in the link is rejected (`401`) — otherwise a key
   with read access to everything would sit in every calendar app.
 - The app creates the key when you choose “Subscribe in your calendar” under
-  Reminders & tips → Reminders & maintenance and confirm the question with
-  “Create link” — not merely on opening. Revoke it under Settings → Access; the
+  To do → Dates and confirm the question with
+  “Create link” — not merely on opening. Revoke it under Connections → Keys; the
   calendar then receives nothing more. Setup:
   [Subscribing to the calendar](../anleitungen/kalender.md).
+
+### AI keys and the AI interface *(v3.12.0)*
+
+An AI assistant (for example in VS Code, Cursor, LM Studio or Open WebUI)
+reads along via `/api/mcp` once an admin switches the interface on (Connections →
+AI assistants). It is off by default; `ET_MCP=off` locks it.
+Its own rules apply ([API, AI interface](../referenz/api.md#ai-interface-mcp-v3120)):
+
+| Protection | Effect |
+|---|---|
+| Own key, always | Scope `mcp` (read) or `mcp_write` (read and propose), only in the header `Authorization`, even without sign-in and in proxy mode. A `read` or `admin` key does not work there, an AI key nowhere else (except `mcp_write` for putting a document into the inbox). |
+| No access from the browser | A request with a foreign `Origin` gets `403`. There is no allow list and no CORS; AI programs send no `Origin`. |
+| Rate limits | Per key at most 120 requests per minute, 60 calls of reading tools per minute, 30 proposals and 30 applications per hour each; above that `429` with `Retry-After`. The limits are fixed. |
+| Wrong keys | After 20 unknown keys within 10 minutes the address is locked for 5 minutes (`429`), also for valid keys. Behind a reverse proxy the address from `X-Forwarded-For` only counts with `ET_TRUSTED_PROXIES`; otherwise all devices behind the proxy share one lock. |
+| Access log | Every request is listed with time, key, client, tool and result in `data/mcp/journal.jsonl`, without arguments, contents or keys. Admins see it under Connections → AI assistants (`GET /api/mcp/journal`). Entries older than 90 days are dropped, the file rotates from 1 MB. Not in the backup. |
+| Foreign text | Names, notes and quotes from documents only appear cleaned in the field `untrusted` of the answers (without control characters and role markers), never in descriptions or instructions to the AI. |
+| No secrets | Passwords, keys, tokens, network addresses from the settings and entries of other keys never leave the interface. |
+
+If you do not need the interface, leave it off. Revoke an AI key nobody uses
+any more; the log shows when it last asked.
 
 ## 6. Sign-in via an upstream proxy
 
@@ -235,11 +274,11 @@ points its domain to the address in your home network and would then be "the
 same site" for the browser. With the list set, the app only answers known host
 names and all others with `421`. Two ways, both apply together:
 
-- **In the app** *(v3.4.0)*: Settings → Access → "Host names" (administrators
+- **In the app** *(v3.4.0)*: Settings → Access and security → "Host names" (administrators
   only, setting `allowed_hosts`). For Apache and the Synology, which have no
   environment variables. When saving, the name you are using right now must
   be included — otherwise the app refuses instead of locking you out. The
-  security check (Settings → Access) reports open operation without a host
+  security check (Settings → Access and security) reports open operation without a host
   list and offers to take over the current name.
 - **Via the environment:**
 
@@ -254,7 +293,7 @@ second line of defence for open operation.
 
 **Embedding:** foreign pages may not show the app in a frame — otherwise clicks
 on "Load demo data" or "Generate token" could be slipped in. For a webpage card
-on a Home Assistant dashboard, enter its address: Settings → Access →
+on a Home Assistant dashboard, enter its address: Settings → Access and security →
 "Embedding", or
 `ET_FRAME_ANCESTORS=http://homeassistant.local:8123`. Origins are allowed
 (scheme, host, optional port, also `*.domain`), several separated by spaces.
@@ -278,9 +317,11 @@ on a Home Assistant dashboard, enter its address: Settings → Access →
 - **Own nginx:** adopt the `location` rules from `docker/nginx.conf`.
 - **Development server:** always start it with the router —
   `php -S 127.0.0.1:8080 router.php`. Without `router.php` the PHP server serves
-  every file, including `data/`. Never expose it on `0.0.0.0` to others.
+  every file, including `data/`. Never expose it on `0.0.0.0` to others. Since
+  v3.12.0 `router.php` answers a null byte in the address (`%00`) with `404`
+  instead of showing an error output with a path.
 
-**Self-test in the app** *(v3.4.0)*: Settings → Access (and System) →
+**Self-test in the app** *(v3.4.0)*: Settings → Access and security →
 "Security check". The browser itself asks for `data/meta.json` there; if the
 web server serves the file, the item turns red — then the rules have no effect
 (`AllowOverride` too narrow or neither module active).
@@ -303,7 +344,10 @@ web server like the rest of `data/`. They only come out through
   accepted; the extension and `Content-Type` do not count. The app rejects SVG
   and HTML, which could carry scripts.
 - Files are served with the stored type and `X-Content-Type-Options: nosniff`
-  — the browser does not guess what the file might be.
+  — the browser does not guess what the file might be. Since v3.12.0 the image
+  also sets `nosniff` for all static files.
+- Since v3.12.0 with `Cache-Control: private, no-cache` and an `ETag`: no
+  receipt stays in the browser after signing out ([§ 3](#3-switching-sign-in-on)).
 - A PDF comes with `Content-Security-Policy: sandbox`: it runs without scripts
   and without access to the app.
 - Limits: photo 3 MB, PDF 10 MB, all together `attachments_max_mb`.
@@ -333,13 +377,34 @@ switched on, only signed-in users and `admin` keys. Setup:
 recognition and evcc in the home network without redirects; reading in the
 cloud (only when switched on, *v3.7.0*) only via HTTPS and without redirects.
 Every response at most 20 MB — the app aborts a larger one instead of loading it
-into memory.
+into memory. **With sign-in, only admins change the note about new versions,
+the location and the weather sync** *(v3.12.0)*, like the other addresses in
+the network.
+
+**One rule for entered addresses** *(v3.12.0)*. An IPv4 address can be written
+in IPv6 in several ways: `::ffff:…` with dots or in hex, shortened or written
+out, `::a.b.c.d`, NAT64 (`64:ff9b::/96`) and 6to4 (`2002::/16`). **All three
+paths with an entered address check them in one place**, comparing the address
+itself, not how it is written:
+
+| Path | Allowed | Embedded IPv4 |
+|---|---|---|
+| Text recognition, evcc | home network only | counts only as `::ffff:…`, with which the system itself connects via IPv4. NAT64, 6to4 and `::a.b.c.d` go through someone else's translator and are **never home network**. |
+| Notifications to Home Assistant | everything except link-local, unspecified (`0.0.0.0/8`, `::`) and the metadata service | **every form counts like the IPv4**; the local NAT64 prefix `64:ff9b:1::/48` is blocked |
+| Reading in the cloud | public only | `::ffff:…`, NAT64 and 6to4 count with the IPv4; the deprecated forms `::a.b.c.d` and `::ffff:0:a.b.c.d` are **never public** |
+
+<!-- doc-claim: metadata-blocked (MetadataAddressTest) -->
+**Metadata services are blocked on all three paths** *(v3.12.0)*, however they
+are written: `169.254.169.254` (link-local anyway), `fd00:ec2::254` and
+`100.100.100.200`. The last one lies in `100.64.0.0/10`, which otherwise counts
+as home network (CGNAT, Tailscale). **Only this one address is blocked**, not
+the network.
 
 ### Reading in the cloud *(v3.7.0)*
 
 For the inbox, a cloud service can read the post from your supplier. This is an
 **opt-in**: off until someone who manages the installation switches it on
-(Settings → Expert → “Reading documents” card → “Cloud”). Without this opt-in
+(Connections → Reading mail and photos → “Cloud”). Without this opt-in
 no document leaves the home network. All cloud paths, Claude included, are
 **experimental**: not yet checked against real-world feedback; the card and the
 question before reading say so. Setup:
@@ -392,7 +457,8 @@ network, here none may be.
 - On every call the server resolves the name, and **every** address must be
   public: no private network, no loopback, no link-local including the metadata
   service, no `100.64.0.0/10`, no multicast. IPv4 in IPv6 (`::ffff:…`, NAT64,
-  6to4) counts with the embedded address.
+  6to4) counts with the embedded address, the deprecated forms never
+  ([One rule for entered addresses](#receipts-and-text-recognition-v310)).
 - The connection goes to exactly the checked address, without a proxy from the
   environment and without redirects. The response may be at most 20 MB.
 
@@ -446,6 +512,54 @@ documents — reading and taking over work as above.
   the same checks as for uploads. Only Home Assistant knows the mailbox
   credentials.
 
+### AI assistants (MCP) *(v3.12.0)*
+
+The AI interface `POST /api/mcp` is off by default; only an admin can switch it
+on, and `ET_MCP=off` locks it for good. Setup:
+[Connect an AI assistant](../anleitungen/ki-assistent.md).
+
+- **Always a key of its own** with scope `mcp` (read) or `mcp_write` (read and
+  propose), even without sign-in and in proxy mode. It only counts at
+  `/api/mcp` (`mcp_write` also at `POST /api/inbox`); other keys and sessions do
+  not count there. Never in the URL.
+- **No browser:** a request with a foreign `Origin` is rejected, and there is
+  no CORS. AI programs send no `Origin`.
+- **Writing only in two steps:** a proposal writes nothing; it is applied only
+  with its ID and the summary word for word, within 15 minutes, once, with the
+  same key. The server builds the summary from structured data, never from
+  document text; it states amounts, prices and deadlines.
+- **Confirmation in the app (`mcp_apply_in_app`, on by default):** `apply_proposal`
+  then writes nothing; a person with admin rights applies in the interface, CSRF like
+  every action there, for up to 24 hours. Apply and reject accept no key (`403`, even
+  without sign-in) and only work from the app’s own interface. This protects against a
+  script with the key, a program set to “always allow” and injected instructions in
+  documents. **Without sign-in**, however, any program in the home network can operate the
+  app and present itself as a browser, including an AI with network or shell access of its
+  own: **only sign-in helps against that.** With the switch off, only the request to the
+  program remains (`requiresUserInteraction`); whether programs honour it has not been
+  checked.
+- **Foreign text** (names, notes, quotes) appears cleaned and shortened only in
+  the field `untrusted`, never in descriptions, instructions or summaries.
+- **What never goes out:** `data/auth.json` and any key or hash, settings with
+  network addresses, people and roles, backups, logs, proposals of other keys.
+  Identifiers and original PDFs only with `mcp_share_identifiers` or
+  `mcp_share_documents` (off by default). Without the first switch the app also replaces
+  numbers it knows in quotes, text values, file names, provider, tariff, notes, names and in
+  the title and text of hints and rights findings *(v3.12.0)*.
+  Provider and tariff themselves do not count as identifiers, the app does not recognise a
+  short number without a label, and what the AI reads from an original itself, it cannot
+  hold back.
+- **No tools** for settings, people, keys, backups or deleting; no tool fetches
+  an address or starts reading in the cloud.
+- **Rate limits** per key and a block after wrong keys per address
+  ([Limits](../anleitungen/ki-assistent.md#limits)). Proposals and log live
+  under `data/mcp/`, not in the backup. Filing in the inbox with the AI key also has its
+  bucket, a smaller body limit and a line in the log, and it only works with the interface
+  switched on.
+- **From the internet** only through a reverse proxy with HTTPS that lets only
+  `/api/mcp` through; v3.12.0 offers no OAuth
+  ([From the cloud](../anleitungen/ki-assistent.md#from-the-cloud-only-with-your-own-https-access)).
+
 ## 10. Logging and troubleshooting
 
 - `ET_DEBUG=1` writes file, line and exception type into error responses — set
@@ -458,6 +572,30 @@ documents — reading and taking over work as above.
 - Snapshots and backups contain all user data. `data/auth.json` (password hash,
   token hashes, keys) is **not** part of the backup — after a move, set up
   sign-in and the token again.
+- **No credentials in the log** *(v3.12.0)*. The app writes the request URI
+  with every message, but without the values of `token`, `key`, `password`,
+  `secret` and related parameters and without anything that looks like a key
+  of the app (`etk_…`, `et_…`); `***` stands there instead. The image's nginx
+  access log names only the path, a query shows as `?...`.
+- **Your own web server:** the default format of Apache (`combined`, `%r`) and
+  nginx (`$request`) writes the whole address including the calendar
+  subscription's `?token=…` into the access log. If you pass the log on, use a
+  format without the query: with Apache `%m %U %H` instead of `%r`, with nginx
+  the `et_main` format from `docker/nginx.conf`.
+
+  ```apache
+  LogFormat "%h %l %u %t \"%m %U %H\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" et_without_query
+  CustomLog ${APACHE_LOG_DIR}/access.log et_without_query
+  ```
+
+- **Only the web server reads files with secrets** *(v3.12.0)*. The app writes
+  `auth.json` (session secret, password, token and key hashes),
+  `inbox_cloud_key.json` and `ha_notify_secret.json` with permissions `0600`;
+  all other files stay `0644`. The app converts older installations on the next
+  request. Backing up the data directory from the host needs `root` or the web
+  server's user (Docker: UID 82, rootless: UID 10001, Synology: `http`). If the
+  container's UID changes, hand the folder to the new UID (`chown -R`);
+  otherwise the app can no longer read these files and answers `503`.
 
 ## 11. Checklist before exposing it
 
@@ -466,7 +604,7 @@ documents — reading and taking over work as above.
 - [ ] Home Assistant with a token, the way back with a `read` key (§ 4)
 - [ ] Calendar subscription only with a calendar key in the link (§ 5)
 - [ ] `data/` & co. return `404` — the security check shows it (§ 9)
-- [ ] Host list set: Settings → Access or `ET_ALLOWED_HOSTS` (§ 8)
+- [ ] Host list set: Settings → Access and security or `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` not set (§ 10)
 - [ ] Docker: hardened or without root, port only on `127.0.0.1` behind the reverse proxy (§ 13)
 - [ ] Better still: VPN instead of exposure (§ 1)

@@ -11,17 +11,17 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Sechzehn Schlüssel ändern
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Neunundzwanzig Schlüssel ändern
 dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
-einbetten lässt, Namen sperrt, den Verlauf kürzt oder Dokumente in die Cloud
-schickt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
+einbetten lässt, Namen sperrt, den Verlauf kürzt oder Daten nach außen gibt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
 `allowed_hosts` und `activity_keep_months` sowie (seit v3.7.0) `inbox_provider`,
 wohin Versorgerpost zum Auslesen geht, und `inbox_cloud_enabled`,
 `inbox_cloud_provider`, `inbox_cloud_endpoint` und `inbox_cloud_model`, (seit
 v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` und
 `ha_notify_service`, ob und wohin Benachrichtigungen an Home Assistant gehen,
 (seit v3.10.0) `home_ca_pem` und `home_tls_insecure`, wem Verbindungen ins
-Heimnetz vertrauen. Ein
+Heimnetz vertrauen, (seit v3.12.0) `mcp_enabled`, `mcp_share_identifiers`,
+`mcp_share_documents` und `mcp_apply_in_app`, ob und was eine KI lesen darf und wer eine Änderung bestätigt, `language`, `country`, `currency` und `timezone`, die Vorgabe für alle, und `update_check`, `location_name`, `latitude`, `longitude` und `weather_auto_fill`, ob die App nach neuen Versionen fragt und welchen Standort sie dem Wetterdienst nennt. Ein
 Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
 alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
 Einschränkung nicht.
@@ -31,16 +31,14 @@ Land setzt beim ersten Start sein Profil (Standort, Währung, Zeitzone,
 Heizgrenze, CO₂-Faktoren …) — siehe [Länderprofile](../verstehen/14-laenderprofile.md).
 Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 
-## Einstellungen → Allgemein
+## Einstellungen → Für dich
 
-### Sprache & Land
+Adresse `#/settings`. Erste Seite der Einstellungen, oben mit der Suche über alle Einstellungen.
 
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `language` | `de` | Standardsprache der Installation | de, en, fr, it, es, pt, nl. Gilt für Geräte ohne eigene Wahl, für Jahresbericht und CSV-Dateien, für Meldungen an Home Assistant und Skripte. Seit v3.1.0 wählt jedes Gerät daneben seine eigene Sprache („Sprache auf diesem Gerät“, im Browser gespeichert); die App schickt sie als `X-ET-Language`, Bezeichnungen und Meldungen der API folgen ihr. |
-| `country` | `DE` | Land | Land (ISO-Code). Ein Wechsel bietet an, das Länderprofil zu übernehmen — siehe [Länderprofile](../verstehen/14-laenderprofile.md). |
-| `currency` | `EUR` | Währung | Währung (ISO-Code) für die Anzeige; es wird nichts umgerechnet. |
-| `timezone` | `Europe/Berlin` | Zeitzone | Zeitzone für „heute“, Stichtage und Erinnerungen. |
+**Ein Treffer führt an das Feld**, auch über der eigenen Stufe. Steht es in
+einem gerade verborgenen Bereich, etwa unter „Cloud“, sagt ein Hinweis an der
+Karte, wo es steht; **„Zeigen“ klappt den Bereich auf und speichert nichts**
+*(v3.12.0)*.
 
 ### Nutzungsstufe und Einrichtung *(v3.2.0)*
 
@@ -55,6 +53,23 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 | `setup_pending` | `false` | — | `true` heißt: Beim nächsten Öffnen erscheint der Einrichtungsassistent. Gesetzt wird es nur beim allerersten Start einer Neuinstallation, nie nach einem Update; der Assistent setzt es zurück, wenn er fertig ist oder übersprungen wird, ebenso das Laden eines Beispielhaushalts. Erneut starten lässt sich der Assistent jederzeit über „Einrichtungsassistent starten“ auf der Karte „Nutzungsstufe und Einrichtung“ — dafür braucht es diesen Schlüssel nicht. |
 | `setup_persona` | leer (`null`) | Einrichtungsassistent, erste Frage | Die zuletzt gewählte Persona: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` oder `showcase` („Erst einmal alles ansehen“); leer oder `none` = keine. Der Assistent schlägt damit die Antwort vor; das Laden eines Beispielhaushalts setzt die geladene Persona. Rechnet nichts. |
 
+## Einstellungen → Region und Sprache
+
+Adresse `#/settings/region`.
+
+### Sprache & Land
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `language` | `de` | Sprache, Vorgabe für alle | de, en, fr, it, es, pt, nl. Gilt für alle ohne eigene Wahl, für CSV-Dateien, für Jahresberichte ohne eigene Sprachwahl, für Meldungen an Home Assistant und Skripte. **Reihenfolge in der App:** die Wahl der angemeldeten Person (auf allen ihren Geräten), dann die Wahl auf diesem Gerät (im Browser gespeichert), dann diese Vorgabe. Die App schickt die gezeigte Sprache als `X-ET-Language`, Bezeichnungen und Meldungen der API folgen ihr. Die Vorgabe ändern nur Verwalter, die eigene Wahl bleibt frei. |
+| `country` | `DE` | Land | Land (ISO-Code). Ein Wechsel bietet an, das Länderprofil zu übernehmen — siehe [Länderprofile](../verstehen/14-laenderprofile.md). |
+| `currency` | `EUR` | Währung | Währung (ISO-Code) für die Anzeige; es wird nichts umgerechnet. |
+| `timezone` | `Europe/Berlin` | Zeitzone | Zeitzone für „heute“, Stichtage und Erinnerungen. |
+
+## Einstellungen → Anzeige und Erinnerungen
+
+Adresse `#/settings/display`.
+
 ### Anzeige
 
 | Schlüssel | Standard | In der App | Wirkung |
@@ -67,7 +82,7 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `update_check` | aus | Auf neue Versionen hinweisen | Einmal am Tag fragt der Server bei GitHub die neueste veröffentlichte Version ab (`GET /api/update-check`); ist sie neuer, erscheint ein Hinweis mit Link zu den Release-Notes, bis du ihn für diese Version schließt. GitHub sieht nur die Adresse des Servers. Ausgeschaltet geht keine Anfrage hinaus. Die Einrichtung schlägt den Hinweis vor; bestehende Installationen bleiben aus, bis jemand ihn einschaltet. |
+| `update_check` | aus | Auf neue Versionen hinweisen | Einmal am Tag fragt der Server bei GitHub die neueste veröffentlichte Version ab (`GET /api/update-check`); ist sie neuer, erscheint ein Hinweis mit Link zu den Release-Notes, bis du ihn für diese Version schließt. GitHub sieht nur die Adresse des Servers. Ausgeschaltet geht keine Anfrage hinaus. Die Einrichtung schlägt den Hinweis vor; bestehende Installationen bleiben aus, bis jemand ihn einschaltet. **Ändern nur Verwalter** *(v3.12.0)*. |
 
 Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert auf …“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
 
@@ -87,32 +102,119 @@ Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert au
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `contract_remind_days_1` | 90 | Stufe 1 — Vorwarnung | Tage vor dem Kündigungsstichtag (ohne Frist: vor dem Vertragsende) für die erste Erinnerung. |
-| `contract_remind_days_2` | 30 | Stufe 2 — Erinnerung | zweite Stufe |
-| `contract_remind_days_3` | 1 | Stufe 3 — dringend | dritte Stufe |
+| `contract_remind_days_1` | 90 | Erste Erinnerung | Tage vor dem Kündigungsstichtag (ohne Frist: vor dem Vertragsende) für die erste Erinnerung. |
+| `contract_remind_days_2` | 30 | Zweite Erinnerung | zweite Stufe |
+| `contract_remind_days_3` | 1 | Letzte Erinnerung | dritte Stufe |
 | `reminder_warn_days_before` | 14 | Termin „bald fällig“ ab | Ab so vielen Tagen vor dem Termin gilt er als „bald fällig“. |
 | `reminder_overdue_days` | 0 | Kulanz bis „überfällig“ | So viele Tage nach dem Termin gilt er noch als fällig, danach als überfällig. 0 = ab dem Tag danach. |
 
-### Verlauf erledigter Hinweise *(v3.4.0)*
+## Einstellungen → Daten und Sicherung
 
-Nicht unter Einstellungen, sondern unter **Hinweise → Erledigt → „Verlauf
-verwalten“** — dort, wo der Verlauf steht
-([Hinweise erledigen](../anleitungen/hinweise-erledigen.md)).
+Adresse `#/settings/data`.
+
+### Belege *(v3.1.0)*
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `activity_keep_months` | 60 | Aufbewahren (Monate, 0 = unbegrenzt) | Einträge im Verlauf, die länger her sind (Tag des Erledigens), fallen beim nächsten Eintrag heraus; ihre Belege werden frei. 0–1200, `0` = unbegrenzt. Nur Verwalter. |
+| `attachments_max_mb` | 500 | Speicher für Belege, höchstens | Obergrenze für alle Belege zusammen (Fotos, PDFs) in MB, 10–100000. Ist sie erreicht, lehnt die App neue Belege ab. Ab 80 % warnt die Backup-Karte unter Einstellungen → Daten und Sicherung. Ein einzelnes Foto darf höchstens 3 MB haben, ein PDF 10 MB. |
 
-## Einstellungen → Haushalt & Gebäude
+## Einstellungen → Zugang und Sicherheit
+
+Adresse `#/settings/access`.
+
+### Einbetten
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `frame_ancestors` | leer | Erlaubte Einbettungs-Adressen | Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst. Adressen, die die App einbetten dürfen (Content-Security-Policy), z. B. ein Home-Assistant-Dashboard. Seit v3.2.0 nur Verwalter. |
+
+### Hostnamen *(v3.4.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `allowed_hosts` | leer | Erlaubte Hostnamen | Kommaliste ohne Schema und Port, `*.domain` als Platzhalter, höchstens 20 Einträge; gespeichert als `a.example, *.b.example`. Leer = alle Namen. Sonst beantwortet die App andere Namen mit `421` (gegen DNS-Rebinding); IP-Adressen und `localhost` gelten immer. Gilt zusammen mit `ET_ALLOWED_HOSTS`. Beim Speichern muss der Name dabei sein, unter dem die Anfrage kommt, sonst `400` `errors.settings.hostNotListed`. Nur Verwalter — [Sicherheit § 8](../betrieb/sicherheit.md#8-hostnamen-und-einbetten). |
+
+## Einstellungen → Rechnen
+
+Adresse `#/settings/calculation`. Die Rechenparameter, ab Stufe Experte. Bis v3.11 hieß die Seite „Experte“.
+
+### CO₂-Emissionsfaktoren
+
+Seit v3.6.0 steht die lange Liste in der Kachel zugeklappt („Faktoren je
+Verbrauchsart und Strom je Jahr“ — derselbe Aufklappbereich wie „Prognose im
+Detail“; ob offen, merkt sich jedes Gerät). Bei einem Fehler in einem der
+Felder und nach dem Speichern einer Änderung darin klappt sie auf.
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `co2_gas` | 182 | CO₂ Gas | BAFA: 201 g/kWh, bezogen auf den Heizwert. Die App zählt Gas nach Brennwert (Zustandszahl × Brennwert), daher × 0,906 = 182. Bestandsinstallationen behalten den früheren Standard 201 (auf den Heizwert bezogen), bis sie die neuen Werte übernehmen. |
+| `co2_strom` | 380 | CO₂ Strom | Gilt für Jahre vor dem ersten Jahreswert. Ohne Jahreswerte gilt er für alle Jahre. |
+| `co2_strom_years` | 2015–2025 (344–530) | CO₂ Strom je Jahr | Strommix je Jahr (Umweltbundesamt). Nach dem letzten Jahr gilt dessen Wert, davor „CO₂ Strom“. Strommix je Jahr, 2015–2025 nach Umweltbundesamt (g/kWh). |
+| `co2_wasser` | 350 | CO₂ Wasser | Für Aufbereitung und Pumpen je m³ Wasser. Ein Schätzwert ohne amtliche Quelle. |
+| `co2_fernwaerme` | 280 | CO₂ Fernwärme | BAFA-Pauschale. Genauer ist der Wert deines Wärmenetzes; ihn nennt der Versorger. Früherer Standard 180. |
+| `co2_heizoel` | 266 | CO₂ Heizöl | BAFA, bezogen auf den Heizwert, so wie die App Heizöl rechnet. |
+| `co2_pellets` | 36 | CO₂ Pellets | BAFA, CO₂-Äquivalente einschließlich Vorkette. Früherer Standard 26. |
+| `co2_pv_avoided` | leer (`null`) | CO₂ vermieden durch PV | *(v3.1.0)* Eigener Vermeidungsfaktor in g/kWh (0–2000) für PV-Erzeugung und -Einspeisung. Leer = Strommix wie bei „CO₂ Strom“ (bisheriges Verhalten). Einen Wert schlägt die App nicht vor; einen Anhaltspunkt gibt die Emissionsbilanz erneuerbarer Energieträger des Umweltbundesamts. |
+
+### Regression & Prognose
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `min_days_period` | 20 | Min. Tage pro Periode | Monate mit weniger erfassten Tagen (Teilmonate) bleiben aus Heizsignatur und Anomalien heraus. |
+| `min_hdd_regression` | 5 | Min. HGT für Regression | Monate mit weniger Heizgradtagen bleiben aus der Heizsignatur heraus. Im Sommer bestimmt die Grundlast den Verbrauch, nicht das Wetter. |
+| `blend_max` | 0,8 | Max. Blend-Gewicht | Höchstes Gewicht des Wettermodells in der Prognose; der Rest kommt aus dem Saisonprofil. 0,8 heißt: mindestens 20 % Saisonprofil. |
+| `forecast_model` | `linear` | Standardmodell | Modell für Prognose und Tarifvergleich. Linear passt für die meisten Häuser; die Analyse zeigt, welches deine Daten am besten erklärt. Werte: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid`. |
+| `segmented_split_mode` | `auto` | Segment-Knickpunkt | auto = datenbasiert gefittet, fixed = fester HGT-Wert unten. Werte: `auto`, `fixed`. |
+| `segmented_fixed_split` | 50 | Fester Knickpunkt | Nur wirksam bei Modus „fixed“. |
+| `confidence_band_sigma` | 1,28 | Breite des Prognosebands | In Streuungseinheiten σ: 1,28 heißt, der Verbrauch liegt in 80 % der Jahre im Band; 1,64 wären 90 %. |
+| `anomaly_threshold` | 2 | Anomalie-Schwelle | Ab welcher Abweichung (in Streuungseinheiten σ) ein Monat in der Analyse als auffällig gilt. Kleiner heißt empfindlicher. |
+
+### Empfehlungen & Verteilung
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `recommendation_anomaly_sigma` | 2 | Empfehlung Anomalie-Schwelle | Dieselbe Art Schwelle für die Empfehlungen: erst ab dieser Abweichung entsteht ein Hinweis. |
+| `recommendation_trend_pct_year` | 3 | Empfehlung Trend-Schwelle | Ab welchem Anstieg je Jahr die Empfehlungen einen steigenden Verbrauch melden. |
+| `delivery_baseload_share` | 0,15 | Sockel-Anteil Verteilung | Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet). |
+
+### CO₂-Preis *(v3.1.0)*
+
+Der CO₂-Preis im Brennstoff (BEHG) — Hintergrund und Rechnung unter
+[CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md). Nur in Ländern mit
+CO₂-Preis wirksam, heute Deutschland.
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme — für 2027 also 60, obwohl dafür nach § 4 Abs. 1 Nr. 3 CO2KostAufG der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November 2026 maßgeblich ist; das Umweltbundesamt veröffentlicht ihn spätestens zehn Werktage vor Jahresbeginn, dann hier eintragen. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
+| `co2_price_scenario_eur_t` | leer (`null`) = aus | Szenario: CO₂-Preis | Vorbelegung des Felds „CO₂-Preis ab 2028 (€/t)“ der Prognose (0–1000 €/t): Die Prognose zeigt dann, was dieser Preis mehr kosten würde. Leer = aus. |
+| `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 startet der europäische Emissionshandel für Gebäude und Straßenverkehr (ETS2) und löst den nationalen Preis ab (Art. 2 VO (EU) 2026/667). |
+
+## Haushalt → Gebäude
+
+Adresse `#/household/building`.
 
 ### Gebäude & Effizienz
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. Seit v3.6.0 ordnet die Karte „Einordnung“ die Heizung erst ein, wenn die Fläche eingetragen ist (s. u.). |
+| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche. Danach rechnet die Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. Seit v3.6.0 ordnet die Karte „Einordnung“ die Heizung erst ein, wenn die Fläche eingetragen ist (s. u.). |
 | `gebaeudetyp` | `efh` | Gebäudetyp | Mehrfamilienhaus heißt: ab drei Wohnungen. Werte: `efh` Ein-/Zweifamilienhaus, `rh` Reihenhaus, `mfh` Mehrfamilienhaus, `whg` Wohnung. Bestimmt die Bezugsfläche der energieausweis-nahen Kennzahl. |
 | `beheizter_keller` | aus | Beheizter Keller | Wohngebäude mit bis zu zwei Wohnungen (Ein-/Zweifamilienhaus, auch Reihenhaus) mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2; § 82 Abs. 2 GModG, bis Juli 2026 GEG) — für die Kennzahl nach Energieausweis. Wirkt nur bei `gebaeudetyp` `efh` oder `rh`. |
 | `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält einen Zuschlag von 20 kWh/m²·a, ab 2027 von 16 kWh/m²·a (§ 82 GModG). |
+
+### Angaben für Briefe *(v3.12.0)*
+
+**Freiwillig.** Der Brief-Dialog füllt damit Absender und Lieferanschrift vor
+([Brief schreiben](../anleitungen/brief-schreiben.md)). Die Angaben bleiben in
+deinen Daten und in der Sicherung; **an eine KI gibt die App sie nie weiter**,
+auch nicht mit dem Schalter für Kennnummern
+([KI-Assistent → Datenschutz](../anleitungen/ki-assistent.md#sicherheit-und-datenschutz)). Je Zeile höchstens 60 Zeichen.
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `letter_sender_name` | leer | Name (Absender) | Eine Zeile; erste Zeile des Absenders, Unterschrift unter dem Brief. Leer: kein Absender, der Brief zeigt die Lücke `[…]`. |
+| `letter_sender_address` | leer | Anschrift (Absender) | Bis zu vier Zeilen, etwa Straße und Hausnummer, dann Postleitzahl und Ort. Beginnt die letzte Zeile mit einer Postleitzahl, schlägt der Brief den Ort für „Ort, Datum“ vor. Steht nur im Brief, wenn auch ein Name da ist. |
+| `letter_supply_address` | leer | Lieferanschrift (Verbrauchsstelle) | Eine Zeile; steht im Brief unter den Angaben zur Zuordnung als „Lieferanschrift“. |
 
 ### Wohnen und Warmwasser *(v3.1.0)*
 
@@ -124,7 +226,7 @@ Schritt: [Als Mieter](../anleitungen/mieter.md); die Rechnung:
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
 | `wohnverhaeltnis` | `eigentum` | Ich wohne | „im Eigentum“ (`eigentum`) oder „zur Miete“ (`miete`). Zur Miete: Unter Kosten & Verträge erscheint die Seite „Mietverhältnis“ (Vorauszahlung, Hilfsrechnung, Nebenkostenabrechnungen), und Agenda und Kalender kennen die beiden Fristen der Nebenkostenabrechnung. In Deutschland teilt die App außerdem die CO₂-Kosten zwischen Mieter und Vermieter auf ([CO₂-Kosten teilen](../anleitungen/co2-aufteilung.md)). Im Eigentum ändert sich nichts. |
-| `waerme_energietraeger` | leer | Heizwärme kommt aus | Für den CO₂-Wert der Verbrauchsart Heizwärme – eine Näherung, denn gezählt wird die Wärme, nicht der Brennstoff. Werte: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (Wärmepumpe, Durchlauferhitzer) oder leer („keine Angabe“) — dann ist der CO₂-Wert 0. Gerechnet wird mit dem CO₂-Faktor dieses Energieträgers (Strom je Jahr). |
+| `waerme_energietraeger` | leer | Heizwärme kommt aus | Für den CO₂-Wert der Verbrauchsart Heizwärme. Eine Näherung, denn gezählt wird die Wärme, nicht der Brennstoff. Werte: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (Wärmepumpe, Durchlauferhitzer) oder leer („keine Angabe“) — dann ist der CO₂-Wert 0. Gerechnet wird mit dem CO₂-Faktor dieses Energieträgers (Strom je Jahr). |
 | `warmwasser_energietraeger` | leer | Warmwasser wird erwärmt mit | Womit das Warmwasser erwärmt wird: dieselben Werte und zusätzlich `waerme` („Heizwärme (zentral)“). Nur zur Information; die Rechnung ändert sich dadurch nicht. |
 | `warmwasser_temp_c` | 60 | Warmwassertemperatur | Für die Wärme der Warmwasserzähler nach HeizkostenV § 9 Abs. 2: 2,5 kWh je m³ und Grad über 10 °C (30–90 °C). Unbekannt: 60 °C — dann ist 1 m³ Warmwasser 125 kWh. Wirkt nur auf Wasserzähler mit der Rolle „Warmwasser“. |
 
@@ -151,8 +253,8 @@ mit dem Feld im Fokus.
 |---|---|---|---|
 | `wasser_personen_anzahl` | 2 | Anzahl der Personen | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). Bis v3.7 hieß das Feld „Personen im Haushalt“; so heißt seit v3.9.0 die Karte mit den Namen für „Zuständig“. |
 | `wasser_personen_referenz` | 122 | Referenz | BDEW 2024: 122 L je Person und Tag. Bestandsinstallationen behalten den früheren Standard 127, bis sie die neuen Werte übernehmen. |
-| `wasser_sparindex_gut` | 100 | Spar-Index — gut bis | Index ≤ diesem Wert gilt als unauffällig. |
-| `wasser_sparindex_warnung` | 150 | Spar-Index — Warnung ab | Index ≥ diesem Wert zeigt Sparpotenzial an. |
+| `wasser_sparindex_gut` | 100 | Spar-Index: gut bis | Index ≤ diesem Wert gilt als unauffällig. |
+| `wasser_sparindex_warnung` | 150 | Spar-Index: Warnung ab | Index ≥ diesem Wert zeigt Sparpotenzial an. |
 
 ### Wohnfläche und Personen: eingetragen oder angenommen *(v3.6.0)*
 
@@ -172,7 +274,19 @@ Wohnfläche 100 m² – bitte eintragen“** mit einem Link direkt zum Feld, im
 Jahresbericht ein Satz dazu. Die API meldet
 die offenen Angaben unter `assumed_keys` ([API](api.md#angenommene-angaben-assumed_keys-v360)).
 
-## Einstellungen → Verbrauchsarten & Abrechnung
+**Geprüft beim Speichern *(v3.12.0)*:** <!-- doc-claim: household-limits -->
+Die Wohnfläche ist eine Zahl von 0 bis 100.000 m², die Personenzahl eine ganze Zahl
+von 0 bis 1.000; 0 heißt wie bisher „keine Angabe“. Ein Komma als Dezimaltrenner
+geht auch über die API (**„120,5“ sind 120,5 m²**). Text wie „viel“, negative oder
+größere Werte lehnt `PATCH /api/settings` mit `400` ab (`errors.settings.valueInvalid`).
+Bis v3.11 kam jeder Wert durch: „120,5“ rechnete als 120 m² und galt zugleich als nicht
+eingetragen. Was eine ältere Version so gespeichert hat, liest die App ehrlich: „120,5“
+als 120,5 m², unlesbare oder negative Werte als nicht eingetragen. Dieselbe Prüfung auf
+eine Zahl gilt für **alle Zahlen-Einstellungen** (etwa die Heizgrenze `hdd_base_temp`).
+
+## Haushalt → Verbrauchsarten
+
+Adresse `#/household/utilities`.
 
 ### Aktive Verbrauchsarten
 
@@ -194,9 +308,9 @@ die offenen Angaben unter `assumed_keys` ([API](api.md#angenommene-angaben-assum
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `gas_conversion_factors` | 11,5 kWh/m³ (undatiert) | Gas-Umrechnungsfaktoren | Ein Eintrag je Brennwertperiode, so wie die Gasrechnung sie ausweist: Gültig ab, Zustandszahl und Brennwert — der Faktor kWh/m³ wird daraus berechnet. Wer keine Aufschlüsselung hat, trägt den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. Die Verbrauchsrechnung teilt jedes Ableseintervall tagesgenau an den Stichtagen. Liste mit „Gültig ab“, Zustandszahl und Brennwert je Periode; ein Eintrag darf undatiert sein. Standard: undatiert 11,5 kWh/m³. |
+| `gas_conversion_factors` | 11,5 kWh/m³ (undatiert) | Gas-Umrechnungsfaktoren | Ein Eintrag je Brennwertperiode, wie auf der Gasrechnung: Gültig ab, Zustandszahl und Brennwert. Daraus rechnet die App den Faktor kWh/m³; ohne Aufschlüsselung trägst du den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. An jedem Stichtag teilt die App das Ableseintervall tagesgenau. Liste mit „Gültig ab“, Zustandszahl und Brennwert je Periode; ein Eintrag darf undatiert sein. Standard: undatiert 11,5 kWh/m³. |
 | `gas_cv_unit` | `kwh` | Brennwert angeben in | Einheit, in der der Brennwert eingegeben wird: `kwh` (kWh/m³), `mj` (MJ/m³) oder `gj` (GJ/Smc). Gespeichert wird immer kWh/m³. |
-| `hdd_base_temp` | 15 | HGT-Basistemperatur | Heizgrenze — Tage darunter zählen als Heiztage. |
+| `hdd_base_temp` | 15 | HGT-Basistemperatur | Heizgrenze: Tage darunter zählen als Heiztage. |
 
 ### Energieträger (Lieferung)
 
@@ -205,24 +319,6 @@ die offenen Angaben unter `assumed_keys` ([API](api.md#angenommene-angaben-assum
 | `heizoel_kwh_per_l` | 10 | Heizöl Energiegehalt | Energie je Liter Heizöl (Heizwert, üblich 10 kWh/L). Rechnet Liter in kWh um. |
 | `pellets_kwh_per_kg` | 4,8 | Pellets Energiegehalt | Energie je kg Pellets (üblich 4,8 kWh/kg). Rechnet kg in kWh um. |
 | `tank_warn_pct` | 15 | Tank-Warnung ab | Unter diesem Füllstand wird der Tank gelb, unter der Hälfte davon rot, und „Zu tun“ schlägt eine Lieferung vor. |
-
-### CO₂-Emissionsfaktoren
-
-Seit v3.6.0 steht die lange Liste in der Kachel zugeklappt („Faktoren je
-Verbrauchsart und Strom je Jahr“ — derselbe Aufklappbereich wie „Prognose im
-Detail“; ob offen, merkt sich jedes Gerät). Bei einem Fehler in einem der
-Felder und nach dem Speichern einer Änderung darin klappt sie auf.
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `co2_gas` | 182 | CO₂ Gas | BAFA: 201 g/kWh, bezogen auf den Heizwert. Die App zählt Gas nach Brennwert (Zustandszahl × Brennwert), daher × 0,906 = 182. Bestandsinstallationen behalten den früheren Standard 201 (auf den Heizwert bezogen), bis sie die neuen Werte übernehmen. |
-| `co2_strom` | 380 | CO₂ Strom | Gilt für Jahre vor dem ersten Jahreswert — ohne Jahreswerte für alle Jahre. |
-| `co2_strom_years` | 2015–2025 (344–530) | CO₂ Strom je Jahr | Strommix je Jahr (Umweltbundesamt). Nach dem letzten Jahr gilt dessen Wert, davor „CO₂ Strom“. Strommix je Jahr, 2015–2025 nach Umweltbundesamt (g/kWh). |
-| `co2_wasser` | 350 | CO₂ Wasser | Für Aufbereitung und Pumpen je m³ Wasser — ein Schätzwert ohne amtliche Quelle. |
-| `co2_fernwaerme` | 280 | CO₂ Fernwärme | BAFA-Pauschale. Genauer ist der Wert Ihres Wärmenetzes — er steht beim Versorger. Früherer Standard 180. |
-| `co2_heizoel` | 266 | CO₂ Heizöl | BAFA, bezogen auf den Heizwert — so, wie die App Heizöl rechnet. |
-| `co2_pellets` | 36 | CO₂ Pellets | BAFA, CO₂-Äquivalente einschließlich Vorkette. Früherer Standard 26. |
-| `co2_pv_avoided` | leer (`null`) | CO₂ vermieden durch PV | *(v3.1.0)* Eigener Vermeidungsfaktor in g/kWh (0–2000) für PV-Erzeugung und -Einspeisung. Leer = Strommix wie bei „CO₂ Strom“ (bisheriges Verhalten). Einen Wert schlägt die App nicht vor; einen Anhaltspunkt gibt die Emissionsbilanz erneuerbarer Energieträger des Umweltbundesamts. |
 
 ### Photovoltaik *(v3.1.0)*
 
@@ -248,45 +344,9 @@ solange nichts eingetragen ist (`example_keys` in `GET /api/settings`).
 | `flex_ev_plugged_from` | leer (`null`) | Auto ohne evcc: angesteckt ab | Volle Stunde 0–23. Zusammen mit `flex_ev_plugged_until` die Steckzeit des Autos, wenn es keine Ladevorgänge aus evcc gibt: Verschoben wird nur in dieser Zeit. Leer = am Ladetag den ganzen Tag bereit (Beispielwert). Mit Ladevorgängen aus evcc zählen deren Steckzeiten. |
 | `flex_ev_plugged_until` | leer (`null`) | Auto ohne evcc: angesteckt bis | Volle Stunde 0–23; liegt sie vor „ab“, geht die Zeit über Mitternacht (18 bis 7 = abends bis morgens). Gleich „ab“ = kein Fenster. |
 
-## Einstellungen → Wetterdaten
+## Verbindungen → Post und Fotos auslesen
 
-### Standort und Abgleich
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `location_name` | `Leipzig Zentrum` | Ortsname | Name des Standorts, für die Anzeige. Unter Einstellungen → Wetterdaten per Ortssuche gesetzt. |
-| `latitude` | 51,3397 | Breitengrad | Breitengrad für Temperaturen und Klimanormal (an Open-Meteo gerundet auf zwei Nachkommastellen, rund 1 km). |
-| `longitude` | 12,3731 | Längengrad | Längengrad, wie Breitengrad. |
-| `weather_auto_fill` | an | Wetter automatisch füllen | Holt beim Öffnen der App höchstens einmal täglich Temperaturen von Open-Meteo (Standort auf rund 1 km gerundet). |
-
-## Einstellungen → Zugriff
-
-### Einbetten
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `frame_ancestors` | leer | Erlaubte Einbettungs-Adressen | Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst. Adressen, die die App einbetten dürfen (Content-Security-Policy), z. B. ein Home-Assistant-Dashboard. Seit v3.2.0 nur Verwalter. |
-
-### Hostnamen *(v3.4.0)*
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `allowed_hosts` | leer | Erlaubte Hostnamen | Kommaliste ohne Schema und Port, `*.domain` als Platzhalter, höchstens 20 Einträge; gespeichert als `a.example, *.b.example`. Leer = alle Namen. Sonst beantwortet die App andere Namen mit `421` (gegen DNS-Rebinding); IP-Adressen und `localhost` gelten immer. Gilt zusammen mit `ET_ALLOWED_HOSTS`. Beim Speichern muss der Name dabei sein, unter dem die Anfrage kommt, sonst `400` `errors.settings.hostNotListed`. Nur Verwalter — [Sicherheit § 8](../betrieb/sicherheit.md#8-hostnamen-und-einbetten). |
-
-## Einstellungen → Experte
-
-Oben stehen seit v3.7.0 die Karte „Auslesen“ (wer die Post im Posteingang
-ausliest, Lokal | Cloud), seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im
-Heimnetz“, seit v3.2.0 auch „evcc im Heimnetz“; die Rechenparameter (Regression &
-Prognose, Empfehlungen & Verteilung, seit v3.1.0 CO₂-Preis) liegen darunter
-eingeklappt hinter „Rechenparameter anzeigen“. Die Seite gehört zur Stufe
-Experte.
-
-### Belege *(v3.1.0)*
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `attachments_max_mb` | 500 | Speicher für Belege, höchstens | Obergrenze für alle Belege zusammen (Fotos, PDFs) in MB, 10–100000. Ist sie erreicht, lehnt die App neue Belege ab. Ab 80 % warnt die Backup-Karte unter Einstellungen → Daten. Ein einzelnes Foto darf höchstens 3 MB haben, ein PDF 10 MB. |
+Adresse `#/connections/reading`. Eine Karte „Auslesen“ für beide Wege, mit dem Umschalter **Lokal | Cloud**.
 
 ### Texterkennung im Heimnetz *(v3.1.0)*
 
@@ -308,7 +368,7 @@ sie deshalb nur einmal, in der Karte „Auslesen“ unter „Lokal“. Die Karte
 
 Liest Versorgerpost im Posteingang aus — lokal über den Dienst der
 Texterkennung (Adresse und Schnittstelle wie oben), mit einem Textmodell. Alles
-dazu steht in **einer** Karte, „Auslesen“ (Einstellungen → Experte), mit dem
+dazu steht in **einer** Karte, „Auslesen“ (Verbindungen → Post und Fotos auslesen), mit dem
 Umschalter **Lokal | Cloud** und einer eigenen Taste „Speichern“; „Lokal“ zeigt
 Adresse, Schnittstelle, Textmodell, Zeitlimit und „Verbindung prüfen“
 (`GET /api/inbox/local/check`, nur Verwalter). Einrichtung:
@@ -320,47 +380,6 @@ Adresse, Schnittstelle, Textmodell, Zeitlimit und „Verbindung prüfen“
 | `inbox_model` | `qwen3.8` | Auslesen → Lokal: Textmodell | Name eines Textmodells, wie der Dienst es kennt (höchstens 200 Zeichen; leer = `qwen3.8`). Empfohlen: `qwen3.8`, braucht rund 18 GB Arbeitsspeicher. |
 | `inbox_timeout_s` | 300 | Auslesen → Lokal: Zeitlimit je Schritt | Sekunden je Schritt (Art erkennen, Felder lesen), 30–300. Jeder Schritt ist eine eigene Anfrage und bleibt so unter den 310 Sekunden, die nginx im Docker-Image wartet. |
 
-### evcc im Heimnetz *(v3.2.0)*
-
-Holt die Ladevorgänge der Wallbox direkt aus evcc, wenn du in der
-Wallbox-Ansicht auf „Von evcc abrufen“ tippst. Die CSV-Datei aus evcc geht
-immer, auch ohne diesen Schlüssel. Einrichtung:
-[Ladevorgänge aus evcc](../anleitungen/evcc.md).
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `evcc_endpoint` | leer | Adresse von evcc | Basisadresse mit `http://` oder `https://`, unter der du evcc im Browser öffnest, etwa `http://192.168.178.30:7070` oder `http://evcc.local:7070`; die App hängt `/api/sessions` an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt der Abruf ab (wie bei der Texterkennung). Nur Verwalter. |
-
-### Benachrichtigungen an Home Assistant *(v3.9.0)*
-
-Einstellungen → Integrationen → 🔔 Benachrichtigungen an Home Assistant.
-Webhook-ID und Token stehen nicht hier, sondern in einer eigenen Datei auf dem
-Server (nicht im Backup, nie im Browser). Wann was gesendet wird:
-[Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `ha_notify_enabled` | aus | Benachrichtigungen senden | Der Schalter. Aus = nichts geht an Home Assistant. Einschalten geht nur mit vollständigem Ziel. Nur Verwalter. |
-| `ha_notify_target` | `supervisor` | Wohin? | `supervisor` (App in Home Assistant, ohne Einrichtung), `webhook` oder `token` (Adresse und Token). Nur Verwalter. |
-| `ha_notify_url` | leer | Adresse von Home Assistant | Für Webhook und Token, ohne Pfad, etwa `http://192.168.178.10:8123`. Im Heimnetz `http://` oder `https://`, eine Adresse außerhalb nur mit `https://`. Nur Verwalter. |
-| `ha_notify_service` | `persistent_notification.create` | Aktion in Home Assistant | Für Supervisor und Token: `persistent_notification.create` oder `notify.<name>` (etwa `notify.mobile_app_…`). Nur Verwalter. |
-| `ha_notify_events` | alle | Was melden? | Teilmenge von `reminder` (Termine), `deadline` (Fristen und weitere Punkte aus „Zu tun“), `warning` (Warnungen), `document` (neue Dokumente im Posteingang). |
-| `ha_notify_hour` | `8` | Tägliche Prüfung ab | Stunde (0 bis 23), ab der die tägliche Prüfung läuft, mit der ersten Anfrage danach. |
-
-### Verbindungen im Heimnetz *(v3.10.0)*
-
-Einstellungen → Experte → 🔐 Verbindungen im Heimnetz. Für Home Assistant,
-Texterkennung, das Auslesen im Heimnetz und evcc über `https://` mit selbst
-ausgestellten Zertifikaten ([#36](https://github.com/Bingerminger/energietracker/issues/36)). Die
-Cloud-Dienste und die öffentlichen Dienste (Wetter, Börsenpreise,
-Update-Hinweis) prüfen weiter nur gegen die Stammzertifikate des Systems.
-Anleitung: [Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100).
-
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `home_ca_pem` | leer | Eigenes Stammzertifikat (PEM) | Das Stammzertifikat, mit dem du deine Zertifikate selbst ausstellst, als PEM-Text (`-----BEGIN CERTIFICATE-----` …), auch mehrere. Es gilt **zusätzlich** zu den Stammzertifikaten des Systems und zur Datei aus `ET_CA_FILE`; die Prüfung bleibt an. Gespeichert werden nur die Zertifikate selbst; ein privater Schlüssel oder ein unlesbarer Block wird abgelehnt (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). Ein Zertifikat ist kein Geheimnis, es steht im Backup. Nur Verwalter. |
-| `home_tls_insecure` | aus | Zertifikat im Heimnetz nicht prüfen | Notlösung: Verbindungen zu Adressen im Heimnetz prüfen das Zertifikat nicht (weder Aussteller noch Namen). Ohne Prüfung kann mitlesen, wer sich im Netz dazwischenhängt, auch den Token für Home Assistant. Entschieden wird an der Adresse, mit der die App verbindet (nach der Namensauflösung): Heimnetz sind 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` und `fc00::/7`. Für jede andere Adresse wirkungslos. Nur Verwalter. |
-
 ### Posteingang: Auslesen in der Cloud *(v3.7.0)*
 
 Ein Opt-in für den Posteingang: Ein Cloud-Dienst liest die Post vom Versorger
@@ -368,7 +387,7 @@ aus, wenn im Haus kein starker Rechner steht. Aus, bis ein Verwalter es
 einschaltet; vor jedem Auslesen nennt die App den Dienst. **Experimentell:**
 Alle Cloud-Wege, auch Claude, sind noch nicht mit echten Rückmeldungen geprüft;
 Karte und Rückfrage sagen das. Die Cloud-Seite der Karte „Auslesen“
-(Einstellungen → Experte) speichert über `PATCH /api/inbox/cloud`
+(Verbindungen → Post und Fotos auslesen) speichert über `PATCH /api/inbox/cloud`
 ([API](api.md#get-apiinboxcloud--patch-apiinboxcloud-v370)).
 Einrichtung: [In der Cloud auslesen](../anleitungen/posteingang.md#in-der-cloud-auslesen).
 
@@ -401,38 +420,118 @@ der Umschalter der Karte; die Schlüssel hier richten den Cloud-Dienst ein.
 | `inbox_cloud_model` | leer | Auslesen → Cloud: Modell | Aus der Liste des Dienstes oder von Hand. Leer = Standard des Anbieters (`claude-opus-5-5` bei Claude, der einzige fest eingebaute Name); bei `openai` Pflicht. Buchstaben, Ziffern und `. _ : / @ + -`, höchstens 200 Zeichen. Wechselt der Anbieter oder der Dienst hinter der Adresse, wird das Modell geleert. Nur Verwalter. |
 | `inbox_cloud_timeout_s` | 120 | Auslesen → Cloud: Zeitlimit | Sekunden, die der Server auf den Cloud-Dienst wartet (10–600). Hinter einem eigenen Webserver oder Reverse-Proxy gilt dessen Grenze; im Docker-Image wartet nginx beim Erkennen und Auslesen bis zu 660 Sekunden *(v3.7.0)*. |
 
-### Regression & Prognose
+## Verbindungen → Benachrichtigungen
+
+Adresse `#/connections/homeassistant/notifications`.
+
+### Benachrichtigungen an Home Assistant *(v3.9.0)*
+
+Verbindungen → Benachrichtigungen.
+Webhook-ID und Token stehen nicht hier, sondern in einer eigenen Datei auf dem
+Server (nicht im Backup, nie im Browser). Wann was gesendet wird:
+[Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `min_days_period` | 20 | Min. Tage pro Periode | Monate mit weniger erfassten Tagen (Teilmonate) bleiben aus Heizsignatur und Anomalien heraus. |
-| `min_hdd_regression` | 5 | Min. HGT für Regression | Monate mit weniger Heizgradtagen bleiben aus der Heizsignatur heraus — im Sommer bestimmt die Grundlast den Verbrauch, nicht das Wetter. |
-| `blend_max` | 0,8 | Max. Blend-Gewicht | Höchstes Gewicht des Wettermodells in der Prognose; der Rest kommt aus dem Saisonprofil. 0,8 heißt: mindestens 20 % Saisonprofil. |
-| `forecast_model` | `linear` | Standardmodell | Modell für Prognose und Tarifvergleich. Linear passt für die meisten Häuser; die Analyse zeigt, welches deine Daten am besten erklärt. Werte: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid`. |
-| `segmented_split_mode` | `auto` | Segment-Knickpunkt | auto = datenbasiert gefittet, fixed = fester HGT-Wert unten. Werte: `auto`, `fixed`. |
-| `segmented_fixed_split` | 50 | Fester Knickpunkt | Nur wirksam bei Modus „fixed“. |
-| `confidence_band_sigma` | 1,28 | Breite des Prognosebands | In Streuungseinheiten σ: 1,28 heißt, der Verbrauch liegt in 80 % der Jahre im Band; 1,64 wären 90 %. |
-| `anomaly_threshold` | 2 | Anomalie-Schwelle | Ab welcher Abweichung (in Streuungseinheiten σ) ein Monat in der Analyse als auffällig gilt. Kleiner heißt empfindlicher. |
+| `ha_notify_enabled` | aus | Benachrichtigungen senden | Der Schalter. Aus = nichts geht an Home Assistant. Einschalten geht nur mit vollständigem Ziel. Nur Verwalter. |
+| `ha_notify_target` | `supervisor` | Wohin? | `supervisor` (App in Home Assistant, ohne Einrichtung), `webhook` oder `token` (Adresse und Token). Nur Verwalter. |
+| `ha_notify_url` | leer | Adresse von Home Assistant | Für Webhook und Token, ohne Pfad, etwa `http://192.168.178.10:8123`. Im Heimnetz `http://` oder `https://`, eine Adresse außerhalb nur mit `https://`. Nur Verwalter. |
+| `ha_notify_service` | `persistent_notification.create` | Aktion in Home Assistant | Für Supervisor und Token: `persistent_notification.create` oder `notify.<name>` (etwa `notify.mobile_app_…`). Nur Verwalter. |
+| `ha_notify_events` | alle | Was melden? | Teilmenge von `reminder` (Termine), `deadline` (Fristen und weitere Punkte aus „Zu tun“), `warning` (Warnungen), `document` (neue Dokumente im Posteingang). |
+| `ha_notify_hour` | `8` | Tägliche Prüfung ab | Stunde (0 bis 23), ab der die tägliche Prüfung läuft, mit der ersten Anfrage danach. |
 
-### Empfehlungen & Verteilung
+## Verbindungen → evcc
 
-| Schlüssel | Standard | In der App | Wirkung |
-|---|---|---|---|
-| `recommendation_anomaly_sigma` | 2 | Empfehlung Anomalie-Schwelle | Dieselbe Art Schwelle für die Empfehlungen: erst ab dieser Abweichung entsteht ein Hinweis. |
-| `recommendation_trend_pct_year` | 3 | Empfehlung Trend-Schwelle | Ab welchem Anstieg je Jahr die Empfehlungen einen steigenden Verbrauch melden. |
-| `delivery_baseload_share` | 0,15 | Sockel-Anteil Verteilung | Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet). |
+Adresse `#/connections/evcc`.
 
-### CO₂-Preis *(v3.1.0)*
+### evcc im Heimnetz *(v3.2.0)*
 
-Der CO₂-Preis im Brennstoff (BEHG) — Hintergrund und Rechnung unter
-[CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md). Nur in Ländern mit
-CO₂-Preis wirksam, heute Deutschland.
+Holt die Ladevorgänge der Wallbox direkt aus evcc, wenn du in der
+Wallbox-Ansicht auf „Von evcc abrufen“ tippst. Die CSV-Datei aus evcc geht
+immer, auch ohne diesen Schlüssel. Einrichtung:
+[Ladevorgänge aus evcc](../anleitungen/evcc.md).
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme — für 2027 also 60, obwohl dafür nach § 4 Abs. 1 Nr. 3 CO2KostAufG der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November 2026 maßgeblich ist; das Umweltbundesamt veröffentlicht ihn spätestens zehn Werktage vor Jahresbeginn, dann hier eintragen. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
-| `co2_price_scenario_eur_t` | leer (`null`) = aus | Szenario: CO₂-Preis | Vorbelegung des Felds „CO₂-Preis ab 2028 (€/t)“ der Prognose (0–1000 €/t): Die Prognose zeigt dann, was dieser Preis mehr kosten würde. Leer = aus. |
-| `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 startet der europäische Emissionshandel für Gebäude und Straßenverkehr (ETS2) und löst den nationalen Preis ab (Art. 2 VO (EU) 2026/667). |
+| `evcc_endpoint` | leer | Adresse von evcc | Basisadresse mit `http://` oder `https://`, unter der du evcc im Browser öffnest, etwa `http://192.168.178.30:7070` oder `http://evcc.local:7070`; die App hängt `/api/sessions` an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt der Abruf ab (wie bei der Texterkennung). Nur Verwalter. |
+
+## Verbindungen → Wetterdaten
+
+Adresse `#/connections/weather`.
+
+### Standort und Abgleich
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `location_name` | `Leipzig Zentrum` | Ortsname | Name des Standorts, für die Anzeige. Unter Verbindungen → Wetterdaten per Ortssuche gesetzt. **Ändern nur Verwalter** *(v3.12.0)*. |
+| `latitude` | 51,3397 | Breitengrad | Breitengrad für Temperaturen und Klimanormal (an Open-Meteo gerundet auf zwei Nachkommastellen, rund 1 km). **Ändern nur Verwalter** *(v3.12.0)*. |
+| `longitude` | 12,3731 | Längengrad | Längengrad, wie Breitengrad. **Ändern nur Verwalter** *(v3.12.0)*. |
+| `weather_auto_fill` | an | Wetter automatisch füllen | Holt beim Öffnen der App höchstens einmal täglich Temperaturen von Open-Meteo (Standort auf rund 1 km gerundet). **Ändern nur Verwalter** *(v3.12.0)*. |
+
+## Verbindungen → Sicherheit im Heimnetz
+
+Adresse `#/connections/homenet`.
+
+### Verbindungen im Heimnetz *(v3.10.0)*
+
+Verbindungen → Sicherheit im Heimnetz. Für Home Assistant,
+Texterkennung, das Auslesen im Heimnetz und evcc über `https://` mit selbst
+ausgestellten Zertifikaten ([#36](https://github.com/Bingerminger/energietracker/issues/36)). Die
+Cloud-Dienste und die öffentlichen Dienste (Wetter, Börsenpreise,
+Update-Hinweis) prüfen weiter nur gegen die Stammzertifikate des Systems.
+Anleitung: [Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `home_ca_pem` | leer | Eigenes Stammzertifikat (PEM) | Das Stammzertifikat, mit dem du deine Zertifikate selbst ausstellst, als PEM-Text (`-----BEGIN CERTIFICATE-----` …), auch mehrere. Es gilt **zusätzlich** zu den Stammzertifikaten des Systems und zur Datei aus `ET_CA_FILE`; die Prüfung bleibt an. Gespeichert werden nur die Zertifikate selbst; ein privater Schlüssel oder ein unlesbarer Block wird abgelehnt (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). Ein Zertifikat ist kein Geheimnis, es steht im Backup. Nur Verwalter. |
+| `home_tls_insecure` | aus | Zertifikat im Heimnetz nicht prüfen | Notlösung: Verbindungen zu Adressen im Heimnetz prüfen das Zertifikat nicht (weder Aussteller noch Namen). Ohne Prüfung kann mitlesen, wer sich im Netz dazwischenhängt, auch den Token für Home Assistant. Entschieden wird an der Adresse, mit der die App verbindet (nach der Namensauflösung): Heimnetz sind 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` und `fc00::/7`. Für jede andere Adresse wirkungslos. Nur Verwalter. |
+
+## Verbindungen → KI-Assistenten
+
+Adresse `#/connections/ai`.
+
+### KI-Assistenten (MCP) *(v3.12.0)*
+
+Verbindungen → KI-Assistenten. Ein KI-Assistent (etwa in VS
+Code, Cursor, LM Studio, Open WebUI) liest über `POST /api/mcp` mit; dafür
+braucht er immer einen API-Schlüssel mit Bereich `mcp` (lesen) oder
+`mcp_write` (lesen und vorschlagen), auch ohne Anmeldung. Die Umgebungsvariable
+`ET_MCP=off` sperrt die Schnittstelle fest, auch wenn der Schalter an ist.
+Webseiten im Browser haben keinen Zugriff; dafür gibt es keine Einstellung.
+Die Grenzen der Ratenbegrenzung sind fest.
+Schnittstelle: [API, KI-Schnittstelle](api.md#ki-schnittstelle-mcp-v3120).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `mcp_enabled` | aus | KI-Schnittstelle einschalten | Der Schalter. Aus = `/api/mcp` antwortet mit `403` und sagt, wo man einschaltet. Ein Wahrheitswert; ein Text wie `"false"` oder `"off"` gilt als aus, Unlesbares wird abgelehnt (`errors.settings.valueInvalid`). Ebenso bei den beiden Schaltern unten. Nur Verwalter. |
+| `mcp_share_identifiers` | aus | Kennnummern an die KI geben | Zählernummer, Markt- und Messlokation, Kunden-, Vertrags- und Rechnungsnummer (an Vertrag und Rechnung wie aus Dokumenten des Posteingangs), aus Dokumenten auch das Aktenzeichen, erscheinen nur mit diesem Schalter in den Antworten an die KI, freier Text davon unter `untrusted`. Ohne ihn fehlt das Feld (`withheld`), und die App ersetzt bekannte Nummern (des Dokuments und des Haushalts) in allem, was aus Dokumenten stammt: Zitate, Textwerte, Dateinamen; ein Zitat, das danach noch eine unbekannte lange Nummer trägt, fällt weg. Was die KI selbst aus einem Original liest, kann die App nicht zurückhalten. Nur Verwalter. |
+| `mcp_share_documents` | aus | Originale an die KI geben | Original-PDFs aus dem Posteingang (bis 5 MB) nur mit diesem Schalter; ohne ihn nennt das Dokument keine Adresse dafür. Nur Verwalter. |
+| `mcp_apply_in_app` | an | Übernahme nur in der App bestätigen | Sicherheitsschalter. An: `apply_proposal` schreibt nichts und antwortet mit `status: awaiting_confirmation`; die Person bestätigt unter Offene Vorschläge mit „Übernehmen“, der Vorschlag gilt 24 Stunden. Aus: `apply_proposal` schreibt, der Vorschlag gilt 15 Minuten, geschützt nur durch die Nachfrage des KI-Programms, die der Server nicht prüfen kann. Nur Verwalter. |
+
+**In der App** *(Karte „KI-Assistenten (MCP)“, nur Verwalter)*: Die drei Schalter
+speichern sofort, ohne Speicherleiste; scheitert das Speichern, springt das
+Kästchen zurück. Den Stand liest die Karte über `GET /api/mcp/status`. Sperrt
+`ET_MCP=off` die Schnittstelle, steht oben „Gesperrt“, der Schalter
+„KI-Schnittstelle einschalten“ lässt sich nicht bedienen, und die Karte „KI-Assistent
+verbinden“ entfällt. Schlüssel mit Bereich `mcp` („KI lesen“) oder `mcp_write`
+(„KI lesen und vorschlagen“) legt die Karte selbst an; sie stehen auch in der
+Liste unter Verbindungen → Schlüssel → „API-Schlüssel für Skripte“, dort mit derselben
+Beschriftung. Die Oberfläche zeigt keine Ursprungsliste für Webseiten
+([Ansichten, Einstellungen](ansichten.md#11-einstellungen)).
+
+## Zu tun → Verlauf
+
+Adresse `#/todo/history`.
+
+### Verlauf erledigter Hinweise *(v3.4.0)*
+
+Nicht unter Einstellungen, sondern unter **Zu tun → Verlauf → „Verlauf
+verwalten“** — dort, wo der Verlauf steht
+([Hinweise erledigen](../anleitungen/hinweise-erledigen.md)).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `activity_keep_months` | 60 | Aufbewahren (Monate, 0 = unbegrenzt) | Einträge im Verlauf, die länger her sind (Tag des Erledigens), fallen beim nächsten Eintrag heraus; ihre Belege werden frei. 0–1200, `0` = unbegrenzt. Nur Verwalter. |
 
 ## Nur über die API
 

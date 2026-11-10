@@ -109,6 +109,33 @@ final class InboxBillRightsTest extends ServiceTestCase
         self::assertArrayNotHasKey('items', $bill['data'], json_encode($bill['data']));
     }
 
+    /**
+     * v3.12.0 — Eine „Gutschrift“ in Höhe des Ergebnisses ist meist das Ergebnis selbst (Guthaben), keine eigene
+     * Zeile der Rechnung. Sie geht nicht mehr ungeprüft als Posten in die Rechnung: Der Server markiert sie
+     * (`credit_is_result`), der Vorschlag lässt sie draußen, „Rechnung prüfen“ passt. Erfunden: 870 € Gesamtbetrag,
+     * Abschläge 910 €, Ergebnis Guthaben 40 €, dazu gelesen „Guthaben 40,00 €“ als Gutschrift.
+     * Eigene Rechnung: 2.500 kWh × 0,30 € + 12 × 10 € = 870 € → passt (ohne die Gutschrift; mit ihr 830 € gegen 870 €).
+     */
+    public function testACreditEqualToTheResultIsMarkedAndStaysOut(): void
+    {
+        $id = DraftFixture::add($this->store, fn($b, $n) => $this->inbox->upload($b, $n), 'guthaben', 'invoice', [
+            'utility' => 'strom', 'supplier' => 'Stadtwerke Musterstadt', 'kind' => 'annual', 'period_from' => '01.01.2025', 'period_to' => '31.12.2025',
+            'consumption' => '2500', 'meter_number' => 'S-4711', 'total_amount' => '870,00', 'advances_total' => '910,00',
+            'result_kind' => 'credit', 'result_amount' => '40,00', 'document_date' => '10.02.2026',
+            'credits' => [['label' => 'Guthaben', 'amount' => '40,00', 'kind' => 'credit_other'], ['label' => 'Treuebonus', 'amount' => '15,00', 'kind' => 'bonus']]]);
+        $credits = $this->inbox->get($id)['extraction']['fields']['credits']['items'];
+        self::assertSame(['check', 'ok'], array_column($credits, 'status'));
+        self::assertContains('credit_is_result', $credits[0]['reasons']);
+        $bill = array_values(array_filter($this->inbox->preview($id)['proposals'], fn($p) => $p['kind'] === 'bill'))[0];
+        self::assertEquals([['label' => 'Treuebonus', 'amount_eur' => -15.0, 'kind' => 'credit']], $bill['data']['items'] ?? null,
+            'nur die echte Gutschrift');
+        $this->applyChecked($id);
+        $b = $this->onlyBill();
+        $b2 = $this->bills->update('strom', (string)$b['id'], ['items' => []]);   // ohne den Bonus: der Betrag passt genau
+        $c = $this->bills->compare('strom', (string)$b2['id']);
+        self::assertSame('ok', $c['verdict'], json_encode([$c['ours']['total'] ?? null, $c['invoice']['amount_eur'] ?? null]));
+    }
+
     public function testACorrectionKeepsTheFirstDateAndReplacesCreditsAndTheEstimate(): void
     {
         $this->applyChecked($this->invoice('erst', 'due', '30,00', ['document_date' => '10.02.2026', 'invoice_number' => 'R-1000']));

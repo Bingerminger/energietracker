@@ -56,7 +56,7 @@ sagen deshalb „inkl. USt“.
 - Für **„Sonnenstrom selbst nutzen“** Erzeugung und Einspeisung je
   Viertelstunde (PV-Erzeugung, PV-Einspeisung).
 - Für den **Speicher** zwei Zähler unter PV-Erzeugung mit den Rollen
-  „Speicher – Ladung“ und „Speicher – Entladung“, beide mit Viertelstunden
+  „Speicher (Ladung)“ und „Speicher (Entladung)“, beide mit Viertelstunden
   (§ 5).
 - Für **§ 14a Modul 3** die Zeitfenster am Stromvertrag (§ 6). Börsenpreise
   braucht Modul 3 nicht.
@@ -66,7 +66,7 @@ sagen deshalb „inkl. USt“.
   Tag bereitsteht, und kennzeichnet das als Beispielwert (§ 4, „Dein Hebel“).
 
 Gerechnet wird je Kalenderjahr in der Zeitzone der Installation
-(Einstellungen → Allgemein → Zeitzone). Ein Jahr hat 35.040 Viertelstunden,
+(Einstellungen → Region und Sprache → Zeitzone). Ein Jahr hat 35.040 Viertelstunden,
 ein Schaltjahr 35.136; die Tage der Zeitumstellung haben 92 bzw. 100.
 
 ---
@@ -410,7 +410,7 @@ Viertelstundenreihen (§ 8).
 ## 5. Speicher
 
 Die Karte **„Speicher nach Börsenpreis“** braucht zwei Zähler unter
-**PV-Erzeugung** mit den Rollen „Speicher – Ladung“ und „Speicher – Entladung“
+**PV-Erzeugung** mit den Rollen „Speicher (Ladung)“ und „Speicher (Entladung)“
 ([PV §7](../verstehen/12-pv.md#7-speicher-v310)), beide mit Viertelstunden, und
 die Börsenpreise des Jahres.
 
@@ -588,7 +588,7 @@ die App die letzten zwei bis drei Monate bis gestern fort — Tag für Tag aus
 demselben Kalendertag des Vorjahres, auch die Börsenpreise; das zeigt der
 Tagesfilm. Der Verbrauch ist erfunden.
 
-So lädst du ihn: Einstellungen → Allgemein → **„Einrichtungsassistent
+So lädst du ihn: Einstellungen → Für dich → **„Einrichtungsassistent
 starten“**, „Eigenheim mit Wärmepumpe und PV“, eine Stufe wählen, am Ende „Mit
 Beispieldaten ansehen“
 ([Beispielhaushalte](anwendungsfaelle.md#beispielhaushalte-zum-ansehen-v320)).

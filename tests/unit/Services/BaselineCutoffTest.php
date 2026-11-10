@@ -367,8 +367,10 @@ final class BaselineCutoffTest extends ServiceTestCase
     public function testRecommendationsIgnorePreBaselineMonths(): void
     {
         $this->spikeMonth('2021-01', 900.0);
-        // Stichtag kurz danach: 2021-01 liegt in den letzten 24 Monaten
-        $withoutCut = $this->gasMonthsFlaggedByRecommendations('2022-12-31');
+        // Stichtag kurz danach: 2021-01 liegt in den letzten 24 Monaten. v3.12.0 — und kurz nach der
+        // Zäsur vom 01.01.2023: Eine Zäsur nach dem Stichtag greift an ihm noch nicht (bis v3.11 rechneten
+        // die Monatszeilen am echten Datum, dann griff sie schon am 31.12.2022)
+        $withoutCut = $this->gasMonthsFlaggedByRecommendations('2023-01-15');
         self::assertContains(
             '2021-01',
             $withoutCut,
@@ -376,7 +378,7 @@ final class BaselineCutoffTest extends ServiceTestCase
         );
 
         $this->withCut();
-        $withCut = $this->gasMonthsFlaggedByRecommendations('2022-12-31');
+        $withCut = $this->gasMonthsFlaggedByRecommendations('2023-01-15');
         self::assertNotContains(
             '2021-01',
             $withCut,
@@ -437,15 +439,18 @@ final class BaselineCutoffTest extends ServiceTestCase
         }
         $this->spikeMonth('2025-08', 300.0);   // Sommer: HGT 0, Erwartung = Grundlast
 
+        // v3.12.0 — Stichtag am Tag der letzten Ablesung (01.06.2026): Mit Stichtag rechnen auch die
+        // Monatszeilen an ihm, und am 31.12.2025 gab es die Ablesungen des Anstiegs bis Juni 2026 noch nicht
+        $day = '2026-06-01';
         $this->setCut([]);
-        $ohne = $this->gasRuleIds();
+        $ohne = $this->gasRuleIds($day);
         self::assertContains('r2', $ohne, 'Kontrolle: ohne Zäsur meldet R2 den Anstieg gegenüber dem Vorjahr');
-        self::assertContains('2025-08', $this->gasMonthsFlaggedByRecommendations(), 'Kontrolle: ohne Zäsur meldet R1 den Sommer-Ausreißer');
+        self::assertContains('2025-08', $this->gasMonthsFlaggedByRecommendations($day), 'Kontrolle: ohne Zäsur meldet R1 den Sommer-Ausreißer');
 
         // Zäsur nach dem Ausreißer: zu wenig neue Historie für beide Regeln.
         $this->setCut([['date' => '2025-10-01', 'label' => 'Wärmepumpe']]);
-        self::assertNotContains('r2', $this->gasRuleIds(), 'R2 darf keinen Trend über die Zäsur hinweg melden');
-        self::assertNotContains('2025-08', $this->gasMonthsFlaggedByRecommendations(), 'R1 darf keinen Monat von vor der Zäsur melden');
+        self::assertNotContains('r2', $this->gasRuleIds($day), 'R2 darf keinen Trend über die Zäsur hinweg melden');
+        self::assertNotContains('2025-08', $this->gasMonthsFlaggedByRecommendations($day), 'R1 darf keinen Monat von vor der Zäsur melden');
     }
 
     /**
@@ -472,7 +477,7 @@ final class BaselineCutoffTest extends ServiceTestCase
     private const TODAY = '2025-12-31';
 
     /** @return array<int,string> Regel-Präfixe der Gas-Empfehlungen (r1, r2, …) */
-    private function gasRuleIds(): array
+    private function gasRuleIds(string $today = self::TODAY): array
     {
         $recos = (new RecommendationService(
             $this->store,
@@ -482,7 +487,7 @@ final class BaselineCutoffTest extends ServiceTestCase
             new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n),
             new DeliveryService($this->store, $this->meters, $this->i18n),
             $this->i18n
-        ))->atDate(self::TODAY);
+        ))->atDate($today);
         $out = [];
         foreach ($recos->all() as $r) {
             $ev = $r['evidence'] ?? [];

@@ -58,6 +58,7 @@ final class Evidence
     {
         $s = strtr($s, self::MOJIBAKE);
         $s = str_replace("\u{00AD}", '', $s);                                   // weiches Trennzeichen
+        $s = self::joinGroups($s);                                              // v3.12.0 — geschützte Lücke in einer Zahl
         $s = preg_replace('/(\p{L})-[ \t]*\R[ \t]*(\p{Ll})/u', '$1$2', $s) ?? $s; // Abrech-\nnung → Abrechnung
         $s = strtr($s, [
             "\u{00A0}" => ' ', "\u{202F}" => ' ', "\u{2009}" => ' ', "\u{2007}" => ' ',
@@ -156,22 +157,26 @@ final class Evidence
     /**
      * Textebene einer Seite zeilenweise (Nachbesserung 5): die normalisierten,
      * nicht leeren Zeilen, verbunden mit einem Leerzeichen (bzw. ganz ohne
-     * Leerraum), und wo jede Zeile darin beginnt.
+     * Leerraum), und wo jede Zeile darin beginnt. Ohne Leerraum dazu `gaps`: wo
+     * welcher stand (v3.12.0, findBounded()).
      *
-     * @return array{text: string, starts: list<int>}
+     * @return array{text: string, starts: list<int>, gaps?: array<int,true>}
      */
     private static function lined(string $page, bool $squeeze = false): array
     {
-        $text = ''; $starts = [];
+        $text = ''; $starts = []; $gaps = [];
         foreach (preg_split('/\R/u', $page) ?: [] as $raw) {
             $l = self::normalizeText($raw);
-            if ($squeeze) $l = self::squeeze($l);
+            $lineGaps = [];
+            if ($squeeze) [$l, $lineGaps] = self::squeezed($l);
             if ($l === '') continue;
             if ($text !== '' && !$squeeze) $text .= ' ';
-            $starts[] = mb_strlen($text);
+            $at = mb_strlen($text);
+            $starts[] = $at;
+            foreach ($lineGaps as $g => $_) $gaps[$at + $g] = true;
             $text .= $l;
         }
-        return ['text' => $text, 'starts' => $starts];
+        return ['text' => $text, 'starts' => $starts] + ($squeeze ? ['gaps' => $gaps] : []);
     }
 
     /** Zeile (0-basiert) einer Stelle im verbundenen Text. @param list<int> $starts */
@@ -187,9 +192,10 @@ final class Evidence
 
     /**
      * Stehen die Teile in dieser Reihenfolge im Text, jeder höchstens SPLIT_LINES
-     * Textzeilen unter dem Ende des vorigen? Jede Fundstelle wird probiert.
+     * Textzeilen unter dem Ende des vorigen? Jede Fundstelle an Zahlgrenzen wird
+     * probiert (findBounded()).
      *
-     * @param array{text: string, starts: list<int>} $lined
+     * @param array{text: string, starts: list<int>, gaps?: array<int,true>} $lined
      * @param list<string> $parts
      */
     private static function chain(array $lined, array $parts, ?int $from = null): bool
@@ -198,17 +204,76 @@ final class Evidence
         $part = array_shift($parts);
         $hay = $lined['text'];
         if ($part === '') return false;
-        for ($p = mb_strpos($hay, $part, $from ?? 0); $p !== false; $p = mb_strpos($hay, $part, $p + 1)) {
+        $gaps = $lined['gaps'] ?? [];
+        for ($p = self::findBounded($hay, $part, $from ?? 0, $gaps); $p !== false; $p = self::findBounded($hay, $part, $p + 1, $gaps)) {
             if ($from !== null && self::lineAt($lined['starts'], $p) - self::lineAt($lined['starts'], max(0, $from - 1)) > self::SPLIT_LINES) return false;
             if (self::chain($lined, $parts, $p + mb_strlen($part))) return true;
         }
         return false;
     }
 
-    /** Steht der (normalisierte) Text auf der (normalisierten) Seite, auch ohne Leerraum? */
+    /** Steht der (normalisierte) Text auf der (normalisierten) Seite, auch ohne Leerraum? An Zahlgrenzen (findBounded()). */
     private static function onPage(string $normPage, string $normText): bool
     {
-        return str_contains($normPage, $normText) || str_contains(self::squeeze($normPage), self::squeeze($normText));
+        if (self::findBounded($normPage, $normText) !== false) return true;
+        $needle = self::squeeze($normText);
+        if (!str_contains(self::squeeze($normPage), $needle)) return false;
+        [$hay, $gaps] = self::squeezed($normPage);
+        return self::findBounded($hay, $needle, 0, $gaps) !== false;
+    }
+
+    // ── Zahlgrenzen (v3.12.0) ────────────────────────────────────────────
+
+    /**
+     * Ziffern mit geschützter Lücke (NBSP, schmale Leerzeichen) in Dreiergruppen sind eine
+     * Zahl: „13 580“ wird „13580“. Ein gewöhnliches Leerzeichen bleibt: Es trennt in Tabellen
+     * auch zwei Spalten („35 580 m³“), dort gelten beide Lesarten (numberTokens()).
+     */
+    private static function joinGroups(string $s): string
+    {
+        return preg_replace_callback('/(?<![\d.,])\d{1,3}(?:[\x{00A0}\x{202F}\x{2009}\x{2007}]\d{3})+(?!\d)/u',
+            fn(array $m): string => preg_replace('/\D/u', '', $m[0]) ?? $m[0], $s) ?? $s;
+    }
+
+    /**
+     * Text ohne Leerraum und die Stellen im Ergebnis (Zeichen), an denen welcher stand.
+     *
+     * @return array{0: string, 1: array<int,true>}
+     */
+    private static function squeezed(string $normalized): array
+    {
+        $gaps = []; $pos = 0;
+        $words = preg_split('/\s+/u', $normalized, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        foreach ($words as $w) {
+            $pos += mb_strlen($w);
+            $gaps[$pos] = true;
+        }
+        return [implode('', $words), $gaps];
+    }
+
+    /**
+     * Fundstelle (Zeichen) ab `$from`, die nicht mitten in einer längeren Zahl liegt, sonst false.
+     * Bis v3.11 galt jeder Treffer: Das ausgedachte Zitat „0 m³“ stand in „13.580 m³“, „80,00 €“ in
+     * „180,00 €“; der Wert aus dem Zitat ging dann unmarkiert durch. Beginnt das Gesuchte mit einer
+     * Ziffer (auch hinter einem Trennzeichen), darf davor keine Ziffer stehen, auch nicht mit
+     * Tausender- oder Dezimaltrenner dazwischen (`.`, `,`, `'`); am Ende ebenso. Leerraum ist eine
+     * Grenze; ohne Leerraum gesuchter Text nennt seine Stellen in `$gaps`. Buchstaben sind keine
+     * Zahl („TEST-4711“, „m3“).
+     *
+     * @param array<int,true> $gaps
+     */
+    private static function findBounded(string $hay, string $part, int $from = 0, array $gaps = []): int|false
+    {
+        if ($part === '') return false;
+        $len = mb_strlen($part);
+        $head = preg_match("/^[.,']?\d/", $part) === 1;
+        $tail = preg_match("/\d[.,']?$/", $part) === 1;
+        for ($p = mb_strpos($hay, $part, $from); $p !== false; $p = mb_strpos($hay, $part, $p + 1)) {
+            if ($head && !isset($gaps[$p]) && preg_match("/\d[.,']?$/", mb_substr($hay, max(0, $p - 2), min($p, 2))) === 1) continue;
+            if ($tail && !isset($gaps[$p + $len]) && preg_match("/^[.,']?\d/", mb_substr($hay, $p + $len, 2)) === 1) continue;
+            return $p;
+        }
+        return false;
     }
 
     /** Auslassungszeichen zwischen den Teilen eines Zitats: „…“ oder drei Punkte. */
@@ -334,17 +399,44 @@ final class Evidence
     {
         // v3.9.0 (F1034) — gesperrte Ziffern („4 8,3 0 €“) zusammengezogen (despace). Ihre
         // Bruchstücke („8,3“) zählen nicht mehr als Zahl; mehrstellige Zahlen bleiben, wie sie sind
-        $quote = self::despace(strtr($quote, ["\u{00A0}" => ' ', "\u{202F}" => ' ']));
-        preg_match_all("/\\d[\\d.,'\u{00A0}\u{202F} ]*\\d|\\d/u", $quote, $m);
+        // v3.12.0 — eine geschützte Lücke ist ein Tausendertrenner (joinGroups): keine zweite Lesart
+        $quote = self::despace(strtr(self::joinGroups($quote), ["\u{00A0}" => ' ', "\u{202F}" => ' ']));
+        preg_match_all("/\\d[\\d.,'\u{00A0}\u{202F} ]*\\d|\\d/u", $quote, $m, PREG_OFFSET_CAPTURE);
         $out = [];
-        foreach ($m[0] as $tok) {
+        foreach ($m[0] as [$tok, $at]) {
             // „1.234,56 € 12,00“ — Leerzeichen trennen auch zwei Zahlen: beide Lesarten
-            foreach (array_unique([$tok, ...preg_split('/\s+/u', trim($tok)) ?: []]) as $part) {
+            $parts = [[$tok, (int)$at]];
+            if (preg_match_all('/\S+/u', $tok, $pm, PREG_OFFSET_CAPTURE)) foreach ($pm[0] as [$p, $o]) $parts[] = [$p, (int)$at + (int)$o];
+            $seen = [];
+            foreach ($parts as [$part, $pos]) {
+                if (isset($seen[$part])) continue;
+                $seen[$part] = true;
+                // v3.12.0 — Ziffern einer Kennung (Zählernummer „ABC-K-0002“, Aktenzeichen „AZ12/345“) sind kein Wert
+                if (self::inIdentifier($quote, $pos, strlen($part))) continue;
                 $r = array_map('abs', self::readings($part));
                 if ($r !== []) $out[] = $r;
             }
         }
         return $out;
+    }
+
+    /**
+     * v3.12.0 — Steht das Zahlwort an Byte `$at` (Länge `$len`) in einer Kennung? Davor ein Großbuchstabe
+     * („G4711“, „AZ12“; nicht die Währung „EUR“, „CHF“, „GBP“) oder ein Verbinder `-`, `/`, `_`, `#` direkt an
+     * Buchstabe oder Ziffer („K-0002“, „12/345“); danach ein Verbinder mit Buchstabe („4711-B“). Ein Kleinbuchstabe
+     * davor („Zählerstand2.000“), eine Einheit danach („1.250m³“) und ein Minus nach Leerraum bleiben eine Zahl.
+     * v3.12.0 — ebenso eine Zahl direkt hinter der Bezeichnung einer Nummer, auch mit Leerraum oder Doppelpunkt
+     * („Kundennummer 0001“, „Vertragskonto: 300042“): Sie ist die Nummer, kein Betrag und kein Stand. Die
+     * Bezeichnungen sind dieselben wie in der Maske der KI-Schnittstelle (Mcp\IdentifierMask::LABEL_STRICT).
+     */
+    private static function inIdentifier(string $text, int $at, int $len): bool
+    {
+        $before = substr($text, 0, $at);
+        $after = substr($text, $at + $len);
+        if (preg_match('/(?<![\p{L}\p{N}])' . \Energietracker\Services\Mcp\IdentifierMask::LABEL_STRICT . '[\s:#.]*$/iu', $before) === 1) return true;
+        if (preg_match('/(\p{Lu}+)$/u', $before, $m) === 1 && !in_array($m[1], ['EUR', 'CHF', 'GBP'], true)) return true;
+        if (preg_match('/[\p{L}\d][-\/_#]$/u', $before) === 1) return true;
+        return preg_match('/^[-\/_]\p{L}/u', $after) === 1;
     }
 
     /** @return list<float> alle Lesarten aller Zahlen im Zitat */
@@ -992,7 +1084,7 @@ final class Evidence
             if (!str_contains($line, $first) && !str_contains(self::squeeze($line), self::squeeze($first))) continue;
             for ($k = $i - 1, $steps = 0; $k >= 0 && $steps < 6; $k--, $steps++) {
                 if (self::datesIn($lines[$k]) !== []) continue;   // noch eine Standzeile
-                return str_contains(self::squeeze($lines[$k]), $n);
+                return self::onPage($lines[$k], $n);
             }
             return false;
         }
@@ -1475,7 +1567,7 @@ final class Evidence
                 $v = mb_substr($v, 0, 200);
                 $nv = self::normalizeText($v);
                 $nq = self::normalizeText($quote);
-                return [$v, str_contains($nq, $nv) || str_contains(self::squeeze($nq), self::squeeze($nv))];
+                return [$v, self::onPage($nq, $nv)];   // v3.12.0 — eine Nummer nur ganz, nicht als Teilstück
         }
     }
 
@@ -1505,6 +1597,15 @@ final class Evidence
             self::flag($out['total_amount'], 'inconsistent');
             if ($stated !== null) self::flag($out['advances_total'], 'inconsistent');
             else foreach (array_keys((array)($out['advances_paid']['items'] ?? [])) as $i) self::flag($out['advances_paid']['items'][$i], 'inconsistent');
+        }
+        // v3.12.0 — eine Gutschrift in Höhe des Ergebnisses ist meist das Ergebnis selbst (Guthaben, Erstattung),
+        // keine eigene Zeile der Rechnung; als Posten übernommen, rechnete „Rechnung prüfen“ sie doppelt ab.
+        // Markiert, damit sie nicht ungeprüft in die Rechnung geht (Proposals::rightsFields lässt `check` draußen)
+        if ($result !== null && abs((float)$result) > 0.0) {
+            foreach ((array)($out['credits']['items'] ?? []) as $i => $it) {
+                $amt = $it['value']['amount'] ?? null;
+                if (is_numeric($amt) && abs(abs((float)$amt) - abs((float)$result)) < 0.005) self::flag($out['credits']['items'][$i], 'credit_is_result');
+            }
         }
     }
 

@@ -52,7 +52,9 @@ final class ContractStatusFeedInTest extends ServiceTestCase
     public function testFeedInVerdictIsAuszahlungNotNachzahlung(): void
     {
         $meter = $this->seedFeedInMeterWithReadings();
-        $status = $this->consumption->contractStatus('pv_einspeisung', $meter);
+        // v3.12.0 — fester Tag im Jahr mit Ablesungen: Die Einspeisung rechnet seitdem je Abrechnungsjahr, mit dem
+        // heutigen Tag (nach der letzten Ablesung 2025) läge der Saldo bei 0
+        $status = $this->consumption->contractStatus('pv_einspeisung', $meter, '2024-12-20');
         self::assertNotEmpty($status['contracts']);
         $c = $status['contracts'][0];
 
@@ -67,7 +69,7 @@ final class ContractStatusFeedInTest extends ServiceTestCase
     public function testFeedInProjectionStaysWithinNextBillingCycleNotContractEnd(): void
     {
         $meter = $this->seedFeedInMeterWithReadings();
-        $status = $this->consumption->contractStatus('pv_einspeisung', $meter);
+        $status = $this->consumption->contractStatus('pv_einspeisung', $meter, '2024-12-20');
         $c = $status['contracts'][0];
 
         // effective_end darf nicht das Vertragsende 2043 sein, sondern die

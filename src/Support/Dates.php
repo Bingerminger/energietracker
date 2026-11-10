@@ -15,14 +15,42 @@ namespace Energietracker\Support;
  *
  * Kalendergültig heißt: Muster JJJJ-MM-TT UND `checkdate()` — der 31.02. ist
  * kein Datum.
+ *
+ * v3.12.0 — Das Muster endet jetzt wirklich am Ende (Modifier `D`): Ohne ihn
+ * passte `$` auch vor einem abschließenden Zeilenumbruch, „2026-11-04⏎“ galt als
+ * Datum und landete so in Ablesung, Gerätetausch und Temperaturen.
  */
 final class Dates
 {
+    /**
+     * v3.12.0 — Jahresbereich für Daten aus Eingaben (Ablesung, Vertrag, Termin,
+     * Lieferung, Zeitraum, Rechnung, Zähler). Eine Ablesung im Jahr 0001 (oder ein
+     * Tippfehler 0202) wurde angenommen; die Monatsrechnung legte danach für die
+     * zweitausend Jahre bis heute Monatszeilen an und brach Übersicht, „Zu tun“
+     * und Agenda am Speicher ab. Gelesen wird tolerant (isIsoDate), geschrieben
+     * nur in diesem Bereich (isInputDate).
+     */
+    public const MIN_INPUT_YEAR = 1900;
+    public const MAX_INPUT_YEAR = 2100;
+
     public static function isIsoDate(mixed $value): bool
     {
         if (!is_string($value)) return false;
-        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) return false;
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $value, $m)) return false;
         return checkdate((int)$m[2], (int)$m[3], (int)$m[1]);
+    }
+
+    /** v3.12.0 — Kalendertag JJJJ-MM-TT im Bereich MIN_INPUT_YEAR bis MAX_INPUT_YEAR. */
+    public static function isInputDate(mixed $value): bool
+    {
+        return self::isIsoDate($value) && self::inInputRange($value);
+    }
+
+    /** v3.12.0 — liegt das Jahr eines Kalendertags im Eingabebereich? (ohne Formprüfung) */
+    public static function inInputRange(string $isoDate): bool
+    {
+        $y = (int)substr($isoDate, 0, 4);
+        return $y >= self::MIN_INPUT_YEAR && $y <= self::MAX_INPUT_YEAR;
     }
 
     /**

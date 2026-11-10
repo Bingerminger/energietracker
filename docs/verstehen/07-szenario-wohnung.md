@@ -69,7 +69,7 @@ Nebenkosten an den Vermieter. Dafür gibt es keinen Saldo im Sinne eines
 Versorgervertrags, aber ein Gegenstück — die Seite **Mietverhältnis** unter
 Kosten & Verträge:
 
-1. **Einstellungen → Haushalt & Gebäude → „Ich wohne“: „zur Miete“.**
+1. **Haushalt → Gebäude → „Ich wohne“: „zur Miete“.**
 2. Verbrauchsart **Heizwärme** einschalten und einen Zähler mit der Erfassung
    **„Verbrauch je Zeitraum“** anlegen. Jeden Monat den Wert aus der
    Verbrauchsinfo eintragen (HeizkostenV § 6a, seit 2022 bei fernablesbaren
@@ -156,15 +156,15 @@ Bis v3.0 stand hier, ein rückwärts laufender Zähler sei mit modernen Zählern
 
 **Einrichten (seit v3.1.0):**
 
-1. **Verbrauchsart PV-Erzeugung** einschalten (Einstellungen →
-   Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten) und den Zähler des
+1. **Verbrauchsart PV-Erzeugung** einschalten (Haushalt →
+   Verbrauchsarten → Aktive Verbrauchsarten) und den Zähler des
    Wechselrichters anlegen, wenn er einen kWh-Stand zeigt (am Gerät oder in
    der App des Herstellers; eine Datei daraus liest
    [Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md)). Im
    Zählerdialog **„Balkonkraftwerk (Steckersolargerät, ohne
    Einspeisezähler)“** ankreuzen; unter „PV-Anlage“ auf Wunsch Investition und
    Inbetriebnahme für die Amortisation.
-2. Unter Einstellungen → Verbrauchsarten & Abrechnung → **Photovoltaik** den
+2. Unter Haushalt → Verbrauchsarten → **Photovoltaik** den
    **angenommenen Eigenverbrauch** eintragen, zum Beispiel 70 %. Ohne
    Einspeisezähler rechnet die App den Eigenverbrauch damit und zeigt
    Ersparnis, Autarkie und Amortisation — als Annahme gekennzeichnet

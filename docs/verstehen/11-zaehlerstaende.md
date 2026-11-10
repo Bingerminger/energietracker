@@ -130,6 +130,11 @@ fragt die Erfassung — Karte wie Ablese-Dialog der Verbrauchsansicht —
 | **Rückgang** | kleiner als der letzte Stand — außer dazwischen wurde ein neues Gerät eingebaut | mit Link zum Zählertausch |
 | **Zukunft** | Datum nach heute | Tippfehler im Jahr? |
 | **Gleicher Tag** | für den Tag gibt es schon einen Stand | Knopf „Ersetzen": der vorhandene Stand wird aktualisiert statt ein zweiter angelegt |
+| **Über dem nächsten** *(v3.12.0)* | ein Nachtrag liegt über dem nächsten Stand | die Verbrauchsrechnung ließe ihn sonst aus |
+
+**Nachtrag** *(v3.12.0)*: Liegt das Datum am oder vor dem letzten Stand, prüfen Karte und Dialog gegen den
+**vorigen und den nächsten Stand zu diesem Datum**, mit derselben Regel. Bis v3.11 kannte die Karte der Seite
+„Zählerstände“ nur den letzten Stand; ein Nachtrag zwischen zwei Ständen ging dort ohne Rückfrage durch.
 
 Der **typische Tagesverbrauch** ist der Median der letzten bis zu zehn
 Ableseintervalle desselben Geräts (mindestens zwei) — robust gegen einen
@@ -137,7 +142,7 @@ einzelnen Ausreißer. Das Backend liefert ihn in `readings-overview` als
 `typical_per_day`; die Verbrauchsansicht rechnet ihn nach derselben Regel.
 Die Hinweise erscheinen schon beim Tippen; die Rückfrage beim Speichern nennt
 den Zähler im Titel. Wer in der Sammelerfassung ablehnt, behält die Eingabe;
-die Karte zeigt „Nicht gespeichert – bitte prüfen", eine Meldung zählt die
+die Karte zeigt „Nicht gespeichert: bitte prüfen", eine Meldung zählt die
 zurückgestellten Karten.
 
 ### Nach dem Speichern: Ausreißer, Verdacht, Überlauf

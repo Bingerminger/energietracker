@@ -38,8 +38,10 @@ final class ScenarioEndpointTest extends HttpServerTestCase
         $missing = $this->send(['utility' => 'gas', 'meter_id' => 'm_gibtsnicht']);
         self::assertSame(404, $missing['status']);
         self::assertSame('errors.meter.notFound', $missing['json']['code'] ?? null, 'übersetzte Meldung mit stabilem Code');
-        $oil = $this->send(['utility' => 'heizoel', 'meter_id' => 'egal']);
-        self::assertSame([200, false], [$oil['status'], $oil['json']['data']['supported']]);
+        // v3.12.0 (F1040, Phase 2) — Heizöl rechnet die Werkstatt jetzt (unbekannter Tank: 404), ohne Werkstatt bleibt die Heizwärme
+        $heat = $this->send(['utility' => 'waerme', 'meter_id' => 'egal']);
+        self::assertSame([200, false], [$heat['status'], $heat['json']['data']['supported']]);
+        self::assertSame(404, $this->send(['utility' => 'heizoel', 'meter_id' => 'egal'])['status']);
 
         // Lese-Schlüssel: die Route schreibt nichts und ist erlaubt; Schreiben bleibt gesperrt
         $admin = $this->request('POST', '/api/session/password', ['Content-Type: application/json'], json_encode(['password' => 'geheim-123']));

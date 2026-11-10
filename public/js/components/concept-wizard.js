@@ -289,8 +289,8 @@ export async function openConceptWizard() {
         <div class="concept-summary__art">${schematic(state.concept, state.setup, { registers: regs, title: t('concept.art.own') })}</div>
         <ul class="concept-legend" aria-label="${esc(t('concept.summary.legend'))}">${legend}</ul>
       </div>
-      ${p.problems.length ? `<div class="banner banner--error" role="alert" data-role="cw-problems">${p.problems.map(x => `<p>${esc(t('errors.concept.' + x.code, x.params || {}))}</p>`).join('')}</div>` : ''}
-      ${(p.notices || []).length ? `<div class="banner ${p.notices.some(n => n.retro || n.code === 'before_install') ? 'banner--warning' : 'banner--info'}" data-role="cw-notices">${p.notices.map(n => `<p data-notice="${esc(n.code)}">${esc(noticeText(n))}</p>`).join('')}</div>` : ''}
+      ${p.problems.length ? `<div class="infobox infobox--fehler" role="alert" data-role="cw-problems">${p.problems.map(x => `<p>${esc(t('errors.concept.' + x.code, x.params || {}))}</p>`).join('')}</div>` : ''}
+      ${(p.notices || []).length ? `<div class="infobox ${p.notices.some(n => n.retro || n.code === 'before_install') ? 'infobox--achtung' : 'infobox--info'}" data-role="cw-notices">${p.notices.map(n => `<p data-notice="${esc(n.code)}">${esc(noticeText(n))}</p>`).join('')}</div>` : ''}
       <ul class="concept-actions" data-role="cw-actions">${p.actions.map(a => `<li data-op="${esc(a.op)}">${esc(actionText(a))}</li>`).join('')}</ul>
       <p class="muted small">${esc(t('concept.summary.snapshot'))}</p>`;
   };

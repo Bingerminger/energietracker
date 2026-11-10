@@ -42,6 +42,8 @@ import { defaultState, presetState, presetsFor, scenarioBody } from '../public/j
 import { setupFromHousehold, conceptFromHousehold, conceptPayload, suggestAssignments, initialInput, wizardPayload } from '../public/js/lib/metering-concepts.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// v3.12.0 — wie LetterService::CONTRACT_UTILITIES
+const CONTRACT_LETTER_UTILITIES = ['strom', 'gas', 'fernwaerme', 'wasser'];
 const FORECAST_MODELS = ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'];
 
 function arg(name, fallback) {
@@ -105,7 +107,9 @@ async function enumerate(get, post = null) {
     '/api/users',                             // v3.6.0 — Einstellungen → Zugriff: Personen ohne Zugang
     '/api/inbox/cloud',                       // v3.7.0 (cloud) — Einstellungen → Experte: Auslesen in der Cloud (aus)
     '/api/homeassistant/notify',              // v3.9.0 (F1033) — Einstellungen → Integrationen: Benachrichtigungen (aus)
-    '/api/rights');                           // v3.11.0 (F1035) — Rechte als Kunde (Ansichten filtern im Browser)
+    '/api/rights',                            // v3.11.0 (F1035) — Rechte als Kunde (Ansichten filtern im Browser)
+    // v3.12.0 (F1037) — Einstellungen → Integrationen: KI-Assistenten (aus, ohne Schlüssel, leere Listen)
+    '/api/mcp/status', '/api/mcp/journal', '/api/mcp/proposals');
   // v3.6.0 — Vorschau „Person löschen“ je Person (Löschen selbst lehnt die Demo ab)
   for (const p of (await get('/api/people')).json?.data ?? []) add(`/api/users/${p.id}/handover`);
   // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau je Dokument (vorberechnete Auslesung)
@@ -191,7 +195,8 @@ async function enumerate(get, post = null) {
       // Ausgangsfall (alle Regler auf null), die Beispielszenarien leitet sie aus
       // dessen Antwort ab (lib/scenario.js) — hier genauso, damit dieselben
       // Anfragen ihre vorgerechnete Antwort finden.
-      if (post && !delivery && u.has_contracts !== false && u.accounting_kind !== 'feed_in') {
+      // v3.12.0 (F1040, Phase 2) — auch Heizöl, Pellets und PV; ohne Werkstatt (Heizwärme) antwortet der Server „unsupported“
+      if (post) {
         const base = scenarioBody(defaultState(k, id));
         const r = await post('/api/forecast/scenario', base);
         scenarios.push(base);
@@ -260,7 +265,7 @@ async function enumerate(get, post = null) {
 
 /**
  * v3.4.0 (N1019) — Kandidaten für das Handbuch der Demo: alle Markdown-Dateien
- * und PNG unter docs/, dazu die Dateien im Wurzelverzeichnis. Was davon
+ * und Bilder (PNG, SVG) unter docs/, dazu die Dateien im Wurzelverzeichnis. Was davon
  * ausgeliefert wird, entscheidet der Server (Freigabeliste in DocsService) —
  * hier steht keine zweite Liste.
  */
@@ -271,7 +276,7 @@ function docCandidates() {
       if (e.isSymbolicLink()) continue;
       if (e.isDirectory()) walk(join(dir, e.name), `${rel}${e.name}/`);
       else if (e.name.endsWith('.md')) pages.push(rel + e.name);
-      else if (/\.png$/i.test(e.name)) images.push(rel + e.name);
+      else if (/\.(?:png|svg)$/i.test(e.name)) images.push(rel + e.name);
     }
   };
   walk(join(ROOT, 'docs'), '');
@@ -309,17 +314,25 @@ async function conceptPresets(get, post, lang) {
 /**
  * v3.11.0 (F1036, Paket doku) — erster Entwurf je Befund mit Brief, so wie der Dialog ihn
  * anfragt (components/letter-dialog.js `body()` ohne Absender und Ort, api.letterRender mit
- * `format: 'text'`; den Widerspruch erst nach der Bestätigung). Weitere Eingaben und das PDF
+ * `format: 'text'`; den Widerspruch erst nach der Bestätigung). v3.12.0 (m4b) — die erste Anfrage
+ * schickt weder `sender` noch `place`: Der Server füllt sie aus dem Haushalt (im Schaufenster erfunden). Weitere Eingaben und das PDF
  * rechnet die Demo nicht (lib/demo-mode.js: `demo.letterPresetsOnly`).
  * @returns {Promise<object[]>}
  */
 async function letterPresets(get, lang) {
   const findings = (await get('/api/rights', lang)).json?.data?.findings ?? [];
-  return findings.filter(f => f.letter).map(f => ({
-    finding_id: f.id, kind: f.letter, sender: [], place: '',
+  const out = findings.filter(f => f.letter).map(f => ({
+    finding_id: f.id, kind: f.letter,
     ...(f.letter === 'objection' ? { extra: { confirm_objection: true } } : {}),
     format: 'text',
   }));
+  // v3.12.0 — „Brief schreiben“ an der Vertragskarte: was der Server je Vertrag anbietet (`letters`)
+  for (const u of CONTRACT_LETTER_UTILITIES) {
+    for (const c of (await get(`/api/utility/${u}/contracts`, lang)).json?.data ?? []) {
+      for (const kind of c.letters ?? []) out.push({ utility: u, contract_id: c.id, kind, format: 'text' });
+    }
+  }
+  return out;
 }
 
 export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896, log = console.log } = {}) {

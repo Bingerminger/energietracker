@@ -27,7 +27,7 @@ deinen eigenen Daten.
 
 ### Die Schritte
 
-Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“), mit Strom und PV sechs. Seit **v3.9.0**
+Der Dialog „Einrichten“ hat sechs Schritte („Schritt 1 von 6“), mit Strom und PV sieben. Seit **v3.9.0**
 steht neben jeder Frage eine kleine Zeichnung (Weltkugel, Häuser, Zähler,
 Stufen, Ablage), und jede Antwort auf „Wer bist du?“ trägt ein kleines Haus-Bild
 statt eines Emojis. Die Bilder sind nur Schmuck; die Frage und der Text der
@@ -59,13 +59,16 @@ Antwort sagen alles.
    Wallbox oder Speicher mit eigenem Zähler). Der andere Aufbau wählt am Ende
    „Messkonzept einrichten“ vor; danach öffnet der Assistent „Messkonzept“
    ([Ansichten](../referenz/ansichten.md#assistent-messkonzept-einrichten-v390-github-40)).
-   Der Dialog hat dann sechs Schritte.
+   Der Dialog hat dann sieben Schritte.
 
    ![Schritt „Wie hängen deine Zähler?“ mit „Ein Zähler je Art“ und „Anderer Aufbau“](../ui/screenshots/einrichtung-zaehler.png)
 
 4. **„Wie viel Erfahrung hast du?“** — Einsteiger, Erfahren oder Experte
    ([§ 3](#3-nutzungsstufen)).
-5. **„So geht es weiter“** — die Zusammenfassung und einer von drei Wegen
+5. **„Wie willst du arbeiten?“** *(seit v3.12.0)* — die drei Fragen der Kurzauswahl aus dem
+   [Wegweiser](wegweiser.md): smarte Zähler oder Home Assistant, Versorgerpost, KI. Keine Frage ist Pflicht,
+   nichts wird eingerichtet und nichts im Haushalt gespeichert. Am Ende nennt der Schluss den passenden Weg als Link.
+6. **„So geht es weiter“** — die Zusammenfassung und einer von drei Wegen
    *(seit v3.7.0)*, mit Strom seit v3.9.0 einer von vier:
    - **„Aus Dokumenten“** *(empfohlen)* führt in den Posteingang: Versorgerpost
      als PDF ablegen, auslesen lassen, und ein Entwurf deines Haushalts
@@ -87,7 +90,7 @@ Antwort sagen alles.
      Stand als Snapshot.
 
 Gespeichert wird erst mit **„Los geht’s“**: die aktiven Verbrauchsarten, das
-Wohnverhältnis (Einstellungen → Haushalt & Gebäude → „Ich wohne“: „zur Miete“
+Wohnverhältnis (Haushalt → Gebäude → „Ich wohne“: „zur Miete“
 bei „Ich wohne zur Miete“, sonst „im Eigentum“), die Antwort aus Schritt 2
 und die Stufe. Sprache und Land nur, wenn du sie geändert hast:
 
@@ -117,7 +120,7 @@ Holzpellets an, Gas aus.
 
 ### Erneut starten
 
-Einstellungen → Allgemein → Karte „Nutzungsstufe und Einrichtung“ →
+Einstellungen → Für dich → Karte „Nutzungsstufe und Einrichtung“ →
 **„Einrichtungsassistent starten“**. Beim erneuten Start sind die Sprache
 dieses Geräts, dein Land, deine aktiven Verbrauchsarten und deine Stufe
 vorgewählt; unter dem Land steht, was gerade gilt („Eingestellt für …“).
@@ -210,7 +213,7 @@ erklärt:
 
 - **Im Assistenten:** Antwort in Schritt 2 wählen, am Ende „Mit Beispieldaten
   ansehen“.
-- **Einstellungen → Daten → „Demo-Daten laden“** und **„Mit Beispieldaten
+- **Einstellungen → Daten und Sicherung → „Demo-Daten laden“** und **„Mit Beispieldaten
   ausprobieren“** auf der leeren Übersicht laden das Schaufenster.
 
 Ein Beispielhaushalt **ersetzt den ganzen Haushalt**: Zähler, Stände,
@@ -220,7 +223,7 @@ bleibt**, seit v3.5.0 ebenso **Sprache, Land, Währung, Zeitzone und die
 Einheit des Brennwerts** (bis v3.4 fiel die Sprache dabei auf Deutsch
 zurück). Standort, Heizgrenze und CO₂-Faktoren bringt der Beispielhaushalt
 mit — er liegt in Leipzig. Vorher legt die App einen Snapshot an; sind schon Daten da, fragt
-sie erst nach. Zurück geht es über Einstellungen → Daten → „Gespeicherte
+sie erst nach. Zurück geht es über Einstellungen → Daten und Sicherung → „Gespeicherte
 Snapshots“ → „Einspielen …“. Mit [Benutzern](../anleitungen/benutzer.md)
 lädt nur, wer die Installation verwaltet.
 
@@ -247,7 +250,7 @@ einzeln, mit drei Haushalten zum Wählen:
 
 | Bereich | 🌱 Einsteiger | 🌿 Erfahren | 🌳 Experte |
 |---|---|---|---|
-| Übersicht | drei Antworten: Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Was ist zu tun? — mit einem Schaubild | alle Kennzahlen, seit v3.7.0 mit dem Abschnitt „Schaubilder“ | wie Erfahren |
+| Übersicht | drei Antworten: Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Was ist zu tun? — mit einem Schaubild | dazu Kacheln je Art und Zahlen; die Karten und „Schaubilder“ unter Auswertungen › Kennzahlen | wie Erfahren |
 | Zählerstände | erfassen, Foto als Beleg | dazu CSV-Import | dazu Zeitreihen aus Portalen |
 | Verbrauch je Art | Monatsverlauf, Saldo, Schaubilder — auch für PV, Wallbox und Wärmepumpe | dazu Vorjahr, witterungsbereinigt, Tabelle; seit v3.7.0 Jahresarbeitszahl, Speicher und Amortisation, Ladestrom-Nachweis | dazu Warmwasser-Wärme und CO₂-Preis im Brennstoff |
 | Verträge | Arbeitspreis, Grundpreis, Abschlag; seit v3.7.0 die Kündigungsfrist und bei Fernwärme Leistungs- und Messpreis | dazu Preiswechsel, Boni, Kündigungsweise, Mindestlaufzeit, Sonderzahlungen | dazu Gruppen und HT/NT, § 14a, Monatspreise, Kennwerte der Fernwärme |
@@ -275,7 +278,7 @@ einzeln, mit drei Haushalten zum Wählen:
 
 - **Kopfleiste**, neben Tag/Nacht: die Auswahl „Nutzungsstufe“. Die Stufe gilt
   sofort; Navigation und Ansicht bauen sich neu auf.
-- **Einstellungen → Allgemein → „Nutzungsstufe und Einrichtung“**: dieselbe
+- **Einstellungen → Für dich → „Nutzungsstufe und Einrichtung“**: dieselbe
   Auswahl, dazu eine Zeile je Stufe, was sie zeigt.
 
 **Für wen sie gilt:** Ohne Anmeldung gilt die Stufe für die ganze
@@ -304,13 +307,13 @@ Sobald Verbrauchsdaten da sind, zeigt die Übersicht in der Stufe
   Vorauszahlung je Monat, wenn es knapp wird.
 
 Darunter erklärt das Schaubild „Wohin geht mein Geld?“ den Vertrag mit dem
-höchsten Abschlag; oben steht der Knopf „Zählerstand erfassen“. Die Zahlen
-sind dieselben wie in den anderen Stufen.
+höchsten Abschlag. Zählerstände gehen über „Erfassen“ oben bzw. in der
+Tab-Leiste. Die Zahlen sind dieselben wie in den anderen Stufen.
 
 ### Vorschläge zum Hochstufen
 
 Braucht dein Haushalt mehr, als die Stufe zeigt, schlägt die Übersicht die
-nächste Stufe vor: „Dein Haushalt hat mehr, als diese Stufe zeigt — „…“
+nächste Stufe vor: „Dein Haushalt hat mehr, als diese Stufe zeigt. „…“
 blendet es ein.“
 
 | Stufe | Anlass im Haushalt | Vorschlag |
@@ -340,7 +343,7 @@ Vier Bilder, die je eine Frage beantworten — mit deinen Zahlen:
 
 - **Verbrauchsansicht einer Art**, in jeder Stufe: die Karte „Schaubilder“
   mit allen, die zu dieser Art passen.
-- **Übersicht, ab Stufe Erfahren** (seit v3.7.0, bis v3.6 Experte): der Abschnitt „Schaubilder“ — Geld und
+- **Auswertungen › Kennzahlen, ab Stufe Erfahren** (seit v3.12.0, davor auf der Übersicht): der Abschnitt „Schaubilder“ — Geld und
   Zeitstrahl für den Vertrag mit dem höchsten Abschlag, der Energiefluss des
   Vorjahres und „Kälter oder mehr verbraucht?“ für die Heizung.
 - **Übersicht, Stufe Einsteiger:** ein Schaubild, „Wohin geht mein Geld?“.
@@ -357,9 +360,9 @@ sind SVG mit CSS-Animation, ohne Bibliothek.
 ## 5. Die öffentliche Demo
 
 Ohne Installation: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/).
-Beim ersten Besuch öffnet sich der Assistent mit vier Schritten — „Sprache
-und Land“, „Wer bist du?“, „Wie viel Erfahrung hast du?“ und „So geht es
-weiter“. Danach zeigt die Demo den gewählten Beispielhaushalt; „Überspringen“
+Beim ersten Besuch öffnet sich der Assistent mit fünf Schritten — „Sprache
+und Land“, „Wer bist du?“, „Wie viel Erfahrung hast du?“, „Wie willst du
+arbeiten?“ und „So geht es weiter“. Danach zeigt die Demo den gewählten Beispielhaushalt; „Überspringen“
 zeigt das Schaufenster.
 
 - **Sprache:** gilt je Gerät, wie die Sprachwahl in der Hinweisleiste. Das
@@ -367,7 +370,7 @@ zeigt das Schaufenster.
   sich nicht ändern — die Demo hat keinen Server, der es speichern könnte.
 - **Der Browser merkt sich** Sprache, Beispielhaushalt und Stufe. Gespeichert
   wird in der Demo sonst nichts.
-- **Wechseln:** Einstellungen → Allgemein → „Einrichtungsassistent starten“.
+- **Wechseln:** Einstellungen → Für dich → „Einrichtungsassistent starten“.
 - **Direkt verlinken:** `?persona=` mit dem Namen des Beispielhaushalts,
   etwa
   [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/?persona=eigenheim-modern).

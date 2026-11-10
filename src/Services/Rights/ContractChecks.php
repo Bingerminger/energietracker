@@ -218,17 +218,8 @@ final class ContractChecks
      */
     private function lastBilledPeriod(string $u, array $meter, string $today): ?array
     {
-        foreach ($this->bills->list($u, (string)$meter['id']) as $b) {
-            $from = (string)($b['period_from'] ?? ''); $to = (string)($b['period_to'] ?? '');
-            $qty = $b['invoice']['energy_kwh'] ?? null;
-            if (!in_array($b['kind'] ?? 'annual', ['annual', 'final'], true) || !Dates::isIsoDate($from) || !Dates::isIsoDate($to)
-                || $to >= $today || !is_numeric($qty) || (float)$qty <= 0) continue;
-            $days = Rights::daysBetween($from, $to) + 1;
-            if ($days < 1) continue;
-            $known = (string)($b['received_on'] ?? $b['issued_on'] ?? '');
-            return ['qty' => (float)$qty, 'days' => $days, 'from' => $from, 'to' => $to, 'source' => 'bill', 'bill_id' => (string)$b['id'],
-                'known_on' => Dates::isIsoDate($known) ? $known : date('Y-m-d', (int)strtotime("$to +1 day"))];
-        }
+        $billed = self::lastBilledQuantity($this->bills->list($u, (string)$meter['id']), $today);
+        if ($billed !== null) return $billed;
         try {
             $periods = $this->periods->forTarget($u, $meter, false, $today)['periods'] ?? [];
         } catch (\Throwable) {
@@ -242,10 +233,34 @@ final class ContractChecks
             if ($days < 1 || $qty <= 0) continue;
             // gemessener Anteil der Periode (nach Menge gewichtet) mindestens MEASURED_SHARE_MIN, sonst urteilt
             // die Prüfung aus Lücken (Konzept §3 A2); eine ältere Periode springt nicht ein
-            if (self::measuredShare($this->consumption->forMeter($u, $meter), (string)$p['from'], (string)$p['until'], $qk)
+            // v3.12.0 — die Monatszeilen am Stichtag der Prüfung (bis v3.11 am echten Datum)
+            if (self::measuredShare($this->consumption->forMeter($u, $meter, null, $today), (string)$p['from'], (string)$p['until'], $qk)
                 < ConsumptionService::MEASURED_SHARE_MIN) return null;
             return ['qty' => $qty, 'days' => $days, 'from' => (string)$p['from'], 'to' => (string)$p['until'], 'source' => 'readings',
                 'bill_id' => null, 'known_on' => date('Y-m-d', (int)strtotime((string)$p['until'] . ' +1 day'))];
+        }
+        return null;
+    }
+
+    /**
+     * A2 — die jüngste Jahres- oder Schlussrechnung mit Menge aus einer Liste (BillService::list,
+     * neueste zuerst). v3.12.0: auch für den Brief am Vertrag (LetterService).
+     *
+     * @param list<array<string,mixed>> $bills
+     * @return array{qty:float, days:int, from:string, to:string, source:string, bill_id:?string, known_on:string}|null
+     */
+    public static function lastBilledQuantity(array $bills, string $today): ?array
+    {
+        foreach ($bills as $b) {
+            $from = (string)($b['period_from'] ?? ''); $to = (string)($b['period_to'] ?? '');
+            $qty = $b['invoice']['energy_kwh'] ?? null;
+            if (!in_array($b['kind'] ?? 'annual', ['annual', 'final'], true) || !Dates::isIsoDate($from) || !Dates::isIsoDate($to)
+                || $to >= $today || !is_numeric($qty) || (float)$qty <= 0) continue;
+            $days = Rights::daysBetween($from, $to) + 1;
+            if ($days < 1) continue;
+            $known = (string)($b['received_on'] ?? $b['issued_on'] ?? '');
+            return ['qty' => (float)$qty, 'days' => $days, 'from' => $from, 'to' => $to, 'source' => 'bill', 'bill_id' => (string)$b['id'],
+                'known_on' => Dates::isIsoDate($known) ? $known : date('Y-m-d', (int)strtotime("$to +1 day"))];
         }
         return null;
     }

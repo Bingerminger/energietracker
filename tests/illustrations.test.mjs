@@ -66,7 +66,12 @@ t('Verbrauchsart färbt über die Klasse (Utilities-SSOT), nicht über eine Farb
   /class="ill-c-strom"/.test(I.shapes.meter(0, 0, { util: 'strom' })) && /class="ill-c-wasser"/.test(I.shapes.drop(0, 0)));
 
 const all = [...I.SETUP_ART_STEPS.map(s => I.setupArt(s)), ...I.PERSONA_ART_IDS.map(p => I.personaArt(p)), I.welcomeArt(),
-  ...Object.entries(I.shapes).map(([k, f]) => k === 'wire' ? f([[0, 0], [10, 10]]) : f(10, 10))].join('');
+  ...Object.entries(I.shapes).map(([k, f]) => (k === 'wire' || k === 'flow') ? f([[0, 0], [10, 10]])
+    : k === 'lines' ? f(10, 10, ['Text']) : k === 'boundary' || k === 'frame' ? f(10, 10, 80, 50, { label: 'Text' }) : f(10, 10))].join('');
+// v3.12.0 (Paket wegweiser) — die Bausteine der Schaubilder kommen mit Standardmaßen aus
+t('Bausteine des Wegweisers: Standardmaße statt NaN',
+  ['phone', 'computer', 'nas', 'program', 'container', 'cloud', 'boundary', 'frame'].every(k => { const s = I.shapes[k](10, 10); return s && !/NaN|undefined/.test(s); })
+  && I.shapes.lines(10, 10) === '' && !/NaN|undefined/.test(I.shapes.flow([[0, 0], [10, 10]], { kind: 'out', dashed: true })));
 t('keine festen Farben im Bild (nur Klassen und CSS-Variablen)', !/(fill|stroke|color)\s*[=:]\s*["']?(#|rgb|hsl)/i.test(all) && !/style="/.test(all));
 t('keine Bilddateien und keine Adressen von außen', !/<image|href=|url\(/i.test(all));
 t('jede Form zeichnet über eine .ill-Klasse', [...all.matchAll(/<(path|rect|circle|ellipse|polyline|text)\b([^>]*)>/g)].every(m => /class="ill-/.test(m[2])));
@@ -83,8 +88,18 @@ const comp = read('public/css/components.css').replace(/\/\*[\s\S]*?\*\//g, '');
 const illRules = comp.match(/\.ill[\w-]*[^{}]*\{[^}]*\}/g) || [];
 t('.ill-Regeln ohne feste Farben', illRules.length >= 10 && illRules.every(r => !/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(r)), `${illRules.length} Regeln`);
 t('Strichstärke unabhängig von der Größe', /\.ill \* \{ vector-effect: non-scaling-stroke; \}/.test(comp));
-t('Klassen der Formen haben eine Regel', ['ill-line', 'ill-ink', 'ill-accent', 'ill-fill', 'ill-face', 'ill-ground', 'ill-dot', 'ill-text', 'ill-util', 'ill-util-fill']
+t('Klassen der Formen haben eine Regel', ['ill-line', 'ill-ink', 'ill-accent', 'ill-fill', 'ill-face', 'ill-ground', 'ill-dot', 'ill-text', 'ill-util', 'ill-util-fill',
+  // v3.12.0 (Paket wegweiser)
+  'ill-zone', 'ill-boundary', 'ill-frame', 'ill-flow', 'ill-flow--ink', 'ill-flow--out', 'ill-flow--dash', 'ill-name', 'ill-sub', 'ill-port', 'ill-flow-label', 'ill-zone-label', 'ill-frame-label']
   .every(c => new RegExp(`\\.ill \\.${c}\\s*\\{`).test(comp)));
+
+console.log('Text umbrechen (Wegweiser, ohne DOM)');
+const wrapped = I.wrapText('eins zwei drei vier fünf sechs', 60, 11);
+t('bricht an der Breite um und verliert kein Wort', wrapped.length > 1 && wrapped.join(' ') === 'eins zwei drei vier fünf sechs', wrapped.join(' | '));
+t('kurzer Text bleibt eine Zeile', I.wrapText('eins', 60, 11).length === 1);
+t('ein langes Wort bleibt ganz (nie mitten im Wort trennen)', I.wrapText('Energietracker', 20, 11).join() === 'Energietracker');
+t('fetter Text gilt als breiter', I.wrapText('aaaa bbbb cccc', 92, 12, { bold: true }).length > I.wrapText('aaaa bbbb cccc', 92, 12).length);
+t('leerer Text: keine Zeile', I.wrapText('', 60, 11).length === 0);
 
 console.log('Ersteinrichtung');
 t('jeder Schritt hat ein Bild', W.setupSteps(false).every(s => I.SETUP_ART_STEPS.includes(s)), W.setupSteps(false).join());
@@ -104,10 +119,10 @@ await R.render(view, [], {});
 const re = view.querySelector('[data-role="reminders-empty"]');
 t('Termine ohne Eintrag: Leerzustand mit Titel, Satz und genau einer Aktion zum Anlegen', !!re && re.classList.contains('empty')
   && re.querySelector('h2')?.textContent === tr('reminders.empty') && re.querySelector('p')?.textContent === tr('reminders.emptyText')
-  && re.querySelectorAll('[data-rem-add]').length === 1 && !view.querySelector('.banner.banner--info'), view.textContent.replace(/\s+/g, ' ').slice(0, 200));
+  && re.querySelectorAll('[data-rem-add]').length === 1 && !view.querySelector('.infobox.infobox--info'), view.textContent.replace(/\s+/g, ' ').slice(0, 200));
 
 console.log('Kartentitel der Einstellungen');
-const titleKeys = ['lang', 'activeUtils', 'pdf', 'export', 'backup', 'security', 'diag'];
+const titleKeys = ['lang', 'activeUtils', 'export', 'backup', 'security', 'diag'];
 const pict = /^\p{Extended_Pictographic}/u;
 const bad = [];
 for (const l of ['de', 'en', 'fr', 'it', 'es', 'pt', 'nl']) {
@@ -115,8 +130,9 @@ for (const l of ['de', 'en', 'fr', 'it', 'es', 'pt', 'nl']) {
   for (const k of titleKeys) if (pict.test(cat.settings?.[k]?.title || '')) bad.push(`${l}:${k}`);
 }
 t('Symbol nicht im Katalogtext (der Bildschirmleser liest sonst „Diskette Backup …“)', bad.length === 0, bad.join(', '));
-const settingsSrc = read('public/js/views/settings.js');
-const noIcon = titleKeys.filter(k => !new RegExp(`<h2 class="card__title"><span aria-hidden="true">[^<]+</span> \\$\\{t\\('settings\\.${k}\\.title'\\)\\}`).test(settingsSrc));
+// v3.12.0 — die Einstellungen liegen in einem Modul je Seite; das Zeichen ist eine Grafik
+const settingsSrc = ['settings', 'settings-access', 'settings-data', 'settings-fields', 'settings-household', 'settings-integrations', 'settings-region', 'settings-system'].map(n => read(`public/js/views/${n}.js`)).join('\n');
+const noIcon = titleKeys.filter(k => !new RegExp(`<h2 class="card__title">\\$\\{icon\\('[a-z0-9_-]+'\\)\\} \\$\\{t\\('settings\\.${k}\\.title'\\)\\}`).test(settingsSrc));
 t('… sondern als Zier vor dem Titel', noIcon.length === 0, noIcon.join(', '));
 
 console.log(`\n  illustrations: ${pass} bestanden, ${fail} fehlgeschlagen`);

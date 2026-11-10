@@ -77,8 +77,8 @@ Preisänderung. Ein Leistungspreis ohne Anschlussleistung lehnt die App ab
 Werte.
 
 **Der CO₂-Faktor des Netzes** ersetzt für die Monate des Vertrags den
-allgemeinen Wert „CO₂ Fernwärme“ (Einstellungen → Verbrauchsarten &
-Abrechnung) in der CO₂-Bilanz. Er ist außerdem die einzige Grundlage für den
+allgemeinen Wert „CO₂ Fernwärme“ (Einstellungen →
+Rechnen) in der CO₂-Bilanz. Er ist außerdem die einzige Grundlage für den
 **CO₂-Preis** der Fernwärme — einen Standardfaktor dafür gibt es nicht
 ([CO₂-Preis im Brennstoff](16-co2-preis.md)).
 

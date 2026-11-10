@@ -36,6 +36,10 @@ const EXTERNAL = /^(?:https?:|mailto:)/i;
 const SAFE_SRC = /^(?![a-z][a-z0-9+.-]*:)[a-z0-9._~-][^\s\\"'<>\u0000-\u001f]*$/i;
 const ANCHOR_ID = /^[a-z0-9-]+$/;
 
+/** v3.12.0 (M6) — Hinweise in GitHub-Schreibweise → Ton der Infobox (fünf Töne, designsprache.md §5). */
+const ALERT_RE = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
+export const ALERT_TONE = { NOTE: 'info', TIP: 'erfolg', IMPORTANT: 'info', WARNING: 'achtung', CAUTION: 'fehler' };
+
 /**
  * Tags entfernen wie `/<[^>]+>/g` — aber in einem Durchgang ohne Regex: von
  * jedem „<“ bis zum nächsten „>“, wenn dazwischen mindestens ein Zeichen
@@ -98,6 +102,7 @@ function attrs(raw) {
 const RE_INLINE = {
   escapable: /[\\`*_{}[\]()#+\-.!|<>~]/,
   image: /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/,
+  rawPicture: /^<picture>\s*<source\b([^>]*)>\s*<img\b([^>]*)>\s*<\/picture>/i,
   dest: /^\(([^)\s]+)(?:\s+"[^"]*")?\)/,
   autolink: /^<((?:https?:\/\/|mailto:)[^>\s]+)>/i,
   rawImg: /^<img\s([^<>]*?)\/?>/i,
@@ -149,6 +154,16 @@ function inline(src, ctx) {
       const rest = src.slice(i);
       let m;
       if ((m = RE_INLINE.autolink.exec(rest))) { out += link(m[1], esc(m[1]), ctx); i += m[0].length; continue; }
+      // v3.12.0 (Paket wegweiser) — schmale Fassung eines Bilds; neu gebaut, nur media, srcset, src, alt und width
+      if ((m = RE_INLINE.rawPicture.exec(rest))) {
+        const s = attrs(m[1]), a = attrs(m[2]);
+        const small = s.srcset ? safeSrc(ctx.opts.image ? ctx.opts.image(s.srcset) : null) : null;
+        const img = a.src ? image(a.src, a.alt || '', a.width, ctx) : '';
+        out += small && /^\(max-width: \d{1,4}px\)$/.test(s.media || '')
+          ? `<picture><source media="${esc(s.media)}" srcset="${esc(small)}">${img}</picture>` : img;
+        i += m[0].length;
+        continue;
+      }
       if ((m = RE_INLINE.rawImg.exec(rest))) {
         // neu gebaut — nur src, alt und width; alle anderen Attribute fallen weg
         const a = attrs(m[1]);
@@ -274,7 +289,12 @@ function blocks(lines, ctx) {
     if (RE.quote.test(line)) {
       const body = [];
       while (i < lines.length && lines[i].trim() && RE.quote.test(lines[i])) { body.push(lines[i].replace(RE.quote, '')); i++; }
-      html += `<blockquote>${blocks(body, ctx)}</blockquote>\n`;
+      // v3.12.0 (M6) — Zitate sind Hinweise und erscheinen als Infobox der App (designsprache.md §5). Die
+      // Schreibweise von GitHub (`> [!WARNING]` in einer eigenen Zeile) wählt den Ton; ohne sie: neutral.
+      const alert = ALERT_RE.exec(body[0] || '');
+      if (alert) body.shift();
+      const tone = alert ? ALERT_TONE[alert[1].toUpperCase()] : 'neutral';
+      html += `<blockquote class="infobox infobox--${tone}">${blocks(body, ctx)}</blockquote>\n`;
       continue;
     }
     if (line.includes('|') && RE.tableSep.test(lines[i + 1] || '')) {

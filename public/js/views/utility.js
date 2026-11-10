@@ -24,8 +24,8 @@ import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract, balanceRangeEnds, expectedBalance, bandText } from '../lib/semantics.js';
-import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, balanceHtml, verdictKey, tHtml, moreIsBetter, uncertainRangeText, uncertainRangeHtml, costWithoutContract, balanceRangeEnds, expectedBalance, bandText } from '../lib/semantics.js';
+import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween, neighbours } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 import { docUrl } from '../lib/docs.js';
@@ -39,6 +39,9 @@ import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { mergeRestOf, restNoteHtml, restNoteText, subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 import { readingCheckLines, readingCheckTitle, readingCheckIndex, markReadings } from '../lib/reading-check.js';   // v3.9.0 (ablesung-pruefen)
+import { atLeast } from '../lib/levels.js';   // v3.12.0 (M4)
+import { trendHtml } from '../components/trend.js';   // v3.12.0 (M4)
+import { icon, artIcon } from '../lib/icons.js';
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -68,7 +71,13 @@ const state = {
   listAllYears: false,
   // v3.9.0 (ablesung-pruefen) — Befund der Prüfung des gezeigten Zählers (readingCheckIndex)
   readingChecks: null,
+  // v3.12.0 (M4) — gezeigte Sicht: overview, balance, months, readings (?view=)
+  sight: 'overview',
+  addressArgs: [null, null],
 };
+
+/** v3.12.0 (M4) — Die Sichten einer Verbrauchsart; „Überblick“ ist der Normalfall und steht nicht in der Adresse. */
+const SIGHTS = ['overview', 'balance', 'months', 'readings'];
 
 /** Seitengröße gemerkt je Liste (components/pager.js). */
 const READINGS_PAGER = 'utility-readings';
@@ -89,6 +98,7 @@ function syncAddress(u, latestYear = null, period = null) {
   if (period) { if (period.from !== period.latest) q.set('period', period.from); }
   else if (year && year !== latestYear) q.set('year', String(year));
   if (state.selectedMeterId && state.meters.length > 1) q.set('meter', state.selectedMeterId);
+  if (state.sight !== 'overview') q.set('view', state.sight);
   const hash = `#/utility/${u.key}${q.toString() ? '?' + q : ''}`;
   if (window.location.hash !== hash) {
     try { history.replaceState(history.state, '', hash); } catch { /* egal */ }
@@ -100,13 +110,15 @@ export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
   const utility = utilities.find(u => u.key === utilityKey);
   if (!utility) {
-    container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
-      <div class="status-banner__text">${t('utility.unknown', { key: escapeHtml(utilityKey) })}</div></div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler infobox--zeile">
+      <div class="infobox__text">${t('utility.unknown', { key: escapeHtml(utilityKey) })}</div></div>`;
     return;
   }
   state.utility = utility;
   state.list = { key: '', page: 1, flaggedOnly: false };
   state.listAllYears = false;
+  const wantSight = ctx.query?.get('view');
+  state.sight = SIGHTS.includes(wantSight) ? wantSight : 'overview';
   container.setAttribute('data-utility', utility.key);
 
   container.innerHTML = `<div class="loading">${t('utility.loading')}</div>`;
@@ -127,6 +139,8 @@ export async function render(container, params, ctx = {}) {
     await rerender(container);
     // v2.11.0 — Sprungziele des Erfassen-Blatts: ?add=delivery | level | reading
     const add = ctx.query?.get('add');
+    // v3.12.0 (M4) — der Dialog steht über der Sicht, in der das Neue danach zu sehen ist
+    if (add && !wantSight) { state.sight = add === 'level' ? 'overview' : 'readings'; showSightIfDrawn(container); }
     const target = { delivery: '#btn-new-delivery', level: '#btn-new-level', reading: '#btn-new-reading' }[add];
     if (target) {
       // Adresse ohne ?add=… — sonst öffnete Neuladen den Dialog erneut
@@ -137,6 +151,7 @@ export async function render(container, params, ctx = {}) {
     // Bearbeiten-Dialog dieser Ablesung (mit dem Befund und dem Stand, der passen würde)
     const editId = ctx.query?.get('edit_reading');
     if (editId) {
+      if (!wantSight) { state.sight = 'readings'; showSightIfDrawn(container); }
       syncAddress(utility);
       const meter = state.meters.find(m => m.id === state.selectedMeterId);
       const rs = meter ? await api.readings(utility.key, meter.id).catch(() => []) : [];
@@ -144,8 +159,8 @@ export async function render(container, params, ctx = {}) {
       if (reading) openReadingModal(container, utility, meter, reading, rs);
     }
   } catch (e) {
-    container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
-      <div class="status-banner__text">${escapeHtml(e.message)}</div></div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler infobox--zeile">
+      <div class="infobox__text">${escapeHtml(e.message)}</div></div>`;
   }
 
   return () => {
@@ -164,13 +179,13 @@ async function rerender(container) {
     container.innerHTML = `
       ${header(u)}
       <div class="empty">
-        <div class="empty-icon">📊</div>
+        <div class="empty-icon" aria-hidden="true">${icon('saeulen', { size: 48 })}</div>
         <h2>${t('utility.noMeters.title')}</h2>
         <p>${t('utility.noMeters.text', { label: escapeHtml(u.label) })}</p>
         <button class="btn btn--primary" id="goto-meters">${t('utility.noMeters.cta')}</button>
       </div>`;
     container.querySelector('#goto-meters')?.addEventListener('click', () => {
-      location.hash = `#/utility/${u.key}/meters`;
+      location.hash = `#/household/meters?art=${u.key}`;
     });
     return;
   }
@@ -185,8 +200,8 @@ async function rerender(container) {
     ]);
   } catch (e) {
     if (my !== rerenderSeq) return;
-    container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
-      <div class="status-banner__text">${escapeHtml(e.message)}</div></div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler infobox--zeile">
+      <div class="infobox__text">${escapeHtml(e.message)}</div></div>`;
     return;
   }
   if (my !== rerenderSeq) return;
@@ -264,9 +279,9 @@ async function rerender(container) {
     // v2.9.0 (CALC-23) — die Einstellung wirkt: Alarm ab der Schwelle,
     // Hinweis ab zwei Dritteln (Standard 45 → ab 30 Tagen gelb, ab 46 rot;
     // bis v2.8 fest 30/60 und die Einstellung ohne Wirkung)
-    let cls = 'ok', icon = '✓';
-    if (days > alertDays)                        { cls = 'alert'; icon = '⚠️'; }
-    else if (days > Math.round(alertDays * 2 / 3)) { cls = 'warn';  icon = '⚡'; }
+    let tone = 'erfolg';
+    if (days > alertDays)                        tone = 'fehler';
+    else if (days > Math.round(alertDays * 2 / 3)) tone = 'achtung';
     // v2.15.0 (Review FE-08) — Trend gegen dieselben Monate des Vorjahres,
     // nur volle Monate, bei Heizarten witterungsbereinigt. Bis v2.14 standen
     // die letzten drei gegen die drei davor: Heizsaison gegen Sommer ergab
@@ -276,20 +291,17 @@ async function rerender(container) {
     let trendStr = '';
     const tr = yoyTrend(monthly, consKey, { months: 3, adjustedKey: u.hgt_relevant ? 'heat_adjusted' : null });
     if (tr && Math.abs(tr.pct) >= 0.5) {
-      const up = tr.pct > 0;
-      const tone = up === moreIsBetter(u) ? 'success' : 'danger';
       const span = tr.months.length > 1
         ? `${fmt.month(tr.months[0])} – ${fmt.month(tr.months[tr.months.length - 1])}` : fmt.month(tr.months[0]);
       const label = t(tr.adjusted ? 'utility.banner.trendYoYAdjusted' : 'utility.banner.trendYoY', { span });
-      trendStr = ` · ${escapeHtml(label)} <span class="kpi__trend kpi__trend--${tone}"><span aria-hidden="true">${up ? '▲' : '▼'}</span> ${up ? '+' : '−'}${fmt.num(Math.abs(tr.pct), 1)} %</span>`;
+      // v3.12.0 (M4) — dieselbe Form wie auf der Übersicht, der Bezug steht hier im Satz davor
+      trendStr = ` · ${escapeHtml(label)} ${trendHtml(tr, { moreIsGood: moreIsBetter(u), decimals: 1, bare: true, noCheck: true })}`;
     }
     statusBannerHtml = `
-      <div class="status-banner ${cls}">
-        <div class="status-banner__icon">${icon}</div>
-        <div class="status-banner__text">
+      <div class="infobox infobox--${tone} infobox--zeile" data-role="reading-status">
+        <div class="infobox__text">
           <strong>${isPeriod ? tp('utility.banner.lastPeriod', days, { days }) : tp('utility.banner.lastReading', days, { days })}</strong> · ${fmt.date(lastReading.date)}${trendStr}
         </div>
-        <button class="btn btn-${u.key} btn--sm" id="banner-new-reading">${t('utility.action.newReadingBanner')}</button>
       </div>`;
   }
 
@@ -298,18 +310,17 @@ async function rerender(container) {
   const warnings = Array.isArray(consumptionData.warnings) ? consumptionData.warnings : [];
   const warnByReading = new Map(warnings.filter(w => w.reading_id).map(w => [w.reading_id, w]));
   const warningsBannerHtml = warnings.length ? `
-      <div class="status-banner warn" id="reading-warnings">
-        <div class="status-banner__icon">⚠️</div>
-        <div class="status-banner__text">
+      <div class="infobox infobox--achtung infobox--zeile" id="reading-warnings">
+        <div class="infobox__text">
           <strong>${t('utility.warnings.title', { count: warnings.length })}</strong>
-          <div class="muted" style="font-size:12px">${t('utility.warnings.hint')}</div>
-          <ul class="warning-list">
+          <div class="muted" style="font-size:var(--fs-xs)">${t('utility.warnings.hint')}</div>
+          <ul class="infobox__liste">
             ${warnings.slice(0, 5).map(w => `<li>${escapeHtml(warningText(w, u))}</li>`).join('')}
             ${warnings.length > 5 ? `<li>… (+${warnings.length - 5})</li>` : ''}
           </ul>
         </div>
         ${warnings.some(w => w.type === 'decrease' || w.type === 'suspect')
-          ? `<a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters">${t('utility.warnings.gotoMeters')}</a>` : ''}
+          ? `<a class="btn btn--ghost btn--sm" href="#/household/meters?art=${u.key}">${t('utility.warnings.gotoMeters')}</a>` : ''}
       </div>` : '';
 
   // ── Years available ─────────────────────────────────────────────
@@ -419,7 +430,8 @@ async function rerender(container) {
   // Monate. Liegt die letzte Ablesung im laufenden Jahr zurück, nennt die
   // Abschlagskachel ihren Stand — sonst stünde „Abschläge 2026: 390 €" neben
   // den 1.170 €, die die Saldo-Karte nach Kalender bis heute zählt.
-  const measuredUntil = billing ? sel.as_of : (currentContract?.measured_until || null);
+  // v3.12.0 (Skeptiker M6) — die Kacheln reichen bis zur letzten Ablesung, auch einer geschätzten (`reading_until`)
+  const measuredUntil = billing ? sel.as_of : (currentContract?.reading_until || currentContract?.measured_until || null);
   const partialYear = billing ? !!sel.as_of && sel.as_of < sel.until
     : !!measuredUntil && String(yr) === todayIso().slice(0, 4)
     && measuredUntil < todayIso() && measuredUntil.startsWith(String(yr));
@@ -443,10 +455,14 @@ async function rerender(container) {
   // ── Render whole page ───────────────────────────────────────────
   container.innerHTML = `
     ${header(u, meter)}
+    ${sightsHtml({ u, isDelivery, isPeriod, noValues })}
 
+    <div data-sicht="overview readings">
     ${statusBannerHtml}
     ${warningsBannerHtml}
+    </div>
 
+    <div data-sicht="overview">
     ${noValues ? `
     <!-- v2.13.0 (Review UI-27) — Leerzustand statt „0 kWh, 0,00 €" und eines
          leeren Diagramms: Monatswerte gibt es erst ab zwei Ständen -->
@@ -455,31 +471,35 @@ async function rerender(container) {
       <p>${escapeHtml(t(readings.length ? 'utility.noData.oneReading' : 'utility.noData.noReading'))}</p>
       <a class="btn btn--primary" href="#/zaehlerstaende?meter=${encodeURIComponent(meter.id)}">${escapeHtml(t('dashboard.todo.readingAction'))}</a>
     </div>` : ''}
+    </div>
 
+    <div data-sicht="overview months readings">
     ${noValues ? '' : billingOk ? `<div class="period-mode-bar">${periodModeHtml(wantBilling ? 'billing' : 'calendar')}</div>` : calendarOnlyNote(u.label)}
     ${noValues ? '' : billing ? periodPills(bList, sel, u.key) + periodMeta(sel, bp) : yearPills(years, yr, u.key)}
     ${wantBilling && !billing ? `<p class="muted small" data-role="period-none">${escapeHtml(t('billing.period.none'))}</p>` : ''}
+    </div>
 
+    <div data-sicht="overview">
     ${noValues ? '' : `<div class="kpi-grid">
-      <div class="kpi c-${u.key}">
-        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${escapeHtml(yrLabel)}</div>
+      <div class="kpi">
+        <div class="kpi__label">${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${escapeHtml(yrLabel)}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${billedYear != null ? `<div class="kpi__sub" data-role="kpi-billed">${escapeHtml(t('utility.kpi.billed', { value: fmt.unit(billedYear, u.consumption_unit, 0) }))}</div>` : ''}
         ${usesGasFactors(u) ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       ${isGeneration ? '' : `
-      <div class="kpi c-${u.key}">
+      <div class="kpi">
         <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}${bonusText ? infoNote(t('utility.kpi.cost'), t('bonus.costNote')) : ''}</div>
         ${noContractCost
           // v3.9.0 (Skeptiker N8) — ohne Vertrag keine Kosten: „kein Vertrag“ statt „0,00 €“
           ? `<div class="kpi__value" data-role="kpi-cost">${escapeHtml(t('utility.kpi.noContract'))}</div>
         <div class="kpi__sub"><a href="#/utility/${encodeURIComponent(u.key)}/contracts">${escapeHtml(t('utility.kpi.noContractHint'))}</a></div>`
-          : `<div class="kpi__value ${isFeedIn ? 'success-text' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
+          : `<div class="kpi__value ${isFeedIn ? 'ton-ok' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
         ${perMonthCost != null ? `<div class="kpi__sub" data-role="kpi-per-month">${t('utility.kpi.perMonth', { value: fmt.eur(perMonthCost) })}</div>` : ''}`}
         ${bonusText ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
       </div>`}
       ${hasContract && !isFeedIn ? `
-        <div class="kpi c-yellow">
+        <div class="kpi">
           <!-- v3.6.0 — im laufenden Jahr rechnen Kalender- und Abrechnungsjahr den
                angebrochenen Monat verschieden (ganz bzw. tagesgenau): ein Satz dazu -->
           <div class="kpi__label" data-role="kpi-advances-label">${partialYear ? escapeHtml(t('utility.kpi.advancesSpan', { from: fmt.date(tileFrom), date: fmt.date(tileUntil) })) : t('utility.kpi.advances', { year: yrLabel })}${billingOk && partialYear ? info('runningYear') : ''}</div>
@@ -487,39 +507,47 @@ async function rerender(container) {
           <!-- v2.13.0 (Review UI-18) — Kundensicht: „Guthaben 75,29 €" statt „−75,29 €" -->
           ${tileCrosses ? `<div class="kpi__sub muted" data-role="kpi-balance-card">${escapeHtml(t('utility.kpi.balanceOnCard', { date: fmt.date(cardFrom) }))}</div>`
           : `<div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}" data-role="kpi-balance">
-            ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: `${yearBalanceView.word} ${fmt.eur(yearBalanceView.amount)}` })}${info('balance')}
+            ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: yearBalanceView.credit === null ? yearBalanceView.word : `${yearBalanceView.word} ${fmt.eur(yearBalanceView.amount)}` })}${info('balance')}
           </div>`}
         </div>
       ` : ''}
-      <div class="kpi c-blue">
+      <div class="kpi">
         <div class="kpi__label">${t('utility.kpi.dailyAvg')}</div>
         <div class="kpi__value">${totDays ? fmt.unit(totUnit / totDays, u.consumption_unit, 1).replace(u.consumption_unit, '') : '–'}
-          <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
+          <span style="font-size:var(--fs-body);color:var(--text-2)">${u.consumption_unit}</span></div>
         <div class="kpi__sub">${tp('utility.kpi.daysCount', totDays, { days: totDays })}</div>
       </div>
       ${isFeedIn || isGeneration ? `
-      <div class="kpi c-violet" data-min-level="advanced">
+      <div class="kpi" data-min-level="advanced">
         <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yrLabel })}${info('co2Avoided')}</div>
         <!-- v2.13.0 — „vermieden“ ohne Minus: das Wort trägt die Richtung (wie im Jahresbericht) -->
-        <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
+        <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:var(--fs-body);color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>
       ` : `
-      <div class="kpi c-violet" data-min-level="advanced">
+      <div class="kpi" data-min-level="advanced">
         <div class="kpi__label">${t('utility.kpi.co2', { year: yrLabel })}</div>
-        <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
+        <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:var(--fs-body);color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2Sub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>`}
     </div>`}
+    </div>
 
+    <div data-sicht="overview balance">
     ${noValues ? '' : restNoteHtml(mergeRestOf(monthlyYear.map(m => m.rest_of)), u.consumption_unit)}
-    ${meter.parent_meter_id && contracts.some(c => !c.is_shadow) ? `<p class="banner banner--info small" data-role="sub-rest-note">${escapeHtml(subContractHint(meter, state.meters))}</p>` : ''}
+    ${meter.parent_meter_id && contracts.some(c => !c.is_shadow) ? `<p class="infobox infobox--info small" data-role="sub-rest-note">${escapeHtml(subContractHint(meter, state.meters))}</p>` : ''}
+    </div>
+    <div data-sicht="balance">
     ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) : ''}
-    <div class="card" data-role="explainers" hidden></div>
+    </div>
+    <div data-sicht="overview">
+    <section class="card" id="saldo-kurz" data-role="saldo-kurz" hidden></section>
+    </div>
 
+    <div data-sicht="balance">
     ${!isDelivery && u.has_contracts !== false ? `
     <div class="card">
-      <div class="card__title">${t('utility.cards.contracts')}
+      <div class="card__title">${icon('dokumente')} ${t('utility.cards.contracts')}
         <span class="card__title-action">
           <button class="btn btn--ghost btn--sm" id="btn-new-contract" title="${t('utility.cards.manageContractsTitle')}">${t('utility.cards.manageContracts')}</button>
         </span>
@@ -527,82 +555,90 @@ async function rerender(container) {
       ${contractsTable(contracts, u)}
     </div>
     ` : ''}
+    ${u.supports_bill_check ? billCheckLink(u, meter, settings, billing ? { sel, list: bList } : null) : ''}
+    </div>
 
+    <div data-sicht="overview">
     ${noValues ? '' : `<div class="card">
-      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yrLabel })}
+      <div class="card__title">${artIcon(u)} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yrLabel })}
         ${canAdjust ? `<span class="card__title-action seg" data-min-level="advanced" role="group" aria-label="${escapeHtml(t('utility.chart.modeLabel'))}">
           <button type="button" class="seg__btn ${chartMode === 'measured' ? 'active' : ''}" data-chart-mode="measured" aria-pressed="${chartMode === 'measured'}">${escapeHtml(t('utility.chart.modeMeasured'))}</button>
           <button type="button" class="seg__btn ${chartMode === 'adjusted' ? 'active' : ''}" data-chart-mode="adjusted" aria-pressed="${chartMode === 'adjusted'}">${escapeHtml(t('utility.chart.modeAdjusted'))}</button>
         </span>${info('weatherAdjusted')}` : ''}
       </div>
-      ${interpText ? `<p class="banner banner--info small" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
-      ${billing && sel.price_missing ? `<p class="banner banner--warning small" data-role="period-price-missing">${escapeHtml(t('priceMissing.period'))}</p>` : ''}
+      ${interpText ? `<p class="infobox infobox--info small" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
+      ${billing && sel.price_missing ? `<p class="infobox infobox--achtung small" data-role="period-price-missing">${escapeHtml(t('priceMissing.period'))}</p>` : ''}
       ${billing ? periodConflictHtml(sel, u) : ''}
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
-      <p class="chart-note" data-role="month-chart-note">${monthChartNote(monthlyYear, chartMode)}</p>
+      <p class="fussnote" data-role="month-fussnote">${monthChartNote(monthlyYear, chartMode)}</p>
     </div>
 
     ${pvFlowRows.length ? `<div data-min-level="advanced">${pvFlowHtml(pvFlowRows, yr)}</div>` : ''}
     <!-- v3.7.0 — Speicher und Amortisation ab Erfahren (bis v3.6 Experte): Hat sich die Anlage gelohnt? ist eine Prüffrage -->
-    ${u.key === 'pv_erzeugung' ? `<div data-role="pv-extras" data-min-level="advanced">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}
+    ${u.key === 'pv_erzeugung' ? `<div data-role="pv-extras" data-min-level="advanced">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}`}
+    <div class="card" data-role="explainers" hidden></div>
+    </div>
 
-    <div class="card" data-min-level="advanced">
-      <div class="card__title">${t('utility.cards.monthlyTable', { year: yrLabel })}</div>
+    <div data-sicht="months">
+    ${noValues ? '' : `<div class="card" data-min-level="advanced">
+      <div class="card__title">${icon('klemmbrett')} ${t('utility.cards.monthlyTable', { year: yrLabel })}</div>
       ${monthlyTable(monthlyYear, u, hasContract)}
     </div>`}
+    <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
+    <div data-role="co2-cost" data-min-level="expert"></div>
+    </div>
 
     ${isDelivery ? `
-    <div class="card">
-      <div class="card__title">${t('utility.cards.stockTank')}
+    <div data-sicht="overview"><div class="card">
+      <div class="card__title">${artIcon(u)} ${t('utility.cards.stockTank')}
         ${stockHist && stockHist.capacity ? `<span class="card__title-action">
-          <span class="muted" style="font-size:12px">${stockTankSummary(stockHist, u)}</span>
+          <span class="muted" style="font-size:var(--fs-xs)">${stockTankSummary(stockHist, u)}</span>
         </span>` : ''}
       </div>
       ${stockTankBar(stockHist, u, settings.tank_warn_pct)}
       ${stockHist && stockHist.capacity ? `<div class="chart-wrap h220"><canvas id="stock-chart"></canvas></div>` : ''}
       ${tankNotes(stockHist, u)}
       ${tankLevelsBlock(meter, u)}
-    </div>
+    </div></div>
 
-    <div class="card">
-      <div class="card__title">${t('utility.cards.deliveries')}
+    <div data-sicht="readings"><div class="card">
+      <div class="card__title">${icon('lieferung')} ${t('utility.cards.deliveries')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.cards.deliveriesCount', deliveries.length)}</span>
-          <button class="btn btn-${u.key} btn--sm" id="btn-new-delivery">${t('utility.action.newDelivery')}</button>
+          <span class="muted" style="font-size:var(--fs-xs);margin-right:8px">${tp('utility.cards.deliveriesCount', deliveries.length)}</span>
+          <button class="btn btn--sm" id="btn-new-delivery">${t('utility.action.newDelivery')}</button>
         </span>
       </div>
       ${deliveriesTable(deliveries, u)}
-    </div>
+    </div></div>
     ` : isPeriod ? `
-    <div class="card" data-role="list-card">
+    <div data-sicht="readings"><div class="card" data-role="list-card">
       <div class="card__title">${t('utility.periods.title')}
         <span class="card__title-action">
           ${listYearSelect(years, yr)}
           <span class="muted list-count" data-role="list-count">${listCountText(listInYear.length, listAll.length, yr)}</span>
-          <button class="btn btn-${u.key} btn--sm" id="btn-new-period">${t('utility.periods.add')}</button>
+          <button class="btn btn--sm" id="btn-new-period">${t('utility.periods.add')}</button>
         </span>
       </div>
       <div data-role="list-body"></div>
-    </div>
+    </div></div>
     ` : `
-    <div class="card" data-role="list-card">
-      <div class="card__title">${t('utility.cards.readings')}
+    <div data-sicht="readings"><div class="card" data-role="list-card">
+      <div class="card__title">${icon('klemmbrett')} ${t('utility.cards.readings')}
         <span class="card__title-action">
           ${listYearSelect(years, yr)}
           <span class="muted list-count" data-role="list-count">${listCountText(listInYear.length, listAll.length, yr)}</span>
-          <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
+          <button class="btn btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
       ${billingOnlyNoteHtml(readings)}
       <div data-role="list-body"></div>
-    </div>
+    </div></div>
     `}
-    ${u.supports_bill_check ? billCheckLink(u, meter, settings, billing ? { sel, list: bList } : null) : ''}
-    <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
-    <div data-role="co2-cost" data-min-level="expert"></div>
+    <div data-sicht="overview">
     <!-- v3.7.0 — Ladestrom-Nachweis und Jahresarbeitszahl ab Erfahren (bis v3.6 Experte): nachweisen und prüfen -->
     ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="advanced"></div>' : ''}
     ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump" data-min-level="advanced"></div>' : ''}
+    </div>
   `;
   // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl am Strom- und am Wärmezähler der Wärmepumpe
   if ((u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output')) {
@@ -634,14 +670,30 @@ async function rerender(container) {
     context: 'balance', unit: u.consumption_unit, label: u.label, onChange: () => rerender(container),
   });
 
+  fillSaldoShort(container);   // v3.12.0 (M4)
+
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
   fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn, quality: consumptionData.anomaly_quality });
 
-  // Chart
-  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode, chartNames);
-  if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
-  if (!isDelivery && currentContract) drawBalanceChart('balance-chart', currentContract, u);
-  if (pvFlowRows.length) drawPvFlowChart('pv-flow-chart', pvFlowRows, yr, await getUtilities().catch(() => []));
+  // v3.12.0 (M4) — Chart.js misst die sichtbare Fläche: Jedes Diagramm wird gezeichnet, wenn seine Sicht
+  // zum ersten Mal zu sehen ist (showSight); danach passt es sich selbst an (ResizeObserver, tests/sichten)
+  const pvUtilities = pvFlowRows.length ? await getUtilities().catch(() => []) : [];
+  if (my !== rerenderSeq) return;
+  sightDraws = {
+    overview: [() => {
+      if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode, chartNames);
+      if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
+      if (pvFlowRows.length) drawPvFlowChart('pv-flow-chart', pvFlowRows, yr, pvUtilities);
+    }],
+    balance: [() => { if (!isDelivery && currentContract) drawBalanceChart('balance-chart', currentContract, u); }],
+  };
+  state.addressArgs = [latestYear, billing ? { from: sel.from, latest: bList[bList.length - 1].from } : null];
+  if (!sightAvailable(state.sight, { u, isDelivery, noValues })) state.sight = 'overview';
+  showSight(container, state.sight);
+  container.querySelectorAll('[data-sicht-btn]').forEach(b => b.addEventListener('click', () => {
+    showSight(container, b.dataset.sichtBtn);
+    syncAddress(u, ...state.addressArgs);
+  }));
 
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries, monthly, periods);
@@ -658,7 +710,71 @@ async function rerender(container) {
     state.periodByUtility[u.key] = p.getAttribute('data-period');
     rerender(container);
   }));
-  syncAddress(u, latestYear, billing ? { from: sel.from, latest: bList[bList.length - 1].from } : null);
+  syncAddress(u, ...state.addressArgs);
+}
+
+/** Gibt es diese Sicht für diese Art und Stufe? Monate ab Erfahren (bis v3.11: die Karte), Saldo nur mit Verträgen. */
+function sightAvailable(name, { u, isDelivery, noValues }) {
+  if (name === 'balance') return !isDelivery && u.has_contracts !== false;
+  if (name === 'months') return !noValues && atLeast('advanced');
+  return true;
+}
+
+/** v3.12.0 (M4) — Untermenü der Verbrauchsart: dieselbe Form wie Reiter, Filter und Jahre. */
+function sightsHtml({ u, isDelivery, isPeriod, noValues }) {
+  const label = (s) => t(s === 'readings' ? (isDelivery ? 'utility.sight.deliveries' : isPeriod ? 'utility.sight.periods' : 'utility.sight.readings') : `utility.sight.${s}`);
+  return `<div class="seg sichten" role="group" aria-label="${escapeHtml(t('utility.sight.label'))}" data-role="sights">
+    ${SIGHTS.filter(s => (s === 'months' ? !noValues : sightAvailable(s, { u, isDelivery, noValues }))).map(s => `<button type="button" class="seg__btn" data-sicht-btn="${s}" aria-pressed="false"${s === 'months' ? ' data-min-level="advanced"' : ''}>${escapeHtml(label(s))}</button>`).join('')}
+  </div>`;
+}
+
+/**
+ * v3.12.0 (M4) — Saldo kurz im Überblick: Saldo bis zur letzten Ablesung und was bei der Abrechnung zu erwarten ist,
+ * mit Weg zum Rechenweg. Die Werte stehen in der Saldo-Karte, hier nur ihr Abbild: So kann keine zweite Rechnung entstehen.
+ */
+function fillSaldoShort(container) {
+  const box = container.querySelector('[data-role="saldo-kurz"]');
+  const cur = container.querySelector('[data-role="balance-current"]');
+  if (!box || !cur) return;
+  const verdict = container.querySelector('.balance-verdict');
+  const text = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
+  const label = container.querySelector('[data-role="balance-current-label"]')?.cloneNode(true);
+  label?.querySelectorAll('button').forEach(b => b.remove());
+  const word = text(cur.nextElementSibling);
+  const curTon = cur.classList.contains('balance-col__value--credit') ? 'ton-ok' : cur.classList.contains('balance-col__value--due') ? 'ton-fehler' : '';
+  const verdictTon = verdict?.classList.contains('refund') ? 'ton-ok' : verdict?.classList.contains('surcharge') ? 'ton-fehler' : '';
+  const value = verdict?.querySelector('.balance-verdict__value');
+  box.innerHTML = `<h2 class="card__title">${icon('waage')} ${escapeHtml(text(label))}</h2>
+    <div class="saldo-kurz">
+      <div data-role="saldo-kurz-current"><strong class="saldo-kurz__wert ${curTon}">${escapeHtml(text(cur))}</strong><small>${escapeHtml(word)}</small></div>
+      ${verdict ? `<div data-role="saldo-kurz-expected"><strong class="saldo-kurz__wert ${verdictTon}">${value?.innerHTML || ''} ${escapeHtml(text(verdict.querySelector('.balance-verdict__verdict')))}</strong><small>${escapeHtml(text(verdict.querySelector('.balance-verdict__date')))}</small></div>` : ''}
+      <button type="button" class="btn btn--ghost btn--sm" data-sicht-goto="balance">${escapeHtml(t('utility.saldoShort.more'))}</button>
+    </div>`;
+  box.hidden = false;
+  box.querySelector('[data-sicht-goto]').addEventListener('click', () => {
+    showSight(container, 'balance');
+    syncAddress(state.utility, ...state.addressArgs);
+    container.querySelector('[data-sicht-btn="balance"]')?.focus();
+  });
+}
+
+function showSightIfDrawn(container) {
+  if (container.querySelector('[data-sicht]')) showSight(container, state.sight);
+}
+
+/** Noch nicht gezeichnete Diagramme je Sicht, vom letzten rerender. */
+let sightDraws = {};
+
+/** Eine Sicht zeigen und erst dann zeichnen: Chart.js braucht sichtbare Fläche. */
+function showSight(container, name) {
+  state.sight = name;
+  container.querySelectorAll('[data-sicht]').forEach(el => { el.hidden = !el.dataset.sicht.split(' ').includes(name); });
+  container.querySelectorAll('[data-sicht-btn]').forEach(b => {
+    const on = b.dataset.sichtBtn === name;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  (sightDraws[name] || []).splice(0).forEach(fn => fn());
 }
 
 /** v3.6.0 (F1030) — Wahl der Abrechnungsperiode (Name vom Server, sonst die Daten). */
@@ -757,26 +873,25 @@ function fillBillCheckLink(container, u, meter, settings, my) {
 }
 
 function header(u, meter = null) {
-  const icon = u.icon;
   const meterSelectorHtml = state.meters.length > 1 ? `
     <select class="select" id="meter-select" style="width:auto" aria-label="${t('utility.header.selectMeter')}">
       ${state.meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === state.selectedMeterId ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
-    </select>` : (meter ? `<span class="muted" style="font-size:12px;align-self:center">${escapeHtml(meter.name)}</span>` : '');
+    </select>` : (meter ? `<span class="muted" style="font-size:var(--fs-xs);align-self:center">${escapeHtml(meter.name)}</span>` : '');
 
   return `
     <div class="view-header">
       <div>
-        <h1 class="view-header__title" style="color:var(--util-${u.key})"><span aria-hidden="true">${icon}</span> ${escapeHtml(u.label)}</h1>
+        <h1 class="view-header__title">${artIcon(u, { size: 24 })} ${escapeHtml(u.label)}</h1>
         <div class="view-header__subtitle">${t(u.reading_kind === 'delivery' ? 'utility.subtitleDelivery' : feedInKind(u) ? 'utility.subtitleFeedIn' : generationKind(u) ? 'utility.subtitleGeneration' : 'utility.subtitle')}</div>
       </div>
       <div class="view-header__actions">
         ${meterSelectorHtml}
-        <a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters" title="${t('utility.header.metersTitle')}"><span aria-hidden="true">⚙️</span> ${t('utility.header.meters')}</a>
+        <a class="btn btn--ghost btn--sm" href="#/household/meters?art=${u.key}" title="${t('utility.header.metersTitle')}">${icon('zahnrad')} ${t('utility.header.meters')}</a>
         ${u.reading_kind === 'delivery'
           // v2.5.3 — Heizöl/Pellets werden über Lieferungen erfasst. Der Knopf
           // „+ Ablesung" legte hier unsichtbare, wirkungslose Datensätze an.
-          ? `<button class="btn btn-${u.key} btn--sm" id="header-new-delivery">${t('utility.action.newDelivery')}</button>`
-          : `<button class="btn btn-${u.key} btn--sm" id="header-new-reading">${t('utility.action.newReading')}</button>`}
+          ? `<button class="btn btn--primary btn--sm" id="header-new-delivery">${t('utility.action.newDelivery')}</button>`
+          : `<button class="btn btn--primary btn--sm" id="header-new-reading">${t('utility.action.newReading')}</button>`}
       </div>
     </div>
   `;
@@ -804,6 +919,7 @@ function uncertainBalanceText(unc, date) {
       ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 1), used: fmt.num(unc.factor ?? 0, 1) })
       : t('balanceUncertain.why.factorLow', { raw: fmt.pct(unc.factor_raw ?? 0, 0), used: fmt.pct(unc.factor ?? 0, 0) }))
     : r === 'few_measured' ? t('balanceUncertain.why.few_measured')   // v3.7.0 (Schritt 3, N3)
+      : r === 'group_readings_differ' ? t('balanceUncertain.why.group_readings_differ', { earliest: fmt.date(unc.group_readings?.earliest), latest: fmt.date(unc.group_readings?.latest) })   // v3.12.0 (Nachprüfung A3)
       : t('balanceUncertain.why.poor_fit', { pct: fmt.pct(unc.fit_ratio ?? 0, 0) }));
   const why = parts.length > 2 ? t('balanceUncertain.why.three', { a: parts[0], b: parts[1], c: parts[2] })
     : parts.length > 1 ? t('balanceUncertain.why.both', { a: parts[0], b: parts[1] }) : (parts[0] ?? '');
@@ -838,7 +954,8 @@ export function balanceCard(c, u, country = 'DE') {
   const proj = exp ? exp.value : c.projected_end_balance;
   // N1007 — verdict ist jetzt ein stabiler Key (surcharge|refund|payout|reclaim|balanced).
   // Logik (Farbe/Pfeil) auf dem Key, Anzeige lokalisiert über t('utility.verdict.<key>').
-  const verdict = (!isFeedIn && c.settle_verdict) || c.verdict;
+  // v3.12.0 (Sichtung S1) — der Schlüssel folgt dem Vorzeichen, neutral nur bei genau 0 (`verdict` des Servers: Toleranz 5 €)
+  const verdict = verdictKey(proj, u);
   const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
   const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
   const curView = balanceView(cur, u);
@@ -939,9 +1056,10 @@ export function balanceCard(c, u, country = 'DE') {
       const v = balanceView(p.balance, u);
       // v3.10.0 (Skeptiker H3) — unsicher: die Spanne; überwiegend geschätzt: „≈“ auf den Euro
       const rough = p.uncertain || Number(p.estimated_share) > 0.5;
-      const balance = p.uncertain && Array.isArray(p.range) ? uncertainRangeText({ projected_range: p.range })
-        : !v ? '–' : v.credit === null ? v.word : rough ? `≈ ${v.word} ${fmt.eur0(v.amount)}` : `${v.word} ${fmt.eur(v.amount)}`;
-      notes.push(t('utility.balance.settleWith', { from: fmt.date(p.from), until: fmt.date(p.until), balance }));
+      // v3.12.0 (Sichtung S1) — auch im Satz in der Farbe des Vorzeichens
+      const balance = p.uncertain && Array.isArray(p.range) ? uncertainRangeHtml({ projected_range: p.range })
+        : !v ? '–' : v.credit !== null && rough ? `<span class="${v.cls}" data-saldo="${v.credit ? 'credit' : 'due'}">≈ ${escapeHtml(v.word)} ${escapeHtml(fmt.eur0(v.amount))}</span>` : balanceHtml(p.balance, u);
+      notes.push({ html: tHtml('utility.balance.settleWith', { from: fmt.date(p.from), until: fmt.date(p.until) }, { balance }) });
     }
   }
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
@@ -964,7 +1082,7 @@ export function balanceCard(c, u, country = 'DE') {
     const legal = country === 'DE' ? (pi.notes || []).map(k => t('rights.priceNote.' + k, pi.note_params || {})) : [];
     notes.push([t('utility.balance.priceIncrease', { date: fmt.date(pi.from), what: what.join(', ') }), ...legal].join(' '));
   }
-  const notesHtml = notes.map(n => `<p class="balance-note">${escapeHtml(n)}</p>`).join('');
+  const notesHtml = notes.map(n => `<p class="infobox infobox--neutral balance-note">${n?.html ?? escapeHtml(n)}</p>`).join('');
 
   // Breakdown row: for water we want three component pills, for gas/strom the
   // simple verbrauch+grundpreis+bonus line.
@@ -1010,11 +1128,10 @@ export function balanceCard(c, u, country = 'DE') {
     special: num(today.special_net) - num(meas.special_net),
   } : null;
   const estimateHtml = todayView
-    ? `<p class="balance-suggest muted" data-role="balance-estimate-today">${escapeHtml(t('utility.balance.estimateTodayParts', {
-        balance: todayView.credit === null ? todayView.word : `${todayView.word} ${fmt.eur(todayView.amount)}`, date: untilTxt,
-        energy: fmt.eur(since.energy), base: fmt.eur(since.base), advance: fmt.eur(since.advance) })
-        + (Math.abs(since.special) >= 0.005 ? ' ' + t(since.special > 0 ? 'utility.balance.estimateTodayRefund' : 'utility.balance.estimateTodayPaid',
-          { value: fmt.eur(Math.abs(since.special)) }) : ''))}</p>` : '';
+    ? `<p class="balance-suggest muted" data-role="balance-estimate-today">${tHtml('utility.balance.estimateTodayParts', { date: untilTxt,
+        energy: fmt.eur(since.energy), base: fmt.eur(since.base), advance: fmt.eur(since.advance) }, { balance: balanceHtml(today.balance, u) })
+        + (Math.abs(since.special) >= 0.005 ? ' ' + escapeHtml(t(since.special > 0 ? 'utility.balance.estimateTodayRefund' : 'utility.balance.estimateTodayPaid',
+          { value: fmt.eur(Math.abs(since.special)) })) : '')}</p>` : '';
   // v3.10.0 (M3) — „Saldo am ‹Ablesung›“, wenn sie zurückliegt; ohne gemessenen Tag „Saldo heute (geschätzt)“ (H3)
   const balanceLabel = isFeedIn ? t('utility.balance.colClaimFeedIn')
     : dated ? escapeHtml(t('utility.balance.colBalanceAt', { date: untilTxt }))
@@ -1022,8 +1139,8 @@ export function balanceCard(c, u, country = 'DE') {
 
   return `
     <div class="card card--${u.key}">
-      <div class="card__title">${t('utility.balance.title', { name: escapeHtml(c.provider || c.tariff_name || '–') })}</div>
-      <div class="muted num" style="font-size:11px;margin-bottom:${meas ? 4 : 14}px">${escapeHtml(tariffText)}</div>
+      <div class="card__title">${icon('waage')} ${t('utility.balance.title', { name: escapeHtml(c.provider || c.tariff_name || '–') })}</div>
+      <div class="muted num" style="font-size:var(--fs-xs);margin-bottom:${meas ? 4 : 14}px">${escapeHtml(tariffText)}</div>
       ${spanHtml}
       <div class="balance-grid">
         <div>
@@ -1045,18 +1162,20 @@ export function balanceCard(c, u, country = 'DE') {
           <div class="balance-col__label" data-role="balance-current-label">${balanceLabel}${info('balance')}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht ohne Vorzeichen; die Farbe
                folgt der Bedeutung (bis v2.12 hieß die rote Klasse „positive") -->
-          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}" data-role="balance-current">${fmt.eur(curView ? curView.amount : cur)}</div>
+          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}" data-role="balance-current">${curView ? (curView.credit === null ? escapeHtml(curView.word) : fmt.eur(curView.amount)) : '–'}</div>
           <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced'))
             // v3.10.0 (M3) — zum Tag der Ablesung nur das Wort („bisher zu viel gezahlt“ stimmt heute nicht mehr)
             : dated && curView ? curView.word
             : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
         <div class="balance-verdict ${unc ? 'balanced' : verdictCls}">
-          <div class="balance-verdict__label">${unc ? '↕' : arrow} ${t('utility.balance.verdictLabel')}</div>
+          <div class="balance-verdict__label">${unc ? icon('sortieren', { size: 16 }) : arrow} ${t('utility.balance.verdictLabel')}</div>
           <!-- v3.7.0 (Nachlauf) — unsicher: nur die Spanne, kein Punktwert „≈ X €“ -->
           <!-- v3.9.0 (Skeptiker M6) — mit Band (Wetter, Modell): auf den Euro, „≈“ statt Cent -->
-          <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? escapeHtml(uncertainRangeText(unc))
-            : band ? `≈ ${fmt.eur0(Math.abs(proj || 0))}` : fmt.eur(Math.abs(proj || 0))}</div>
+          <!-- v3.12.0 (Sichtung S1) — unsicher: jedes Ende in seiner Farbe; bei genau 0 nur das Wort, ohne Betrag -->
+          <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? uncertainRangeHtml(unc)
+            : verdict === 'balanced' ? ''
+            : band && Math.abs(proj) >= 1 ? `≈ ${fmt.eur0(Math.abs(proj))}` : fmt.eur(Math.abs(proj || 0))}</div>
           <div class="balance-verdict__verdict">${unc ? t('balanceUncertain.verdict') : t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
@@ -1099,9 +1218,9 @@ function pvFlowHtml(rows, year) {
   const mark = (m) => (isInterpolated(m) ? ` ${MARK}` : '') + (m.feed_above_generation ? ' !' : '') + ((m.partial_series || []).length ? ' *' : '');
   return `
     <div class="card">
-      <div class="card__title">☀️ ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
+      <div class="card__title">${icon('sonne')} ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
       <div class="chart-wrap h300"><canvas id="pv-flow-chart"></canvas></div>
-      <p class="chart-note">${escapeHtml(t('utility.pvFlow.note') + (anyInterp ? ' ' + t('interpolation.chartNote') : ''))}</p>
+      <p class="fussnote">${escapeHtml(t('utility.pvFlow.note') + (anyInterp ? ' ' + t('interpolation.chartNote') : ''))}</p>
       ${chartTableHtml({
         caption: t('utility.pvFlow.title', { year }),
         columns: [t('utility.monthlyTable.colMonth'), t('utility.pvFlow.generation'), t('utility.pvFlow.self'), t('utility.pvFlow.feedIn'), t('utility.pvFlow.grid')],
@@ -1178,13 +1297,12 @@ function balancePathHtml(c, u, isFeedIn) {
       <div class="balance-path">
         <div class="card__title">${escapeHtml(t('utility.balance.pathTitle'))}</div>
         <div class="chart-wrap h220"><canvas id="balance-chart"></canvas></div>
-        <p class="chart-note">${escapeHtml(t('utility.balance.pathNote'))}</p>
+        <p class="fussnote">${escapeHtml(t('utility.balance.pathNote'))}</p>
         ${chartTableHtml({
           caption: t('utility.balance.pathTitle'),
           columns: [t('utility.monthlyTable.colMonth'), t('utility.balance.pathCost'), t('utility.balance.pathPaid'), t('utility.balance.pathBalance')],
           rows: path.map(p => {
-            const v = balanceView(p.balance, u);
-            return [fmt.month(p.ym) + (p.estimated ? est : ''), fmt.eur(p.cost), fmt.eur(p.paid), v ? `${v.word} ${fmt.eur(v.amount)}` : fmt.eur(p.balance)];
+            return [fmt.month(p.ym) + (p.estimated ? est : ''), fmt.eur(p.cost), fmt.eur(p.paid), { html: balanceHtml(p.balance, u) }];
           }),
         })}
       </div>`;
@@ -1250,24 +1368,24 @@ function renderWaterComponentRow(components) {
   const nw = components.niederschlagswasser || {};
   return `
     <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border-1)">
-      <div class="balance-col__label" style="margin-bottom:10px">${t('utility.balance.components')}</div>
+      <div class="balance-col__label" style="margin-bottom:10px">${artIcon('wasser', { size: 16 })} ${t('utility.balance.components')}</div>
       <div class="grid grid-3">
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.tw')}</div>
+          <div class="num text-1" style="font-size:var(--fs-sm);font-weight:600;color:var(--text-1)">${t('utility.balance.tw')}</div>
           <div class="balance-col__sub" style="margin-top:2px">${tw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(tw.current_ct_per_m3, 2) }) : '–'}${tw.current_eur_per_month != null ? ' · ' + t('utility.balance.gpMonth', { value: fmt.num(tw.current_eur_per_month, 2) }) : ''}</div>
-          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(tw.total)}</div>
+          <div class="num" style="margin-top:6px;font-size:var(--fs-body);color:var(--text-1)">${fmt.eur(tw.total)}</div>
           <div class="balance-col__breakdown">${t('utility.balance.consShort', { value: fmt.eur(tw.working_cost) })}${tw.base_cost > 0 ? t('utility.balance.gpPlus', { value: fmt.eur(tw.base_cost) }) : ''}</div>
         </div>
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.sw')}</div>
+          <div class="num text-1" style="font-size:var(--fs-sm);font-weight:600;color:var(--text-1)">${t('utility.balance.sw')}</div>
           <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'}${sw.current_eur_per_month != null ? ' · ' + t('utility.balance.gpMonth', { value: fmt.num(sw.current_eur_per_month, 2) }) : ''} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
-          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(sw.total)}</div>
+          <div class="num" style="margin-top:6px;font-size:var(--fs-body);color:var(--text-1)">${fmt.eur(sw.total)}</div>
           ${sw.base_cost > 0 ? `<div class="balance-col__breakdown">${t('utility.balance.consShort', { value: fmt.eur(sw.total - sw.base_cost) })}${t('utility.balance.gpPlus', { value: fmt.eur(sw.base_cost) })}</div>` : ''}
         </div>
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.nw')}</div>
+          <div class="num text-1" style="font-size:var(--fs-sm);font-weight:600;color:var(--text-1)">${t('utility.balance.nw')}</div>
           <div class="balance-col__sub" style="margin-top:2px">${nw.current_eur_per_m2_year != null ? t('utility.balance.eurPerM2Year', { value: fmt.num(nw.current_eur_per_m2_year, 2), m2: fmt.int(nw.current_versiegelte_m2) }) : '–'}</div>
-          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(nw.total)}</div>
+          <div class="num" style="margin-top:6px;font-size:var(--fs-body);color:var(--text-1)">${fmt.eur(nw.total)}</div>
           ${nw.current_monthly != null ? `<div class="balance-col__breakdown">${t('utility.balance.perMonthShort', { value: fmt.eur(nw.current_monthly) })}</div>` : ''}
         </div>
       </div>
@@ -1287,7 +1405,7 @@ export const contractRowBonus = (c) => c.bonus_to_date ?? c.actual_bonus_total;
 export function contractsTable(contracts, u) {
   if (!contracts || !contracts.length) {
     return `<div class="empty" style="padding:32px 20px">
-      <div class="empty-icon">📑</div>
+      <div class="empty-icon" aria-hidden="true">${icon('dokumente', { size: 48 })}</div>
       <h2>${t('utility.contractsTable.emptyTitle')}</h2>
       <p>${t('utility.contractsTable.emptyText')}</p>
       <a class="btn btn--primary" href="#/utility/${u.key}/contracts">${t('utility.contractsTable.emptyCta')}</a>
@@ -1337,14 +1455,14 @@ export function contractsTable(contracts, u) {
         <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
         <td class="period-cell">${period}</td>
         <td>${phasePill(c)}</td>
-        <td class="num muted" style="font-size:11px">${tariffStr}</td>
+        <td class="num muted" style="font-size:var(--fs-xs)">${tariffStr}</td>
         <td class="num">${c.current_advance_amount != null ? escapeHtml(advanceAmountText(c.current_advance_amount, c.current_advance_every_months)) : '–'}</td>
         <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
         <td class="num">${fmt.eur(c.advance_paid)}</td>
-        <td class="num success-text">${bonusStr}</td>
+        <td class="num${bonus > 0 ? ' ton-ok' : ''}">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
         ${balCell(cur)}
-        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>`
+        ${c.projection_uncertain ? `<td class="num" data-role="expected-range">${uncertainRangeHtml(c.projection_uncertain)}</td>`
           // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende);
           // v3.10.0 — beginnt er erst nach der laufenden Periode, gibt es keinen (–, ohne ≈)
           : c.is_future && proj != null ? balCell(proj, true).replace(/^<td([^>]*)>/, '<td$1 data-role="expected-future"><span aria-hidden="true">≈ </span>') : balCell(proj, true)}
@@ -1368,9 +1486,10 @@ export function contractsTable(contracts, u) {
     </tr></thead>
     ${groupContracts(contracts).map(groupBody).join('')}
   </table></div>
-  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>
+  <p class="muted" style="font-size:var(--fs-xs);margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>
   ${contracts.filter(c => c.rest_of).map(c => `<p class="muted small" data-role="rest-contract-note" style="margin:4px 4px 0">${escapeHtml((c.provider || c.tariff_name || '–') + ': ' + restNoteText(c.rest_of, u.consumption_unit))}</p>`).join('')}
-  ${anyFuture ? `<p class="muted" style="font-size:11px;margin:4px 4px 0" data-role="future-legend">${escapeHtml(t('utility.contractsTable.futureLegend'))}</p>` : ''}`;
+  ${anyFuture ? `<p class="muted" style="font-size:var(--fs-xs);margin:4px 4px 0" data-role="future-legend">${escapeHtml(t('utility.contractsTable.futureLegend'))}</p>` : ''}
+  ${groupContracts(contracts).some(g => g.group === 'past') ? `<p class="fussnote" data-role="past-legend">${escapeHtml(t('utility.contractsTable.pastLegend'))}</p>` : ''}`;
 }
 
 // v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-
@@ -1384,7 +1503,7 @@ function specialCell(c) {
     .sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
   if (!items.length) return `<td class="num muted special-cell">–</td>`;
   const net = c.special_payment_net || 0;
-  const cls = net > 0 ? 'success-text' : net < 0 ? 'danger-text' : 'muted';
+  const cls = net > 0 ? 'ton-ok' : net < 0 ? 'ton-fehler' : 'muted';
   const sign = net > 0 ? '+' : '';
   const lines = items.map(sp => {
     const received = String(sp.kind).startsWith('rueckzahlung');
@@ -1525,10 +1644,10 @@ function monthlyTable(monthly, u, hasContracts) {
       <td></td><td></td>
     </tr></tfoot>
   </table></div>
-  ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
-  ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
-  ${monthly.some(m => isInterpolated(m) && !m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
-  ${monthly.some(m => m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-legend">${escapeHtml(t(billedCol ? 'readingCheck.bridgedLegendCol' : 'readingCheck.bridgedLegend'))}</p>` : ''}
+  ${showBalance ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
+  ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
+  ${monthly.some(m => isInterpolated(m) && !m.bridged) ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
+  ${monthly.some(m => m.bridged) ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px" data-role="bridged-legend">${escapeHtml(t(billedCol ? 'readingCheck.bridgedLegendCol' : 'readingCheck.bridgedLegend'))}</p>` : ''}
   ${(() => {
     // Skeptiker R2-9: Reicht die Überbrückung über den Jahreswechsel, verschieben die
     // Monatswerte Verbrauch ins Nachbarjahr, die abgerechnete Menge nicht; ein Satz zum
@@ -1537,10 +1656,10 @@ function monthlyTable(monthly, u, hasContracts) {
     const diff = monthly.filter(m => m.bridged)
       .reduce((a, m) => a + (Number(billedQtyOf(m) ?? m[consKey]) || 0) - (Number(m[consKey]) || 0), 0);
     return Math.round(Math.abs(diff)) >= 1
-      ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-total-note">${escapeHtml(t('readingCheck.bridgedTotalNote',
+      ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px" data-role="bridged-total-note">${escapeHtml(t('readingCheck.bridgedTotalNote',
         { amount: `${fmt.int(Math.abs(diff))} ${u.consumption_unit}` }))}</p>` : '';
   })()}
-  ${monthly.some(isPartial) ? `<p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
+  ${monthly.some(isPartial) ? `<p class="muted" style="font-size:var(--fs-xs);margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
 }
 
 // ── Readings-Tabelle ────────────────────────────────────────────────
@@ -1553,6 +1672,10 @@ function warningText(w, u) {
   const base = { date: fmt.date(w.date), counter: fmt.num(w.counter, 1), unit: u.unit };
   if (w.type === 'suspect') return t('utility.warnings.suspect', base);
   if (w.type === 'outlier') return t(w.kind === 'dip' ? 'utility.warnings.dip' : 'utility.warnings.spike', base);
+  // v3.12.0 — ein gespeicherter Stand außerhalb von 1900 bis 2100 (etwa Jahr 0001): nicht berücksichtigt
+  if (w.type === 'out_of_range') return t('utility.warnings.outOfRange', { ...base, date: String(w.date || ''), min: w.min, max: w.max });
+  // v3.12.0 — ein gespeicherter Stand über der Grenze der Eingabe (10¹²): nicht berücksichtigt
+  if (w.type === 'counter_out_of_range') return t('utility.warnings.counterOutOfRange', { ...base, counter: w.counter == null ? '?' : String(w.counter), max: fmt.num(w.max, 0) });
   if (w.type === 'decrease') {
     return t('utility.warnings.decrease', {
       ...base,
@@ -1565,9 +1688,9 @@ function warningText(w, u) {
 
 // v3.4.0 (N1021) — Leerzustände der Liste: gar keine Ablesung, keine im Jahr
 function readingsEmpty(total, year) {
-  if (!total) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
+  if (!total) return `<div class="empty" style="padding:32px"><div class="empty-icon" aria-hidden="true">${icon('klemmbrett', { size: 48 })}</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
   return `<div class="empty" style="padding:32px">
-      <div class="empty-icon">📋</div>
+      <div class="empty-icon" aria-hidden="true">${icon('klemmbrett', { size: 48 })}</div>
       <h2>${t('utility.readingsTable.emptyYear', { year })}</h2>
       <p class="muted">${tp('utility.readingsTable.emptyYearHint', total)}</p>
     </div>`;
@@ -1608,13 +1731,13 @@ function readingsTable(sorted, u, warnByReading = new Map(), checks = state.read
       return `<tr data-reading-id="${escapeHtml(r.id)}"${r.is_suspect || warn || check || dup ? ' class="row--flagged"' : ''}>
       <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''} ${flag} ${marks}</td>
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
-      <td class="muted" style="font-size:12px">${escapeHtml(r.note || '')}</td>
+      <td class="muted" style="font-size:var(--fs-xs)">${escapeHtml(r.note || '')}</td>
       <td style="text-align:right;white-space:nowrap">
         ${r.attachment_id ? `<button class="icon-btn icon-btn--thumb" data-action="view-photo" data-id="${escapeHtml(r.id)}" title="${t('readingsEntry.photo.view')}" aria-label="${t('readingsEntry.photo.view')}"><img class="reading-thumb" src="${escapeHtml(api.attachmentUrl(r.attachment_id))}" alt="" loading="lazy" decoding="async"></button>` : ''}
-        ${r.is_suspect ? `<button class="icon-btn" data-action="confirm-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.confirmReading')}" aria-label="${t('utility.readingsTable.confirmReading')}"><span aria-hidden="true">✅</span></button>` : ''}
-        ${check ? `<button class="icon-btn" data-action="verify-reading" data-id="${escapeHtml(r.id)}" title="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}" aria-label="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}"><span aria-hidden="true">✅</span></button>` : ''}
-        <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
-        <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
+        ${r.is_suspect ? `<button class="icon-btn" data-action="confirm-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.confirmReading')}" aria-label="${t('utility.readingsTable.confirmReading')}">${icon('aufgaben')}</button>` : ''}
+        ${check ? `<button class="icon-btn" data-action="verify-reading" data-id="${escapeHtml(r.id)}" title="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}" aria-label="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}">${icon('aufgaben')}</button>` : ''}
+        <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}">${icon('stift')}</button>
+        <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}">${icon('eimer')}</button>
       </td>
     </tr>`;
     }).join('')}
@@ -1767,7 +1890,7 @@ function wireList(container, { u, meter, isPeriod, rows, total, yr, readings, pe
 function periodsTable(list, u) {
   const unitOf = (p) => p.value_unit === 'meter' ? u.unit : (u.consumption_unit || u.unit);
   if (!list.length) {
-    return `<div class="empty" style="padding:32px"><div class="empty-icon">📅</div><h2>${t('utility.periods.empty')}</h2>
+    return `<div class="empty" style="padding:32px"><div class="empty-icon" aria-hidden="true">${icon('kalender', { size: 48 })}</div><h2>${t('utility.periods.empty')}</h2>
       <p class="muted">${t('utility.periods.emptyHint')}</p></div>`;
   }
   return `<div class="table-wrap"><table class="table">
@@ -1785,11 +1908,11 @@ function periodsTable(list, u) {
       return `<tr data-period-id="${escapeHtml(p.id)}">
         <td><strong>${fmt.date(p.from)} – ${fmt.date(p.to)}</strong> ${p.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''}</td>
         <td class="num">${fmt.num(p.value, 1)} ${escapeHtml(unitOf(p))}</td>
-        <td class="muted" style="font-size:12px">${refs}</td>
-        <td class="muted" style="font-size:12px">${escapeHtml(p.note || '')}</td>
+        <td class="muted" style="font-size:var(--fs-xs)">${refs}</td>
+        <td class="muted" style="font-size:var(--fs-xs)">${escapeHtml(p.note || '')}</td>
         <td style="text-align:right;white-space:nowrap">
-          <button class="icon-btn" data-action="edit-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
-          <button class="icon-btn" data-action="delete-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
+          <button class="icon-btn" data-action="edit-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}">${icon('stift')}</button>
+          <button class="icon-btn" data-action="delete-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}">${icon('eimer')}</button>
         </td>
       </tr>`;
     }).join('')}</tbody>
@@ -1831,7 +1954,7 @@ async function loadEvReport(container, meter, year, method = 'contract', flat = 
       <div class="field" ${method === 'flat' ? '' : 'hidden'}><label for="ev-flat">${t('evReport.flatLabel')}</label>
         <input class="input" id="ev-flat" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(flat !== '' ? formatForInput(Number(flat)) : formatForInput(r?.flat_ct))}"></div>
     </div>
-    ${err ? `<p class="banner banner--info">${escapeHtml(err)}</p>` : `
+    ${err ? `<p class="infobox infobox--info">${escapeHtml(err)}</p>` : `
       <p><strong>${escapeHtml(t('evReport.summary', { kwh: fmt.num(r.total.kwh, 0), amount: fmt.eur(r.total.amount_eur) }))}</strong></p>
       ${r.price_missing ? `<p class="muted small">${escapeHtml(t('evReport.priceMissing'))}</p>` : ''}
       <div class="form-actions">
@@ -2001,7 +2124,7 @@ function pvExtrasHtml(pv, year) {
       <div class="kpi-grid">${c.strands.map(kpi).join('')}</div>
       <p class="muted small">${escapeHtml(t('pv.cascade.hint'))} ${escapeHtml(tp('pv.cascade.months', c.months, { n: c.months }))}${est
         ? ` <span data-role="pv-cascade-estimated">${escapeHtml(tp('pv.cascade.estimated', c.interpolated_months, { n: c.interpolated_months }))}</span>` : ''}</p>
-      ${(c.inconsistent_months || []).length ? `<p class="banner banner--warning small">${escapeHtml(t('pv.cascade.inconsistent', { list: c.inconsistent_months.map(ym => fmt.month(ym)).join(', ') }))}</p>` : ''}
+      ${(c.inconsistent_months || []).length ? `<p class="infobox infobox--achtung small">${escapeHtml(t('pv.cascade.inconsistent', { list: c.inconsistent_months.map(ym => fmt.month(ym)).join(', ') }))}</p>` : ''}
     </div>`);
   }
   const p = pv.payback;
@@ -2021,7 +2144,7 @@ function pvExtrasHtml(pv, year) {
     parts.push(`<p class="muted small">${escapeHtml(t('pv.plugIn.assumed', { pct: fmt.num(pv.self_consumption_assumed_pct, 0) }))}</p>`);
   }
   if ((pv.hints || []).includes('negative_prices')) {
-    parts.push(`<p class="banner banner--info">${escapeHtml(t('pv.hint51'))}</p>`);
+    parts.push(`<p class="infobox infobox--info">${escapeHtml(t('pv.hint51'))}</p>`);
   }
   return parts.join('');
 }
@@ -2030,7 +2153,7 @@ function dhwNote(monthly, year) {
   const rows = (monthly || []).filter(m => m.dhw_kwh != null && String(m.ym || '').startsWith(String(year)));
   if (!rows.length) return '';
   const kwh = rows.reduce((s, m) => s + Number(m.dhw_kwh || 0), 0);
-  return `<p class="muted" style="font-size:12px;margin:var(--sp-2) 0 0">${escapeHtml(t('utility.water.dhwNote', {
+  return `<p class="muted" style="font-size:var(--fs-xs);margin:var(--sp-2) 0 0">${escapeHtml(t('utility.water.dhwNote', {
     kwh: fmt.num(kwh, 0), year, temp: fmt.num(rows[0].dhw_temp_c, 0) }))}${info('dhw')}</p>`;
 }
 
@@ -2080,7 +2203,7 @@ function openPeriodModal(container, u, meter, period, periods = []) {
     title: period ? t('utility.periods.edit') : t('utility.periods.add'),
     body,
     footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
-      <button type="button" class="btn btn-${u.key}" data-act="save">${t('common.save')}</button>`,
+      <button type="button" class="btn btn--primary" data-act="save">${t('common.save')}</button>`,
     onMount({ modalEl, close }) {
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(false));
       const saveBtn = modalEl.querySelector('[data-act="save"]');
@@ -2112,7 +2235,7 @@ function openPeriodModal(container, u, meter, period, periods = []) {
 // ── Lieferungen (Heizöl/Pellets) ────────────────────────────────────
 function deliveriesTable(deliveries, u) {
   if (!deliveries.length) {
-    return `<div class="empty" style="padding:32px"><div class="empty-icon">🚚</div><h2>${t('utility.deliveriesTable.emptyTitle')}</h2><p>${t('utility.deliveriesTable.emptyText')}</p></div>`;
+    return `<div class="empty" style="padding:32px"><div class="empty-icon" aria-hidden="true">${icon('lieferung', { size: 48 })}</div><h2>${t('utility.deliveriesTable.emptyTitle')}</h2><p>${t('utility.deliveriesTable.emptyText')}</p></div>`;
   }
   const unit = u.volume_unit || u.unit || 'L';
   const sorted = [...deliveries].sort((a, b) => b.date.localeCompare(a.date));
@@ -2138,10 +2261,10 @@ function deliveriesTable(deliveries, u) {
         <td class="num">${upC != null ? fmt.num(upC, 2) + ' ' + getCurrencyMinor() : '–'}</td>
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
         <td>${escapeHtml(d.supplier || '')}</td>
-        <td class="muted" style="font-size:12px">${escapeHtml(d.note || '')}</td>
+        <td class="muted" style="font-size:var(--fs-xs)">${escapeHtml(d.note || '')}</td>
         <td style="text-align:right;white-space:nowrap">
-          <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
-          <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
+          <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}">${icon('stift')}</button>
+          <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}">${icon('eimer')}</button>
         </td>
       </tr>`;
     }).join('')}
@@ -2206,7 +2329,7 @@ function tankNotes(stockHist, u) {
       notes.push(t('utility.tank.warnFlat'));
     }
   }
-  return notes.map((n, i) => `<p class="${i === 0 ? 'muted' : 'balance-note'}" style="font-size:12px;margin-top:8px">${escapeHtml(n)}</p>`).join('');
+  return notes.map((n, i) => `<p class="${i === 0 ? 'muted' : 'infobox infobox--neutral balance-note'}" style="font-size:var(--fs-xs);margin-top:8px">${escapeHtml(n)}</p>`).join('');
 }
 
 function tankLevelsBlock(meter, u) {
@@ -2217,16 +2340,16 @@ function tankLevelsBlock(meter, u) {
       <td>${fmt.date(l.date)}</td>
       <td class="num" style="white-space:nowrap">${fmt.num(l.level, 0)} ${escapeHtml(unit)}</td>
       <td class="muted">${escapeHtml(l.note || '')}</td>
-      <td class="actions"><button class="icon-btn" data-action="delete-level" data-date="${escapeHtml(l.date)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button></td>
+      <td class="actions"><button class="icon-btn" data-action="delete-level" data-date="${escapeHtml(l.date)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}">${icon('eimer')}</button></td>
     </tr>`).join('');
   return `
     <div class="tank-levels" style="margin-top:16px">
-      <div class="card__title" style="font-size:14px">${t('utility.tank.levelsTitle')}
-        <span class="card__title-action"><button class="btn btn-${u.key} btn--sm" id="btn-new-level">${t('utility.tank.addLevel')}</button></span>
+      <div class="card__title" style="font-size:var(--fs-body)">${t('utility.tank.levelsTitle')}
+        <span class="card__title-action"><button class="btn btn--sm" id="btn-new-level">${t('utility.tank.addLevel')}</button></span>
       </div>
       ${levels.length
         ? `<div class="table-wrap"><table class="table"><tbody>${rows}</tbody></table></div>`
-        : `<p class="muted" style="font-size:12px">${t('utility.tank.levelsEmpty')}</p>`}
+        : `<p class="muted" style="font-size:var(--fs-xs)">${t('utility.tank.levelsEmpty')}</p>`}
     </div>`;
 }
 
@@ -2496,7 +2619,7 @@ function periodConflictHtml(p, u) {
     name: a.name || t('contracts.card.fallbackProvider'), other: a.claimed_name || t('contracts.card.fallbackProvider'), otherEnd: fmt.date(a.claimed_until) }));
   if (p?.advance_vs_cost) lines.push(t('contracts.advanceVsCost', { factor: fmt.num(Number(p.advance_vs_cost.factor), 1) }));
   if (!lines.length) return '';
-  return `<p class="banner banner--warning small" data-role="period-assumed">${lines.map(escapeHtml).join(' ')}
+  return `<p class="infobox infobox--achtung small" data-role="period-assumed">${lines.map(escapeHtml).join(' ')}
     <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contracts.conflict.check'))}</a></p>`;
 }
 
@@ -2524,7 +2647,7 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
       const yr = state.yearByUtility[u.key];
       const rows = monthly.filter(m => m.year === yr);
       drawMonthChart('month-chart', rows, u, yr, monthly.filter(m => m.year === yr - 1), mode);
-      const note = container.querySelector('[data-role="month-chart-note"]');
+      const note = container.querySelector('[data-role="month-fussnote"]');
       if (note) note.innerHTML = monthChartNote(rows, mode);
     });
   });
@@ -2545,7 +2668,7 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
   });
 
   // Reading actions
-  const newReadingHandlers = ['#header-new-reading', '#banner-new-reading', '#btn-new-reading'];
+  const newReadingHandlers = ['#header-new-reading', '#btn-new-reading'];
   newReadingHandlers.forEach(sel => {
     container.querySelector(sel)?.addEventListener('click', () => (meter?.capture === 'period'
       ? openPeriodModal(container, u, meter, null, periods)
@@ -2598,7 +2721,7 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
 /** v3.9.0 (ablesung-pruefen) — im Bearbeiten-Dialog: warum der Stand auffällt und welcher passen würde. */
 function readingCheckHintHtml(check, reading, u) {
   const s = (check.suggested || []).find(x => x.id === reading.id);
-  return `<div class="banner banner--info" data-role="reading-check-hint">
+  return `<div class="infobox infobox--info" data-role="reading-check-hint">
       <p><strong>${escapeHtml(readingCheckTitle(check))}</strong></p>
       <p class="small">${readingCheckLines(check).map(escapeHtml).join(' ')}</p>
       ${s ? `<p class="small">${escapeHtml(t('readingCheck.suggested', { counter: `${fmt.num(s.suggested, 1)} ${u.unit}` }))}
@@ -2616,16 +2739,19 @@ function openReadingModal(container, u, meter, reading, readings = []) {
   // Zählers (ohne den bearbeiteten und ohne unbestätigten Verdacht).
   const others = (readings || []).filter(r => r.id !== reading?.id && !r.is_suspect);
   const typical = typicalPerDay(others);
-  const prevBefore = (date) => others
-    .filter(r => !r.is_future && r.date < date)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .at(-1) || null;
+  // v3.12.0 — voriger und nächster Stand zum gewählten Datum: eine Regel mit der Seite „Zählerstände“
+  // (neighbours); ein Wert über dem nächsten ließe die Rechnung sonst still aus
+  const prevBefore = (date) => neighbours(others, meter, date).prev;
+  const nextIssueArgs = (date) => {
+    const { next, nextDeviceChanged } = neighbours(others, meter, date);
+    return { next, nextDeviceChanged };
+  };
   const lastReading = isEdit ? null : prevBefore('9999-12-31');
   const body = `
     <form id="reading-form">
       <div class="field">
         <label for="rf-date">${t('utility.readingModal.date')}</label>
-        <input class="input" id="rf-date" type="date" name="date" value="${escapeHtml(reading?.date || today)}" required>
+        <input class="input" id="rf-date" type="date" name="date" min="1900-01-01" max="2100-12-31" value="${escapeHtml(reading?.date || today)}" required>
       </div>
       <div class="field">
         <label for="rf-counter">${t('utility.readingModal.counter', { unit: u.unit })}</label>
@@ -2695,6 +2821,7 @@ function openReadingModal(container, u, meter, reading, readings = []) {
         const issues = checkReading({
           value: v, date, today, prev, typical,
           deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
+          ...nextIssueArgs(date),
         });
         previewEl.textContent = [
           days != null
@@ -2735,6 +2862,7 @@ function openReadingModal(container, u, meter, reading, readings = []) {
         const issues = checkReading({
           value: counter, date, today, prev, typical, sameDay,
           deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
+          ...nextIssueArgs(date),
         });
         if (issues.length && !await confirmIssues(issues, { unit: u.unit, date, utility: u.key })) return;
         const data = {

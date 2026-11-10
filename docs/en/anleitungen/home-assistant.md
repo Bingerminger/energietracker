@@ -10,7 +10,8 @@
 This guide is the **official** integration (since Energietracker **v1.9.0**,
 feature F1009).
 
-> ⚠️ **Beware of circulating forum guides.** There is a popular but
+> [!WARNING]
+> **Beware of circulating forum guides.** There is a popular but
 > **technically wrong** guide (AI-generated) that describes `POST /api.php` with
 > a `{"action":"add_reading", "value":…, "timestamp":…}` and a token from
 > `settings.json`. **None of that exists in Energietracker** — a `timestamp`
@@ -48,7 +49,7 @@ way yourself (for example a Home Assistant address outside it, through remote
 access). Energietracker only contacts the address you enter.
 
 All steps can be prepared directly in Energietracker under
-**Settings → Integrations → 🏠 Home Assistant integration** (including
+**Connections → Home Assistant** (including
 copy-and-paste YAML).
 
 Where does Energietracker run? With **Home Assistant OS**, as an app right
@@ -120,7 +121,7 @@ environment:
 | Log | the app’s “Log” tab | `docker logs` |
 
 Every Home Assistant user sees the sidebar entry; you change roles under
-Settings → Access. A person is kept by the ID of the HA user, so renaming the
+Settings → Access and security. A person is kept by the ID of the HA user, so renaming the
 user in Home Assistant does not create a new one. The image’s health check
 (`/api/health`) is also the app’s monitoring: with “Watchdog” on, Home
 Assistant restarts it when the check fails. Since v3.10.0 the app ends when
@@ -131,13 +132,13 @@ it switched on.
 **Readings from Home Assistant into the app.** Steps 1 to 5 below apply
 unchanged; only the address differs: Home Assistant reaches the app inside its
 own network at `http://<host name of the app>` (port 80, no Ingress), for
-example `http://1a2b3c4d-energietracker`. The templates under Settings →
-Integrations → 🏠 Home Assistant integration fill in the right name. Because
+example `http://1a2b3c4d-energietracker`. The templates under Connections →
+Home Assistant fill in the right name. Because
 sign-in is on, the push needs a **token** (step 1) and the sensors a **read
 key** (step 5).
 
 **Moving from a Docker installation.** In the old installation, download the
-JSON backup under Settings → Data → 💾 Backup & restore and import it in the
+JSON backup under Settings → Data and backup → 💾 Backup & restore and import it in the
 app at the same place (up to 256 MB through Ingress; the app streams uploads).
 Persons, token and keys are not part of the backup: create the token and read
 key again in the app and change the address in the `rest_command` and the
@@ -166,8 +167,8 @@ and the **shortcut** from the iPhone or iPad through an enabled direct port
 ([shortcut](posteingang.md#with-a-shortcut-from-the-iphone-or-ipad)).
 
 **Notifications *(v3.9.0)*.** The app may talk to Home Assistant through the
-Supervisor (`homeassistant_api: true`). Under Settings → Integrations →
-🔔 Notifications to Home Assistant, “Send notifications” is all it takes
+Supervisor (`homeassistant_api: true`). Under Connections →
+Notifications, “Send notifications” is all it takes
 ([step 6](#step-6--notifications-to-home-assistant-v390)). Through this access
 the app acts towards Home Assistant with the rights of an administrator (as
 Home Assistant’s documentation puts it); it only calls the action set for
@@ -180,15 +181,15 @@ Everything else that applies under Ingress is listed under
 
 ## Step 1 — Generate an API token
 
-1. Open Energietracker → **Settings** → **Integrations** →
-   **🏠 Home Assistant integration**.
+1. Open Energietracker → **Connections** → **Home Assistant**
+   (tab “Connect”).
 2. Click **"Generate token"**. The token is shown **only once** — copy it
    immediately and store it safely (e.g. in the HA secrets).
 3. The token protects **only** the push endpoint `/api/ingest`, not the rest of
    the app. As long as none is set, the push accepts values without a token
    (intended for the home network only). **Once a token exists, HA must send it
    along** — otherwise the endpoint responds with `401`.
-4. **With sign-in switched on** (Settings → Access → "Sign-in & access", since
+4. **With sign-in switched on** (Settings → Access and security → "Sign-in & access", since
    v2.6.0) the token is **mandatory**: without a token the push then rejects
    every value. The app itself is protected by sign-in — see
    [Security & network operation](../betrieb/sicherheit.md).
@@ -207,8 +208,8 @@ Everything else that applies under Ingress is listed under
 HA should not address the meters via cryptic internal IDs (`m_strom_main`).
 Instead, give each meter an **alias**:
 
-- In **Settings → Integrations → 🏠 Home Assistant integration → Meter
-  aliases**, enter an alias per meter (e.g. `stromzaehler_haus`,
+- In **Connections → Home Assistant → Assign
+  meters**, enter an alias per meter (e.g. `stromzaehler_haus`,
   `gaszaehler_wohnung`) and **save**.
 - Allowed are 1–64 characters from letters, digits, `_`, `.`, `-`.
 - The alias must be unique within a utility.
@@ -256,7 +257,8 @@ energietracker_auth: "Bearer et_your_copied_token"
 > v2.5.2) it is plain text — Energietracker receives the string literally and
 > answers `401`.
 
-> ⚠️ **Did you copy the template before v2.5.3?** Then your config contains
+> [!WARNING]
+> **Did you copy the template before v2.5.3?** Then your config contains
 > `| float(0)`. Please remove it (`| float`) and add the condition from step 4.
 > `float(0)` turns an unavailable sensor into a meter reading of **0**; the next
 > real reading then counts as the consumption of a single day and distorts
@@ -273,7 +275,7 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  # Only send when the sensor has a value – right after a restart it is briefly “unavailable”.
+  # Only send when the sensor has a value. Right after a restart it is briefly “unavailable”.
   - if:
       - condition: template
         value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
@@ -355,6 +357,8 @@ mode: single
 ---
 
 ## Step 5 — Values back to Home Assistant
+
+> **Without YAML:** the [HACS integration](#hacs-integration-v3120) creates these sensors itself.
 
 Since v3.1.0 it also works the other way round: Energietracker calculates
 balance, forecast and due dates, Home Assistant shows them and reacts to them.
@@ -442,7 +446,7 @@ rest:
   [Ticking off notices](hinweise-erledigen.md).
 
 **With sign-in switched on**, Home Assistant needs an API key with scope
-**“Read”** to read (Settings → Access → “API keys for scripts”). The ingest
+**“Read”** to read (Connections → Keys → “API keys for scripts”). The ingest
 token from step 1 does not work for this. Into `secrets.yaml`, again the whole
 header value:
 
@@ -529,12 +533,12 @@ asks every 30 seconds. On a web server without Docker the
   on the first time), four come one by one and the rest in a summary message.
 - **Home Assistant not reachable?** Then it tries again after half an hour,
   not with every request.
-- **Language:** that of the installation (Settings → General → default
-  language), not that of the device.
+- **Language:** that of the installation (Settings → Region and language → default for
+  everyone), not that of the device.
 
 ### Setting up the destination
 
-Settings → Integrations → 🔔 Notifications to Home Assistant:
+Connections → Notifications:
 
 | Destination | For | What you enter |
 |---|---|---|
@@ -547,6 +551,13 @@ With the Supervisor and the token Energietracker calls an **action**.
 notifications in Home Assistant; a second message about the same item replaces
 the first. `notify.mobile_app_<device>` sends it to the Companion app on your
 phone. Both take `title` and `message`.
+
+**Foreign text without links or images** *(v3.12.0)*: names of documents and
+titles or texts from your data (appointments, meters, suppliers) appear in the
+message without line breaks, shortened, and in a form from which Home Assistant
+makes no link, no image and no HTML: square and angle brackets become round ones,
+an address is not clickable. With the folder or forwarding,
+the sender decides the name of a document.
 
 - **“Send a test message”** checks the destination, even before you switch it
   on.
@@ -579,7 +590,7 @@ certificates you issued yourself are accepted. The root certificate applies
 **in addition** to the usual root certificates; public destinations keep
 working.
 
-- **In the app:** Settings → Expert → 🔐 Connections in the home network →
+- **In the app:** Connections → Home network security →
   “Own root certificate (PEM)”. Paste the text of your root certificate file,
   from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`, and save.
   Only the certificate, never the private key (the app refuses it).
@@ -686,11 +697,14 @@ What the webhook receives (JSON; in the automation under `trigger.json`):
 | `key` | unique key of the message |
 | `date`, `severity` | due date and level (`overdue`, `urgent`, `due`, `info`) |
 | `items` | for summary messages and documents the single items |
+| `href` | *(v3.12.0)* only for a note “Your rights as a customer”: the jump mark in the app, for example `#/todo?art=rec&rec=rights-…`. Append it to the address of your app. The message cannot carry a ready link, because the app does not know its own address; the text therefore names the page |
 | `language`, `instance_id`, `sent_at`, `source` | language, ID of the installation, time; `source` is always `energietracker` |
 
 ---
 
 ## “To do” sensor *(v3.9.0)*
+
+> **Without YAML:** the [HACS integration](#hacs-integration-v3120) creates these sensors itself.
 
 `GET /api/todo` returns the “To do” list: how many items are due, how many of
 them are overdue or urgent, and the next one. Every due item counts, also a
@@ -779,14 +793,37 @@ back afterwards.
 
 ---
 
-## HACS integration *(in preparation)*
+## HACS integration *(v3.12.0)*
 
-An integration for HACS is in preparation. After setup (address, optionally a
-read key) it creates the sensors itself, without YAML: “To do” with the next
-item and, per meter, balance, consumption in the current year and forecast. It
-reads the same endpoints as the templates above (`/api/summary` and
-`/api/todo`). It is not published yet; until then the sensors go through the
-templates from step 5 and the [“To do” sensor](#to-do-sensor-v390).
+The integration **Energietracker for Home Assistant** creates the sensors itself, without YAML. It reads the
+same endpoints as the templates above (`/api/summary` and `/api/todo`) and needs Energietracker 3.9.0 or later
+(the attributes for the expected and the measured balance, “due soon” and the next appointment from 3.10.0) and
+Home Assistant 2026.3 or later.
+
+**Install:** HACS → menu **⋮ → Custom repositories** → `https://github.com/Bingerminger/energietracker-hacs`,
+type **Integration** → download **Energietracker** → restart Home Assistant. Then **Settings → Devices &
+services → Add integration → Energietracker**: the address at which you open Energietracker and, only when
+sign-in is switched on, a read key (scope “Read”, as in step 5). For the app in Home Assistant, the address is
+shown under Connections → Home Assistant.
+
+**What you get:**
+
+- Device “Energietracker”: **To do** (attributes `overdue`, `soon`, `next_upcoming`, `items`), **Next item**,
+  **Next item due**, **Next appointment**, **Next appointment on**.
+- One device per meter: **Balance** (with a current contract, with the attributes
+  `projected_end_balance_total`, `projected_end_range_total`, `projected_end_balance`, `measured_balance`,
+  `measured_until` as above), **Consumption this year**, **Forecast 12 months** (not for heating oil and
+  pellets), **Days since reading**.
+- A group of meters with a group contract gets a device of its own with **Balance** only, so a sum over all
+  balance sensors counts every contract once.
+
+The integration asks every 15 minutes. A new meter appears after reloading the integration. When sign-in is
+switched on or the key is revoked, Home Assistant asks for a new key; when Energietracker is older than 3.9.0, a
+notice appears under Settings → Repairs. More in the
+[README of the integration](https://github.com/Bingerminger/energietracker-hacs#readme).
+
+The templates from step 5 and the “To do” sensor stay valid, for instance for values the integration does not
+create (days to the cancellation date, PV figures).
 
 ---
 
@@ -925,7 +962,7 @@ factor from them ([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-fa
 | Heat pump electricity | `strom`, role “Heat pump (heating electricity)”, sub-meter of the house connection | `strom_waermepumpe` |
 | Heat pump heat output | `waerme`, role “Heat pump output”, linked to `strom_waermepumpe` under “Heat pump electricity meter” | `waerme_wp` |
 
-The utility **Heat** must be switched on (Settings → Utilities & billing). Both
+The utility **Heat** must be switched on (Household → Utilities). Both
 sensors deliver cumulative meter readings in kWh.
 
 **HA automation:**
@@ -1062,7 +1099,7 @@ Assistant sidebar), the following applies since v3.1.0. The
 | `400 … works with deliveries` | Heating oil/pellets are not supported via ingest. |
 | `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. **Skip** the push then, never replace it with 0: condition `has_value(…)` as in step 4. `| float(0)` trades the visible error for a silent wrong booking. |
 | Template error “float got invalid input” in the HA log | Same cause, reported by `| float` without a default — intended: nothing is booked. Add the `has_value(…)` condition and the log stays quiet. |
-| Response `created`/`updated`, but the value does not appear | The utility is deselected under Settings → Utilities & billing → Active utilities (then it is missing from the menu, but the value is stored anyway), or the view shows another meter or another year. A meter set to "inactive" also accepts values and counts. |
+| Response `created`/`updated`, but the value does not appear | The utility is deselected under Household → Utilities → Active utilities (then it is missing from the menu, but the value is stored anyway), or the view shows another meter or another year. A meter set to "inactive" also accepts values and counts. |
 | Sensors from step 5: `401` or “unknown” | `401`: sign-in switched on, but no read key (`energietracker_read`) — the ingest token does not work for this. “unknown”: `key` does not match (it names the internal meter ID, not the alias) or the value is missing (no current contract, no forecast yet). The template in the settings fills in the keys correctly. |
 | Batch: response `200`, but readings are missing | Individual entries failed — `failed` and the entries with `"status": "error"` name the reason (`code`) and position (`index`). |
 | `400 Timestamp “…” not readable` | `timestamp` without a time zone or in another format. ISO 8601 with a zone is expected, e.g. `2026-10-12T14:15:00+02:00`; the template `{{ now().isoformat() }}` delivers that. |

@@ -77,6 +77,7 @@ too. A test checks every row with an anchor against the code.
 |---|---|---|---|---|
 | <a id="level-readings-entry"></a>**Meter readings** — all meters in one go, photo as a receipt, queued when offline | ✓ | ✓ | ✓ | enter the reading; with text recognition set up, the photo suggests it |
 | <a id="level-contracts-overview"></a><a id="level-contracts"></a>**Contracts & payments** — supplier, term, unit price and standing charge, advance payment | ✓ | ✓ | ✓ | what it costs, whether the advance payment is enough |
+| <a id="level-contracts-past"></a>**Past contracts** — ended and replaced contracts with term, prices, balance and bill *(v3.12.0)* | ✓ | ✓ | ✓ | what a contract came to in the end |
 | <a id="level-el-notice"></a>Contract: **notice period** | ✓ | ✓ | ✓ | *for everyone since v3.7.0:* it creates “Cancel by …” in the to-dos |
 | <a id="level-el-fw-prices"></a>District heating: **capacity charge, metering charge, connected load** | ✓ | ✓ | ✓ | *for everyone since v3.7.0:* they are on every district heating bill |
 | <a id="level-el-contract-terms"></a>Contract: price guaranteed until, “Cancellation takes effect”, minimum term, “Renews unless cancelled” | – | ✓ | ✓ | plan a switch |
@@ -84,8 +85,8 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-contract-expert"></a>Contract: district heating key figures (CO₂, primary energy), prices per meter of a group, § 14a module 1 and module 3, credit notes from the direct marketer, “Import monthly prices”, counts per contract | – | – | ✓ | special cases of tariff and grid fee |
 | Reading: **“Only for the bill”** and **“Reading is correct”** in the edit dialog *(v3.9.0)* | ✓ | ✓ | ✓ | a reading the supplier billed with that skews the months |
 | Contract: **advance payments with a rhythm** (every 2 or 3 months, due dates from the bill) *(v3.9.0)* | ✓ | ✓ | ✓ | as the supplier collects them; balance and suggestion count per due date |
-| <a id="level-meters"></a>**Meter structure** — sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | – | ✓ | ✓ | manage the meters of a utility (link “⚙️ Meters” in the consumption view) |
-| Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Settings → Utilities & billing and the setup assistant; the button on the meters page from Experienced |
+| <a id="level-household"></a><a id="level-household-meters"></a>Household → **Meters** — all meters in one place: sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | ✓ | ✓ | ✓ | manage the meters of a utility (link “⚙️ Meters” in the consumption view) |
+| Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Household → Utilities and the setup assistant; the button on the meters page from Experienced |
 | <a id="level-el-meter-plant"></a>Meter: **PV system** (investment, commissioning, battery, plug-in solar), **heat pump electricity meter** | – | ✓ | ✓ | *from Experienced since v3.7.0:* the basis for payback and seasonal performance factor |
 | <a id="level-el-meter-expert"></a>Meter: meter group, baseline dates, “Import time series” | – | – | ✓ | group contract, calculating from a renovation, quarter hours from portals |
 
@@ -94,20 +95,20 @@ too. A test checks every row with an anchor against the code.
 | Feature | 🌱 | 🌿 | 🌳 | What for |
 |---|---|---|---|---|
 | <a id="level-dashboard"></a>**Overview** | three answers | all key figures | all key figures | Money back? More than last year? What needs doing? When renting also “Does the prepayment cover it?” |
-| <a id="level-el-dash-explainers"></a>Overview: the **“Explainers”** section | – | ✓ | ✓ | *from Experienced since v3.7.0:* money, timeline, energy flow, weather at a glance (beginners have “Where does my money go?”) |
 | <a id="level-utility"></a>**Consumption per utility** — key figures, monthly trend, balance, explainers; tank and deliveries for heating oil and pellets | ✓ | ✓ | ✓ | PV, wallbox and heat pump have their page at every level too |
 | <a id="level-el-utility-advanced"></a>Consumption: monthly table, “Measured”/“Weather-adjusted”, CO₂ tile, PV energy flow per month | – | ✓ | ✓ | compare months, take the weather out |
 | <a id="level-el-pv-extras"></a>PV generation: **battery** and **payback** | – | ✓ | ✓ | *from Experienced since v3.7.0:* has the system paid off, what does the battery lose? |
 | <a id="level-el-heat-pump"></a>The **“Heat pump”** card with seasonal performance factor | – | ✓ | ✓ | *from Experienced since v3.7.0:* how efficiently the heat pump works |
 | <a id="level-el-utility-expert"></a>Consumption: hot water heat, CO₂ price in the fuel | – | – | ✓ | figures behind the cost |
-| <a id="level-recommendations"></a>**Recommendations** | ✓ | ✓ | ✓ | tips from your data |
+| <a id="level-todo"></a>**To do** — Open: deadlines, recommendations, rights, mail, for admins the AI proposals *(v3.12.0)* | ✓ | ✓ | ✓ | everything waiting for you |
 | “To do”: **adjust the heating limit** with “Apply (this meter only)” and “Not now”, also on the balance card, forecast and workshop *(v3.9.0)* | ✓ | ✓ | ✓ | whether the advance is enough depends on the heating limit |
 | “To do”: **check a reading**, duplicate readings, note on the baseline date *(v3.9.0)* | ✓ | ✓ | ✓ | otherwise a mistyped reading silently skews the months |
 | <a id="level-report"></a><a id="level-report-print"></a>**Annual report** — also as a PDF and for printing | ✓ | ✓ | ✓ | the year on one page |
+| <a id="level-figures"></a>**Key figures** — efficiency, comparison, tanks, electricity balance, explainers *(v3.12.0, until then on the overview)* | – | ✓ | ✓ | where the household stands |
 | <a id="level-analysis"></a>**Analysis** — heating signature, years compared | – | ✓ | ✓ | consumption and temperature side by side |
 | <a id="level-el-baseline"></a>Analysis: baseline and “Effect of the measure” | – | – | ✓ | before and after a renovation |
 | <a id="level-temperatures"></a>**Weather data** — location, sync, CSV | – | ✓ | ✓ | the basis of the weather adjustment |
-| <a id="level-help"></a><a id="level-help-doc"></a>**Help**, glossary and handbook | ✓ | ✓ | ✓ | terms and guides |
+| <a id="level-help"></a><a id="level-help-doc"></a><a id="level-help-setups"></a>**Help**, glossary, handbook and setup guide | ✓ | ✓ | ✓ | terms and guides |
 
 ### Check and compare
 
@@ -141,42 +142,49 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-inbox"></a>**Inbox** — drop a PDF, have it read, check every value against its source passage, apply it; enter by hand next to the document | ✓ | ✓ | ✓ | the app reads the supplier’s mail |
 | <a id="level-inbox-draft"></a>Draft from documents — set up the household from many documents at once *(v3.7.0)* | ✓ | ✓ | ✓ | first set-up without typing |
 | File per contract and meter — all documents in date order *(v3.7.0)* | ✓ | ✓ | ✓ | just a list of the documents |
-| Setting up reading — the “Reading” card (local or cloud) under Settings → Expert | – | – | ✓ | set up once, usually by the person who manages the installation; the inbox and the set-up assistant open the same card as a dialog, at every level |
+| Setting up reading — the “Reading” card (local or cloud) under Connections → Reading mail and photos | – | – | ✓ | set up once, usually by the person who manages the installation; the inbox and the set-up assistant open the same card as a dialog, at every level |
 | Shortcut “Share → Energietracker”, watched folder *(v3.7.0)* | – | ✓ | ✓ | input channels, like the integrations |
 
 ### Household and people
 
 | Feature | 🌱 | 🌿 | 🌳 | What for |
 |---|---|---|---|---|
-| <a id="level-reminders"></a>**Reminders & maintenance** and the to-dos — with the person responsible, as a calendar feed | ✓ | ✓ | ✓ | miss nothing |
-| <a id="level-activity"></a>**Done** — who did what and when | – | ✓ | ✓ | look it up and undo |
-| <a id="level-settings-general"></a>Settings → **General** — language and country, level, your own account, note about new versions | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-general"></a>General: display, reminders | – | ✓ | ✓ | periods and lead time of the reminders |
-| <a id="level-settings-household"></a>Settings → **Household & building** — living area, building, tenure, heating and hot water | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-household"></a>Household: own reference values, water reference values | – | ✓ | ✓ | placing your figures with your own numbers |
-| <a id="level-settings-utilities"></a>Settings → **Utilities & billing** — active utilities, billing dates | ✓ | ✓ | ✓ | |
+| <a id="level-reminders"></a>**To do → Dates** — with assignees, as a calendar subscription | ✓ | ✓ | ✓ | miss nothing |
+| <a id="level-activity"></a><a id="level-activity-ai"></a>**To do → History** — who did what and when; for admins the AI access *(from Beginner since v3.12.0)* | ✓ | ✓ | ✓ | look up and undo |
+| <a id="level-settings-general"></a>Settings → **Overview** — search, level, your own language, appearance, your own account | ✓ | ✓ | ✓ | |
+| <a id="level-settings-region"></a>Settings → **Region and language** — default language, country, currency, time zone | ✓ | ✓ | ✓ | |
+| <a id="level-settings-display"></a>Settings → **Display and reminders** — note about new versions, support, environment | ✓ | ✓ | ✓ | |
+| <a id="level-el-settings-display"></a>Display and reminders: display, reminders | – | ✓ | ✓ | periods and lead time of the reminders |
+| <a id="level-household-people"></a>Household → **People** — names for “Responsible” | ✓ | ✓ | ✓ | |
+| <a id="level-household-building"></a>Household → **Building** — living area, building, tenure, heating and hot water | ✓ | ✓ | ✓ | |
+| <a id="level-el-settings-household"></a>Building: own reference values, water reference values | – | ✓ | ✓ | placing your figures with your own numbers |
+| <a id="level-household-utilities"></a>Household → **Utilities** — active utilities, metering concept, billing dates | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-utilities"></a>Utilities: physical constants, energy sources (delivery), own flexibility values, photovoltaics | – | ✓ | ✓ | photovoltaics *from Experienced since v3.7.0* |
-| <a id="level-el-settings-co2"></a>Utilities: CO₂ emission factors | – | – | ✓ | calculation parameters |
-| **People in the household**: add, rename, delete (Settings → Household & building), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
-| Accounts and roles (Settings → Access → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.7 people could only be added here |
+| <a id="level-el-settings-co2"></a>Calculation: CO₂ emission factors | – | – | ✓ | calculation parameters |
+| **People in the household**: add, rename, delete (Household → Building), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
+| Accounts and roles (Settings → Access and security → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.7 people could only be added here |
 
 ### Connect
 
 | Feature | 🌱 | 🌿 | 🌳 | What for |
 |---|---|---|---|---|
-| <a id="level-settings-data"></a>Settings → **Data** — export, backup, restore, sample data | ✓ | ✓ | ✓ | your data is yours |
-| <a id="level-settings-integrations"></a>Settings → **Integrations** — Home Assistant: token, alias, templates; since v3.9.0 notifications to Home Assistant | – | ✓ | ✓ | meter readings from outside, deadlines and new mail to Home Assistant |
+| <a id="level-settings-data"></a>Settings → **Data and backup** — export, backup, restore, sample data; attachments from Expert | ✓ | ✓ | ✓ | your data is yours |
+| <a id="level-connections"></a>**Connections** — the list is there at every level, what lies above it opens with “Show more connections” *(v3.12.0)* | ✓ | ✓ | ✓ | what talks to the app |
+| <a id="level-connections-reading"></a><a id="level-connections-calendar"></a>Connections → **Reading mail and photos**, **Calendar** | ✓ | ✓ | ✓ | reading from Beginner, calendar subscription |
+| <a id="level-connections-homeassistant"></a>Connections → **Home Assistant** — token, assign meters, notifications, templates | – | ✓ | ✓ | meter readings automatically |
+| <a id="level-connections-ai"></a>Connections → **AI assistants** — status, keys, templates per program; admins only | – | ✓ | ✓ | your AI asks, you confirm |
+| <a id="level-connections-keys"></a><a id="level-connections-evcc"></a><a id="level-connections-homenet"></a>Connections → **Keys**, **evcc**, **Home network security** | – | – | ✓ | access from outside, wallbox, your own certificates |
 | <a id="level-el-evcc"></a>Wallbox: **“Charging sessions from evcc”** | – | ✓ | ✓ | upload or fetch charging sessions |
-| <a id="level-settings-access"></a>Settings → **Access** — sign-in, users and roles, API keys, embedding, host names | – | – | ✓ | who gets in |
-| <a id="level-settings-expert"></a>Settings → **Expert** — reading, receipts, text recognition, evcc address; collapsed, the calculation parameters | – | – | ✓ | services in the home network, fine-tuning |
-| <a id="level-settings-system"></a>Settings → **System** — version, diagnostics, security check | – | – | ✓ | operation |
+| <a id="level-settings-access"></a>Settings → **Access and security** — sign-in, users and roles, embedding, host names, security check | – | – | ✓ | who may do what |
+| <a id="level-settings-calculation"></a>Settings → **Calculation** — calculation parameters, CO₂ factors, CO₂ price, corrected default values | – | – | ✓ | how it calculates |
+| <a id="level-settings-system"></a>Settings → **System** — version, diagnostics, support | – | – | ✓ | operation |
 
 ---
 
 ## 3. The app suggests
 
 If your household needs more than the level shows, the overview suggests the
-next level: “Your household has more than this level shows — “…” shows it.”
+next level: “Your household has more than this level shows. “…” shows it.”
 The reason is shown below it.
 
 | Level | Reason | Suggestion | What it adds |

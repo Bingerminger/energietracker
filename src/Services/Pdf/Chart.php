@@ -27,10 +27,10 @@ final class Chart
 
     /** Ampelstufen: Farbe (Kontrast ≥ 4,5:1 auf Weiß), Symbol aus ZapfDingbats. */
     public const LEVELS = [
-        'ok'    => ['rgb' => [21, 128, 61],  'symbol' => 'check'],
-        'warn'  => ['rgb' => [161, 98, 7],   'symbol' => 'up'],
-        'alert' => ['rgb' => [185, 28, 28],  'symbol' => 'cross'],
-        'none'  => ['rgb' => [100, 116, 139], 'symbol' => 'dot'],
+        'ok'    => ['rgb' => [21, 128, 61],  'icon' => 'erfolg'],
+        'warn'  => ['rgb' => [161, 98, 7],   'icon' => 'achtung'],
+        'alert' => ['rgb' => [185, 28, 28],  'icon' => 'fehler'],
+        'none'  => ['rgb' => [100, 116, 139], 'icon' => 'neutral'],
     ];
 
     /** Farben der Effizienzskala A+ … H (Energieausweis: grün → rot). */
@@ -303,16 +303,14 @@ final class Chart
     }
 
     /**
-     * Ampel: Kreis in der Stufenfarbe mit Symbol, daneben das Wort.
+     * Ampel: Grafik in der Stufenfarbe, daneben das Wort (nie nur Farbe).
      * @return float Breite
      */
     public static function light(PdfWriter $pdf, float $x, float $y, string $level, string $word, float $size = 10.5): float
     {
         $lv = self::LEVELS[$level] ?? self::LEVELS['none'];
-        $r = $size * 0.62;
-        $pdf->circle($x + $r, $y - $size * 0.35, $r, $lv['rgb']);
-        $sw = Metrics::symbolWidth($lv['symbol'], $size * 0.72);
-        $pdf->symbol($x + $r - $sw / 2, $y - $size * 0.35 + $size * 0.26, $lv['symbol'], $size * 0.72, self::PAPER);
+        $r = $size * 0.72;
+        Icons::draw($pdf, $lv['icon'], $x, $y - $size * 0.35 - $r, 2 * $r, $lv['rgb']);
         $pdf->text($x + 2 * $r + 5, $y, $word, $size, true, $lv['rgb']);
         return 2 * $r + 5 + $pdf->textWidth($word, $size, true);
     }

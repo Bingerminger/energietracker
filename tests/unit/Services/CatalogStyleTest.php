@@ -76,7 +76,7 @@ final class CatalogStyleTest extends TestCase
     /** Text ohne Platzhalter und HTML — was der Nutzer liest. */
     private static function plain(string $value): string
     {
-        return (string)preg_replace(['/\{[^}]*\}/u', self::TAG], ' ', $value);
+        return (string)preg_replace(['/\*\*/u', '/`[^`]*`/u', '/\{[^}]*\}/u', self::TAG], ['', ' ', ' ', ' '], $value);
     }
 
     /**
@@ -153,7 +153,7 @@ final class CatalogStyleTest extends TestCase
     {
         $hits = [];
         foreach (self::catalog('de') as $key => $value) {
-            $text = (string)preg_replace(['/<code>.*?<\/code>/u', self::TAG], ' ', $value);
+            $text = (string)preg_replace(['/\*\*/u', '/`[^`]*`/u', '/<code>.*?<\/code>/u', self::TAG], ['', ' ', ' ', ' '], $value);
             if (str_contains($text, '"')) $hits[] = "$key: ASCII-Anführungszeichen";
             if (preg_match('/\b(Utility|Device|Settings|Forecast|What-if|Fit|ReadingService|Sync)\b|is_planned=/u', $text, $m)) {
                 $hits[] = "$key: „{$m[0]}“";
@@ -189,7 +189,7 @@ final class CatalogStyleTest extends TestCase
         foreach ($forbidden as $lang => $re) {
             foreach (self::catalog($lang) as $key => $value) {
                 if (str_starts_with($key, 'csv.')) continue;   // Format 1, eingefroren
-                $text = (string)preg_replace(['/<code>.*?<\/code>/u', self::TAG], ' ', $value);
+                $text = (string)preg_replace(['/\*\*/u', '/`[^`]*`/u', '/<code>.*?<\/code>/u', self::TAG], ['', ' ', ' ', ' '], $value);
                 if (preg_match($re, $text, $m)) $hits[] = "$lang $key: „{$m[0]}“";
                 if (str_contains($text, '"')) $hits[] = "$lang $key: ASCII-Anführungszeichen";
                 if (in_array($lang, ['fr', 'it'], true) && preg_match("/\\p{L}'\\p{L}/u", $text)) {
@@ -332,6 +332,30 @@ final class CatalogStyleTest extends TestCase
             }
         }
         self::assertSame([], $hits, "Nicht erlaubtes HTML im Katalog:\n" . implode("\n", $hits));
+    }
+
+    /**
+     * v3.12.0 (M5, Designsprache) — kein Gedankenstrich als Satzkitt. Statt „A – B“
+     * stehen zwei Sätze, ein Doppelpunkt, eine Klammer oder eine Liste. Erlaubt
+     * bleiben Bereiche zwischen Zahlen oder Platzhaltern („3–5“, „{from} – {until}“,
+     * „Okt.–Apr.“) und „–“ allein für einen fehlenden Wert („aktuell: –“).
+     * `csv.*` ist eingefroren (Kopfzeilen von Format 1).
+     */
+    public function testNoDashAsConnector(): void
+    {
+        $hits = [];
+        foreach (self::languages() as $lang) {
+            foreach (self::catalog($lang) as $key => $value) {
+                if (str_starts_with($key, 'csv.')) continue;
+                $rest = (string)preg_replace(
+                    ['/(\d|\})\s?[–—]\s?(?=\d|\{)/u', '/(?<!\p{L})(\p{L}{3}\.?)[–—](?=\p{L}{3}\.?(?!\p{L}))/u', '/^[–—]$/u', '/([:(]\s?)[–—](?=$|[\s),.;])/u'],
+                    ['$1~', '$1~', '·', '$1·'],
+                    $value
+                );
+                if (preg_match('/[–—]/u', $rest)) $hits[] = "$lang $key: $value";
+            }
+        }
+        self::assertSame([], $hits, "Gedankenstrich als Satzkitt (umbauen: zwei Sätze, Doppelpunkt, Klammer):\n" . implode("\n", $hits));
     }
 
     /** I18N-10: Dateinamen der CSV-Exporte bleiben ASCII-Slugs in jeder Sprache. */

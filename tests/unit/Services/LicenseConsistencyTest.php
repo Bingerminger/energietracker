@@ -74,7 +74,7 @@ final class LicenseConsistencyTest extends TestCase
             self::assertStringNotContainsString('MIT', $license, "$lang: settings.system.license");
             self::assertNotSame('', $cat['settings']['system']['source'] ?? '', "$lang: settings.system.source");
         }
-        $js = self::read('public/js/views/settings.js');
+        $js = self::read('public/js/views/settings-system.js');
         self::assertStringContainsString('/tree/v${version}', $js, 'Link auf den Tag der laufenden Version');
     }
 }

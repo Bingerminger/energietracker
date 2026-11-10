@@ -65,7 +65,8 @@ container onto your host** — this is called a *volume*.
 `$PWD/data` is the subfolder `data` in the current directory. So your Energietracker
 data always lives there, no matter how often you rebuild the container.
 
-> ⚠️ **Without a `-v` volume your data is gone as soon as the container is
+> [!WARNING]
+> **Without a `-v` volume your data is gone as soon as the container is
 > deleted.** Always mount a volume.
 
 ### Folder or named volume?
@@ -74,7 +75,7 @@ data always lives there, no matter how often you rebuild the container.
   files are visible on the host — handy on a NAS.
 - **Named volume** (`-v energietracker-data:/data`): Docker manages the storage
   itself. The data survives updates just the same; back it up through the app
-  (Settings → Data → Download JSON backup).
+  (Settings → Data and backup → Download JSON backup).
 
 > **Docker Desktop (Mac, Windows):** a folder under your home directory can only
 > be mounted if it is shared under Settings → Resources → File sharing.
@@ -142,7 +143,8 @@ Line by line:
 | `-v "$PWD/data:/data"` | data volume (see above) |
 | `…/energietracker:3` | the image including the tag: `:3` stays on the newest 3.x and never jumps to a new major version unasked; `:latest` is always the newest, `:3.5.1` a fixed version |
 
-> ⚠️ **If you leave out `--name energietracker`, Docker assigns a random name** like
+> [!WARNING]
+> **If you leave out `--name energietracker`, Docker assigns a random name** like
 > `thirsty_archimedes`. With `--name` the container is always called
 > `energietracker` — clearer with `docker ps`, `docker logs` etc.
 
@@ -249,8 +251,8 @@ is not listed there yet.
   signs in to Umbrel.
 - The exception is the Home Assistant push: `/api/ingest` and
   `/api.php/api/ingest` are in `PROXY_AUTH_WHITELIST` and reachable without the
-  Umbrel cookie. So create an ingest token in the app (Settings →
-  Integrations), otherwise anyone on the network can send readings.
+  Umbrel cookie. So create an ingest token in the app (Connections → Home
+  Assistant), otherwise anyone on the network can send readings.
 - Every other path requires the Umbrel sign-in, including `/api/summary`
   (values back to Home Assistant) and the calendar subscription. If you need
   them from outside, add them to `PROXY_AUTH_WHITELIST` and switch on the app’s
@@ -313,11 +315,11 @@ On the very first start with an empty `data` volume, Energietracker creates a fr
 empty data directory. If you want to see the **demo data** for trying out, there are
 two ways:
 
-1. **Convenient (from v1.7.4) in the UI:** *Settings → Data → Backup & restore →
+1. **Convenient (from v1.7.4) in the UI:** *Settings → Data and backup → Backup & restore →
    "Load demo data"*.
 2. **Manually even now:** upload the bundled
    [`demo-data/energietracker-demo-backup.json`](../../../demo-data/energietracker-demo-backup.json)
-   via *Settings → Data → Backup & restore → Import backup*. Beforehand a safety
+   via *Settings → Data and backup → Backup & restore → Import backup*. Beforehand a safety
    snapshot of your current data is created automatically (N1004).
 
 ---
@@ -358,6 +360,7 @@ docker run -e ET_LOG_LEVEL=debug …   # or in docker-compose.yml under environm
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* how long a writing request waits for the write lock (1–120 s), then `503` with `Retry-After` |
 | `ET_INBOX_DIR` | *(empty = `<dataDir>/posteingang`)* | *(v3.9.0)* your own [watched folder](../anleitungen/posteingang.md#watched-folder) for the inbox, absolute path, also outside the data directory (the Home Assistant app sets `/share/energietracker/posteingang`). The image creates it at start and hands it to `www-data`; without root (variant `rootless`) it must be writable for the container’s user |
 | `ET_CA_FILE` | *(empty)* | *(v3.10.0)* your own root certificate (PEM file in the container, several certificates are fine) for connections into the home network: Home Assistant, text recognition, reading in the home network, evcc. Applies **in addition** to the image's root certificates, checking stays on; mount the file read-only. The same works in the settings (`home_ca_pem`), see [Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100) |
+| `ET_MCP` | *(empty)* | *(v3.12.0)* `off` (also `0`, `false`, `no`) locks the [AI interface](../anleitungen/ki-assistent.md) for good, even when the switch in the settings is on; empty = the switch decides (off by default) |
 | `ET_FRAME_ANCESTORS` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (e.g. the Home Assistant dashboard) |
 | `ET_DEBUG` | *(empty)* | *(v2.6.0)* `1` = file/line in error responses — only briefly for troubleshooting |
 
@@ -412,7 +415,7 @@ the app) with HTTP 503 — Docker then shows the container as *unhealthy*.
 
 ## Performing updates
 
-1. **Export a backup:** *Settings → Data → Backup & restore → Download JSON
+1. **Export a backup:** *Settings → Data and backup → Backup & restore → Download JSON
    backup*. This is your way back — a schema migration cannot be undone.
 2. **Read the CHANGELOG:** whatever is listed under “Migration” applies to you.
 3. **Fetch the new version:**
@@ -444,12 +447,12 @@ recognises newer data and **writes nothing** (HTTP 503, `/api/health` reports
 
 ## Backing up & restoring data
 
-- **Back up:** *Settings → Data → Backup & restore → Download JSON backup*
+- **Back up:** *Settings → Data and backup → Backup & restore → Download JSON backup*
   downloads a JSON file with all your data.
 - **Restore:** the same place → *Import backup*. Since v2.6.0 the app checks the
   backup completely first and shows a preview; a faulty backup changes nothing.
   Before overwriting, Energietracker automatically creates a snapshot.
-- **Snapshots** (since v2.6.0): *Settings → Data → Backup & restore → Stored
+- **Snapshots** (since v2.6.0): *Settings → Data and backup → Backup & restore → Stored
   snapshots* lists them with time and occasion; download, restore or delete
   them from there. Automatic snapshots are cleaned up after 30 days (at least
   three per occasion remain), your own after ten.
@@ -458,7 +461,7 @@ recognises newer data and **writes nothing** (HTTP 503, `/api/health` reports
 - **Receipts** (since v3.1.0): photos of meter readings live in
   `data/attachments/` and are part of every backup and every snapshot. So the
   volume grows with every photo — once for the file, once per snapshot in
-  `data/backups/`. Settings → Data shows above the backup buttons how much the
+  `data/backups/`. Settings → Data and backup shows above the backup buttons how much the
   receipts take; `attachments_max_mb` sets the upper limit (default 500 MB).
 
 ---
@@ -635,10 +638,14 @@ volume and checks that no process runs with UID 0.
   group) — then the folder must belong to that UID. With group `0`
   (`user: "1234:0"`, as OpenShift assigns it) any UID also writes to a fresh
   named volume.
+- **Changing the UID:** since v3.12.0 only their owner reads files with secrets
+  (`auth.json` and two more, permissions `0600`, [Security § 10](sicherheit.md#10-logging-and-troubleshooting)).
+  If you give an existing volume a different UID, hand the folder over first
+  with `chown -R <uid>:0`, as when switching from the standard image (below).
 
 **Switching from the standard image:**
 
-1. Take a backup (*Settings → Data → download JSON backup*).
+1. Take a backup (*Settings → Data and backup → download JSON backup*).
 2. Stop the container: `docker compose down`.
 3. Hand over the existing data folder — so far it belongs to `www-data`
    (UID 82):

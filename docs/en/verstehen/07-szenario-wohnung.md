@@ -66,7 +66,7 @@ You do not pay for heating and hot water to a supplier but through the service
 charges to the landlord. So there is no balance in the sense of a supplier
 contract, but a counterpart — the page **Tenancy** under Costs & contracts:
 
-1. **Settings → Household & building → “I live”: “in a rented home”.**
+1. **Household → Building → “I live”: “in a rented home”.**
 2. Switch on the utility **Heat** and create a meter with the recording
    **“Consumption per period”**. Each month enter the value from the
    consumption information (German HeizkostenV § 6a, since 2022 for remotely
@@ -152,14 +152,14 @@ excluded” by modern meters — for old Ferraris meters that was not true.
 
 **Setting up (since v3.1.0):**
 
-1. Switch on the utility **PV generation** (Settings → Utilities & billing →
+1. Switch on the utility **PV generation** (Household → Utilities →
    Active utilities) and create the inverter’s meter if it shows a kWh reading
    (on the device or in the manufacturer’s app; a file from there is read by
    [Time series from portals](../anleitungen/daten-aus-portalen.md)). In the
    meter dialog tick **“Plug-in solar device (balcony system, no feed-in
    meter)”**; under “PV system”, optionally investment and commissioning date
    for the payback.
-2. Under Settings → Utilities & billing → **Photovoltaics** enter the
+2. Under Household → Utilities → **Photovoltaics** enter the
    **assumed self-consumption**, for example 70 %. Without a feed-in meter the
    app calculates self-consumption with it and shows savings, self-sufficiency
    and payback — marked as an assumption

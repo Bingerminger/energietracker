@@ -193,7 +193,7 @@ final class ConversionFactorService
             $from = $e['from'] ?? null;
             if ($from === '' ) $from = null;
             if ($from !== null) {
-                $from = trim((string)$from);
+                $from = is_string($from) ? trim($from) : (is_scalar($from) ? (string)$from : '');   // v3.12.0 — Liste statt Text: 400
                 if (!self::isIsoDate($from)) {
                     throw new \InvalidArgumentException(
                         $t('errors.settings.factorInvalidDate', ['date' => $from])

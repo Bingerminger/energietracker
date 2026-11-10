@@ -68,5 +68,8 @@
     "pellets",
     "pv_einspeisung",
     "pv_erzeugung"
-  ]
+  ],
+  "letter_sender_name": "Anna und Paul Muster",
+  "letter_sender_address": "Musterweg 12\n12345 Musterstadt",
+  "letter_supply_address": "Musterweg 12, 12345 Musterstadt"
 }

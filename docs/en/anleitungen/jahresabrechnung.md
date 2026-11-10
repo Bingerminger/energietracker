@@ -65,8 +65,8 @@ whether to replace it.
 
 ## 2. Conversion factors (gas only)
 
-The gas meter counts cubic metres, the bill charges kWh. **Settings → Utilities
-& billing → Gas conversion factors**: one row per period of the bill with
+The gas meter counts cubic metres, the bill charges kWh. **Household →
+Utilities → Gas conversion factors**: one row per period of the bill with
 **Valid from**, **Volume correction factor** and **Calorific value** — in the
 example
 
@@ -117,8 +117,8 @@ each register’s price. Standing charge and advance payment count once
 bill”). Since v3.1.0 the check exists for **gas, electricity, water and district
 heating** — at the top you choose the utility, next to it the meter if there
 are several. Since v3.4.0 the page calculates at once, on both routes, with the
-last completed billing period: settlement date under Settings → Utilities &
-billing, default 1 January — in the example **From** 01.01.2025 and **To
+last completed billing period: settlement date under Household →
+Utilities, default 1 January — in the example **From** 01.01.2025 and **To
 (inclusive)** 31.12.2025, as on the bill. If the bill’s period differs, change
 both dates and **“Recalculate”**. Switching utility or meter keeps the period
 and recalculates.
@@ -167,6 +167,12 @@ If the amount differs, it is almost always one of these: a missing factor, a
 price with a different date, an advance that was not paid every month, or a
 refund or back-payment from the previous year that has not been booked yet
 (step 6 of the last bill).
+
+**A bonus counts on its day** in the billing year that contains this day, as long as
+the contract still bills there. Balance, months, forecast and tariff comparison
+calculate alike since v3.12.0. If the bonus actually comes with the bill before it
+(credit on 15 Jan, but on the bill up to 31 Dec), that year's balance differs by the
+bonus: **then put the bonus day into the period of the bill.**
 
 ## 6. Book the credit or back-payment
 
@@ -327,7 +333,7 @@ but keeps the bill date of the first version.
 
 - The **balance card** now calculates up to the end of the current billing
   period, the day before the next settlement date, and suggests an advance.
-  The **settlement date** (Settings → Utilities & billing; default 01-01) is
+  The **settlement date** (Household → Utilities; default 01-01) is
   the **first day** of the billing period: 01-09 means 1 September to
   31 August. If the suggestion is far from the supplier's new advance, the
   forecast is worth a look.
@@ -349,7 +355,7 @@ but keeps the bill date of the first version.
   the day on which several contracts begin. On this device the
   choice also applies to the overview and the analysis; the annual report has
   the appendix “Billing years” for it, the CSV export a table per period
-  (Settings → Data).
+  (Settings → Data and backup).
 - **Changed supplier:** if another supplier’s contract begins in the middle
   of a period and no final bill is recorded yet, the period ends on the last
   day with the old supplier (“ends with the change of supplier”) and the next

@@ -1,0 +1,41 @@
+title: "Idee: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Danke für deine Idee!** Wünsche sammeln wir hier, damit alle mit 👍 abstimmen können. Bitte erst kurz suchen, ob es die Idee schon gibt.
+        **Thanks for your idea!** Wishes live here so that everyone can vote with 👍. Please search first whether the idea already exists.
+
+        Fehler bitte als Issue melden, Sicherheitslücken wie in [SECURITY.md](https://github.com/Bingerminger/energietracker/blob/main/SECURITY.md).
+        Bugs go into an issue, security issues as described in SECURITY.md.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Was möchtest du erreichen? / What do you want to achieve?
+      description: Die Frage oder Aufgabe, nicht schon die Lösung. / The question or task, not the solution yet.
+      placeholder: "Ich möchte sehen, ob … / I would like to see whether …"
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: Wie machst du es heute? / How do you do it today?
+      description: Mit dem Energietracker, mit Excel, gar nicht … / With Energietracker, a spreadsheet, not at all …
+  - type: textarea
+    id: idea
+    attributes:
+      label: Wie könnte es aussehen? / What could it look like?
+      description: Optional. Skizze, Beispiel mit erfundenen Zahlen, Vergleich. Bitte keine echten Zählernummern, Kundennummern oder Rechnungen. / Optional. Sketch, example with made-up numbers. Please no real meter or customer numbers, no real bills.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Einstellungen → System / Settings → System
+      placeholder: "3.12.0"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vorher geprüft / Checked first
+      options:
+        - label: Ich habe nach ähnlichen Ideen gesucht. / I searched for similar ideas.
+          required: true

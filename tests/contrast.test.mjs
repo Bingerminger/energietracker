@@ -78,6 +78,47 @@ for (const [name, set] of Object.entries(themes)) {
   check('Links (--accent auf --bg-1)', c('accent'), c('bg-1'));
 }
 
+// ── v3.12.0 (Designsprache) — Infobox und Abzeichen in beiden Themen ──
+for (const [name, set] of Object.entries(themes)) {
+  const bg1 = color(set, set['bg-1']), bg2 = color(set, set['bg-2']);
+  for (const tone of ['info', 'erfolg', 'achtung', 'fehler', 'neutral']) {
+    const c = color(set, set[`ton-${tone}`]);
+    const box = mix(c, bg1, 0.07);
+    const text = contrast(color(set, set['text-1']), box);
+    const hint = contrast(color(set, set['text-2']), box);
+    const graphic = contrast(c, box);
+    t(`${name}: Infobox ${tone}: Text`, text >= AA, `${text.toFixed(2)}:1`);
+    t(`${name}: Infobox ${tone}: Nebentext`, hint >= AA, `${hint.toFixed(2)}:1`);
+    t(`${name}: Infobox ${tone}: Grafik mindestens 3:1`, graphic >= 3, `${graphic.toFixed(2)}:1`);
+  }
+  // Abzeichen: Zustandsfarbe auf der eigenen Tönung, über Karte und verschachtelter Fläche
+  for (const [word, fg, soft] of [['Erfolg', 'success', 'success-soft'], ['Achtung', 'warning', 'warning-soft'], ['Fehler', 'danger', 'danger-soft']]) {
+    const f = color(set, set[fg]);
+    const a = contrast(f, color(set, set[soft], bg1));
+    const b = contrast(f, color(set, set[soft], bg2));
+    t(`${name}: Abzeichen ${word} auf Karte und Fläche`, a >= AA && b >= AA, `${a.toFixed(2)} / ${b.toFixed(2)}`);
+  }
+  const active = contrast(color(set, set['accent-fg']), color(set, set.accent));
+  t(`${name}: aktiver Untermenü-Knopf und Hauptknopf`, active >= AA, `${active.toFixed(2)}:1`);
+  const danger = contrast(color(set, set['on-danger']), color(set, set['danger-strong']));
+  t(`${name}: Schrift auf rotem Knopf`, danger >= AA, `${danger.toFixed(2)}:1`);
+  const line = contrast(color(set, set['text-2']), bg1);
+  t(`${name}: Kontur der Grafiken auf der Karte`, line >= 3, `${line.toFixed(2)}:1`);
+}
+
+// ── v3.12.0 — farbige Tabellenspalten (Monatstabelle: Abschlag, CO₂, gleitende Mittel) als Schrift auf Zeile
+// (--bg-1) und Kopf, Fuß, Hover (--bg-2). Bis v3.11 lag Gelb im Hellen bei 2,8:1, Violett im Dunkeln bei 3,6:1.
+const compCss = readFileSync(`${root}/public/css/components.css`, 'utf8');
+const colRules = [...compCss.matchAll(/\.table \.col-([a-z]+)\s*\{\s*color:\s*var\(--([a-z0-9-]+)\)/g)];
+t('Tabellenspalten mit Farbe gefunden', colRules.length >= 3, colRules.map(m => m[1]).join(','));
+for (const [name, set] of Object.entries(themes)) {
+  for (const [, col, tok] of colRules) {
+    const fg = color(set, set[tok]);
+    const a = contrast(fg, color(set, set['bg-1'])), b = contrast(fg, color(set, set['bg-2']));
+    t(`${name}: Tabellenspalte ${col} (--${tok}) auf --bg-1 und --bg-2`, a >= AA && b >= AA, `${a.toFixed(2)} / ${b.toFixed(2)}`);
+  }
+}
+
 // ── Verbrauchsart-Farben (SSOT) ──
 const php = readFileSync(`${root}/src/Config/Utilities.php`, 'utf8');
 const utilColors = [...php.matchAll(/'key'\s*=>\s*'([a-z_]+)'[\s\S]*?'color'\s*=>\s*'(#[0-9a-f]{6})'/gi)].map(m => [m[1], m[2]]);

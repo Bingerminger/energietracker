@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Support\HomeTls;
+use Energietracker\Support\IpAddress;
 use Energietracker\Support\LocalizedException;
 use Energietracker\Support\Outbound;
 
@@ -136,26 +137,26 @@ final class OcrService
      * als Heimnetz: Dort antworten bei gemieteten Servern die Metadatendienste
      * der Anbieter (samt Zugangsdaten). Aus demselben Grund ist deren
      * IPv6-Adresse fd00:ec2::254 trotz ULA gesperrt.
+     *
+     * v3.12.0 — Härtung: Zerlegt wird über Support\IpAddress, gemeinsam mit
+     * Home Assistant und Cloud. Eine IPv4 zählt hier nur nackt oder als
+     * `::ffff:…` (in jeder Schreibweise): Damit verbindet das eigene System
+     * selbst über IPv4. NAT64, 6to4 und die veralteten Formen führen über
+     * fremde Übersetzer und sind nie Heimnetz. Die Metadatendienste
+     * (IpAddress::METADATA, auch 100.100.100.200 mitten in 100.64.0.0/10) nie.
      */
     public static function isLocalIp(string $ip): bool
     {
-        if (preg_match('/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i', $ip, $m)) $ip = $m[1];
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $n = ip2long($ip);
-            foreach ([['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['100.64.0.0', 10]] as [$net, $bits]) {
-                $mask = -1 << (32 - $bits);
-                if (($n & $mask) === (ip2long($net) & $mask)) return true;
-            }
-            return false;
+        if (IpAddress::isMetadata($ip)) return false;                   // Metadatendienste (IPv4 und IPv6)
+        $a = IpAddress::parse($ip);
+        if ($a['form'] === 'ipv4' || $a['form'] === 'mapped') {
+            return IpAddress::inV4Nets((string)$a['ipv4'],
+                [['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['100.64.0.0', 10]]);
         }
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            $bin = inet_pton($ip);
-            if ($bin === false) return false;
-            if ($bin === inet_pton('::1')) return true;
-            if ($bin === inet_pton('fd00:ec2::254')) return false;           // Metadatendienst (IPv6)
-            return (ord($bin[0]) & 0xFE) === 0xFC;                           // fc00::/7 (ULA)
-        }
-        return false;
+        if ($a['form'] !== 'ipv6') return false;
+        $bin = (string)$a['bin'];
+        if ($bin === inet_pton('::1')) return true;
+        return (ord($bin[0]) & 0xFE) === 0xFC;                           // fc00::/7 (ULA)
     }
 
     /**

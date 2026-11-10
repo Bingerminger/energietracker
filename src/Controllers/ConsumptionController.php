@@ -174,19 +174,12 @@ final class ConsumptionController
     /**
      * v3.4.0 (N1021) — additiv `phase` je Vertrag, aus derselben Quelle wie
      * `GET …/contracts` ({@see ContractService::phase()}). Die Tabelle
-     * „Verträge & Abschläge“ liest den Status nur noch daraus.
+     * „Verträge & Abschläge“ liest den Status nur noch daraus. v3.12.0 — die
+     * Rechnung steht in ContractService::withPhases (auch für `get_contracts`).
      */
     private function withPhases(string $utility, array $status): array
     {
-        if ($this->contracts === null || !is_array($status['contracts'] ?? null)) return $status;
-        $all = $this->contracts->list($utility);
-        $byId = array_column($all, null, 'id');
-        foreach ($status['contracts'] as &$row) {
-            $c = $byId[$row['contract_id'] ?? ''] ?? null;
-            if ($c !== null) $row['phase'] = $this->contracts->phase($c, $all);
-        }
-        unset($row);
-        return $status;
+        return $this->contracts === null ? $status : $this->contracts->withPhases($utility, $status);
     }
 
     /**

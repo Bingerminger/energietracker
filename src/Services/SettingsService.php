@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Countries;
+use Energietracker\Config\Utilities;
 use Energietracker\Storage\JsonStore;
 
 /**
@@ -51,6 +52,60 @@ final class SettingsService
      * rechnen weiter mit dem Default. Leeren (null/"") nimmt die Angabe zurück.
      */
     public const ENTERED_ONLY = ['wohnflaeche_m2', 'wasser_personen_anzahl'];
+
+    /**
+     * v3.12.0 — Grenzen einzelner Zahlen-Einstellungen [min, max, ganzzahlig]: Wohnfläche bis
+     * 100.000 m² (eine Wohnung bis zum großen Mehrfamilienhaus), Personen ganzzahlig bis 1.000.
+     * 0 heißt bei beiden wie bisher „keine Angabe“ (Einordnung lädt dann zum Eintragen ein),
+     * negativ ist nie eine Angabe. Alle anderen Zahlen-Einstellungen prüfen nur, dass es eine
+     * Zahl ist (s. set()).
+     *
+     * @var array<string, array{0: float|int|null, 1: float|int|null, 2: bool}>
+     */
+    public const NUMBER_LIMITS = [
+        'wohnflaeche_m2'         => [0, 100000, false],
+        'wasser_personen_anzahl' => [0, 1000, true],
+        // v3.12.0 — jede Zahlen-Einstellung mit fachlicher Grenze. Bisher kam 10³⁰⁸ als Heizgrenze durch und
+        // legte jede Auswertung lahm, eine Ganzzahl wie 10³⁰⁸ Monate ergab 500. Ganzzahlig, wo die Einheit
+        // es ist (Tage, Monate, Personen).
+        'hdd_base_temp'            => [ClimateNormalService::BASE_MIN, ClimateNormalService::BASE_MAX, false],   // wie am Zähler
+        'co2_gas'                  => [0, 5000, false],
+        'co2_strom'                => [0, 5000, false],
+        'co2_wasser'               => [0, 100000, false],
+        'co2_heizoel'              => [0, 5000, false],
+        'co2_pellets'              => [0, 5000, false],
+        'co2_fernwaerme'           => [0, 5000, false],
+        'min_days_period'          => [1, 31, true],
+        'min_hdd_regression'       => [0, 1000, false],
+        'blend_max'                => [0, 1, false],
+        'forecast_months'          => [1, 60, true],
+        'min_temp_days_forecast'   => [0, 366, true],
+        'dashboard_months'         => [1, 240, true],
+        'alert_days_since_reading' => [1, 3650, true],
+        'anomaly_threshold'        => [0.1, 10, false],
+        'latitude'                 => [-90, 90, false],
+        'longitude'                => [-180, 180, false],
+        'wasser_personen_referenz' => [1, 1000, false],
+        'contract_remind_days_1'   => [0, 3650, true],
+        'contract_remind_days_2'   => [0, 3650, true],
+        'contract_remind_days_3'   => [0, 3650, true],
+        'wasser_sparindex_gut'     => [1, 10000, true],
+        'wasser_sparindex_warnung' => [1, 10000, true],
+        'heizoel_kwh_per_l'        => [1, 20, false],
+        'pellets_kwh_per_kg'       => [1, 10, false],
+        'segmented_fixed_split'    => [0, 10000, false],
+        'delivery_baseload_share'  => [0, 1, false],
+        'tank_warn_pct'            => [0, 100, false],
+        'reminder_warn_days_before' => [0, 3650, true],
+        'reminder_overdue_days'    => [0, 3650, true],
+        'recommendation_anomaly_sigma'  => [0.1, 10, false],
+        'recommendation_trend_pct_year' => [0, 100, false],
+        'confidence_band_sigma'    => [0, 5, false],
+    ];
+
+    /** v3.12.0 — Auswahlwerte: was die Auswertung kennt (Regressionsmodelle, Knick, Gebäudetyp). */
+    public const FORECAST_MODELS = ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'];
+    public const BUILDING_TYPES = ['efh', 'rh', 'mfh', 'whg', 'reihenhaus'];   // „reihenhaus“ wie bisher gelesen
 
     /**
      * v3.7.0 — Beispielwerte der Seite „Flexibilität“ (FlexibilityInsightService):
@@ -259,6 +314,15 @@ final class SettingsService
         'home_ca_pem'              => '',
         // „Zertifikat im Heimnetz nicht prüfen“: wirkt nur für Adressen im Heimnetz
         'home_tls_insecure'        => false,
+        // ── v3.12.0 (F1037) — Energietracker für deine KI (MCP), nur Verwalter (Services\Mcp\Config) ──
+        // ab Werk aus; ET_MCP=off sperrt fest. Ein Schlüssel mit Bereich mcp/mcp_write ist immer Pflicht.
+        'mcp_enabled'              => false,
+        // Kunden-, Vertrags-, Rechnungs-, Zählernummer, Markt- und Messlokation an die KI
+        'mcp_share_identifiers'    => false,
+        // Original-PDFs aus dem Posteingang an die KI (Ressource)
+        'mcp_share_documents'      => false,
+        // v3.12.0 (Skeptiker M1) — Übernahme nur in der App bestätigen: ab Werk an; aus = wie die Nachfrage des KI-Programms
+        'mcp_apply_in_app'         => true,
         // ── v3.7.0 — Flexibilität: eigene Werte statt Beispielwerte (EXAMPLE_VALUES) ──
         // Defaults = FlexibilityInsightService::ASSUMPTIONS/APPLIANCES (Test hält es fest)
         'flex_heat_pump_share_pct'        => 30.0,  // % des Tagesverbrauchs der Wärmepumpe verschiebbar
@@ -280,6 +344,12 @@ final class SettingsService
         // 31.12.2026, ab 01.01.2027 16 (§ 82 Abs. 2 GModG n. F.; BenchmarkService::CERT_RULES)
         'beheizter_keller'         => false,
         'warmwasser_dezentral'     => false,
+        // ── v3.12.0 (m4b) — Angaben für Briefe (freiwillig, Haushalt › Gebäude, LETTER_KEYS) ──
+        // Absender und Lieferanschrift; der Brief-Dialog füllt sie vor. Bleiben in den eigenen Daten
+        // und im Backup; KI (MCP), Posteingang und Auslesen in der Cloud bekommen sie nie.
+        'letter_sender_name'       => '',   // eine Zeile
+        'letter_sender_address'    => '',   // Straße, Ort … je Zeile (\n), höchstens LETTER_ADDRESS_LINES
+        'letter_supply_address'    => '',   // Lieferanschrift (Verbrauchsstelle), eine Zeile
         // v3.1.0 (Paket H3) — Mieter-Paket (F1008) und Warmwasser (CALC-28).
         // eigentum = wie bisher; miete blendet „Mietverhältnis“ ein.
         'wohnverhaeltnis'          => 'eigentum', // eigentum | miete
@@ -455,6 +525,24 @@ final class SettingsService
         }
         $user = $this->store->read('settings.json', []);
         if (!is_array($user)) $user = [];
+        // v3.12.0 — Wohnfläche und Personen aus älteren Versionen (ungeprüft gespeichert): „120,5“ ist
+        // 120,5; ein unlesbarer („viel“) oder negativer Wert gilt als nicht eingetragen (0 bleibt „keine
+        // Angabe“ wie bisher). Bisher rechnete die Effizienz mit 120 m² und hielt die Fläche zugleich
+        // für nicht eingetragen, „viel“ wurde 0 m², −5 eine negative Fläche.
+        foreach (self::ENTERED_ONLY as $k) {
+            if (!array_key_exists($k, $user) || $user[$k] === null || $user[$k] === '') continue;
+            $n = \Energietracker\Support\Input::decimal($user[$k]);
+            if ($n === null || $n < 0) unset($user[$k]);
+            elseif (is_string($user[$k])) $user[$k] = $n == floor($n) ? (int)$n : $n;
+        }
+        // v3.12.0 — Schalter aus älteren Versionen oder einem Backup: null gilt als nicht gespeichert
+        // (Vorgabe), ein Text wie „false“ nach Input::bool; Unlesbares ebenfalls als Vorgabe. Bisher las
+        // jeder Leser selbst, `get('weather_auto_fill', true)` machte aus null „an“.
+        foreach ($user as $k => $val) {
+            if (!is_bool(self::DEFAULTS[$k] ?? null) || is_bool($val)) continue;
+            $b = $val === null ? null : \Energietracker\Support\Input::bool($val);
+            if ($b === null) unset($user[$k]); else $user[$k] = $b;
+        }
         $this->memoGen = $this->store->generation();
         $this->memoUser = $user;
         return $this->memo = array_merge(self::DEFAULTS, $user);
@@ -531,11 +619,74 @@ final class SettingsService
     {
         $current = $this->store->read('settings.json', []);
         if (!is_array($current)) $current = [];
+        $current = $this->apply($current, $patch);
+        $this->guardInboxProvider($current, $patch);
+        $this->store->write('settings.json', $current);
+        return $this->all();
+    }
+
+    /**
+     * v3.12.0 — Schlüssel einer Einstellungsdatei (etwa aus einem Backup), die PATCH /api/settings abweisen
+     * würde. Prüft je Schlüssel dieselbe Regel wie set(), ohne zu schreiben; unbekannte Schlüssel zählen
+     * nicht (set() übergeht sie ebenso).
+     *
+     * @param array<string,mixed> $settings
+     * @return list<string>
+     */
+    public function problems(array $settings): array
+    {
+        $bad = [];
+        foreach ($settings as $k => $v) {
+            if (!is_string($k) || !array_key_exists($k, self::DEFAULTS)) continue;
+            try {
+                // die Gas-Faktoren tolerant wie beim Lesen (nur die Form): ältere Stände außerhalb der
+                // Plausibilitätsbänder rechnen weiter (Lektion 36, ConversionFactorService::normalizeList)
+                if ($k === 'gas_conversion_factors') { ConversionFactorService::normalizeList($v, $this->translator(), false); continue; }
+                $this->apply([], [$k => $v]);
+            } catch (\InvalidArgumentException) {
+                $bad[] = $k;
+            }
+        }
+        return $bad;
+    }
+
+    /**
+     * Die Prüfung und Umwandlung von set(), auf eine Kopie angewandt.
+     *
+     * @param array<string,mixed> $current
+     * @param array<string,mixed> $patch
+     * @return array<string,mixed>
+     */
+    private function apply(array $current, array $patch): array
+    {
         foreach ($patch as $k => $v) {
             if (!array_key_exists($k, self::DEFAULTS)) continue;
             // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant: eine Prüfung für Karte und PATCH /api/settings
             if (str_starts_with($k, 'ha_notify_')) {
                 $current[$k] = \Energietracker\Services\HomeAssistant\NotifyConfig::normalizeSetting($k, $v);
+                continue;
+            }
+            // v3.12.0 (m4b) — Angaben für Briefe: Zeilen bereinigt, Länge wie im Brief; leer = nicht angegeben
+            if (in_array($k, self::LETTER_KEYS, true)) {
+                $clean = self::cleanLetterValue($k, $v);
+                if ($clean === null) {
+                    throw new \InvalidArgumentException(($this->translator())($k === 'letter_sender_address' ? 'errors.settings.letterLines' : 'errors.settings.letterLine', [
+                        'lines' => self::LETTER_ADDRESS_LINES, 'chars' => self::LETTER_LINE_MAX,
+                    ]));
+                }
+                if ($clean === '') unset($current[$k]); else $current[$k] = $clean;
+                continue;
+            }
+            // v3.12.0 (F1037) — Schalter streng (ein Text „false“ schaltet nicht ein); zuerst nur die
+            // der KI, jetzt jede Einstellung, deren Vorgabe ein Wahrheitswert ist (etwa weather_auto_fill).
+            // Eine Regel für alle Schreibwege (Support\Input::bool): auch `null` ist „aus“. Bisher blieb
+            // null stehen, und der Wetterabgleich las es als „an“.
+            if (is_bool(self::DEFAULTS[$k] ?? null)) {
+                $b = \Energietracker\Support\Input::bool($v);
+                if ($b === null) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
+                }
+                $current[$k] = $b;
                 continue;
             }
             // v3.6.0 — ein geleertes Feld nimmt die Angabe zurück (nicht eingetragen,
@@ -555,6 +706,35 @@ final class SettingsService
                 $current[$k] = $int ? (int)$num : round((float)$num, 2);
                 continue;
             }
+            // v3.12.0 — der Typ folgt der Vorgabe: Text bleibt Text (eine Zahl wird Text), eine Liste bleibt
+            // eine Liste. Bisher kam jeder Typ durch: `forecast_model: []` wurde gespeichert und legte danach
+            // Übersicht, Zu tun und Jahresbericht mit 500 lahm, `reference_source: []` scheiterte beim
+            // Speichern selbst mit 500, `env_name: true` wurde „1“.
+            $def = self::DEFAULTS[$k];
+            if (is_string($def) && $v !== null && !is_string($v)) {
+                if (is_int($v) || (is_float($v) && is_finite($v))) $v = (string)$v;
+                else throw $this->invalid($k, $v);
+            }
+            if ($k === 'active_utilities') {
+                if (!is_array($v) || !array_is_list($v)) throw $this->invalid($k, $v);
+                foreach ($v as $u) if (!is_string($u) || !Utilities::exists($u)) throw $this->invalid($k, $u);
+                $v = array_values(array_unique($v));
+            }
+            if ($k === 'efficiency_class_thresholds') {
+                if (!is_array($v) || ($v !== [] && array_is_list($v))) throw $this->invalid($k, $v);
+                foreach ($v as $cls => $lim) {
+                    $n = \Energietracker\Support\Input::decimal($lim);
+                    if (!array_key_exists($cls, $def) || $n === null || $n < 0 || $n > 10000) throw $this->invalid($k, $lim);
+                    $v[$cls] = $n == floor($n) ? (int)$n : $n;
+                }
+            }
+            // veraltet und ohne Wirkung, aber gespeichert: nur eine Jahreszahl oder nichts
+            if ($k === 'baujahr' && $v !== null && $v !== '') {
+                $n = \Energietracker\Support\Input::decimal($v);
+                if ($n === null || $n != floor($n) || $n < 1000 || $n > 2100) throw $this->invalid($k, $v);
+                $v = (int)$n;
+            }
+            if ($k === 'baujahr' && $v === '') $v = null;
             // v2.5.0 — F1012: Die Faktorliste wird beim Speichern normalisiert
             // und validiert (Ableitung z × Hs, Sortierung, Grenzen). Ein
             // Tippfehler wie 115 statt 11,5 würde sonst jeden Gasverbrauch
@@ -596,6 +776,11 @@ final class SettingsService
                 'warmwasser_energietraeger' => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom', 'waerme'],
                 'inbox_provider'       => ['local', ...\Energietracker\Services\Inbox\CloudConfig::PROVIDERS],   // v3.7.0
                 'inbox_cloud_provider' => \Energietracker\Services\Inbox\CloudConfig::PROVIDERS,
+                // v3.12.0 — Auswahlwerte, die bisher jeden Text (und jede Liste) annahmen
+                'forecast_model'       => self::FORECAST_MODELS,
+                'segmented_split_mode' => ['auto', 'fixed'],
+                'gebaeudetyp'          => self::BUILDING_TYPES,
+                'language'             => $this->i18n !== null ? $this->i18n->supported() : self::languageCodes(),
                 default       => null,
             };
             if ($allowed !== null && !in_array($v, $allowed, true)) {
@@ -617,7 +802,8 @@ final class SettingsService
                 'inbox_cloud_timeout_s' => [10, 600],  // v3.7.0
                 default              => null,
             };
-            $bad = ($range !== null && (!is_numeric($v) || (int)$v != $v || (int)$v < $range[0] || (int)$v > $range[1]))
+            // v3.12.0 — erst der Bereich, dann die Ganzzahl: (int)1e308 ist unter PHP 8.5 ein Fehler (500)
+            $bad = ($range !== null && (!is_numeric($v) || (float)$v < $range[0] || (float)$v > $range[1] || floor((float)$v) != (float)$v))
                 || (in_array($k, ['ocr_endpoint', 'evcc_endpoint'], true) && !self::isHttpUrlOrEmpty($v))
                 || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200))
                 // v3.7.0 — Modellname des lokalen Diensts wie beim Bildmodell (der Anbieter ist eine
@@ -673,15 +859,52 @@ final class SettingsService
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
                 ]));
             }
+            // v3.12.0 — Zahlen-Einstellungen: eine Zahl oder ein Text mit Dezimalpunkt bzw. -komma
+            // (Support\Input::decimal), sonst 400. Bisher kam jeder Wert durch: „120,5“ m² rechnete als
+            // 120, „viel“ als 0, −5 als negative Fläche. Grenzen, wo sie fachlich klar sind (NUMBER_LIMITS).
+            if ($range === null && (is_int(self::DEFAULTS[$k]) || is_float(self::DEFAULTS[$k])) && $v !== null && $v !== '') {
+                $n = \Energietracker\Support\Input::decimal($v);
+                [$lo, $hi, $int] = self::NUMBER_LIMITS[$k] ?? [null, null, false];   // jede Zahl hat eine Zeile (SettingsTypesTest)
+                if ($n === null || ($lo !== null && $n < $lo) || ($hi !== null && $n > $hi) || ($int && $n != floor($n))) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
+                        'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
+                    ]));
+                }
+                $v = (is_int(self::DEFAULTS[$k]) && $n == floor($n)) ? (int)$n : $n;
+            }
             $current[$k] = $v;
         }
-        $this->guardInboxProvider($current, $patch);
-        $this->store->write('settings.json', $current);
-        return $this->all();
+        return $current;
     }
 
     /** v3.7.1 — höchstens so viele Zeichen hat der Umgebungsname (das Abzeichen bleibt auch am Handy einzeilig). */
     public const ENV_NAME_MAX = 12;
+
+    /**
+     * v3.12.0 (m4b) — Angaben für Briefe: persönliche Daten des Haushalts. Eine Liste für alle Stellen, die sie
+     * zurückhalten (KI über MCP, Posteingang) oder prüfen (Backup). Zeichen je Zeile wie im Brief
+     * (LetterService::LINE_MAX); die Anschrift hat bis zu vier Zeilen, Name und Lieferanschrift eine.
+     */
+    public const LETTER_KEYS = ['letter_sender_name', 'letter_sender_address', 'letter_supply_address'];
+    public const LETTER_LINE_MAX = 60;
+    public const LETTER_ADDRESS_LINES = 4;
+
+    /**
+     * v3.12.0 (m4b) — eine Angabe für Briefe bereinigt: Steuerzeichen und Leerraum am Rand weg, leere Zeilen weg.
+     * Zu lang oder zu viele Zeilen: null (der Aufrufer meldet den Fehler, das Backup ein Problem).
+     */
+    public static function cleanLetterValue(string $key, mixed $v): ?string
+    {
+        if ($v === null) return '';
+        if (!is_scalar($v) || is_bool($v)) return null;
+        $lines = preg_split('/\R/u', (string)$v) ?: [];
+        $lines = array_values(array_filter(array_map(
+            fn($l) => trim((string)preg_replace('/\s+/u', ' ', (string)preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $l))), $lines), fn($l) => $l !== ''));
+        $maxLines = $key === 'letter_sender_address' ? self::LETTER_ADDRESS_LINES : 1;
+        if (count($lines) > $maxLines) return null;
+        foreach ($lines as $l) if (mb_strlen($l) > self::LETTER_LINE_MAX) return null;
+        return implode("\n", $lines);
+    }
 
     /** v3.7.1 — Umgebungsname bereinigt: keine Tags, keine Steuerzeichen, einfacher Leerraum, gekürzt. */
     public static function cleanEnvName(string $v): string
@@ -811,6 +1034,21 @@ final class SettingsService
     public function attachI18n(I18nService $i18n): void
     {
         $this->i18n = $i18n;
+    }
+
+    /** v3.12.0 — Sprachen der Registry (public/locales/languages.json), wenn kein I18nService angehängt ist. */
+    private static function languageCodes(): array
+    {
+        $data = json_decode((string)@file_get_contents(dirname(__DIR__, 2) . '/public/locales/languages.json'), true);
+        return is_array($data) && $data !== [] ? array_map('strval', array_keys($data)) : ['de', 'en'];
+    }
+
+    /** v3.12.0 — 400 `errors.settings.valueInvalid` für einen Wert, den die Einstellung nicht annimmt. */
+    private function invalid(string $key, mixed $v): \InvalidArgumentException
+    {
+        return new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
+            'key' => $key, 'value' => is_scalar($v) ? (string)$v : gettype($v),
+        ]));
     }
 
     private function translator(): callable

@@ -12,6 +12,7 @@
 import { t } from '../lib/i18n.js';
 import { escapeHtml as esc } from '../lib/format.js';
 import { pdfSupported, openPdf, renderPages } from '../lib/pdf.js';
+import { icon } from '../lib/icons.js';
 
 let cleanup = null;
 
@@ -26,11 +27,11 @@ export function openDocDock({ url, name, back = '' }) {
   dock.setAttribute('aria-label', t('inbox.dock.label'));
   dock.innerHTML = `
     <div class="doc-dock__head">
-      <button type="button" class="doc-dock__fold btn btn--ghost btn--sm" aria-expanded="true" data-act="fold">📄 <span class="doc-dock__name">${esc(name)}</span></button>
+      <button type="button" class="doc-dock__fold btn btn--ghost btn--sm" aria-expanded="true" data-act="fold">${icon('dokument', { size: 16 })} <span class="doc-dock__name">${esc(name)}</span></button>
       <span class="doc-dock__actions">
         ${back ? `<a class="btn btn--ghost btn--sm" href="${esc(back)}">${esc(t('inbox.dock.back'))}</a>` : ''}
         <a class="btn btn--ghost btn--sm" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('inbox.doc.open'))}</a>
-        <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('inbox.dock.close'))}">✕</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('inbox.dock.close'))}">${icon('kreuz', { size: 16 })}</button>
       </span>
     </div>
     <div class="doc-dock__body" id="doc-dock-body"></div>`;

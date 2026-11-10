@@ -18,7 +18,9 @@ final class ContractPhaseEndpointTest extends HttpServerTestCase
         $this->startServer();
         $meters = $this->json('GET', '/api/utility/strom/meters');
         $meterId = $meters[0]['id'] ?? $this->json('POST', '/api/utility/strom/meters', ['name' => 'Haushalt'])['id'];
-        $y = (int)date('Y');
+        // v3.12.0 — das Jahr des Servers (Zeitzone der Installation), nicht des Testprozesses (UTC): Am
+        // 31.12. ab 23 Uhr UTC ist beim Server schon Neujahr, der „künftige“ Vertrag läuft dort bereits
+        $y = (int)(new \DateTimeImmutable('now', new \DateTimeZone('Europe/Berlin')))->format('Y');
         $make = fn(array $c) => $this->json('POST', '/api/utility/strom/contracts', $c + [
             'meter_id' => $meterId, 'provider' => 'Versorger',
             'working_prices' => [['from' => $c['start'], 'ct_per_kwh' => 30]],

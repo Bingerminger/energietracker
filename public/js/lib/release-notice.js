@@ -17,6 +17,7 @@ import { t } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
 import { DEMO } from './demo-mode.js';
 import { getSettings } from '../state.js';
+import { icon } from './icons.js';
 
 export const SUPPORT_URL = 'https://buymeacoffee.com/bingerminger';
 const SEEN = 'et-seen-version';
@@ -38,12 +39,12 @@ export function newer(a, b) {
 /** @param {'updated'|'available'} kind */
 export function noticeHtml(kind, version, url = null) {
   const head = kind === 'updated' ? t('notice.updated', { version }) : t('notice.available', { version });
-  return `<div class="release-notice" role="status" data-notice="${kind}">
-    <div class="release-notice__text">
+  return `<div class="infobox infobox--info infobox--zeile infobox--schwebend release-notice" role="status" data-notice="${kind}">
+    <div class="infobox__text">
       <p><strong>${esc(head)}</strong> <a href="${esc(url || notesUrl(version))}" target="_blank" rel="noopener">${esc(t('notice.whatsNew'))}</a></p>
       ${kind === 'updated' ? `<p class="muted">${esc(t('notice.support'))} <a href="${SUPPORT_URL}" target="_blank" rel="noopener noreferrer" data-support-link>${esc(t('notice.supportLink'))}</a></p>` : ''}
     </div>
-    <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('notice.dismiss'))}">✕</button>
+    <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('notice.dismiss'))}">${icon('kreuz', { size: 16 })}</button>
   </div>`;
 }
 

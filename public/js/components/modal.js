@@ -3,6 +3,7 @@
 // =====================================================================
 import { escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
+import { icon } from '../lib/icons.js';
 
 /**
  * Open a modal with arbitrary body (string HTML or DOM node).
@@ -136,7 +137,7 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
     <div class="modal modal--${size}" role="${role === 'alertdialog' ? 'alertdialog' : 'dialog'}" aria-modal="true" aria-labelledby="${titleId}"${describedBy ? ` aria-describedby="${escapeHtml(describedBy)}"` : ''}>
       <div class="modal__head">
         <h2 class="modal__title" id="${titleId}">${escapeHtml(title)}</h2>
-        <button type="button" class="modal__close" aria-label="${t('common.close')}">×</button>
+        <button type="button" class="modal__close" aria-label="${t('common.close')}">${icon('kreuz')}</button>
       </div>
       <div class="modal__body"></div>
       ${footer ? `<div class="modal__foot">${footer}</div>` : ''}
@@ -200,6 +201,19 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
       return;
     }
     target.focus();
+    // v3.12.0 — der Auslöser ist gerade gesperrt (guardSubmit, solange der Handler mit der Rückfrage läuft, etwa
+    // „Speichern“ bei der Plausibilitäts-Rückfrage): Ein gesperrter Knopf nimmt keinen Fokus, er fiel auf <body>.
+    // Sobald er wieder frei ist, bekommt er ihn, wenn niemand sonst ihn hat und kein Dialog offen ist.
+    if (target.disabled && document.activeElement !== target && typeof MutationObserver !== 'undefined') {
+      const held = target;
+      const freed = new MutationObserver(() => {
+        if (held.disabled) return;
+        freed.disconnect();
+        if (!root.lastElementChild && held.isConnected && (!document.activeElement || document.activeElement === document.body)) held.focus();
+      });
+      freed.observe(held, { attributes: true, attributeFilter: ['disabled'] });
+      setTimeout(() => freed.disconnect(), 5000);
+    }
     if (reason === 'navigation' || !prevLocator || typeof MutationObserver === 'undefined') return;
     const lost = () => !target.isConnected && (!document.activeElement || document.activeElement === document.body);
     const watch = new MutationObserver(() => {

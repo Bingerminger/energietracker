@@ -117,6 +117,12 @@ final class CountryProfileTest extends ServiceTestCase
             foreach ($flat($catalog) as $key => $value) {
                 self::assertDoesNotMatchRegularExpression('/€|£|\bEUR\b|\bCHF\b|\bGBP\b/u', $value,
                     "$lang.json: $key schreibt eine Währung fest ein — {cur}, {minor} oder {code} verwenden");
+                // v3.12.0 — ebenso die Untereinheit: „ct/kWh“ wird mit CHF zu „Rp./kWh“, mit GBP zu „p/kWh“
+                // (docs/verstehen/14-laenderprofile.md, § 4). Ausgenommen die Börsenwerte der Flexibilität: Sie
+                // stammen vom Day-Ahead-Markt DE-LU und sind Euro-Cent, gleich welche Währung eingestellt ist.
+                if (in_array($key, ['flex.check.lead', 'flex.netNote'], true)) continue;
+                self::assertDoesNotMatchRegularExpression('/(?<![\p{L}{_])ct(?![\p{L}}_])|(?<!\p{L})c(?:ent(?:s|imes)?|ént\.|ênt\.)\//iu', $value,
+                    "$lang.json: $key schreibt „ct“ (oder „cent/“) fest ein — {minor} verwenden");
             }
         }
     }
@@ -258,6 +264,9 @@ final class CountryProfileTest extends ServiceTestCase
         self::assertNotContains('3.000 kWh', $texts);
         self::assertNotEmpty(array_filter($texts, fn($t) => str_starts_with($t, '£')), 'Beträge in Pfund');
         self::assertEmpty(array_filter($texts, fn($t) => str_contains($t, '€')), 'Kein Euro im britischen Bericht');
+        // v3.12.0 — Preise je kWh in Pence, nicht in Cent (Kosten: „average unit price 30.0 p/kWh“)
+        self::assertEmpty(array_filter($texts, fn($t) => preg_match('/\bct\//u', $t) === 1), 'Kein „ct/“ im britischen Bericht');
+        self::assertNotEmpty(array_filter($texts, fn($t) => str_contains($t, ' p/kWh')), 'Arbeitspreis in p/kWh: ' . implode(' | ', array_slice($texts, 0, 40)));
     }
 
     public function testReportWithoutScaleShowsTheFigureAndTheReason(): void

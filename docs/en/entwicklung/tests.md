@@ -85,6 +85,8 @@ descriptions, data tables, year and meter from the address, two quick forecast
 runs with one chart.
 
 Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
+`tests/mcp-snippet.test.mjs` (templates for AI assistants against the formats of
+the programs and against the guide, DE and EN),
 `tests/plausibility.test.mjs` and, since v2.11.0:
 
 - **`tests/router.test.mjs`** — JSDOM, made-up views and a staged, delayed
@@ -94,7 +96,9 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   closes a dialog without leaving the page.
 - **`tests/contrast.test.mjs`** — reads the colour tokens from `tokens.css` and
   the utility colours from `Utilities.php` and checks every text/surface pair in
-  both themes against WCAG AA (4.5:1).
+  both themes against WCAG AA (4.5:1); *(v3.12.0)* also the coloured table
+  columns (`.table .col-*` in `components.css`) on row and header (`--bg-1`,
+  `--bg-2`).
 - **`tests/chart.test.mjs`** (v2.15.0) — the chart layer with a recording stub:
   one chart per canvas, clean-up on navigation, redrawing on a theme change
   including the axis colours, no throw on a Chart.js error, every chart colour
@@ -108,6 +112,11 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   no error, badge and notice with language choice, bill check with its
   defaults, source link to the tag, writes refused, CSV and PDF as files.
   Locally: `node tests/demo.test.mjs` (needs PHP and jsdom).
+- **`tests/demo-start.test.mjs`** (v3.12.0) — the demo returns to zero after every
+  release: stored household and old version → everything gone, same version → the
+  choice stays, `meta.json` missing or hanging, storage blocked → it runs, `?persona=`
+  and `?lang=` still apply, foreign keys stay, every use of `localStorage` has a key
+  that the restart deletes.
 - **`tests/plural.test.mjs`** (v3.1.0) — `pluralCategory()` from `lib/i18n.js`
   (Intl.PluralRules, Portuguese as pt-PT) against
   `tests/fixtures/plural-cases.json`, the same file `PluralRulesTest` checks in
@@ -224,6 +233,28 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   measurement (CI, catches a relapse into quadratic run time), with
   `ET_PERF_STRICT=1` below the measurement + 50 % (local). Port from
   `ET_LARGE_PORT`, otherwise a free one.
+- **`tests/box-raster.test.mjs`** (v3.12.0) — no ragged boxes: the real app in a real
+  browser (Playwright, Chromium), across level and width. In every container each row
+  has one height and is full; no sideways scrolling, and digits in tables have one
+  width. Exceptions are named in the test, and an unused one makes it fail. Port from
+  `ET_BOX_PORT`, otherwise a free one.
+- **`tests/laengen.test.mjs`** (v3.12.0) — **long languages break nothing:** all
+  seven languages on the iPhone (390 px), the longer ones on the Mac too, on the main
+  routes with the showcase household and expandable sections opened. No text sticks
+  out of a tile, card, button, cell or field, no button wraps onto more than two
+  lines, no page scrolls sideways. Port from `ET_LEN_PORT`, otherwise a free one.
+- **`tests/design-rules.test.mjs`** (v3.12.0) — the rules of the stylesheets: three
+  radii, two shadows, the type sizes, no capitals, gradients, stripes or hex values
+  outside `tokens.css`, one shape for the sub-menu. While the move is under way, upper
+  limits apply that may only go down.
+- **`tests/icons.test.mjs`** (v3.12.0) — one source for the graphics (`lib/icons.js`):
+  construction, masks of the five tones, the utilities SSOT. No interface file and no
+  catalogue outputs emoji as symbols; the `icon` field stays in API, CSV and Home
+  Assistant.
+- **`tests/rich.test.mjs`** (v3.12.0) — `rich()`: markup from the catalogues without
+  raw HTML, with malicious input, the marks of the guide in all 7 languages.
+- **`tests/redirects.test.mjs`** (v3.12.0) — redirects in the router; every address the
+  server outputs (agenda, recommendations, rights, inbox, manifest) reaches a view.
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`, since v3.1.0 `HttpServerTestCase` for tests over

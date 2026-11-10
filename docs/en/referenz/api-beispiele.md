@@ -123,6 +123,7 @@ since v3.1.0 `waerme`; the single source of truth from
       "key": "gas",
       "label": "Gas",
       "icon": "🔥",
+      "glyph": "art-gas",
       "unit": "m³",
       "consumption_unit": "kWh",
       "unit_to_kwh": true,
@@ -520,7 +521,7 @@ m_gas_main;Compteur principal;d_gas_1;01/02/2026;12345,6;;;Non;Non
 since v3.1.0 in the language of the request (up to v3.0 German):
 
 ```json
-"errors": [ "Line 4: month above 12 (01/15/2026) — please write the day before the month (DD/MM/YYYY) or YYYY-MM-DD" ]
+"errors": [ "Line 4: month above 12 (01/15/2026). Write the day before the month (DD/MM/YYYY) or use YYYY-MM-DD." ]
 ```
 
 The import logic sits in the source-agnostic `ReadingImportService` —
@@ -1735,7 +1736,7 @@ The temperature series as daily values: date, avg, min, max.
 The token protects the ingest endpoint **only**: without a token it accepts
 values without a header; as soon as a token has been created, it requires
 `Authorization: Bearer <token>`. Since v2.6.0 the other routes are protected by
-**sign-in** (opt-in, Settings → Access → "Sign-in & access"); once that is switched on,
+**sign-in** (opt-in, Settings → Access and security → "Sign-in & access"); once that is switched on,
 the token is **mandatory** for the ingest. Details:
 [Security](../betrieb/sicherheit.md).
 

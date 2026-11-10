@@ -193,9 +193,13 @@ Datumsformat und Auslassungspunkte; die übrigen Punkte sind Absprache.
 
 - Eingesetzte Bezeichnungen (`{label}`, `{utility}`, `{sev}`, `{stage}`) sind
   groß geschrieben und tragen keinen Artikel. Außer im Deutschen stehen sie
-  deshalb nur am Satzanfang, nach „:“, „—“, „(“ oder einem öffnenden
-  Anführungszeichen — mitten im Satz ergäben sie „Plan next Heating oil
+  deshalb nur am Satzanfang, nach „:“, „(“ oder einem öffnenden
+  Anführungszeichen. Mitten im Satz ergäben sie „Plan next Heating oil
   delivery“. Test: `testLabelsNotMidSentence`.
+- **Kein Gedankenstrich als Satzkitt** *(seit v3.12.0)*. Statt „A – B“ stehen
+  zwei Sätze, ein Doppelpunkt, eine Klammer oder eine Liste, die Kernaussage
+  vorn. Erlaubt bleiben Bereiche („3–5“, „{from} – {until}“, „Okt.–Apr.“) und
+  „–“ allein für einen fehlenden Wert. Test: `testNoDashAsConnector`.
 - Varianten sind ganze Sätze, keine Wortbausteine: lieber drei Schlüssel
   `recommendations.emptyFiltered.urgent`, `….warning`, `….info` als ein Satz
   mit eingesetztem Wort.

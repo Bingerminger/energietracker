@@ -72,62 +72,106 @@ v1.0.2.
    `pngquant --quality=88-100 --strip` roughly halves the images without
    visible loss.
 
-The welcome state needs an empty data directory (`ET_DATA_DIR` pointing to an
-empty folder); close the setup assistant with Escape. “Reminders & tips →
-Done” only fills up after a few notices have been ticked off (✓ on the
-overview, hide a recommendation) — so capture it after the overview and the
-reminders. The sign-in screen and “Sign-in & access” come from a separate
-instance with sign-in switched on.
+“To do → History” only fills up after a few notices have been ticked off (✓ on the overview, hide a
+recommendation) — so capture it after the overview and the reminders. Welcome, setup assistant and sign-in
+need an instance of their own (see below).
 
 ## The images
 
-| File | View | Address | Window | English |
-|---|---|---|---|---|
-| `dashboard.png` | Overview | `#/dashboard` | 1440 × 1500 | ✓ |
-| `willkommen.png` | Overview without data | `#/dashboard`, empty directory | 1440 × 900 | ✓ |
-| `zaehlerstaende.png` | Meter-reading capture | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
-| `pruefung-zaehlerstand.png` | Question on a jump | capture with a conspicuous value → “Save all” | 1440 × 900 | — |
-| `gas-view.png` | Consumption gas, balance card measured and up to today (v3.10.0) | `#/utility/gas`, calendar year | 1440 × 1500 | ✓ |
-| `uebersicht-abrechnungsjahr.png` | Overview in billing years with trend arrows (v3.10.0) | `#/dashboard`, `localStorage['et-period-mode'] = 'billing'`; switch down to the second card | detail | ✓ |
-| `strom-view.png` | Consumption electricity with remainder billing at the main meter (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
-| `heizoel-view.png` | Consumption heating oil | `#/utility/heizoel` | 1440 × 1500 | ✓ |
-| `pv.png` | PV feed-in with energy flow | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
-| `zaehler-vertraege.png` | Contract list of a utility (v3.4.0) | `#/utility/gas/contracts`, “Ended” expanded | 1440 × 1500 | ✓ |
-| `vertragsdialog.png` | Contract dialog in the form grid (v3.4.0) | contract list → “Edit” | 1440 × 1500 | ✓ |
-| `import-vorschau.png` | CSV import preview | Meters → CSV import | 1440 × 1500 | — |
-| `navigation-mac.png` | Contracts & payments | `#/contracts` | 1440 × 900 | ✓ |
-| `navigation-iphone.png` | Overview on the iPhone | `#/dashboard` | 375 × 812 | ✓ |
-| `erfassen-iphone.png` | Add sheet on the iPhone | ＋ Add | 375 × 812 | ✓ |
-| `analyse.png` | Analysis | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Forecast workshop (v3.6.0), baseline “Like the balance card (calibrated)” (v3.10.0) | `#/forecast`, example “Cold winter” clicked | 1440 × 1500 | ✓ |
-| `jahresbericht.png` | Print view of the annual report (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
-| `tarifvergleich.png` | Tariff switch | `#/tariffs` | 1440 × 1522 | ✓ |
-| `empfehlungen.png` | Recommendations | `#/recommendations` | 1440 × 1500 | ✓ |
-| `termine.png` | Reminders & maintenance | `#/reminders` | 1440 × 1500 | ✓ |
-| `erledigt.png` | Reminders & tips → Done (v3.4.0) | `#/activity` | 1440 × 900 | ✓ |
-| `temperaturen.png` | Weather data | `#/temperatures` | 1440 × 1500 | ✓ |
-| `einstellungen.png` | Settings | `#/settings` | 1440 × 1500 | ✓ |
-| `laenderprofil.png` | Apply country profile | Settings → change country | 1440 × 900 | — |
-| `einstellungen-sicherheit.png` | Access: security check, sign-in, host names, API keys | `#/settings/access` | detail | — |
-| `anmeldung.png` | Sign-in screen | with sign-in switched on | 1440 × 900 | — |
-| `hilfe.png` | Help | `#/help` | 1440 × 900 | ✓ |
-| `handbuch.png` | Handbook in the app (v3.4.0) | `#/help/doc/anleitungen/anwendungsfaelle.md` or `#/help/doc/en/anleitungen/anwendungsfaelle.md` | 1440 × 900 | ✓ |
-| `erklaerung-mac.png` | ⓘ explanation on the Mac | Gas → monthly table → ⓘ at HDD | detail | ✓ |
-| `erklaerung-iphone.png` | ⓘ explanation as a sheet | as above | 375 × 812 | ✓ |
-| `einrichtung.png` | Setup assistant, step “Who are you?” (v3.9.0) | empty directory, “Next” in the step “Language and country” | 1440 × 900 | ✓ |
-| `einrichtung-zaehler.png` | Setup assistant, step “How are your meters connected?” (v3.9.0) | empty directory: “Next”, “Own house with heat pump and solar”, “Next” twice | 1440 × 900 | ✓ |
-| `personen.png` | Card “People in the household” (v3.9.0) | `#/settings/household` | detail | ✓ |
-| `ha-benachrichtigungen.png` | Card “Notifications to Home Assistant” (v3.9.0) | `#/settings/integrations`, target webhook with an address from `192.168.178.x`, switched off | detail (window 1440 × 2600, full page, so the fixed top bar does not cover the title) | ✓ |
-| `messkonzept.png` | Assistant “Set up metering concept”, step “How are the meters connected?” (v3.9.0) | `#/utility/strom/meters?concept=1`: heat pump, HT/NT on every import meter, solar, then “Cascade” | 1440 × 900 | ✓ |
-| `ablesung-pruefen.png` | “To do” with “Check the reading of …” (v3.9.0) | sample data, one winter reading of the main gas meter lowered by 100 m³ (only in the capture instance) | detail | ✓ |
-| `einstellungen-heimnetz.png` | Card “Connections in the home network” (v3.10.0) | `#/settings/expert` | detail (window 1440 × 2600) | ✓ |
+<!-- doc-claim: screenshots-de-en (ScreenshotsDocTest) -->
+**Since v3.12.0 a script takes every image of the table:** `tools/build-screenshots.mjs` loads the sample
+household, sets the Expert level and takes every view in light mode, on the Mac and on the iPhone. It also
+takes the README images (light and dark) under `docs/assets/promo/screens/`. Then
+`pngquant --quality=88-100 --strip`, **no image above 150 KB**. **Every image shows the interface of v3.12.0,
+each in German and English.**
+
+**Three runs per language**, each against a server of its own with an empty data directory:
+
+| Run | Images | What it does |
+|---|---|---|
+| no switch | all others | loads the sample household |
+| `--leer` | `willkommen`, `einrichtung`, `einrichtung-zaehler` | loads nothing; the assistant opens by itself, Escape closes it for the welcome |
+| `--anmeldung` | `anmeldung`, `einstellungen-sicherheit` | loads the sample household and switches sign-in on with a sample password; **the instance is locked afterwards** |
+
+```bash
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8910 de /tmp/shots-de
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8912 de /tmp/shots-de '' --leer
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8913 de /tmp/shots-de '' --anmeldung
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8911 en /tmp/shots-en   # and so on for English
+```
+
+A fourth value takes single images only (`prognose,werkstatt-pv`). **What the script does on top:**
+
+- **It opens dialogs and details itself:** letter, contract, metering concept, CSV preview, question on a
+  jump, country profile, ⓘ explanation.
+- **The CSV preview** builds its rows from the last reading of the main gas meter, so that every kind of
+  note appears (unchanged, decrease, typo, date twice, future). Nothing is imported.
+- **“Check reading”** lowers one reading of the sample data for it and restores it afterwards. The question
+  on a jump saves nothing.
+- **Date fields:** English with the headless shell and `--lang=en-GB` (“dd/mm/yyyy”), German with the full
+  Chromium, which follows the system language on the Mac (“tt.mm.jjjj” on a German Mac).
+
+| File | View | Address | Window |
+|---|---|---|---|
+| `dashboard.png` | Overview: answers, a tile per utility | `#/dashboard` | 1440 × 1500 |
+| `zu-tun.png` | To do: open items with deadlines, recommendations, mail | `#/todo` | 1440 × 900 |
+| `empfehlungen.png` | To do, filter Recommendations | `#/todo?art=rec` | 1440 × 1500 |
+| `termine.png` | To do → Dates | `#/todo/dates` | 1440 × 1500 |
+| `erledigt.png` | To do → History | `#/todo/history` | 1440 × 900 |
+| `zaehlerstaende.png` | Entering meter readings | `#/zaehlerstaende` | 1440 × 1500 |
+| `gas-view.png` | Consumption gas, view Overview | `#/utility/gas` | 1440 × 1500 |
+| `strom-view.png` | Consumption electricity | `#/utility/strom` | 1440 × 1500 |
+| `heizoel-view.png` | Consumption heating oil | `#/utility/heizoel` | 1440 × 1500 |
+| `pv.png` | PV feed-in | `#/utility/pv_einspeisung` | 1440 × 1280 |
+| `navigation-mac.png` | Costs & contracts | `#/contracts` | 1440 × 900 |
+| `fruehere-vertraege.png` | Costs → Past contracts | `#/contracts/past` | 1440 × 900 |
+| `tarifvergleich.png` | Tariff switch | `#/tariffs` | 1440 × 1500 |
+| `kennzahlen.png` | Insights → Key figures | `#/figures` | 1440 × 1500 |
+| `analyse.png` | Analysis | `#/analysis` | 1440 × 1500 |
+| `haushalt.png` | Household → Meters | `#/household/meters` | 1440 × 900 |
+| `personen.png` | Household → People | `#/household/people` | 1440 × 900 |
+| `verbindungen.png` | Connections | `#/connections` | 1440 × 900 |
+| `ki-assistenten.png` | Connections → AI assistants | `#/connections/ai` | 1440 × 900 |
+| `ha-benachrichtigungen.png` | Connections → Notifications | `#/connections/homeassistant/notifications` | 1440 × 900 |
+| `einstellungen-heimnetz.png` | Connections → Home network security | `#/connections/homenet` | 1440 × 900 |
+| `temperaturen.png` | Connections → Weather data | `#/connections/weather` | 1440 × 1500 |
+| `einstellungen.png` | Settings with search and “For you” | `#/settings` | 1440 × 1500 |
+| `hilfe.png` | Help with link row and guide | `#/help` | 1440 × 900 |
+| `handbuch.png` | Handbook in the app | `#/help/doc/anleitungen/anwendungsfaelle.md` or `…/en/…` | 1440 × 900 |
+| `navigation-iphone.png` | Overview on the iPhone | `#/dashboard` | 390 × 844 |
+| `mehr-iphone.png` | “More” on the iPhone, footer at the bottom | `#/dashboard`, “More” | 390 × 844 |
+| `erfassen-iphone.png` | Add sheet on the iPhone | `#/dashboard`, ＋ | 390 × 844 |
+| `prognose.png` | Forecast workshop, example “Cold winter” | `#/forecast` | 1440 × 1500 |
+| `werkstatt-heizoel.png` | Workshop for heating oil, example “Heat pump instead of boiler” | `#/forecast`, utility heating oil | 1440 × 1440 |
+| `werkstatt-pv.png` | Workshop for solar, example “Add a battery” | `#/forecast`, utility PV feed-in | 1440 × 1440 |
+| `jahresbericht.png` | Annual report 2025 | `#/report/print?year=2025` | 1440 × 1500 |
+| `uebersicht-abrechnungsjahr.png` | Overview in the billing year, first row of tiles | `#/dashboard`, “Billing year” | detail |
+| `zaehler-vertraege.png` | Contracts of a utility, ended ones expanded | `#/utility/gas/contracts` | 1440 × 1500 |
+| `vertragsdialog.png` | Contract dialog | contract list → “Edit” | 1440 × 1500 |
+| `vertragskonflikt.png` | Note on contradicting contracts | `#/utility/wasser/contracts` | 1440 × 900 |
+| `rechte-hinweis.png` | To do, filter Rights | `#/todo?art=rights` | 1440 × 900 |
+| `brief-dialog.png` | Draft a letter | Rights → “Draft a letter” | 1440 × 900 |
+| `ablesung-pruefen.png` | “Adjust the heating limit” and “Check the reading” | `#/todo`, one reading lowered | detail |
+| `messkonzept.png` | Assistant “Set up metering concept”, step 2 | `#/household/meters?art=strom&concept=1` | 1440 × 900 |
+| `willkommen.png` | Overview without data | `#/dashboard`, `--leer` | 1440 × 900 |
+| `einrichtung.png` | Setup assistant, “Who are you?” | `--leer` | 1440 × 900 |
+| `einrichtung-zaehler.png` | Setup assistant, meters | `--leer`, “Own house with heat pump and solar” | 1440 × 900 |
+| `erklaerung-mac.png` | ⓘ explanation on the Mac | `#/utility/gas?view=months`, ⓘ at the billing year | detail |
+| `erklaerung-iphone.png` | ⓘ explanation as a sheet | as above | 375 × 812 |
+| `import-vorschau.png` | CSV import preview | `#/household/meters?art=gas` → “CSV import” | 1440 × 1500 |
+| `pruefung-zaehlerstand.png` | Question on a jump | `#/zaehlerstaende` | 1440 × 900 |
+| `laenderprofil.png` | Apply country profile | `#/settings/region`, country Switzerland | 1440 × 900 |
+| `einstellungen-sicherheit.png` | Access and security | `#/settings/access`, `--anmeldung` | detail |
+| `anmeldung.png` | Sign-in screen | `--anmeldung` | 1440 × 900 |
 
 A test checks that every linked image exists ([Tests](tests.md)).
 
 ## Promo images
 
-The images at the top of the README and on the GitHub project page come from
-two standalone HTML pages under `docs/assets/promo/`. They embed the
+**Since v3.12.0 the README shows the logo, icons and images from `docs/assets/promo/`:** `logo.svg` and
+`icons/*.svg` come from `tools/build-logo.mjs` (the same graphics as in the app, plus every
+`public/img/icon-*.png` and `favicon.ico`), the images under `screens/` from the capture script above. The
+banner and the social preview come from two standalone HTML pages under `docs/assets/promo/`. They embed the
 screenshots of this directory — renew the screenshots first, then the promo
 images. The directory is not part of the Docker image (`.dockerignore`, a test
 checks this).

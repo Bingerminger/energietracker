@@ -178,21 +178,39 @@ final class ReleaseConsistencyTest extends TestCase
         ];
         self::assertGreaterThan(0, $tests, 'keine Testmethoden gefunden — Zählung kaputt');
 
-        foreach (['README.md', 'README.de.md'] as $file) {
+        // v3.12.0 (M6) — Das README trägt nur noch fünf Abzeichen (Version, CI, Lizenz, Docker, Demo; Freigabe
+        // des Konzepts). Steht doch wieder eine Zahl als Abzeichen da, muss sie stimmen; die Zahlen stehen
+        // jetzt als Wort im Text und werden dort geprüft.
+        $words = [
+            'de' => [1 => 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'],
+            'en' => [1 => 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'],
+        ];
+        foreach (['README.md' => 'en', 'README.de.md' => 'de'] as $file => $lang) {
             $txt = (string)file_get_contents($root . '/' . $file);
 
-            self::assertMatchesRegularExpression(
-                '/badge\/Tests-' . $tests . '-/', $txt,
-                "$file: Tests-Badge weicht ab (tatsächlich {$tests})"
-            );
-            self::assertMatchesRegularExpression(
-                '/badge\/(languages|Sprachen)-' . $locales . '-/', $txt,
-                "$file: Sprachen-Badge weicht ab (tatsächlich {$locales})"
-            );
-            self::assertMatchesRegularExpression(
-                '/badge\/(utilities|Verbrauchsarten)-' . $utilities . '-/', $txt,
-                "$file: Verbrauchsarten-Badge weicht ab (tatsächlich {$utilities})"
-            );
+            if (preg_match('/badge\/Tests-(\d+)-/', $txt, $m)) {
+                self::assertSame($tests, (int)$m[1], "$file: Tests-Badge weicht ab (tatsächlich {$tests})");
+            }
+            if (preg_match('/badge\/(?:languages|Sprachen)-(\d+)-/', $txt, $m)) {
+                self::assertSame($locales, (int)$m[1], "$file: Sprachen-Badge weicht ab (tatsächlich {$locales})");
+            }
+            if (preg_match('/badge\/(?:utilities|Verbrauchsarten)-(\d+)-/', $txt, $m)) {
+                self::assertSame($utilities, (int)$m[1], "$file: Verbrauchsarten-Badge weicht ab (tatsächlich {$utilities})");
+            }
+            self::assertLessThanOrEqual(5, preg_match_all('#<img src="https://(?:img\.shields\.io|github\.com/[^"]+/badge\.svg)#', $txt),
+                "$file: höchstens fünf Abzeichen (Version, CI, Lizenz, Docker, Demo)");
+
+            $lc = mb_strtolower($txt);
+            $langWord = $words[$lang][$locales];
+            $utilWord = $words[$lang][$utilities];
+            self::assertStringContainsString($lang === 'de' ? "$langWord sprachen" : "$langWord languages", $lc,
+                "$file: nennt die Zahl der Sprachen nicht als „{$langWord}“ (tatsächlich {$locales})");
+            self::assertStringContainsString($lang === 'de' ? "$utilWord verbrauchsarten" : "$utilWord utilities", $lc,
+                "$file: nennt die Zahl der Verbrauchsarten nicht als „{$utilWord}“ (tatsächlich {$utilities})");
+            foreach ($words[$lang] as $n => $w) {
+                if ($n === $locales) continue;
+                self::assertStringNotContainsString($lang === 'de' ? " $w sprachen" : " $w languages", $lc, "$file: falsche Zahl der Sprachen ($w)");
+            }
         }
     }
 
@@ -288,7 +306,9 @@ final class ReleaseConsistencyTest extends TestCase
         }
         // erlaubte Fortsetzungen hinter der Repo-Adresse — v3.6.0: dazu die
         // Release-Notes einer Version („Was ist neu“, Hinweis auf neue Versionen)
-        $allowed = '#^(?:$|/issues(?:$|/)|/tree/v|/releases/tag/v|\#[a-z-]+$|/blob/main/README\.de\.md\#[a-z-]+$)#';
+        // v3.12.0 (M6) — dazu die Linkreihe der Hilfe wie im README: Discussions und die Roadmap (sie
+        // beschreibt das Projekt, nicht diese Version, und steht deshalb auf main)
+        $allowed = '#^(?:$|/issues(?:$|/)|/tree/v|/releases/tag/v|\#[a-z-]+$|/blob/main/README\.de\.md\#[a-z-]+$|/discussions$|/blob/main/roadmap(?:\.en)?\.md$)#';
         $offenders = [];
         foreach ($files as $rel) {
             foreach (file(self::root() . '/' . $rel) ?: [] as $n => $line) {

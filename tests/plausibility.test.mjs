@@ -9,7 +9,8 @@
 // folgt derselben Regel wie ReadingService::typicalPerDay() im Backend.
 // =====================================================================
 
-import { typicalPerDay, checkReading, deviceChangedBetween, JUMP_FACTOR } from '../public/js/lib/plausibility.js';
+import { readFileSync } from 'node:fs';
+import { typicalPerDay, checkReading, deviceChangedBetween, neighbours, JUMP_FACTOR } from '../public/js/lib/plausibility.js';
 
 let failed = 0, passed = 0;
 function eq(actual, expected, label) {
@@ -64,6 +65,28 @@ eq(deviceChangedBetween(meter, '2026-09-14', '2026-09-24'), true, 'Einbau im Int
 eq(deviceChangedBetween(meter, '2026-09-20', '2026-09-24'), false, 'Einbau am Tag des vorigen Stands gehört nicht dazwischen');
 eq(deviceChangedBetween(meter, '2026-09-14', '2026-09-20'), true, 'Einbau am Tag des neuen Stands zählt (Stichtag gehört zum neuen Gerät)');
 eq(deviceChangedBetween({}, '2026-01-01', '2026-12-31'), false, 'ohne Geräte');
+
+// ── v3.12.0 — voriger und nächster Stand zum gewählten Datum (Dialog „+ Ablesung“ und Seite „Zählerstände“) ──
+{
+  const list = [r('2026-01-01', 100), r('2026-02-01', 200), r('2026-03-01', 300), r('2026-02-15', 999, { is_suspect: true }), r('2026-12-01', 5000, { is_future: true })];
+  const n = neighbours(list, { devices: [{ installed_on: '2020-01-01' }] }, '2026-02-10');
+  eq([n.prev?.date, n.next?.date], ['2026-02-01', '2026-03-01'], 'Nachtrag: voriger und nächster Stand um das Datum, Verdacht nicht als nächster');
+  eq(types(checkReading({ value: 350, date: '2026-02-10', today, typical: null, ...n })), ['higher_than_next'], 'Nachtrag über dem nächsten Stand fragt nach');
+  eq(types(checkReading({ value: 150, date: '2026-02-10', today, typical: null, ...n })), ['lower'], 'Nachtrag unter dem vorigen Stand fragt nach');
+  eq(types(checkReading({ value: 250, date: '2026-02-10', today, typical: null, ...n })), [], 'Nachtrag dazwischen: keine Rückfrage');
+  const swap = neighbours(list, { devices: [{ installed_on: '2020-01-01' }, { installed_on: '2026-02-20' }] }, '2026-02-10');
+  eq([swap.deviceChanged, swap.nextDeviceChanged], [false, true], 'Tausch zwischen Datum und nächstem Stand');
+  eq(neighbours(list, null, '2027-01-01').next, null, 'geplante Stände sind kein nächster Stand');
+}
+
+// ── v3.12.0 (F1037) — gemeinsame Probe mit ReadingService::plausibilityIssues (Vorschlag über MCP) ──
+const shared = JSON.parse(readFileSync(new URL('./fixtures/reading-plausibility.json', import.meta.url), 'utf8'));
+for (const c of shared.cases) {
+  eq(types(checkReading({ value: c.value, date: c.date, today: '2099-12-31', prev: c.prev, typical: c.typical, deviceChanged: c.deviceChanged,
+    next: c.next ?? null, nextDeviceChanged: !!c.nextDeviceChanged })),
+    c.expect, `gemeinsame Probe: ${c.name}`);
+}
+eq(shared.cases.length >= 10, true, 'gemeinsame Probe hat Fälle');
 
 console.log(`plausibility.test: ${passed} bestanden, ${failed} fehlgeschlagen`);
 process.exit(failed ? 1 : 0);

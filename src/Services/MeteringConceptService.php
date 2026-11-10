@@ -110,6 +110,7 @@ final class MeteringConceptService
     /** Eingabe prüfen und vereinheitlichen. @return array<string,mixed> */
     public function normalize(array $in): array
     {
+        \Energietracker\Support\Input::assertTexts($in, ['concept', 'tou']);   // v3.12.0 — Liste statt Text: 400
         $concept = (string)($in['concept'] ?? '');
         if (!in_array($concept, self::CONCEPTS, true)) throw new LocalizedException('errors.concept.field', ['field' => 'concept'], 'concept');
         $device = $in['device'] ?? null;
@@ -128,6 +129,7 @@ final class MeteringConceptService
         $s['slots'] = [];
         foreach ($slots as $key => $def) {
             $raw = is_array($in['slots'][$key] ?? null) ? $in['slots'][$key] : [];
+            \Energietracker\Support\Input::assertTexts($raw, ['name', 'serial', 'installed_on']);
             $name = trim((string)($raw['name'] ?? ''));
             $ids = [];
             foreach (array_keys($def['registers']) as $r) {
@@ -146,7 +148,7 @@ final class MeteringConceptService
             }
             // v3.9.0 (Skeptiker M11) — Einbaudatum und Stand beim Einbau eines neuen Zählers (bis dahin „heute“ und 0)
             $installed = trim((string)($raw['installed_on'] ?? ''));
-            if ($installed !== '' && !Dates::isIsoDate($installed)) throw new LocalizedException('errors.concept.field', ['field' => 'installed_on'], 'concept installed');
+            if ($installed !== '' && !Dates::isInputDate($installed)) throw new LocalizedException('errors.concept.field', ['field' => 'installed_on'], 'concept installed');
             // Stand beim Einbau je Zählwerk: {ht, nt} bzw. eine Zahl für das eine Zählwerk (R2-1: HT und NT
             // haben verschiedene Stände, eine Zahl für beide wäre falsch)
             $rawInit = $raw['initial_counter'] ?? null;
@@ -169,6 +171,7 @@ final class MeteringConceptService
         foreach ($s['slots'] as $key => $slot) {
             $c = $slot['contract'] !== null && is_array($in['contracts'][$slot['contract']] ?? null) ? $in['contracts'][$slot['contract']] : null;
             if ($c === null) continue;
+            \Energietracker\Support\Input::assertTexts($c, ['provider', 'start']);
             $num = function (string $f) use ($c): ?float {
                 $v = $c[$f] ?? null;
                 if ($v === null || $v === '') return null;
@@ -179,7 +182,7 @@ final class MeteringConceptService
             $entry = ['provider' => mb_substr(trim((string)($c['provider'] ?? '')), 0, 80), 'start' => $start,
                       'ct' => $num('ct'), 'ct_nt' => $num('ct_nt'), 'base' => $num('base'), 'advance' => $num('advance')];
             if ($entry['provider'] === '' && $entry['ct'] === null) continue;   // nichts eingetragen: später
-            if (!Dates::isIsoDate($start)) throw new LocalizedException('errors.concept.field', ['field' => 'start'], 'concept start');
+            if (!Dates::isInputDate($start)) throw new LocalizedException('errors.concept.field', ['field' => 'start'], 'concept start');
             if ($entry['ct'] === null) throw new LocalizedException('errors.concept.field', ['field' => 'ct'], 'concept price');
             $s['contracts'][$key] = $entry;
         }

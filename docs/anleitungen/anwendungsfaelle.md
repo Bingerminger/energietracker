@@ -25,7 +25,7 @@ siehe zuerst [Erste Schritte](../einstieg/erste-schritte.md).
 Vier Haushalte gibt es fertig eingerichtet, mit erfundenen Daten. So lädst du
 einen:
 
-1. Einstellungen → Allgemein → **„Einrichtungsassistent starten“**.
+1. Einstellungen → Für dich → **„Einrichtungsassistent starten“**.
 2. Bei „Wer bist du?“ den Haushalt wählen: „Ich wohne zur Miete“,
    „Eigentumswohnung mit Fernwärme“, „Eigenheim mit Gas, Öl oder Pellets“ oder
    „Eigenheim mit Wärmepumpe und PV“. „Erst einmal alles ansehen“ lädt den
@@ -33,12 +33,12 @@ einen:
 3. Am Ende **„Mit Beispieldaten ansehen“** wählen.
 
 Das ersetzt **alle** Daten dieser Installation. Vorher legt die App einen
-Snapshot an; unter Einstellungen → Daten spielst du ihn wieder ein. Sind
+Snapshot an; unter Einstellungen → Daten und Sicherung spielst du ihn wieder ein. Sind
 Benutzer eingerichtet, darf das nur ein Verwalter.
 
 In der [öffentlichen Demo](https://bingerminger.github.io/energietracker/)
 fragt der Assistent beim ersten Aufruf von selbst, welchen Haushalt du sehen
-willst. Einen anderen wählst du dort ebenso über Einstellungen → Allgemein →
+willst. Einen anderen wählst du dort ebenso über Einstellungen → Für dich →
 Einrichtungsassistent. Mehr: [Einrichtung](../einstieg/einrichtung.md).
 
 ---
@@ -91,7 +91,7 @@ Niemand will mehr Werte abtippen.
 
 **Einrichtung.**
 
-1. In **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** einen
+1. In **Verbindungen → Home Assistant** einen
    **API-Token** erzeugen (einmalig kopieren).
 2. Jedem Zähler einen **Alias** geben: `strom_haus`, `gas_haus`, `wasser_haus`.
 3. In HA das fertige `rest_command`-YAML (aus den Einstellungen kopierbar)
@@ -137,7 +137,7 @@ Einspeisevergütung **und** der separate Stromverbrauch der Wärmepumpe.
 
 **Einrichtung.**
 
-1. In **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
+1. In **Haushalt → Verbrauchsarten → Aktive
    Verbrauchsarten** `pv_einspeisung` und `pv_erzeugung` aktivieren.
 2. Zähler anlegen:
    - `strom` *„Hausanschluss"* (Netzbezug),
@@ -164,7 +164,7 @@ Einspeisevergütung **und** der separate Stromverbrauch der Wärmepumpe.
   2.500 kWh Strom, JAZ 3,6 (erfundenes Beispiel;
   [Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
 - **Speicher.** Lade- und Entladezähler unter PV-Erzeugung (Rollen „Speicher –
-  Ladung“ und „Speicher – Entladung“) ergeben Verluste, Wirkungsgrad und
+  Ladung“ und „Speicher (Entladung)“) ergeben Verluste, Wirkungsgrad und
   Vollzyklen ([PV §7](../verstehen/12-pv.md#7-speicher-v310)).
 - **Amortisation.** Investition und Inbetriebnahme am Wechselrichter-Zähler
   zeigen, wann sich die Anlage bezahlt gemacht hat
@@ -214,7 +214,7 @@ spätere Nebenkostenabrechnung vorbereiten.
 **Was passiert.** Unter **Verbrauch → Strom** bzw. **Wasser** zeigt die Auswahl
 oben jeden Zähler mit Verbrauch, Kosten und Saldo seines Vertrags; die
 Übersicht zeigt die Summe je Verbrauchsart. Der CSV-Export der Zählerstände
-(Einstellungen → Daten) trägt je Zeile den Zähler — daraus lässt sich die
+(Einstellungen → Daten und Sicherung) trägt je Zeile den Zähler — daraus lässt sich die
 Einheit herausfiltern. Die Monatsübersicht exportiert die Summe je
 Verbrauchsart, nicht je Einheit.
 
@@ -284,7 +284,7 @@ sondern im Vertrag — wer schickt dir die Rechnung?
 **Die Faustregel:** Hast du selbst einen Vertrag mit dem Wärmeversorger, lege
 **Fernwärme** an. Sonst ist es **Heizwärme**. Das gilt auch, wenn dein Mietshaus
 am Fernwärmenetz hängt: Den Vertrag hat der Vermieter, für dich ist es
-Heizwärme. Unter Einstellungen → Haushalt & Gebäude → „Heizwärme kommt aus“
+Heizwärme. Unter Haushalt → Gebäude → „Heizwärme kommt aus“
 wählst du dann „Fernwärme“ — das zählt nur für die CO₂-Näherung
 ([Heizwärme §5](../verstehen/15-waerme.md#5-co₂--eine-näherung)). Ebenso in
 einer Eigentumswohnung, in der die Gemeinschaft den Vertrag hat und die Wärme
@@ -580,7 +580,7 @@ Vertrag wird abgezogen.
 
 <!-- doc-claim: concept-wizard (metering-concepts.test.mjs) -->
 Am schnellsten mit dem Assistenten **Messkonzept einrichten** *(v3.9.0)*: unter
-**Zähler** von Strom oder unter **Einstellungen → Verbrauchsarten & Abrechnung →
+**Zähler** von Strom oder unter **Haushalt → Verbrauchsarten →
 Messkonzept**. Antworten: PV-Anlage, „Wärmepumpe mit Wärmepumpentarif“, HT/NT
 „Ja, an jedem Bezugszähler“, Aufbau **Kaskade**. Er legt die Zähler je Zählwerk
 mit OBIS-Kennzahl an, dazu beide Gruppen, die Einspeisung, die PV-Erzeugung und
@@ -589,7 +589,7 @@ anzulegen. Seit v3.10.0 legt er auch das Einspeisezählwerk von Z2 an und gibt
 der PV-Erzeugung (Z3) die Kennzahl 2.8.0; das Schaltbild zeigt die PV-Anlage
 hinter Z2. Vorher sichert die App den Stand als Snapshot. Von Hand geht es so:
 
-1. Unter **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
+1. Unter **Haushalt → Verbrauchsarten → Aktive
    Verbrauchsarten** Strom, PV-Einspeisung und PV-Erzeugung aktivieren.
 2. Je **Zählwerk** einen Stromzähler anlegen:
    - „Z1 Bezug HT“ und „Z1 Bezug NT“, Rolle „Wärmepumpe (Heizstrom)“,

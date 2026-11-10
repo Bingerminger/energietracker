@@ -27,7 +27,7 @@ samt PDF auf und trägt die Fristen in den Kalender ein.
 
 ## 1. Wohnverhältnis einstellen
 
-**Einstellungen → Haushalt & Gebäude → „Wohnen und Warmwasser“ → „Ich wohne“:
+**Haushalt → Gebäude → „Wohnen und Warmwasser“ → „Ich wohne“:
 „zur Miete“.**
 
 Danach steht unter **Kosten & Verträge** die Seite **„Mietverhältnis“**, und
@@ -46,7 +46,7 @@ In derselben Gruppe:
 
 ## 2. Heizwärme einschalten
 
-**Einstellungen → Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten →
+**Haushalt → Verbrauchsarten → Aktive Verbrauchsarten →
 Heizwärme** anhaken.
 
 Heizwärme ist die Wärme, die in deiner Wohnung ankommt — nicht der Brennstoff
@@ -57,7 +57,7 @@ Mietverhältnis. Hintergrund: [Heizwärme](../verstehen/15-waerme.md).
 
 ## 3. Einen Zähler für die Verbrauchsinfo anlegen
 
-**Verbrauch → Heizwärme → Zähler → „+ Neuer Zähler“:**
+**Haushalt → Zähler → Heizwärme → „+ Neuer Zähler“:**
 
 - **Name:** frei, etwa „Heizung Wohnung“.
 - **Rolle:** „Verbrauch der Wohnung“ (Standard).
@@ -80,7 +80,7 @@ Der Zähler hat dort eine eigene Karte:
 
 Ohne Netz landet der Eintrag in der Warteschlange und wird nachgeholt.
 
-**Ältere Monate auf einmal:** Verbrauch → Heizwärme → Zähler → **CSV-Import**,
+**Ältere Monate auf einmal:** Haushalt → Zähler → Heizwärme → **CSV-Import**,
 je Zeile Monat und Verbrauch:
 
 ```text
@@ -102,7 +102,7 @@ der Tabelle **„Zeiträume“**.
 ## 4. Warm- und Kaltwasser
 
 In den meisten Mietwohnungen hängen ein Kalt- und ein Warmwasserzähler
-nebeneinander. Lege unter **Verbrauch → Wasser → Zähler** für jeden einen Zähler
+nebeneinander. Lege unter **Haushalt → Zähler → Wasser** für jeden einen Zähler
 an:
 
 | Zähler | Rolle | Elternzähler |
@@ -135,7 +135,7 @@ die Nebenkosten.
 |---|---|
 | Bezeichnung | frei, etwa „Wohnung“ — erscheint in den Fristen im Kalender |
 | Vermieter oder Verwaltung | freiwillig |
-| Wohnfläche laut Mietvertrag (m²) | *(v3.1.0)* die Fläche aus dem Mietvertrag; leer gilt die Wohnfläche aus Einstellungen → Haushalt & Gebäude. Grundlage der CO₂-Stufe |
+| Wohnfläche laut Mietvertrag (m²) | *(v3.1.0)* die Fläche aus dem Mietvertrag; leer gilt die Wohnfläche aus Haushalt → Gebäude. Grundlage der CO₂-Stufe |
 | Beginn / Ende | Einzug; Ende leer lassen, solange es läuft |
 | Abrechnungszeitraum beginnt am (TT.MM.) | Erster Tag des Abrechnungszeitraums laut Abrechnung, etwa `01.01.` beim Kalenderjahr oder `01.07.` |
 | Vorauszahlungen | je Zeile: **Ab**, „Heizung € je Monat“, „Betriebskosten € je Monat“. Ändert sich die Vorauszahlung, eine neue Zeile mit dem neuen Datum — die alte bleibt für die Vergangenheit. |

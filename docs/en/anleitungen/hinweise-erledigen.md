@@ -30,7 +30,7 @@ anything off.
 
 **Follow-on contract with a gap.** If the new contract starts later, the
 reminder stays — and names the gap: “The follow-on contract … only starts on
-… – 1 day without a contract in between.”
+… That leaves 1 day without a contract.”
 
 **Contracts that renew or have no end** can be cancelled at any time. Up to
 v3.3 they produced a new “last day to cancel” in the calendar every day — no
@@ -46,7 +46,7 @@ day — only when the notice was open.
 ## 2. Ticking off by hand
 
 **Where:** on the **overview under “To do”** (tick ✓ to the right of the row)
-and under **Reminders & tips → Reminders & maintenance** (✓ in the row).
+and under **To do → Dates** (✓ in the row).
 
 A small dialog asks for:
 
@@ -83,7 +83,7 @@ until …”. Up to v3.3 “Cancel by 30/11” came back on 11/11.
 
 ---
 
-## 3. The history: Reminders & tips → Done
+## 3. The history: To do → History
 
 The **“Done”** tab under Reminders & tips (from the “Experienced” level) shows everything
 that was done, by month, newest first:
@@ -109,8 +109,8 @@ that was done, by month, newest first:
   ([section 10](#10-history-as-csv-v350)).
 
 **On the object:** under Costs & contracts → Contracts & payments a
-contract with entries has the button **“History (n)”**. Under Reminders &
-maintenance every reminder shows “Last done on … by …”.
+contract with entries has the button **“History (n)”**. Under To do →
+Dates every reminder shows “Last done on … by …”.
 
 ---
 
@@ -138,12 +138,12 @@ their name shows with **“(deleted)”** *(v3.6.0)*. Rights:
 
 ## 5. Retention, clearing, privacy
 
-**Retention:** 60 months (five years), adjustable under Reminders & tips → Done →
+**Retention:** 60 months (five years), adjustable under To do → History →
 **“Manage history”** (admins only, setting `activity_keep_months`, `0` =
 unlimited). Older entries drop out with the next entry.
 
 **Clearing:** in the same window — all entries done before a day, or all of
-them without a date. Deleted is deleted; a snapshot under Settings → Data gives
+them without a date. Deleted is deleted; a snapshot under Settings → Data and backup gives
 you a way back.
 
 **Names in the backup.** The history is part of the backup (pot `activity`).
@@ -153,7 +153,7 @@ backup; the register of people (number, name, role, deletion note) has been
 part of it since v3.6.0 (pot `people`). A backup without a history (from a
 version before 3.4) leaves the existing history unchanged.
 
-**Deleting a person:** under Settings → Access → “Users and roles”,
+**Deleting a person:** under Settings → Access and security → “Users and roles”,
 “Delete person” asks whether to replace the name in the history with
 **“former member”**. The default is no — the history then keeps the name,
 since v3.6.0 with **“(deleted)”**
@@ -203,7 +203,7 @@ events carry `assignee_source`. Fields, status codes and stability:
 
 ## 8. Responsible for reminders *(v3.5.0)*
 
-A reminder under **Reminders & tips → Reminders & maintenance** can have a
+A reminder under **To do → Dates** can have a
 responsible person — who books the boiler service, who checks the smoke
 alarm. Since v3.7.0 meters and contracts too; their deadlines then go to that
 person ([below](#meters-and-contracts-v370)). **Nobody is notified**; the
@@ -252,7 +252,7 @@ not a person: open reminders then stay with the deleted person, marked
 A meter and a contract can have a responsible person too — their deadlines
 then go to that person. It is chosen in the meter or contract form under
 **“Responsible”**, from the register of people only (no free names);
-**“– nobody –”** means nobody. The meter and contract cards show the person.
+**“Nobody”** means no one is responsible. The meter and contract cards show the person.
 
 **Who is responsible for a deadline** — the first entry that exists applies:
 
@@ -306,7 +306,7 @@ recording section unfolded.
 
 | Case | expected period |
 |---|---|
-| running (also renewed) contract | the last completed period after the billing anchor of the utility (Settings → Utilities, default 1 January), from the contract start |
+| running (also renewed) contract | the last completed period after the billing anchor of the utility (Household → Utilities, default 1 January), from the contract start |
 | ended contract | **final bill** from the last anchor date to the contract end; a renewed contract ends the day before the follow-on contract |
 | follow-on contract with the **same supplier** without a gap | no final bill — supply does not end |
 
@@ -314,7 +314,7 @@ recording section unfolded.
 
 | Utility | statutory deadline | in the app |
 |---|---|---|
-| Electricity, gas (Germany) | bill no later than **six weeks** after the end of the billing period, final bill six weeks after supply ends (§ 40c(2) EnWG); the billing period is at most one year (§ 40b(1) EnWG) | after the end + 42 days **“overdue — statutory deadline passed, ask the supplier”**, red under “To do” |
+| Electricity, gas (Germany) | bill no later than **six weeks** after the end of the billing period, final bill six weeks after supply ends (§ 40c(2) EnWG); the billing period is at most one year (§ 40b(1) EnWG) | after the end + 42 days **“overdue … The statutory deadline has passed, please ask the supplier”**, red under “To do” |
 | District heating | none — billing “at least once a year” (§ 4(3) FFVAV, via § 24(1) AVBFernwärmeV) | “expected” only, never “overdue” |
 | Water | none (§ 24(1) AVBWasserV; municipal charges under state law, § 35(1) AVBWasserV) | “expected” only, never “overdue” |
 | other countries | not stored in the app | “expected” only |
@@ -355,7 +355,7 @@ bill, tick it off (“arrived without being recorded”) — undo as usual.
 
 ## 10. History as CSV *(v3.5.0)*
 
-Under **Reminders & tips → Done**, **“As CSV”** downloads the history as a
+Under **To do → History**, **“As CSV”** downloads the history as a
 spreadsheet — with exactly the chosen filters (person, period, area).
 Columns: **date, action, title, by, reason, note**. Title, action and reason
 are in the language of the interface, date and separators as in the other CSV

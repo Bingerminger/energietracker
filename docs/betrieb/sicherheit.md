@@ -50,17 +50,29 @@ Geräten im Netz** — dafür ist die Anmeldung da.
 
 ## 3. Anmeldung einschalten
 
-**In der App:** Einstellungen → Zugriff → „Anmeldung & Zugriff" → Passwort
+**In der App:** Einstellungen → Zugang und Sicherheit → „Anmeldung & Zugriff" → Passwort
 (mindestens 8 Zeichen) zweimal eingeben → „Anmeldung einschalten". Dieser
 Browser bleibt angemeldet; jeder andere fragt einmal nach dem Passwort und
 bleibt dann angemeldet — seit v3.4.0 **30 Tage ab der letzten Nutzung**
 (gleitend; bis v3.3 30 Tage ab der Anmeldung). Abmelden geht über den Knopf
-in der Kopfleiste. Abmelden löscht das Cookie dieses Browsers und die
-gespeicherten Antworten der App in seinem Cache (seit v3.4.0 wieder
-vollständig; v3.1 bis v3.3 ließen sie liegen).
+in der Kopfleiste.
 
-**Überall abmelden** *(v3.4.0)*: Einstellungen → Allgemein → „Mein Konto“
-bzw. Einstellungen → Zugriff. Alle Sitzungen dieser Person enden auf jedem
+<!-- doc-claim: logout-clears-cache (AttachmentCacheTest) -->
+**Abmelden löscht, was dieser Browser von der App aufbewahrt:**
+
+- **das Cookie** der Sitzung;
+- **die gespeicherten Antworten** der App für den Betrieb ohne Netz (seit
+  v3.4.0 wieder vollständig; v3.1 bis v3.3 ließen sie liegen);
+- **den Zwischenspeicher des Browsers** für diese Adresse *(v3.12.0)*: Die
+  Abmelde-Antwort trägt `Clear-Site-Data: "cache"`. Browser beachten das nur
+  über HTTPS und auf `localhost`.
+- **Belege** (Fotos, Rechnungen) kommen seit v3.12.0 mit
+  `Cache-Control: private, no-cache`: Der Browser fragt vor jeder Anzeige beim
+  Server nach. Nach dem Abmelden antwortet der Server `401`, der Beleg bleibt
+  verborgen, **auch ohne HTTPS**.
+
+**Überall abmelden** *(v3.4.0)*: Einstellungen → Für dich → „Mein Konto“
+bzw. Einstellungen → Zugang und Sicherheit. Alle Sitzungen dieser Person enden auf jedem
 Gerät, auch auf diesem — etwa nach einem verlorenen Handy oder wenn jemand
 das Cookie kopiert haben könnte. API-Schlüssel und der Home-Assistant-Token
 bleiben gültig; die widerruft man einzeln.
@@ -114,7 +126,7 @@ Der **Token** schützt ausschließlich den Push-Endpunkt `/api/ingest` — nicht
 den Rest der API. Ohne Anmeldung ist er freiwillig; mit Anmeldung ist er
 Pflicht. Einrichtung: [Home Assistant](../anleitungen/home-assistant.md).
 
-- Einstellungen → Integrationen → „Home-Assistant-Anbindung" zeigt, wann
+- Verbindungen → Home Assistant zeigt, wann
   zuletzt ein Wert mit dem Token ankam (auf die Stunde genau) — die erste
   Frage bei der Fehlersuche.
 - Ein neuer Token macht den alten sofort ungültig — den neuen dann in Home
@@ -132,7 +144,7 @@ Pflicht. Einrichtung: [Home Assistant](../anleitungen/home-assistant.md).
 ## 5. API-Schlüssel für Skripte
 
 Mit eingeschalteter Anmeldung brauchen Skripte und andere Programme einen
-Schlüssel: Einstellungen → Zugriff → „Anmeldung & Zugriff" → „API-Schlüssel
+Schlüssel: Verbindungen → Schlüssel → „API-Schlüssel
 für Skripte". Der Schlüssel (`etk_…`) wird **einmal** angezeigt; gespeichert
 ist nur sein Hash.
 
@@ -142,13 +154,17 @@ ist nur sein Hash.
 | Verwalten (`admin`) | alles, auch ändern und löschen — z. B. für ein Backup-Skript, das auch einspielt |
 | Kalender (`calendar`, seit v3.1.0) | nur das Kalender-Abo `GET /api/calendar.ics`, und nur als `?token=…` im Link |
 | nur Posteingang (`inbox`, seit v3.7.0) | nur ein PDF in den Posteingang legen (`POST /api/inbox`) — für den [Kurzbefehl](../anleitungen/posteingang.md#per-kurzbefehl-vom-iphone-oder-ipad) und die [E-Mail über Home Assistant](../anleitungen/posteingang.md#per-e-mail-über-home-assistant); jede andere Route `401` |
+| KI lesen (`mcp`, seit v3.12.0) | nur die KI-Schnittstelle `POST /api/mcp`, lesend ([KI-Assistent anbinden](../anleitungen/ki-assistent.md)) |
+| KI lesen und vorschlagen (`mcp_write`, seit v3.12.0) | dazu Vorschläge anlegen und übernehmen sowie ein PDF in den Posteingang legen (`POST /api/inbox`) |
 
 ```bash
 curl -H "Authorization: Bearer etk_…" https://energie.example.org/api.php/api/backup/export > backup.json
 ```
 
-Die Liste zeigt je Schlüssel, wann er zuletzt benutzt wurde. Nicht mehr
-gebrauchte Schlüssel widerrufen.
+Die Liste zeigt je Schlüssel, wann er zuletzt benutzt wurde. **Seit v3.12.0
+zählt nur eine Anfrage, die die App mit dem Schlüssel angenommen hat**; ein
+abgewiesener Versuch (falscher Bereich, falsche Route) ändert den Wert nicht.
+Nicht mehr gebrauchte Schlüssel widerrufen.
 
 **Kalender-Schlüssel.** Kalender-Apps können keine Kopfzeile senden; der
 Schlüssel steht deshalb im Link und landet damit in Kalender-Synchronisationen
@@ -157,13 +173,38 @@ und Protokollen. Darum ist er eng gefasst:
 - Er gilt nur für `/api/calendar.ics` und nur als `?token=…`. Auf jeder
   anderen Route, auch als `Authorization`-Kopfzeile, antwortet die App mit
   `401`.
+- **Im Protokoll der App und im Zugriffsprotokoll des Images steht er nicht**
+  *(v3.12.0)*, siehe [§ 10](#10-protokoll-und-fehlersuche). Für einen eigenen
+  Webserver gilt der Hinweis dort.
 - Ein `read`- oder `admin`-Schlüssel im Link wird abgewiesen (`401`) — sonst
   stünde ein Schlüssel mit Lesezugriff auf alles in jeder Kalender-App.
-- Die App legt den Schlüssel an, wenn du unter Hinweise → Termine & Wartung
+- Die App legt den Schlüssel an, wenn du unter Zu tun → Termine
   „Im Kalender abonnieren“ wählst und die Rückfrage mit „Link erzeugen“
-  bestätigst — nicht schon beim Öffnen. Widerrufen unter Einstellungen → Zugriff; der
+  bestätigst — nicht schon beim Öffnen. Widerrufen unter Verbindungen → Schlüssel; der
   Kalender bekommt danach nichts mehr. Einrichtung:
   [Kalender abonnieren](../anleitungen/kalender.md).
+
+### KI-Schlüssel und die KI-Schnittstelle *(v3.12.0)*
+
+Ein KI-Assistent (etwa in VS Code, Cursor, LM Studio oder Open WebUI) liest
+über `/api/mcp` mit, wenn ein Verwalter die Schnittstelle einschaltet
+(Verbindungen → KI-Assistenten). Ab Werk ist sie aus;
+`ET_MCP=off` sperrt sie fest. Für sie gelten eigene Regeln
+([API, KI-Schnittstelle](../referenz/api.md#ki-schnittstelle-mcp-v3120)):
+
+| Schutz | Wirkung |
+|---|---|
+| Eigener Schlüssel, immer | Bereich `mcp` (lesen) oder `mcp_write` (lesen und vorschlagen), nur in der Kopfzeile `Authorization`, auch ohne Anmeldung und im Proxy-Modus. Ein `read`- oder `admin`-Schlüssel gilt dort nicht, ein KI-Schlüssel nirgends sonst (außer `mcp_write` zum Ablegen im Posteingang). |
+| Kein Zugriff aus dem Browser | Eine Anfrage mit fremdem `Origin` bekommt `403`. Es gibt keine Erlaubnisliste und kein CORS; KI-Programme senden keinen `Origin`. |
+| Ratenbegrenzung | Je Schlüssel höchstens 120 Anfragen je Minute, 60 Aufrufe lesender Werkzeuge je Minute, je 30 Vorschläge und 30 Übernahmen je Stunde; darüber `429` mit `Retry-After`. Die Grenzen sind fest. |
+| Falsche Schlüssel | Nach 20 unbekannten Schlüsseln innerhalb von 10 Minuten ist die Adresse für 5 Minuten gesperrt (`429`), auch für gültige Schlüssel. Hinter einem Reverse-Proxy zählt die Adresse aus `X-Forwarded-For` nur mit `ET_TRUSTED_PROXIES`; sonst teilen sich alle Geräte hinter dem Proxy eine Sperre. |
+| Zugriffsprotokoll | Jede Anfrage steht mit Zeit, Schlüssel, Client, Werkzeug und Ergebnis in `data/mcp/journal.jsonl`, ohne Argumente, Inhalte oder Schlüssel. Verwalter sehen es unter Verbindungen → KI-Assistenten (`GET /api/mcp/journal`). Einträge älter als 90 Tage fallen weg, die Datei wechselt ab 1 MB. Nicht im Backup. |
+| Fremdtext | Namen, Notizen und Zitate aus Dokumenten stehen in den Antworten nur bereinigt im Feld `untrusted` (ohne Steuerzeichen und Rollenmarken), nie in Beschreibungen oder Anweisungen an die KI. |
+| Keine Geheimnisse | Passwörter, Schlüssel, Token, Netzadressen aus den Einstellungen und Einträge anderer Schlüssel gibt die Schnittstelle nie heraus. |
+
+Wer die Schnittstelle nicht braucht, lässt sie aus. Einen KI-Schlüssel, den
+niemand mehr nutzt, widerrufen; das Protokoll zeigt, wann er zuletzt gefragt
+hat.
 
 ## 6. Anmeldung über einen vorgeschalteten Proxy
 
@@ -240,11 +281,11 @@ Browser „dieselbe Seite". Mit gesetzter Liste beantwortet die App nur
 bekannte Hostnamen, alle anderen mit `421`. Zwei Wege, beide gelten
 zusammen:
 
-- **In der App** *(v3.4.0)*: Einstellungen → Zugriff → „Hostnamen“ (nur
+- **In der App** *(v3.4.0)*: Einstellungen → Zugang und Sicherheit → „Hostnamen“ (nur
   Verwalter, Einstellung `allowed_hosts`). Für Apache und die Synology, die
   keine Umgebungsvariablen kennen. Beim Speichern muss der Name dabei sein,
   unter dem du die App gerade aufrufst — sonst lehnt die App ab, statt dich
-  auszusperren. Der Sicherheits-Check (Einstellungen → Zugriff) meldet den
+  auszusperren. Der Sicherheits-Check (Einstellungen → Zugang und Sicherheit) meldet den
   offenen Betrieb ohne Hostliste und bietet an, den aktuellen Namen zu
   übernehmen.
 - **Über die Umgebung:**
@@ -261,7 +302,7 @@ die Liste ist die zweite Linie für den offenen Betrieb.
 **Einbetten:** Fremde Seiten dürfen die App nicht in einem Rahmen anzeigen —
 sonst ließen sich Klicks auf „Demo-Daten laden" oder „Token erzeugen"
 unterschieben. Für eine Webseiten-Karte im Home-Assistant-Dashboard dessen
-Adresse eintragen: Einstellungen → Zugriff → „Einbetten", oder
+Adresse eintragen: Einstellungen → Zugang und Sicherheit → „Einbetten", oder
 `ET_FRAME_ANCESTORS=http://homeassistant.local:8123`. Erlaubt sind Ursprünge
 (Schema, Host, optional Port, auch `*.domain`), mehrere durch Leerzeichen
 getrennt.
@@ -288,9 +329,10 @@ getrennt.
 - **Entwicklungsserver:** immer mit Router starten —
   `php -S 127.0.0.1:8080 router.php`. Ohne `router.php` liefert der
   PHP-Server jede Datei aus, auch `data/`. Nie auf `0.0.0.0` für andere
-  freigeben.
+  freigeben. Ein Null-Byte in der Adresse (`%00`) beantwortet `router.php`
+  seit v3.12.0 mit `404`, statt eine Fehlerausgabe mit Pfad zu zeigen.
 
-**Selbsttest in der App** *(v3.4.0)*: Einstellungen → Zugriff (und System)
+**Selbsttest in der App** *(v3.4.0)*: Einstellungen → Zugang und Sicherheit
 → „Sicherheits-Check“. Der Browser fragt dort selbst nach `data/meta.json`;
 liefert der Webserver die Datei aus, steht der Punkt rot da — dann wirken die
 Regeln nicht (`AllowOverride` zu eng oder keines der beiden Module aktiv).
@@ -314,7 +356,10 @@ Webserver gesperrt wie der Rest von `data/`. Heraus kommen sie nur über
   HTML, die Skripte tragen könnten, lehnt die App ab.
 - Ausgeliefert wird mit dem gespeicherten Typ und
   `X-Content-Type-Options: nosniff` — der Browser rät nicht, was die Datei
-  sein könnte.
+  sein könnte. Seit v3.12.0 setzt das Image `nosniff` auch für alle
+  statischen Dateien.
+- Seit v3.12.0 mit `Cache-Control: private, no-cache` und `ETag`: kein Beleg
+  bleibt nach dem Abmelden im Browser ([§ 3](#3-anmeldung-einschalten)).
 - Ein PDF kommt mit `Content-Security-Policy: sandbox`: Es läuft ohne Skripte
   und ohne Zugriff auf die App.
 - Grenzen: Foto 3 MB, PDF 10 MB, alle zusammen `attachments_max_mb`.
@@ -345,13 +390,35 @@ neue Versionen (GitHub, *v3.6.0*) nur über HTTPS, auch nach einer Weiterleitung
 höchstens zwei Weiterleitungen; Texterkennung und evcc im Heimnetz ohne
 Weiterleitung; das Auslesen in der Cloud (nur eingeschaltet, *v3.7.0*) nur über
 HTTPS und ohne Weiterleitung. Jede Antwort höchstens 20 MB — eine größere bricht
-die App ab, statt sie in den Speicher zu laden.
+die App ab, statt sie in den Speicher zu laden. **Den Hinweis auf neue Versionen,
+den Standort und den Wetterabgleich ändern mit Anmeldung nur Verwalter**
+*(v3.12.0)*, wie die übrigen Adressen im Netz.
+
+**Eine Regel für eingetragene Adressen** *(v3.12.0)*. Eine IPv4 lässt sich in
+IPv6 auf mehrere Arten schreiben: `::ffff:…` mit Punkten oder hexadezimal,
+gekürzt oder ausgeschrieben, `::a.b.c.d`, NAT64 (`64:ff9b::/96`) und 6to4
+(`2002::/16`). **Alle drei Wege mit einer eingetragenen Adresse prüfen sie an
+einer Stelle**, verglichen wird an der Adresse selbst, nicht an ihrer
+Schreibweise:
+
+| Weg | Erlaubt | Eingebettete IPv4 |
+|---|---|---|
+| Texterkennung, evcc | nur Heimnetz | zählt nur als `::ffff:…`, damit verbindet das eigene System über IPv4. NAT64, 6to4 und `::a.b.c.d` laufen über fremde Übersetzer und sind **nie Heimnetz**. |
+| Benachrichtigungen an Home Assistant | alles außer Link-local, unspezifiziert (`0.0.0.0/8`, `::`) und Metadatendienst | **jede Form zählt wie die IPv4**; das lokale NAT64-Präfix `64:ff9b:1::/48` ist gesperrt |
+| Auslesen in der Cloud | nur öffentlich | `::ffff:…`, NAT64 und 6to4 zählen mit der IPv4; die veralteten Formen `::a.b.c.d` und `::ffff:0:a.b.c.d` sind **nie öffentlich** |
+
+<!-- doc-claim: metadata-blocked (MetadataAddressTest) -->
+**Metadatendienste sind auf allen drei Wegen gesperrt** *(v3.12.0)*, in jeder
+Schreibweise: `169.254.169.254` (ohnehin Link-local), `fd00:ec2::254` und
+`100.100.100.200`. Die letzte liegt in `100.64.0.0/10`, das sonst als Heimnetz
+zählt (CGNAT, Tailscale). **Gesperrt ist nur diese eine Adresse**, nicht das
+Netz.
 
 ### Auslesen in der Cloud *(v3.7.0)*
 
 Für den Posteingang kann ein Cloud-Dienst die Post vom Versorger auslesen. Das
 ist ein **Opt-in**: aus, bis es jemand einschaltet, der die Installation
-verwaltet (Einstellungen → Experte → Karte „Auslesen“ → „Cloud“). Ohne dieses
+verwaltet (Verbindungen → Post und Fotos auslesen → „Cloud“). Ohne dieses
 Opt-in verlässt kein Dokument das Heimnetz. Alle Cloud-Wege, auch Claude, sind
 **experimentell**: noch nicht mit echten Rückmeldungen geprüft; Karte und
 Rückfrage vor dem Auslesen sagen das. Einrichtung:
@@ -404,7 +471,8 @@ darf keine dort liegen.
 - Bei jedem Aufruf löst der Server den Namen auf, und **jede** Adresse muss
   öffentlich sein: kein privates Netz, kein Loopback, kein Link-local samt
   Metadatendienst, kein `100.64.0.0/10`, kein Multicast. IPv4 in IPv6
-  (`::ffff:…`, NAT64, 6to4) zählt mit der eingebetteten Adresse.
+  (`::ffff:…`, NAT64, 6to4) zählt mit der eingebetteten Adresse, die
+  veralteten Formen nie ([Eine Regel für eingetragene Adressen](#belege-und-texterkennung-v310)).
 - Verbunden wird mit genau der geprüften Adresse, ohne Proxy aus der Umgebung
   und ohne Weiterleitung. Die Antwort darf höchstens 20 MB groß sein.
 
@@ -460,6 +528,55 @@ legen nur ab — gelesen und übernommen wird wie oben.
   dieselben Prüfungen wie beim Hochladen. Die Zugangsdaten des Postfachs kennt
   nur Home Assistant.
 
+### KI-Assistenten (MCP) *(v3.12.0)*
+
+Die KI-Schnittstelle `POST /api/mcp` ist ab Werk aus; einschalten kann sie nur
+ein Verwalter, `ET_MCP=off` sperrt sie fest. Einrichtung:
+[KI-Assistent anbinden](../anleitungen/ki-assistent.md).
+
+- **Immer ein eigener Schlüssel** mit Bereich `mcp` (lesen) oder `mcp_write`
+  (lesen und vorschlagen), auch ohne Anmeldung und im Proxy-Modus. Er gilt nur
+  an `/api/mcp` (`mcp_write` dazu an `POST /api/inbox`); andere Schlüssel und
+  Sitzungen zählen dort nicht. Nie in der URL.
+- **Kein Browser:** Eine Anfrage mit fremdem `Origin` wird abgewiesen, CORS gibt
+  es nicht. KI-Programme senden keinen `Origin`.
+- **Schreiben nur zweistufig:** Ein Vorschlag schreibt nichts; übernommen wird
+  er nur mit Kennung und wörtlicher Zusammenfassung, binnen 15 Minuten, einmal,
+  mit demselben Schlüssel. Die Zusammenfassung baut der Server aus
+  Strukturdaten, nie aus Dokumenttext; sie nennt Beträge, Preise und Fristen.
+- **Bestätigung in der App (`mcp_apply_in_app`, ab Werk an):** `apply_proposal`
+  schreibt dann nichts; eine Person mit Verwalterrecht übernimmt in der Oberfläche,
+  CSRF wie jede Aktion dort, bis zu 24 Stunden. Übernehmen und Ablehnen nehmen keinen
+  Schlüssel an (`403`, auch ohne Anmeldung) und gelten nur aus der eigenen Oberfläche. Das
+  schützt gegen ein Skript mit dem Schlüssel, ein Programm auf „immer erlauben“ und
+  eingeschleuste Anweisungen in Dokumenten. **Ohne Anmeldung** kann aber jedes Programm im
+  Heimnetz die App bedienen und sich als Browser ausgeben, auch eine KI mit eigenem Netz-
+  oder Shell-Zugriff: **Dagegen hilft nur die Anmeldung.** Mit dem Schalter aus bleibt nur
+  die Bitte an das Programm (`requiresUserInteraction`); ob Programme sie beachten, ist
+  nicht geprüft.
+- **Fremdtext** (Namen, Notizen, Zitate) steht bereinigt und gekürzt nur im
+  Feld `untrusted`, nie in Beschreibungen, Anweisungen oder Zusammenfassungen.
+- **Was nie hinausgeht:** `data/auth.json` und jeder Schlüssel oder Hash,
+  Einstellungen mit Netzadressen, Personen und Rollen, Sicherungen, Protokolle,
+  Vorschläge anderer Schlüssel. Kennnummern und Original-PDFs nur mit
+  `mcp_share_identifiers` bzw. `mcp_share_documents` (ab Werk aus). Ohne den ersten
+  Schalter ersetzt die App Nummern, die sie kennt, auch in Zitaten, Textwerten, Dateinamen,
+  Anbieter, Tarif, Notizen, Namen und in Titel und Text von Hinweisen und Rechte-Befunden
+  *(v3.12.0)*. Anbieter und Tarif selbst gelten nicht als Kennnummer,
+  eine kurze Nummer ohne Bezeichnung erkennt die App nicht, und was die KI selbst aus einem
+  Original liest, kann sie nicht zurückhalten.
+- **Keine Werkzeuge** für Einstellungen, Personen, Schlüssel, Sicherungen oder
+  Löschen; kein Werkzeug ruft eine Adresse ab oder startet ein Auslesen in der
+  Cloud.
+- **Ratengrenzen** je Schlüssel und eine Sperre nach falschen Schlüsseln je
+  Adresse ([Grenzen](../anleitungen/ki-assistent.md#grenzen)). Vorschläge und
+  Protokoll liegen unter `data/mcp/`, nicht im Backup. Auch das Ablegen im Posteingang
+  mit dem KI-Schlüssel hat seinen Topf, eine kleinere Körpergrenze und eine Zeile im
+  Protokoll, und es geht nur bei eingeschalteter Schnittstelle.
+- **Aus dem Internet** nur über einen Reverse-Proxy mit HTTPS, der nur
+  `/api/mcp` durchlässt; OAuth bietet v3.12.0 nicht
+  ([Aus der Cloud](../anleitungen/ki-assistent.md#aus-der-cloud-nur-mit-eigenem-https-zugang)).
+
 ## 10. Protokoll und Fehlersuche
 
 - `ET_DEBUG=1` schreibt Datei, Zeile und Ausnahmetyp in Fehlerantworten —
@@ -472,6 +589,32 @@ legen nur ab — gelesen und übernommen wird wie oben.
 - Snapshots und Backups enthalten alle Nutzdaten. `data/auth.json` (Passwort-
   Hash, Token-Hashes, Schlüssel) ist **nicht** Teil des Backups — nach einem
   Umzug Anmeldung und Token neu einrichten.
+- **Keine Zugangsdaten im Protokoll** *(v3.12.0)*. Die App schreibt zu jeder
+  Meldung die Anfrage-URI mit, aber ohne die Werte von `token`, `key`,
+  `password`, `secret` und verwandten Parametern und ohne alles, was wie ein
+  Schlüssel der App aussieht (`etk_…`, `et_…`); dort steht `***`. Das
+  Zugriffsprotokoll von nginx im Image nennt nur den Pfad, eine Abfrage steht
+  als `?...` da.
+- **Eigener Webserver:** Das Standardformat von Apache (`combined`, `%r`) und
+  nginx (`$request`) schreibt die ganze Adresse samt `?token=…` des
+  Kalender-Abos ins Zugriffsprotokoll. Wer das Protokoll weitergibt, nimmt ein
+  Format ohne Abfrage: bei Apache `%m %U %H` statt `%r`, bei nginx das Format
+  `et_main` aus `docker/nginx.conf`.
+
+  ```apache
+  LogFormat "%h %l %u %t \"%m %U %H\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" et_ohne_abfrage
+  CustomLog ${APACHE_LOG_DIR}/access.log et_ohne_abfrage
+  ```
+
+- **Dateien mit Geheimnissen liest nur der Webserver** *(v3.12.0)*.
+  `auth.json` (Sitzungsgeheimnis, Passwort-, Token- und Schlüssel-Hashes),
+  `inbox_cloud_key.json` und `ha_notify_secret.json` schreibt die App mit den
+  Rechten `0600`; alle anderen Dateien bleiben `0644`. Ältere Installationen
+  stellt die App bei der nächsten Anfrage um. Wer das Datenverzeichnis vom Host
+  aus sichert, braucht dafür `root` oder den Benutzer des Webservers (Docker:
+  UID 82, ohne root: UID 10001, Synology: `http`). Wechselt die UID des
+  Containers, gehört der Ordner danach der neuen UID (`chown -R`), sonst kann
+  die App diese Dateien nicht mehr lesen und antwortet mit `503`.
 
 ## 11. Checkliste vor der Freigabe nach außen
 
@@ -480,7 +623,7 @@ legen nur ab — gelesen und übernommen wird wie oben.
 - [ ] Home Assistant mit Token, Rückkanal mit `read`-Schlüssel (§ 4)
 - [ ] Kalender-Abo nur mit Kalender-Schlüssel im Link (§ 5)
 - [ ] `data/` & Co. liefern `404` — der Sicherheits-Check zeigt es (§ 9)
-- [ ] Hostliste gesetzt: Einstellungen → Zugriff oder `ET_ALLOWED_HOSTS` (§ 8)
+- [ ] Hostliste gesetzt: Einstellungen → Zugang und Sicherheit oder `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` nicht gesetzt (§ 10)
 - [ ] Docker: gehärtet oder ohne root, Port nur auf `127.0.0.1` hinter dem Reverse-Proxy (§ 13)
 - [ ] Besser noch: VPN statt Freigabe (§ 1)

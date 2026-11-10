@@ -18,7 +18,7 @@ import { fmt, escapeHtml } from './format.js';
 export function duplicateHtml(pv) {
   const d = (pv?.duplicates || [])[0];
   if (!d) return '';
-  return `<div class="banner banner--warning" id="inbox-duplicate">${escapeHtml(t('inbox.duplicate.text', {
+  return `<div class="infobox infobox--achtung" id="inbox-duplicate">${escapeHtml(t('inbox.duplicate.text', {
     name: d.name || d.id, date: fmt.date(String(d.created_at || '').slice(0, 10)) }))}
     <a href="#/inbox/${escapeHtml(encodeURIComponent(d.id))}">${escapeHtml(t('inbox.duplicate.open'))}</a></div>`;
 }

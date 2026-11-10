@@ -9,13 +9,13 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 04.11.2026 · **Aktuelle Version:** v3.11.0
+**Stand:** 10.11.2026 · **Aktuelle Version:** v3.11.0
 
 ---
 
-## Jetzt in Arbeit: v3.12.0 — Energietracker für deine KI
+## Wird ausgeliefert: v3.12.0 — Energietracker für deine KI
 
-Erscheint, wenn es fertig und geprüft ist.
+Fertig und geprüft, erscheint in diesen Tagen.
 
 - **KI anschließen:** Ein KI-Assistent verbindet sich über MCP mit deinem Energietracker und liest Übersicht,
   Fristen, Verträge, Verbrauch, Prognose und „Rechnung prüfen“, jede Zahl mit ihrer Herkunft (gemessen,
@@ -26,6 +26,11 @@ Erscheint, wenn es fertig und geprüft ist.
   Schalter, jeder Zugriff im Protokoll.
 - **Home Assistant über HACS:** die Integration mit eigenen Sensoren, als benutzerdefiniertes Repository und
   mit Antrag auf die Standardliste.
+- **Neue Oberfläche ([#59](https://github.com/Bingerminger/energietracker/issues/59)):** ein Menü in zwei
+  Bereichen (Alltag, Einrichtung), Einstellungen nach Themen mit Suche, eigene Grafiken statt Emoji, ein festes
+  Raster. Keine Funktion fällt weg, alte Adressen führen weiter.
+- **Saldo von Zählergruppen ([#58](https://github.com/Bingerminger/energietracker/issues/58)):** Korrektur für
+  Gruppen, deren Zähler nicht am selben Tag abgelesen sind.
 
 ---
 
@@ -36,8 +41,9 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.13.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. |
-| **v3.14.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
+| **v3.13.0** · geplant für Dienstag, 17.11.2026 | **Prognose für Wärmepumpe, PV und E-Auto** | Die Prognose rechnet die Wärmepumpe nach dem Wetter und bezieht PV, Batterie und E-Auto ein; Auszahlungen der Einspeisung lassen sich erfassen. Dazu einheitliche Begriffe in allen Sprachen, Längengrenzen für Freitext und ein schnelleres Tankmodell. |
+| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. |
+| **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
 
 ---
 

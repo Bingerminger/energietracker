@@ -316,7 +316,7 @@ final class App
         $this->reportModel->attachFlexInsights($this->flexInsights);   // v3.6.0 — Seite „Flexibilität“
         // v3.6.0 (F1031) — Prognose-Werkstatt: Szenarien auf der Prognose, liest nur
         $this->scenarios = new ScenarioService($this->forecasts, $this->consumption, $this->contracts, $this->meters,
-            $this->settings, $this->tariffSwitch, $this->billingPeriods);
+            $this->settings, $this->tariffSwitch, $this->billingPeriods, $this->pvSummary, $this->intervals);   // v3.12.0 — PV-Werkstatt
         // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Zähler, Gruppen, Subzähler, Verträge aus dem Aufbau
         $this->meteringConcepts = new \Energietracker\Services\MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, $this->backups, $this->readings);
         // v3.11.0 (D, #54) — Verträge widersprechen sich: Empfehlung `r_contract_conflict` (auch Abschläge
@@ -349,7 +349,7 @@ final class App
         $this->rights->register('special_termination', fn(string $today, string $country): array => $contractChecks->specialTermination($today, $country));
 
         // Paket briefe (F1036): fünf Vorlagen, Text und PDF (POST /api/letters/render), nichts gespeichert
-        $this->letters = new \Energietracker\Services\LetterService($this->rights, $this->contracts, $this->meters, $this->bills);
+        $this->letters = new \Energietracker\Services\LetterService($this->rights, $this->contracts, $this->meters, $this->bills, consumption: $this->consumption, settings: $this->settings);   // v3.12.0 (m4b) — Absender aus dem Haushalt
 
         // ── Ende v3.11.0 (F1035) ──
         // v3.7.0 — Posteingang: lokal über die Einstellung der Texterkennung;
@@ -405,7 +405,14 @@ final class App
         // das eines Abgleichs, der erst nach dem Abruf sperrt (s. LOCK_LATE)
         $this->store->setWriteGuard(fn() => $this->lockOrFail());
         $migrator = new Migrator($this->store, $this->i18n);
-        if ($migrator->isPristine() || $migrator->needsMigration() || !$migrator->isAlreadyMigrated()) {
+        // v3.12.0 — Der Gesundheitscheck ohne Sprachangabe (Container-HEALTHCHECK, Überwachung durch
+        // Home Assistant) legt ein leeres Datenverzeichnis nicht an. Er kommt alle 30 Sekunden ohne
+        // Accept-Language und lief oft vor dem ersten Browser: Sprache, Land, Wetterort und die Namen
+        // der ersten Zähler standen dann auf Deutsch fest, auch für einen französischen Browser. Den
+        // Erststart entscheidet jetzt der erste andere Aufruf (der Browser schickt seine Sprache mit).
+        $healthOnPristine = $migrator->isPristine() && self::isHealthRequest()
+            && !self::namesALanguage((string)($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''));
+        if (!$healthOnPristine && ($migrator->isPristine() || $migrator->needsMigration() || !$migrator->isAlreadyMigrated())) {
             $this->lockOrFail();
             try {
                 // v2.7.0 — Erststart (I18N-01): Sprache und Land aus dem Browser,
@@ -431,6 +438,9 @@ final class App
                 $this->writeLock->release();
             }
         }
+        // v3.12.0 — Härtung: Geheimnis-Dateien aus früheren Versionen (0644) auf 0600;
+        // ein stat je Datei, danach nichts mehr zu tun (JsonStore::SECRET_FILES)
+        $this->store->protectSecrets();
 
         // ── v3.9.0 (F1033, #36) — Benachrichtigungen an Home Assistant (Opt-in) ──
         // Webhook-ID und Token in ha_notify_secret.json (nicht im Backup, nie im
@@ -446,6 +456,31 @@ final class App
 
         $this->router = new Router();
         $this->registerRoutes();
+    }
+
+    /** v3.12.0 — geht diese Anfrage an /api/health? (vor der Anfrage-Pipeline, für den Erststart) */
+    private static function isHealthRequest(): bool
+    {
+        return isset($_SERVER['REQUEST_URI']) && (new Request())->path === '/api/health';
+    }
+
+    /**
+     * v3.12.0 — Nennt Accept-Language eine Sprache? „*“ heißt „jede Sprache“ und ist keine Angabe (so fragen Programme
+     * auf Node-Basis mit dem eingebauten fetch); ebenso ein Eintrag mit q=0 („nicht gewünscht“). Leer: nein.
+     */
+    private static function namesALanguage(string $header): bool
+    {
+        foreach (explode(',', $header) as $entry) {
+            $parts = explode(';', $entry);
+            $tag = trim($parts[0]);
+            if ($tag === '' || $tag === '*') continue;
+            $q = 1.0;
+            foreach (array_slice($parts, 1) as $p) {
+                if (preg_match('/^\s*q\s*=\s*([0-9.]+)\s*$/i', $p, $m)) $q = (float)$m[1];
+            }
+            if ($q > 0) return true;
+        }
+        return false;
     }
 
     /** v2.5.3 — eine Sperre je schreibender Anfrage, s. Storage\WriteLock */
@@ -479,6 +514,7 @@ final class App
         '#^/api/inbox/[^/]+/(classify|extract)$#',   // v3.7.0 — Posteingang: erst die KI, dann schreiben
         '#^/api/metering-concept/preview$#',   // v3.9.0 (F1032) — Vorschau, schreibt nichts
         '#^/api/letters/render$#',             // v3.11.0 (F1036) — Brief, schreibt nichts
+        '#^/api/mcp$#',                        // v3.12.0 (F1037) — KI: lesen ohne Sperre, Übernehmen sperrt selbst
     ];
 
     /**
@@ -511,6 +547,8 @@ final class App
     public const BODY_PUBLIC = 1048576;
     public const BODY_DEFAULT = 8 * 1048576;
     public const BODY_LARGE = 256 * 1048576;
+    /** v3.12.0 (Skeptiker M8) — Posteingang mit einem KI-Schlüssel: ein PDF bis 10 MB, auch als Base64 (AttachmentService::PDF_MAX) */
+    public const BODY_MCP_INBOX = 14 * 1048576;
     public const LARGE_BODY_ROUTES = '#^/api/(backup/import|attachments|inbox|.+/import-(csv|series|evcc))$#';   // v3.7.0 — inbox: PDF ablegen
 
     public static function bodyLimit(Request $req): int
@@ -660,6 +698,11 @@ final class App
             ]);
             Response::error($this->i18n->t('errors.http.crossSite'), 403);
         }
+        // v3.12.0 (Nachprüfung A1) — die Routen der Oberfläche unter /api/mcp/ nehmen nie einen Schlüssel an, auch
+        // ohne Anmeldung: Eine KI bestätigt sich mit ihrem Schlüssel nicht selbst. Die Schnittstelle selbst ist /api/mcp.
+        if (str_starts_with($req->path, '/api/mcp/') && $req->bearerToken() !== null) {
+            Response::error($this->i18n->t('errors.mcp.proposal.noKey'), 403, null, 'errors.mcp.proposal.noKey');
+        }
         // v2.6.0 — Anmeldung (opt-in, s. AuthService). Ohne Anmeldung bleibt
         // alles wie bisher offen.
         $this->authenticated = $this->authenticate($req);
@@ -668,7 +711,7 @@ final class App
         }
         // v3.4.0 (N1020) — der Körper wird erst jetzt gelesen, nach der
         // Anmeldung und nach der Prüfung seiner angegebenen Größe (413)
-        $req->limitBody(self::bodyLimit($req));
+        $req->limitBody($this->mcpInboxKey !== null ? min(self::bodyLimit($req), self::BODY_MCP_INBOX) : self::bodyLimit($req));
         if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true) && !self::readOnlyPost($req)) {
             Response::error($this->i18n->t('errors.auth.readOnlyKey'), 403, null, 'errors.auth.readOnlyKey');
         }
@@ -677,7 +720,20 @@ final class App
         if ($this->role === 'member' && $this->adminOnly($req)) {
             Response::error($this->i18n->t('errors.auth.adminOnly'), 403, null, 'errors.auth.adminOnly');
         }
+        // v3.12.0 — Härtung: „zuletzt benutzt“ erst jetzt, die Anfrage ist mit dem Schlüssel
+        // angenommen (bis v3.11 zählte jeder Versuch). Die Sperre dafür nicht halten,
+        // wenn die Anfrage sie sonst nicht oder erst später braucht.
+        if ($this->usedKeyId !== null) {
+            $held = $this->writeLock->isHeld();
+            $this->auth->touchApiKey($this->usedKeyId);
+            if (!$held) $this->writeLock->release();
+        }
 
+        // v3.12.0 — kaputtes JSON als solches melden (400 errors.http.bodyInvalid), statt es als leeren
+        // Körper weiterzureichen. Die KI-Schnittstelle antwortet selbst im JSON-RPC-Format (-32700).
+        if (in_array($req->method, ['POST', 'PUT', 'PATCH'], true) && $req->path !== '/api/mcp' && $req->jsonBodyInvalid()) {
+            Response::error($this->i18n->t('errors.http.bodyInvalid'), 400, null, 'errors.http.bodyInvalid');
+        }
         if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !self::locksLate($req)) {
             $this->lockOrFail();   // endet mit dem Prozess der Anfrage
         }
@@ -737,6 +793,8 @@ final class App
     {
         $p = $req->path;
         if (str_starts_with($p, '/api/users') || str_starts_with($p, '/api/auth/')) return true;
+        // v3.12.0 (F1037) — Protokoll und offene Vorschläge der KI
+        if (str_starts_with($p, '/api/mcp/')) return true;
         if ($p === '/api/session/password') return true;
         if ($req->method === 'POST' && ($p === '/api/backup/import' || $p === '/api/demo/import'
             || preg_match('#^/api/backup/snapshots/[^/]+/restore$#', $p))) return true;
@@ -754,18 +812,43 @@ final class App
         if ($p === '/api/inbox/folder') return true;
         // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant: Ziel, Geheimnisse, Testnachricht
         if (str_starts_with($p, '/api/homeassistant/notify') && !in_array($req->method, ['GET', 'HEAD'], true)) return true;
+        // v3.12.0 (M3) — das Land wechseln setzt die Vorgabe für alle und mit dem Profil weitere Einstellungen
+        if ($req->method === 'POST' && $p === '/api/settings/country') return true;
         if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
             foreach (self::ADMIN_SETTINGS as $k) {
                 if (!array_key_exists($k, $req->body)) continue;
-                $new = is_scalar($req->body[$k]) || $req->body[$k] === null ? (string)$req->body[$k] : '*';
-                $old = (string)$this->settings->get($k, '');
-                $changed = $k === 'allowed_hosts'
-                    ? HostList::parse($new) !== HostList::parse($old)
-                    : trim($new) !== trim($old);
-                if ($changed) return true;
+                if (self::adminSettingChanged($k, $req->body[$k], $this->settings->get($k, SettingsService::defaultFor($k)))) return true;
             }
         }
         return false;
+    }
+
+    /**
+     * v3.12.0 — Ändert der Wert eine Verwalter-Einstellung? Typgenau verglichen: Bisher galt der Text,
+     * und `(string)null` wie `(string)false` ist "". Ein Mitglied schaltete so mit `null` den
+     * Wetterabgleich wieder ein, den ein Verwalter ausgeschaltet hatte (null las der Abgleich als „an“).
+     * Wahrheitswerte zählen nach Support\Input::bool (eine Regel für alle Schreibwege); `null` ist eine
+     * Änderung, sobald die Einstellung einen Wert hat. Ein Wert, den die Prüfung nicht lesen kann, zählt
+     * ebenfalls als Änderung (403 vor 400).
+     */
+    public static function adminSettingChanged(string $key, mixed $new, mixed $old): bool
+    {
+        if ($new === null) return $old !== null && $old !== '';
+        if (is_bool(SettingsService::defaultFor($key))) {
+            $b = \Energietracker\Support\Input::bool($new);
+            $o = is_bool($old) ? $old : \Energietracker\Support\Input::bool($old);
+            return $b === null || $b !== $o;
+        }
+        if (!is_scalar($new)) return true;
+        $newS = (string)$new;
+        $oldS = is_scalar($old) ? (string)$old : '';
+        if ($key === 'allowed_hosts') return HostList::parse($newS) !== HostList::parse($oldS);
+        if ((is_int(SettingsService::defaultFor($key)) || is_float(SettingsService::defaultFor($key)))) {
+            $n = \Energietracker\Support\Input::decimal($new);
+            $m = \Energietracker\Support\Input::decimal($old);
+            if ($n !== null && $m !== null) return abs($n - $m) > 1e-9;
+        }
+        return trim($newS) !== trim($oldS);
     }
 
     /**
@@ -778,7 +861,14 @@ final class App
         // v3.9.0 (F1033) — ob und wohin Benachrichtigungen an Home Assistant gehen
         'ha_notify_enabled', 'ha_notify_target', 'ha_notify_url', 'ha_notify_service',
         // v3.10.0 (#36) — wem Verbindungen ins Heimnetz vertrauen und ob sie prüfen
-        'home_ca_pem', 'home_tls_insecure'];
+        'home_ca_pem', 'home_tls_insecure',
+        // v3.12.0 (F1037) — ob eine KI zugreift, ob Kennnummern und Originale mitgehen, wer eine Änderung bestätigt
+        'mcp_enabled', 'mcp_share_identifiers', 'mcp_share_documents', 'mcp_apply_in_app',
+        // v3.12.0 — Härtung: Verbindungen nach außen — Hinweis auf neue Versionen (GitHub), Standort und
+        // Wetterabgleich (Open-Meteo bekommt die Koordinaten); der Ort steht auf derselben Karte
+        'update_check', 'location_name', 'latitude', 'longitude', 'weather_auto_fill',
+        // v3.12.0 (M3) — die Vorgabe für alle: Sprache, Land, Währung, Zeitzone; die eigene Sprache bleibt frei (/api/session/me)
+        'language', 'country', 'currency', 'timezone'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -790,6 +880,10 @@ final class App
 
     /** v3.4.0 (F1024) — Name des API-Schlüssels dieser Anfrage (für den Verlauf). */
     private ?string $keyName = null;
+    /** @var array{id:string, name:string, scope:string}|null v3.12.0 (Skeptiker M8) — `POST /api/inbox` mit einem KI-Schlüssel */
+    private ?array $mcpInboxKey = null;
+    /** v3.12.0 — Härtung: ID des API-Schlüssels, mit dem diese Anfrage angemeldet ist (für „zuletzt benutzt“) */
+    private ?string $usedKeyId = null;
 
     /**
      * v3.4.0 (F1024) — Wer handelt (für den Verlauf): die angemeldete Person,
@@ -813,15 +907,30 @@ final class App
      */
     private function authenticate(Request $req): bool
     {
+        // v3.12.0 (F1037) — /api/mcp prüft seinen Schlüssel selbst (McpController), immer,
+        // auch ohne Anmeldung: Sitzung, Proxy-Benutzer und andere Schlüssel zählen dort nicht
+        if ($req->path === '/api/mcp') return false;
         $mode = $this->auth->mode();
-        if ($mode === 'off') return true;
+        if ($mode === 'off') {
+            // v3.12.0 (Nachprüfung A1) — auch ohne Anmeldung gilt ein KI-Schlüssel nirgends sonst: Wer ihn mitschickt,
+            // kommt damit nicht an Einstellungen und Daten vorbei an /api/mcp (dieselbe Regel wie unten)
+            $offKey = $this->auth->apiKey($req->bearerToken());
+            $aiScope = $offKey['scope'] ?? null;
+            if ($aiScope !== 'mcp' && $aiScope !== 'mcp_write') {
+                $this->usedKeyId = $offKey['id'] ?? null;   // v3.12.0 — Härtung: angenommen, also benutzt
+                return true;
+            }
+        }
         // v3.1.0 (MKT-09) — Kalender-Abo: Kalender-Apps können keine Kopfzeile
         // senden, der Schlüssel steht im Link. Dort gilt NUR ein Schlüssel mit
         // Bereich `calendar` (ein `read`/`admin`-Schlüssel im Link landete in
         // Logs und Kalender-Synchronisationen), und er gilt nirgends sonst.
         $feedToken = $req->queryParam('token');
         if ($req->path === '/api/calendar.ics' && $feedToken !== null && $feedToken !== '') {
-            return $this->auth->apiKeyScope($feedToken) === 'calendar';
+            $feedKey = $this->auth->apiKey($feedToken);
+            if (($feedKey['scope'] ?? null) !== 'calendar') return false;
+            $this->usedKeyId = $feedKey['id'];
+            return true;
         }
         $cookie = $_COOKIE[AuthService::COOKIE] ?? null;
         $sessionUser = $this->auth->sessionUserId(is_string($cookie) ? $cookie : null);
@@ -835,18 +944,31 @@ final class App
             }
             return true;
         }
-        $scope = $this->auth->apiKeyScope($req->bearerToken());
+        // v3.12.0 — Härtung: nur nachschlagen; „zuletzt benutzt“ setzt handle(), wenn die Anfrage angenommen ist
+        $bearerKey = $this->auth->apiKey($req->bearerToken());
+        $scope = $bearerKey['scope'] ?? null;
         if ($scope === 'calendar') return false;
         // v3.7.0 (Paket betrieb) — Schlüssel „Posteingang“ (Kurzbefehl, Home Assistant):
         // darf genau eines, ein PDF ablegen; überall sonst gilt er nicht
         if ($scope === 'inbox') {
             if ($req->method !== 'POST' || $req->path !== '/api/inbox') return false;
             $this->keyName = $this->auth->apiKeyName($req->bearerToken());
+            $this->usedKeyId = $bearerKey['id'];
+            return true;
+        }
+        // v3.12.0 (F1037) — KI-Schlüssel gelten nur an /api/mcp (oben); `mcp_write` dazu fürs
+        // Ablegen im Posteingang (`curl … /api/inbox`), damit ein Original ohne Base64 ankommt
+        if ($scope === 'mcp' || $scope === 'mcp_write') {
+            if ($scope !== 'mcp_write' || $req->method !== 'POST' || $req->path !== '/api/inbox') return false;
+            $this->keyName = $this->auth->apiKeyName($req->bearerToken());
+            $this->mcpInboxKey = $bearerKey;   // v3.12.0 (Skeptiker M8)
+            $this->usedKeyId = $bearerKey['id'];
             return true;
         }
         if ($scope !== null) {
             $this->readOnlyKey = $scope === 'read';
             $this->keyName = $this->auth->apiKeyName($req->bearerToken());   // v3.4.0 (F1024)
+            $this->usedKeyId = $bearerKey['id'];
             return true;
         }
         // v3.4.0 (N1020) — Proxy: nur die eine zuständige Kopfzeile (s.
@@ -893,7 +1015,8 @@ final class App
     /**
      * Ohne Anmeldung erreichbar: Ingest (eigener Token), Health (Minimalform),
      * die Anmeldung selbst und das Manifest (v3.1.0 — Browser holen es ohne
-     * Cookies; es enthält keine Daten).
+     * Cookies; es enthält keine Daten). v3.12.0 (F1037) — /api/mcp: verlangt
+     * immer einen eigenen KI-Schlüssel, geprüft im McpController.
      */
     private static function isPublic(Request $req): bool
     {
@@ -901,6 +1024,8 @@ final class App
             || (in_array($req->method, ['GET', 'HEAD'], true) && $req->path === '/api/health')
             || (in_array($req->method, ['GET', 'HEAD'], true) && $req->path === '/api/manifest')
             || ($req->path === '/api/session' && in_array($req->method, ['GET', 'POST', 'DELETE'], true))
+            // v3.12.0 (F1037) — MCP verlangt seinen eigenen Schlüssel (McpController); GET/DELETE → 405
+            || $req->path === '/api/mcp'
             || $req->method === 'OPTIONS';
     }
 
@@ -1043,7 +1168,7 @@ final class App
                                                              fn($req) => $deliveryCtrl->stockHistory($req));
 
         // ── Contracts ──
-        $contractCtrl = new ContractController($this->contracts, $this->i18n, $this->responsibility);   // v3.7.0 — Zuständig
+        $contractCtrl = new ContractController($this->contracts, $this->i18n, $this->responsibility, $this->letters);   // v3.7.0 — Zuständig
         $r->get('/api/utility/{utility}/contracts',         fn($req) => $contractCtrl->index($req));
         $r->post('/api/utility/{utility}/contracts',        fn($req) => $contractCtrl->create($req));
         $r->get('/api/utility/{utility}/contracts/{id}',    fn($req) => $contractCtrl->show($req));
@@ -1205,7 +1330,18 @@ final class App
         // v3.7.0 — Posteingang für Versorgerpost (feste Pfade vor {id})
         $inCtrl = new InboxController($this->inbox, $this->i18n, $this->inboxFolder);
         $r->get('/api/inbox',                 fn($req) => $inCtrl->index($req));
-        $r->post('/api/inbox',                fn($req) => $inCtrl->create($req));
+        $r->post('/api/inbox',                function ($req) use ($inCtrl) {
+            if ($this->mcpInboxKey === null) $inCtrl->create($req);
+            // v3.12.0 (Skeptiker M8) — mit einem KI-Schlüssel: Topf, Protokoll, auch beim Scheitern (kein PDF, zu groß)
+            $log = $this->mcpInboxGuard($inCtrl);
+            try {
+                $inCtrl->create($req);
+            } catch (\Throwable $e) {
+                $status = $e instanceof \Energietracker\Http\HttpStatusException ? $e->status : 400;
+                $log('error', $status, $e instanceof \Energietracker\Support\LocalizedException || $e instanceof \Energietracker\Http\HttpStatusException ? $e->key : null);
+                throw $e;
+            }
+        });
         $r->get('/api/inbox/review',          fn($req) => $inCtrl->review($req));
         // v3.7.0 (Haushalt aus Dokumenten) — Entwurf über alle ausgelesenen Dokumente (vor {id})
         $draftCtrl = new \Energietracker\Controllers\InboxDraftController($this->inboxDraft);
@@ -1296,5 +1432,93 @@ final class App
         $ingestCtrl = new IngestController($this->ingest, $this->auth, $this->i18n);
         // v3.4.0 (F1024) — Verlauf: Home Assistant als Integration
         $r->post('/api/ingest',       function ($req) use ($ingestCtrl) { $this->activity->actAs('home_assistant'); $ingestCtrl->store($req); });
+
+        // ── v3.12.0 (F1037) — Energietracker für deine KI (MCP) ──
+        // POST /api/mcp prüft Schalter, Ursprung, Sperre, Schlüssel und Rate selbst (isPublic, LOCK_LATE);
+        // Protokoll und offene Vorschläge nur für Verwalter (adminOnly)
+        $mcpConfig = new \Energietracker\Services\Mcp\Config($this->settings);
+        $mcpPending = null;
+        $pending = function () use (&$mcpPending): \Energietracker\Services\Mcp\PendingChanges {
+            return $mcpPending ??= new \Energietracker\Services\Mcp\PendingChanges($this->store->rootDir(), $this->store);
+        };
+        // Paket protokoll: Ratenbegrenzung (data/mcp/rate.json) und Zugriffsprotokoll (data/mcp/journal.jsonl), nicht im Backup
+        $mcpLimiter = new \Energietracker\Services\Mcp\RateLimiter($this->store->rootDir());
+        $mcpJournal = new \Energietracker\Services\Mcp\Journal($this->store->rootDir());
+        $mcpCtrl = new \Energietracker\Controllers\McpController($mcpConfig, $this->auth, $this->i18n,
+            fn(): \Energietracker\Services\Mcp\Server => $this->mcpServer($mcpConfig, $pending(), $mcpLimiter), $pending,
+            $mcpLimiter, $mcpJournal,
+            // v3.12.0 (Skeptiker M1) — Übernehmen in der App: dieselbe Fassung wie `apply_proposal`
+            fn(): \Energietracker\Services\Mcp\ProposalApplier => new \Energietracker\Services\Mcp\ProposalApplier($this->mcpServices($mcpConfig, $pending())),
+            fn(): ?array => $this->actor());
+        $r->post('/api/mcp',          fn($req) => $mcpCtrl->handle($req));
+        $r->get('/api/mcp/journal',   fn($req) => $mcpCtrl->journal($req));
+        $r->get('/api/mcp/proposals', fn($req) => $mcpCtrl->proposals($req));
+        // v3.12.0 (Paket oberflaeche) — Karte „KI-Assistenten“: Stand, Vorschlag ablehnen (nur Verwalter)
+        $r->get('/api/mcp/status',    fn($req) => $mcpCtrl->status($req));
+        $r->delete('/api/mcp/proposals/{id}', fn($req) => $mcpCtrl->rejectProposal($req));
+        $r->post('/api/mcp/proposals/{id}/apply', fn($req) => $mcpCtrl->applyProposal($req));
+    }
+
+    /**
+     * v3.12.0 (F1037) — der MCP-Server: Werkzeuge rufen die Dienste dieses
+     * Containers (nach Klasse, Mcp\Services), dazu Schalter und Vorschläge.
+     */
+    private function mcpServer(\Energietracker\Services\Mcp\Config $config, \Energietracker\Services\Mcp\PendingChanges $pending,
+                               ?\Energietracker\Services\Mcp\RateLimiter $limiter = null): \Energietracker\Services\Mcp\Server
+    {
+        $services = $this->mcpServices($config, $pending);
+        return new \Energietracker\Services\Mcp\Server(
+            new \Energietracker\Services\Mcp\ToolRegistry($services),
+            new \Energietracker\Services\Mcp\Prompts($services, $this->i18n),
+            new \Energietracker\Services\Mcp\Resources($services, $this->i18n),
+            $this->i18n,
+            trim((string)@file_get_contents(__DIR__ . '/../VERSION')),
+            fn(\Throwable $e, string $id) => $this->logger->error('MCP: unerwarteter Fehler', [
+                'error_id' => $id, 'type' => $e::class, 'file' => basename($e->getFile()), 'line' => $e->getLine(), 'message' => $e->getMessage(),
+            ]),
+            $limiter,
+        );
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M8) — Ablage im Posteingang mit einem KI-Schlüssel: nur mit eingeschalteter
+     * Schnittstelle, eigener Topf (RateLimiter `inbox`), kleinere Körpergrenze (BODY_MCP_INBOX), eine Zeile im
+     * Zugriffsprotokoll und `source: mcp` am Eintrag. Bis dahin ohne Grenze und ohne Spur.
+     */
+    private function mcpInboxGuard(\Energietracker\Controllers\InboxController $ctrl): \Closure
+    {
+        if (\Energietracker\Services\Mcp\Config::lockedByEnv()) {
+            Response::error($this->i18n->t('errors.mcp.lockedByEnv'), 403, null, 'errors.mcp.lockedByEnv');
+        }
+        if (!(new \Energietracker\Services\Mcp\Config($this->settings))->enabled()) {
+            Response::error($this->i18n->t('errors.mcp.disabled'), 403, null, 'errors.mcp.disabled');
+        }
+        $key = (array)$this->mcpInboxKey;
+        $journal = new \Energietracker\Services\Mcp\Journal($this->store->rootDir());
+        $started = hrtime(true);
+        $log = function (string $result, int $status, ?string $code = null) use ($journal, $key, $started): void {
+            $journal->append($journal->entry(['method' => 'inbox/upload', 'name' => 'POST /api/inbox', 'result' => $result, 'version' => null, 'client' => [], 'code' => $code],
+                $key, $status, (int)round((hrtime(true) - $started) / 1e6)));
+        };
+        $wait = (new \Energietracker\Services\Mcp\RateLimiter($this->store->rootDir()))->hit('inbox', (string)$key['id']);
+        if ($wait !== null) {
+            $log('rate_limited', 429, 'errors.mcp.rateLimited');
+            if (!headers_sent()) header('Retry-After: ' . $wait);
+            Response::error($this->i18n->t('errors.mcp.rateLimited', ['seconds' => $wait]), 429, null, 'errors.mcp.rateLimited');
+        }
+        $ctrl->source = 'mcp';
+        $ctrl->onResult = fn(int $status, ?string $code) => $log($status < 400 ? 'ok' : 'error', $status, $code);
+        return $log;
+    }
+
+    /** Die Dienste dieses Containers für die KI-Schnittstelle (nach Klasse), dazu Schalter und Vorschläge. */
+    private function mcpServices(\Energietracker\Services\Mcp\Config $config, \Energietracker\Services\Mcp\PendingChanges $pending): \Energietracker\Services\Mcp\Services
+    {
+        return new \Energietracker\Services\Mcp\Services(function (string $class): ?object {
+            foreach (get_object_vars($this) as $v) {
+                if (is_object($v) && $v::class === $class) return $v;
+            }
+            return null;
+        }, [$config, $pending]);
     }
 }

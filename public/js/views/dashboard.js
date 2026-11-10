@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtilities, getSettings } from '../state.js';
+import { getUtilities, getSettings, getSettingsSync } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm, trendNeedsCheck } from '../lib/chart-data.js';
@@ -16,7 +16,7 @@ import { readingCheckLines, readingCheckTitle, correctHref, markReadings, delete
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';
+import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeHtml, expectedBalance, bandText } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 import { periodMode, periodName, pickPeriod, periodsWithData, addDays as addDaysIso, sameSpanTrend, periodWindow } from '../lib/billing-period.js';   // v3.6.0 (F1030), v3.10.0 (#36)
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
@@ -32,6 +32,9 @@ import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNote
 import { actionText } from '../lib/flex-text.js';
 import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
 import { welcomeArt } from '../lib/illustrations.js';   // v3.9.0 (Paket oberflaeche) — Bild im Willkommen
+import { icon, artIcon } from '../lib/icons.js';
+import { trendHtml, SAME_BELOW_PCT } from '../components/trend.js';   // v3.12.0 (M4)
+import { rich } from '../lib/rich.js';
 
 // v3.9.0 (Skeptiker R2-5) — der Kasten der Übersicht, damit „Übernehmen“ der Heizgrenze sie ganz neu zeichnet
 let dashRoot = null;
@@ -49,20 +52,8 @@ export async function render(container, _params = [], ctx = {}) {
   // v2.9.0 (CALC-23) — Zeitraum des Verlaufsdiagramms aus den Einstellungen
   const chartSpan = Math.min(36, Math.max(3, Number(settings.dashboard_months) || 12));
 
-  // Tank-Bestände für Delivery-Utilities — v2.11.0 (Review FE-26): alle
-  // parallel und zugleich mit dem Rest; bis v2.10 Tank für Tank nacheinander,
-  // nachdem alles andere schon da war
-  const deliveryUtils = utilities.filter(u => u.reading_kind === 'delivery');
-  const tankListsP = Promise.all(deliveryUtils.map(async u => {
-    try {
-      const meters = (await api.meters(u.key)).filter(m => (m.active ?? true) !== false);
-      const hist = await Promise.all(meters.map(m => api.stockHistory(u.key, m.id).catch(() => null)));
-      return meters.map((m, i) => ({ u, m, sh: hist[i] })).filter(x => x.sh && x.sh.capacity);
-    } catch { return []; }
-  }));
-
   // Fetch consumption for each active utility + Insights in parallel
-  const [datasets, eff, recs, events, stromSaldo, pvSummary, tankLists] = await Promise.all([
+  const [datasets, eff, todo, stromSaldo, pvSummary, tanks, summaryRes] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
         // v3.6.0 (F1030) — im Abrechnungsjahr dazu die Perioden der Art
@@ -74,18 +65,23 @@ export async function render(container, _params = [], ctx = {}) {
         return { utility: u, consumption: c, billing: pickPeriod(bp?.periods), groups };
       } catch (e) {
         toastErr(`${u.label}: ${e.message}`);
-        return { utility: u, consumption: null };
+        return { utility: u, consumption: null, failed: e };   // v3.12.0 — die Antwort zum Trend sagt es
       }
     })),
     api.efficiency().catch(() => null),
-    api.recommendations().catch(() => []),
     // v3.1.0 (H1, B5) — „Zu tun" kommt aus der Agenda (dieselbe Quelle wie Kalender und Home Assistant)
-    api.agenda(90).then(d => d?.events || []).catch(() => []),
+    // v3.12.0 — über dieselbe Ladung wie die Seite „Zu tun“ und die Seitenleiste (todo.js loadOffen): „Noch n
+    // weitere“ zählt damit dasselbe (auch Empfehlungen, Post, Vorschläge der KI), und ein Ausfall bleibt sichtbar
+    loadTodo(settings),
     // F1005 (v1.7.0) — Strom-Saldo (Bezug−Einspeisung) + PV-Eigenverbrauch/Autarkie
     api.stromSaldo().catch(() => null),
     api.pvSummary().catch(() => null),
-    tankListsP,
+    loadTanks(utilities),   // v2.11.0 (Review FE-26) — parallel und zugleich mit dem Rest
+    // v3.12.0 (M4) — Antworten und Fuß der Kacheln; ein Fehler bleibt ein Fehler (nicht „Noch kein Vertrag“)
+    api.summary().then(data => ({ data }), error => ({ data: null, error })),
   ]);
+  const summary = summaryRes.data;
+  const summaryError = summaryRes.error || null;
   // v3.1.0 (H8, MKT-11) — Einordnung; eigene Karte, sobald ein Vergleichswert oder ein Link da ist
   const cmp = await api.comparison().catch(() => null);
 
@@ -94,42 +90,155 @@ export async function render(container, _params = [], ctx = {}) {
   // Haushalten.
   const pvActive = !!(stromSaldo && Array.isArray(stromSaldo.monthly)
     && stromSaldo.monthly.some(m => (m.einspeisung_kwh ?? 0) > 0));
-  const pickYearRow = (yearly) => {
-    const cy = new Date().getFullYear();
-    return (yearly || []).find(y => y.year === cy)
-        ?? (yearly || []).slice(-1)[0]
-        ?? null;
-  };
   const saldoYear = pvActive ? pickYearRow(stromSaldo.yearly) : null;
   const pvYear    = pvActive && pvSummary ? pickYearRow(pvSummary.yearly) : null;
 
-  const tanks = tankLists.flat().map(({ u, m, sh }) => {
-    const days = sh.days || [];
-    const stock = days.length ? Number(days[days.length - 1].stock || 0) : 0;
-    return { utility: u, meter: m, stock, cap: Number(sh.capacity), unit: sh.capacity_unit || u.volume_unit || 'L' };
-  });
-
   // v2.12.0 (Review UI-21) — „Zu tun" zuerst: fällige Termine, fällige
   // Ablesungen, Kündigungsfristen und Tanks an einer Stelle. Bis v2.11 lag das
-  // auf drei Karten verteilt unter Effizienz und Strom-Saldo.
-  const todo = buildTodo(events, recs);
-  const todoRecIds = new Set(todo.filter(x => x.recId).map(x => x.recId));
-  const topRecs = (recs || []).filter(r => !todoRecIds.has(r.id)).slice(0, 2);
+  // auf drei Karten verteilt unter Effizienz und Strom-Saldo. (Die Zeilen baut loadTodo mit buildTodo.)
 
   // A — Leerzustand: keinerlei Verbrauchsdaten in irgendeiner aktiven Art.
   const hasAnyData = datasets.some(d => ((d.consumption?.monthly_total) || []).length > 0);
 
   // v3.2.0 (F1019) — Einsteiger: drei Antworten statt aller Kennzahlen
   if (hasAnyData && currentLevel() === 'beginner') {
-    return renderBeginner(container, { utilities, datasets, todo, settings });
+    return renderBeginner(container, { utilities, datasets, todo, settings, summary, summaryError });
   }
 
-  // Insight-Karten (Effizienz, Tanks, Strom-Saldo, Empfehlungen, Termine).
-  const insightsHtml = `
-    <div class="grid grid-2">
-      ${eff && Array.isArray(eff.per_source) && eff.per_source.length ? `
-      <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">🏅</span> ${t('dashboard.efficiency.title')} ${eff.year}${info('efficiency')}</h2>
+  // v2.16.0 — „Energie gesamt“: nur Verbrauch in kWh, ohne PV (Wasser steht in seiner Karte)
+  const totalKinds = datasets.filter(d => !isPv(d.utility) && d.utility.consumption_unit === 'kWh'
+    && (d.consumption?.monthly_total || []).length);
+  const answers = hasAnyData ? await answersHtml({ utilities, datasets, settings, summary, summaryError, todo }) : '';
+  const withPeriod = utilities.some(u => u.supports_bill_check);
+  const billingMode = withPeriod && periodMode() === 'billing';
+
+  // v3.12.0 (M4) — Antworten, Kacheln je Art, Zahlen, Energie gesamt. Die ausführlichen Karten
+  // (Effizienz, Einordnung, Tanks, Strom-Saldo, Schaubilder) stehen unter Auswertungen › Kennzahlen,
+  // die Empfehlungen und der Zuständig-Filter unter Zu tun.
+  container.innerHTML = `
+    <div class="section-head">
+      <h1>${t('dashboard.title')}</h1>
+    </div>
+
+    ${!hasAnyData ? `
+    <!-- v2.13.0 (Review UI-32, DOC-31) — Einstieg statt Leerseite: was die App
+         tut, die ersten Schritte mit Häkchen aus den Daten, und Beispieldaten
+         zum Ausprobieren (vorher sichert der Server den jetzigen Stand) -->
+    <section class="card dash-welcome" aria-labelledby="dash-welcome-title">
+      <div class="dash-welcome__art">${welcomeArt()}</div>
+      <h2 class="dash-welcome__title" id="dash-welcome-title">${escapeHtml(t('dashboard.welcome.title'))}</h2>
+      <p class="dash-welcome__text">${escapeHtml(t('dashboard.welcome.text'))}</p>
+      <div class="dash-welcome__actions">
+        <a class="btn btn--primary" href="#/zaehlerstaende">${escapeHtml(t('dashboard.empty.cta'))}</a>
+        <button type="button" class="btn btn--ghost" data-action="demo">${escapeHtml(t('dashboard.welcome.demo'))}</button>
+      </div>
+      <h3 class="dash-welcome__steps">${escapeHtml(t('help.setup.title'))}</h3>
+      <div data-role="setup"></div>
+    </section>
+    ` : `
+    <div data-role="level-hint"></div>
+    ${answers}
+
+    <section class="art-bereich" aria-labelledby="dash-arten-title">
+      <div class="art-bereich__kopf">
+        <h2 class="card__title" id="dash-arten-title">${escapeHtml(t(billingMode ? 'dashboard.tiles.titleBilling' : 'dashboard.tiles.title'))}</h2>
+        ${withPeriod ? `<div class="period-mode-bar dash-period-mode">${periodModeHtml()}</div>` : ''}
+      </div>
+      <div class="art-raster" data-spalten="4" data-role="art-tiles">
+        ${datasets.map(d => artTileHtml(d, { summary, tanks, pvYear })).join('')}
+      </div>
+    </section>
+
+    ${numbersHtml({ eff, cmp, saldoYear, pvYear })}
+    ${whatIfHtml()}
+
+    ${totalKinds.length ? `<div class="card dash-gesamt">
+      <h2 class="card__title">${t('dashboard.chart.totalTitle', { months: chartSpan })}</h2>
+      <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
+      <p class="fussnote">${escapeHtml(t('dashboard.chart.totalNote'))}</p>
+      <div data-role="chart-extra"></div>
+    </div>` : ''}
+    `}
+  `;
+
+  // v2.13.0 — Einstieg: Beispieldaten und die ersten Schritte
+  if (!hasAnyData) {
+    container.querySelector('[data-action="demo"]')?.addEventListener('click', async () => {
+      try { await loadDemo(); } catch (e) { toastErr(e.message); }
+    });
+    setupSteps().then(steps => {
+      const box = container.querySelector('[data-role="setup"]');
+      if (box?.isConnected) box.innerHTML = setupListHtml(steps);
+    }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
+  }
+
+  // v3.4.0 (F1024) — Haken in „Zu tun"
+  if (hasAnyData) renderTodoBox(container.querySelector('[data-role="todo"]'), todo);
+  wirePeriodMode(container);   // v3.6.0 (F1030)
+  if (hasAnyData) showMcpProposals(container, settings, todo.proposals);
+
+  // v3.2.0 — Vorschlag zum Hochstufen und „Dein Hebel“ nachladen;
+  // beides darf den ersten Inhalt nicht aufhalten
+  if (hasAnyData) {
+    const later = [];
+    const hintBox = container.querySelector('[data-role="level-hint"]');
+    if (hintBox) later.push(levelSuggestion(utilities, summary).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {}));
+    later.push(loadLeverTile(container, utilities));   // v3.6.0 — „Dein Hebel“, nachgeladen
+    // v3.10.0 (GitHub #36) — beim Neuzeichnen am Ort (Stufe, Kalender-/Abrechnungsjahr) erst
+    // fertig melden, wenn auch das Nachgeladene steht: sonst stünde nach dem Tausch „Lädt …“
+    // da, und was über der Leseposition wächst, schöbe die Seite (Safari hält sie nicht fest)
+    if (ctx.inPlace) await Promise.all(later);
+  }
+
+  // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
+  // dem Vorjahr; gemeinsam nur, was sich addieren lässt (kWh)
+  const charts = hasAnyData
+    ? [renderTotalChart(datasets, chartSpan, container), ...renderSparks(datasets, container)]
+    : [];
+
+  // Cleanup: destroy charts on next nav (v2.15.0 — ohne window-Global;
+  // die Chart-Schicht räumt beim Seitenwechsel ohnehin ab)
+  return () => { charts.forEach(c => c?.destroy()); };
+}
+
+/** Das Jahr, das die Zahlen zeigen: das laufende, sonst das jüngste. */
+export function pickYearRow(yearly) {
+  const cy = new Date().getFullYear();
+  return (yearly || []).find(y => y.year === cy) ?? (yearly || []).slice(-1)[0] ?? null;
+}
+
+/**
+ * Tanks und Lager für Kachel und Kennzahlen. Alle parallel; bis v2.10 Tank für Tank nacheinander.
+ * @returns {Promise<Array<{utility: object, meter: object, stock: number, cap: number, unit: string}>>}
+ */
+export async function loadTanks(utilities) {
+  const lists = await Promise.all(utilities.filter(u => u.reading_kind === 'delivery').map(async u => {
+    try {
+      const meters = (await api.meters(u.key)).filter(m => (m.active ?? true) !== false);
+      const hist = await Promise.all(meters.map(m => api.stockHistory(u.key, m.id).catch(() => null)));
+      return meters.map((m, i) => ({ u, m, sh: hist[i] })).filter(x => x.sh && x.sh.capacity);
+    } catch { return []; }
+  }));
+  return lists.flat().map(({ u, m, sh }) => {
+    const days = sh.days || [];
+    const stock = days.length ? Number(days[days.length - 1].stock || 0) : 0;
+    return { utility: u, meter: m, stock, cap: Number(sh.capacity), unit: sh.capacity_unit || u.volume_unit || 'L' };
+  });
+}
+
+/** Karte Effizienz (Auswertungen › Kennzahlen). */
+export function efficiencyCardHtml(eff, utilities) {
+  if (!(eff && Array.isArray(eff.per_source) && eff.per_source.length)) return '';
+  // v3.12.0 (M4) — die Sätze zur Rechnung zum Aufklappen: Die Karte steht im Raster neben kürzeren
+  const notes = [
+    efficiencyGridOnlyText(eff) ? `<p class="muted dash-eff__note" data-role="eff-grid-only">${escapeHtml(efficiencyGridOnlyText(eff))}</p>` : '',
+    eff.certificate?.upcoming ? certificateUpcomingHtml(eff, utilities) : '',
+    efficiencyIncompleteText(eff) ? `<p class="muted dash-eff__note" data-role="eff-incomplete">${escapeHtml(efficiencyIncompleteText(eff))}</p>` : '',
+    eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : '',
+  ].join('');
+  return `
+      <div class="card dash-insight kennzahl">
+        <h2 class="card__title">${icon('medaille')} ${t('dashboard.efficiency.title')} ${eff.year}${info('efficiency')}</h2>
         ${eff.per_source.length === 1 ? `
           <div class="dash-eff">
             ${eff.scale === null ? '' : `<span class="dash-eff__class">${eff.per_source[0].class ?? '–'}</span>`}
@@ -148,32 +257,36 @@ export async function render(container, _params = [], ctx = {}) {
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
         ${eff.area_assumed ? areaAssumedHtml(eff.wohnflaeche_m2) : ''}
-        ${efficiencyGridOnlyText(eff) ? `<p class="muted dash-eff__note" data-role="eff-grid-only">${escapeHtml(efficiencyGridOnlyText(eff))}</p>` : ''}
         ${eff.certificate ? certificateHtml(eff, utilities) : ''}
-        ${efficiencyIncompleteText(eff) ? `<p class="muted dash-eff__note" data-role="eff-incomplete">${escapeHtml(efficiencyIncompleteText(eff))}</p>` : ''}
-        ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
-      </div>` : ''}
+        ${notes ? `<details class="dash-eff__mehr" data-role="eff-notes"><summary>${escapeHtml(t('dashboard.efficiency.notes'))}</summary>${notes}</details>` : ''}
+      </div>`;
+}
 
-      ${comparisonCardHtml(cmp, utilities)}
-
-      ${tanks.length ? `
-      <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">🛢️</span> ${t('dashboard.tanks.title')}${info('tankBook')}</h2>
+/** Karte Tanks und Lager (Auswertungen › Kennzahlen). */
+export function tanksCardHtml(tanks, settings) {
+  if (!tanks.length) return '';
+  return `
+      <div class="card dash-insight kennzahl">
+        <h2 class="card__title">${icon('art-heizoel')} ${t('dashboard.tanks.title')}${info('tankBook')}</h2>
         ${tanks.map(tk => {
           const pct = tk.cap > 0 ? Math.max(0, Math.min(100, tk.stock / tk.cap * 100)) : 0;
           const cls = tankLevel(pct, settings?.tank_warn_pct);
           return `<div class="dash-tank">
-            <div class="dash-tank__label">${tk.utility.icon} ${escapeHtml(tk.meter.name || tk.utility.label)}
+            <div class="dash-tank__label">${artIcon(tk.utility, { size: 16 })} ${escapeHtml(tk.meter.name || tk.utility.label)}
               <span class="muted">${fmt.num(tk.stock,0)} / ${fmt.num(tk.cap,0)} ${tk.unit}</span></div>
             <div class="tank-bar"><div class="tank-bar__fill tank-bar__fill--${cls}" style="width:${pct.toFixed(0)}%"></div></div>
           </div>`;
         }).join('')}
-      </div>` : ''}
+      </div>`;
+}
 
-      ${saldoYear ? `
-      <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">⚡</span> ${t('dashboard.stromSaldo.title')} ${saldoYear.year}</h2>
-        <div class="dash-strom-saldo">
+/** Strom-Saldo als Reihe gleicher Zahlen (Auswertungen › Kennzahlen). */
+export function stromSaldoHtml(saldoYear, pvYear) {
+  if (!saldoYear) return '';
+  return `
+      <section class="kennzahl-reihe dash-insight-saldo" aria-labelledby="fig-saldo-title">
+        <h2 class="card__title" id="fig-saldo-title">${icon('art-strom')} ${t('dashboard.stromSaldo.title')} ${saldoYear.year}</h2>
+        <div class="raster dash-strom-saldo" data-zellen="zahl">
           <div class="kpi">
             <div class="kpi__label">${t('dashboard.stromSaldo.bezug')}</div>
             <div class="kpi__value">${fmt.eur(saldoYear.bezug_cost)}</div>
@@ -187,7 +300,7 @@ export async function render(container, _params = [], ctx = {}) {
           <div class="kpi kpi--accent">
             <div class="kpi__label">${t('dashboard.stromSaldo.netto')}</div>
             <!-- v2.13.0 (Review UI-18) — ohne Vorzeichen, die Zeile darunter sagt die Richtung -->
-            <div class="kpi__value ${saldoYear.saldo_netto < 0 ? 'success-text' : ''}">${fmt.eur(Math.abs(saldoYear.saldo_netto || 0))}</div>
+            <div class="kpi__value ${saldoYear.saldo_netto < 0 ? 'ton-ok' : ''}">${fmt.eur(Math.abs(saldoYear.saldo_netto || 0))}</div>
             <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? t('dashboard.stromSaldo.nettoEarn') : t('dashboard.stromSaldo.nettoCost')}</div>
           </div>
           ${pvYear && pvYear.savings_eur != null ? `
@@ -213,117 +326,43 @@ export async function render(container, _params = [], ctx = {}) {
             <div class="kpi__sub">${t('dashboard.stromSaldo.selfUseSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
           </div>` : ''}
         </div>
-      </div>` : ''}
+      </section>`;
+}
 
-      ${leverSlotHtml()}
-
-      ${topRecs.length ? `
-      <div class="card dash-insight">
-        <div class="card__head">
-          <h2 class="card__title"><span aria-hidden="true">💡</span> ${t('dashboard.recommendations.title')}</h2>
-          <a class="btn btn--ghost btn--sm" href="#/recommendations" aria-label="${escapeHtml(t('dashboard.allRecommendations'))}">${t('dashboard.allLink')}</a>
-        </div>
-        ${topRecs.map(r => `<div class="dash-rec dash-rec--${r.severity}">
-          <strong>${escapeHtml(r.title)}</strong>
-          <span class="muted">${escapeHtml(r.detail.slice(0, 110))}${r.detail.length > 110 ? '…' : ''}</span>
-        </div>`).join('')}
-      </div>` : ''}
-
-    </div>`;
-
-  // v2.16.0 — „Energie gesamt“: nur Verbrauch in kWh, ohne PV (Wasser steht in seiner Karte)
-  const totalKinds = datasets.filter(d => !isPv(d.utility) && d.utility.consumption_unit === 'kWh'
-    && (d.consumption?.monthly_total || []).length);
-
-  container.innerHTML = `
-    <div class="section-head">
-      <h1>${t('dashboard.title')}</h1>
-      <div class="section-actions">
-        <!-- v2.11.0 (Review UI-21) — „Temperaturen" gehört zu den Wetterdaten;
-             „Erfassen" steht in der Kopfleiste bzw. der Tab-Leiste -->
-        <a class="btn btn--ghost" href="#/forecast">${t('nav.forecast')}</a>
-      </div>
-    </div>
-
-    ${!hasAnyData ? `
-    <!-- v2.13.0 (Review UI-32, DOC-31) — Einstieg statt Leerseite: was die App
-         tut, die ersten Schritte mit Häkchen aus den Daten, und Beispieldaten
-         zum Ausprobieren (vorher sichert der Server den jetzigen Stand) -->
-    <section class="card dash-welcome" aria-labelledby="dash-welcome-title">
-      <div class="dash-welcome__art">${welcomeArt()}</div>
-      <h2 class="dash-welcome__title" id="dash-welcome-title">${escapeHtml(t('dashboard.welcome.title'))}</h2>
-      <p class="dash-welcome__text">${escapeHtml(t('dashboard.welcome.text'))}</p>
-      <div class="dash-welcome__actions">
-        <a class="btn btn--primary" href="#/zaehlerstaende">${escapeHtml(t('dashboard.empty.cta'))}</a>
-        <button type="button" class="btn btn--ghost" data-action="demo">${escapeHtml(t('dashboard.welcome.demo'))}</button>
-      </div>
-      <h3 class="dash-welcome__steps">${escapeHtml(t('help.setup.title'))}</h3>
-      <div data-role="setup"></div>
-    </section>
-    ` : `
-    <div data-role="level-hint"></div>
-    <div data-role="todo" data-variant="full">${todoHtml(todo)}</div>
-    ${insightsHtml}
-    ${whatIfHtml()}
-    <!-- v3.7.0 — Schaubilder ab Erfahren (bis v3.6 Experte): Sie erklären Zahlen, „Kälter oder mehr verbraucht?“ ist ein Vergleich -->
-    ${atLeast('advanced') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
-      <h2 class="card__title" id="dash-ex-title"><span aria-hidden="true">🎞️</span> ${escapeHtml(t('dashboard.explainers.title'))}</h2>
-      <div class="explainer-grid" data-role="explainers"><div class="loading">${escapeHtml(t('common.loading'))}</div></div>
-    </section>` : ''}
-
-    ${utilities.some(u => u.supports_bill_check) ? `<div class="period-mode-bar dash-period-mode" style="margin-top: var(--sp-5)">${periodModeHtml()}</div>` : ''}
-    <div class="grid grid-2" style="margin-top: var(--sp-${utilities.some(u => u.supports_bill_check) ? 3 : 5})">
-      ${datasets.map(d => renderUtilityCard(d)).join('')}
-    </div>
-
-    ${totalKinds.length ? `<div class="card" style="margin-top: var(--sp-5)">
-      <h2 class="card__title">${t('dashboard.chart.totalTitle', { months: chartSpan })}</h2>
-      <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
-      <p class="chart-note">${escapeHtml(t('dashboard.chart.totalNote'))}</p>
-      <div data-role="chart-extra"></div>
-    </div>` : ''}
-    `}
-  `;
-
-  // v2.13.0 — Einstieg: Beispieldaten und die ersten Schritte
-  if (!hasAnyData) {
-    container.querySelector('[data-action="demo"]')?.addEventListener('click', async () => {
-      try { await loadDemo(); } catch (e) { toastErr(e.message); }
-    });
-    setupSteps().then(steps => {
-      const box = container.querySelector('[data-role="setup"]');
-      if (box?.isConnected) box.innerHTML = setupListHtml(steps);
-    }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
+/**
+ * v3.12.0 (M4) — Kurzfassung der Kennzahlen als Zahlenreihe, jede führt zur Karte mit der Herleitung.
+ * Dieselben Quellen wie die Karten (`efficiency`, `comparison`, `strom-saldo`, `pv-summary`).
+ */
+export function numbersHtml({ eff, cmp, saldoYear, pvYear }) {
+  const tile = (role, label, value, unit, sub, cls = '') => `<a class="zahl-link" href="#/figures" data-role="number-${role}">
+        <div class="kpi">
+          <div class="kpi__label">${escapeHtml(label)}</div>
+          <div class="kpi__value${cls ? ` ${cls}` : ''}">${escapeHtml(value)}${unit ? ` <span class="kpi__unit">${escapeHtml(unit)}</span>` : ''}</div>
+          ${sub ? `<div class="kpi__sub">${escapeHtml(sub)}</div>` : ''}
+        </div></a>`;
+  const out = [];
+  const s0 = eff?.per_source?.[0];
+  if (s0) {
+    out.push(tile('efficiency', t('dashboard.number.efficiency', { year: eff.year, label: s0.label }),
+      eff.scale === null ? fmt.num(s0.kwh_per_m2, 0) : (s0.class ?? '–'),
+      eff.scale === null ? 'kWh/m²·a' : `${fmt.num(s0.kwh_per_m2, 0)} kWh/m²·a`,
+      eff.area_assumed ? t('dashboard.number.areaAssumed') : t('dashboard.efficiency.livingArea', { area: eff.wohnflaeche_m2 })));
   }
-
-  // v3.4.0 (F1024) — Haken in „Zu tun"
-  if (hasAnyData) renderTodoBox(container.querySelector('[data-role="todo"]'), todo);
-  wirePeriodMode(container);   // v3.6.0 (F1030)
-
-  // v3.2.0 — Schaubilder (seit v3.7.0 ab Erfahren) und Vorschlag zum Hochstufen nachladen;
-  // beides darf den ersten Inhalt nicht aufhalten
-  if (hasAnyData) {
-    const later = [];
-    const exBox = container.querySelector('[data-role="explainers"]');
-    if (exBox) later.push(loadExplainers(utilities, exBox).catch(() => { exBox.closest('section')?.remove(); }));
-    const hintBox = container.querySelector('[data-role="level-hint"]');
-    if (hintBox) later.push(levelSuggestion(utilities).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {}));
-    later.push(loadLeverTile(container, utilities));   // v3.6.0 — „Dein Hebel“, nachgeladen
-    // v3.10.0 (GitHub #36) — beim Neuzeichnen am Ort (Stufe, Kalender-/Abrechnungsjahr) erst
-    // fertig melden, wenn auch das Nachgeladene steht: sonst stünde nach dem Tausch „Lädt …“
-    // da, und was über der Leseposition wächst, schöbe die Seite (Safari hält sie nicht fest)
-    if (ctx.inPlace) await Promise.all(later);
+  const w = cmp?.supported ? cmp.water : null;
+  if (w?.rating) {
+    out.push(tile('water', t('dashboard.number.water'), fmt.int(w.liters_per_person_day), t('dashboard.number.waterUnit'),
+      t(w.delta_pct > 0 ? 'dashboard.number.above' : 'dashboard.number.below', { pct: fmt.pct(Math.abs(w.delta_pct) / 100, 0) })));
   }
-
-  // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
-  // dem Vorjahr; gemeinsam nur, was sich addieren lässt (kWh)
-  const charts = hasAnyData
-    ? [renderTotalChart(datasets, chartSpan, container), ...renderSparks(datasets, container)]
-    : [];
-
-  // Cleanup: destroy charts on next nav (v2.15.0 — ohne window-Global;
-  // die Chart-Schicht räumt beim Seitenwechsel ohnehin ab)
-  return () => { charts.forEach(c => c?.destroy()); };
+  if (saldoYear) {
+    out.push(tile('saldo', t('dashboard.number.netto', { year: saldoYear.year }), fmt.eur(Math.abs(saldoYear.saldo_netto || 0)), '',
+      saldoYear.saldo_netto < 0 ? t('dashboard.stromSaldo.nettoEarn') : t('dashboard.stromSaldo.nettoCost'),
+      saldoYear.saldo_netto < 0 ? 'ton-ok' : ''));
+  }
+  if (pvYear && pvYear.autarkiequote != null) {
+    out.push(tile('autarky', t('dashboard.stromSaldo.autarky'), fmt.pct(pvYear.autarkiequote, 0), '',
+      pvYear.months_covered < 12 ? tp('dashboard.stromSaldo.coveredSub', pvYear.months_covered, { months: pvYear.months_covered }) : t('dashboard.stromSaldo.autarkySub')));
+  }
+  return `<div class="raster dash-zahlen" data-zellen="zahl" data-role="numbers">${out.join('')}${leverSlotHtml()}</div>`;
 }
 
 /**
@@ -353,12 +392,26 @@ function leverSlotHtml(variant = 'full') {
 function loadLeverTile(container, utilities) {
   const slot = container.querySelector('[data-role="flex-lever-slot"]');
   if (!slot || !utilities.some(u => u.key === 'strom')) { slot?.remove(); return null; }
-  const year = new Date().getFullYear() - 1;
-  return api.flexibilitySummary(year).then(r => {
+  const opts = { beginner: slot.dataset.variant === 'beginner' };
+  return leverTileFor(new Date().getFullYear(), (y) => api.flexibilitySummary(y), opts).then(html => {
     if (!slot.isConnected) return;
-    const html = leverTileHtml(r?.summary, { beginner: slot.dataset.variant === 'beginner' });
     if (html) slot.outerHTML = html; else slot.remove();
   }).catch(() => { slot.remove(); });
+}
+
+/**
+ * v3.12.0 — Kachel des Vorjahres; ergibt das Vorjahr keine Zahl, die des Jahres davor (der Titel
+ * nennt das Jahr). Ohne Viertelstunden über ein ganzes Jahr, etwa im Beispielhaushalt, der nur die
+ * letzten Monate fortschreibt, fehlte die Kachel sonst ganz.
+ * @param {number} now  laufendes Jahr
+ * @param {(year: number) => Promise<{summary?: object|null}>} summaryOf
+ */
+export async function leverTileFor(now, summaryOf, opts = {}) {
+  for (const year of [now - 1, now - 2]) {
+    const html = leverTileHtml((await summaryOf(year))?.summary, opts);
+    if (html) return html;
+  }
+  return '';
 }
 
 /** @param {object|null} s `summary` aus GET /api/flexibility?summary=1 */
@@ -368,8 +421,8 @@ export function leverTileHtml(s, { beginner = false } = {}) {
   const cls = beginner ? 'card dash-answer dash-lever' : 'card dash-insight dash-lever';
   return `<section class="${cls}" data-role="flex-lever" aria-labelledby="dash-lever-title">
         <div class="card__head">
-          <h2 class="card__title" id="dash-lever-title"><span aria-hidden="true">⏱️</span> ${escapeHtml(t('dashboard.lever.title', { year: s.year }))}</h2>
-          <a class="btn btn--ghost btn--sm" href="#/flexibility" aria-label="${escapeHtml(t('dashboard.lever.linkLabel'))}">${escapeHtml(t('dashboard.lever.link'))}</a>
+          <h2 class="card__title" id="dash-lever-title">${icon('stoppuhr')} ${escapeHtml(t('dashboard.lever.title', { year: s.year }))}</h2>
+          <a class="btn btn--ghost btn--sm" href="#/flexibility?year=${Number(s.year)}" aria-label="${escapeHtml(t('dashboard.lever.linkLabel'))}">${escapeHtml(t('dashboard.lever.link'))}</a>
         </div>
         <p class="dash-lever__figure"><span class="dash-lever__big">${escapeHtml(fmt.eur0(s.eur))}</span>
           <span class="dash-lever__per">${escapeHtml(t(s.real ? 'dashboard.lever.real' : 'dashboard.lever.dynamic', { vat }))}</span></p>
@@ -382,7 +435,7 @@ export function leverTileHtml(s, { beginner = false } = {}) {
 function whatIfHtml() {
   return `<section class="card dash-whatif" aria-labelledby="dash-whatif-title" style="margin-top: var(--sp-5)">
       <div>
-        <h2 class="card__title" id="dash-whatif-title"><span aria-hidden="true">🧪</span> ${escapeHtml(t('dashboard.whatIf.title'))}</h2>
+        <h2 class="card__title" id="dash-whatif-title">${icon('kolben')} ${escapeHtml(t('dashboard.whatIf.title'))}</h2>
         <p class="dash-whatif__text">${escapeHtml(t('dashboard.whatIf.text'))}</p>
       </div>
       <a class="btn btn--primary" href="#/forecast" data-role="whatif-link">${escapeHtml(t('dashboard.whatIf.button'))}</a>
@@ -395,6 +448,8 @@ function whatIfHtml() {
  * Ablesungen nur zählt, was passt; `items.source` hält die Quelle für den Filter.
  */
 export function buildTodo(events, recs, keep = () => true) {
+  // v3.12.0 (M4) — zur Sicht, in der die Sache steht; Adressen in API, Kalender und Home Assistant bleiben
+  const inSight = (href, view) => (String(href || '').startsWith('#/utility/') ? `${href}${href.includes('?') ? '&' : '?'}view=${view}` : href);
   const items = [];
   const due = (events || []).filter(e => e.due_now && keep(e));
   items.source = { events: events || [], recs: recs || [] };
@@ -405,21 +460,22 @@ export function buildTodo(events, recs, keep = () => true) {
     const when = d == null ? fmt.date(e.date)
       : d < 0 ? tp('dashboard.reminders.overdueDays', -d)
       : d === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', d);
-    items.push({ icon: '📌', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.params?.title ?? e.title, sub: when,
+    items.push({ icon: 'merker', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.params?.title ?? e.title, sub: when,
       href: e.href, action: t('dashboard.todo.reminderAction'), ev: e });
   }
   // Bis zu zwei Zähler einzeln (mit Sprung zur Karte), mehr als eine Zeile —
   // sonst schiebt ein monatlicher Ablesetag die ganze Übersicht nach unten
   const readings = due.filter(x => x.kind === 'reading_due');
   if (readings.length > 2) {
-    const names = readings.map(e => e.params?.meter || '');
-    items.push({ icon: '📋', tone: 'warn', text: tp('dashboard.todo.readingsDue', readings.length),
+    // v3.12.0 — Art und Zähler wie in der Einzelzeile; bis dahin nur der Name („Hauptzähler, Hauptzähler, …“)
+    const names = readings.map(e => [e.params?.label, e.params?.meter].filter(Boolean).join(' · '));
+    items.push({ icon: 'klemmbrett', tone: 'warn', text: tp('dashboard.todo.readingsDue', readings.length),
       sub: names.slice(0, 3).join(', ') + (names.length > 3 ? ' …' : ''),
       href: '#/zaehlerstaende', action: t('dashboard.todo.readingAction') });
   } else {
     for (const e of readings) {
       const days = e.ref?.days_since_reading;
-      items.push({ icon: e.ref?.icon || '📋', tone: 'warn', text: `${e.params?.label} · ${e.params?.meter}`,
+      items.push({ icon: 'klemmbrett', tone: 'warn', text: `${e.params?.label} · ${e.params?.meter}`,
         sub: days == null ? t('dashboard.todo.readingNever') : tp('dashboard.todo.readingDue', days),
         href: e.href, action: t('dashboard.todo.readingAction') });
     }
@@ -429,7 +485,7 @@ export function buildTodo(events, recs, keep = () => true) {
     const rec = recById.get(e.ref?.recommendation_id);
     // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Lücke steht darunter
     const gap = Number(e.ref?.successor?.gap_days) || 0;
-    items.push({ icon: isTank ? '🛢️' : '📄', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+    items.push({ icon: isTank ? 'art-heizoel' : 'dokument', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
       sub: gap > 0 ? tp('dashboard.todo.successorGap', gap, { date: fmt.date(e.ref.successor.start) }) : '',
       recId: e.ref?.recommendation_id, href: e.href, ev: e,
       action: t(isTank ? 'dashboard.todo.tankAction' : 'dashboard.todo.contractAction') });
@@ -438,7 +494,7 @@ export function buildTodo(events, recs, keep = () => true) {
   for (const e of due.filter(x => ['price_increase', 'objection_deadline', 'co2_claim_deadline'].includes(x.kind))) {
     const rec = recById.get(e.ref?.recommendation_id);
     const isContract = e.kind === 'price_increase';
-    items.push({ icon: isContract ? '📄' : '🧾', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+    items.push({ icon: isContract ? 'dokument' : 'beleg', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
       recId: e.ref?.recommendation_id, href: e.href, ev: e,
       action: t(isContract ? 'dashboard.todo.contractAction' : 'dashboard.todo.tenancyAction') });
   }
@@ -446,7 +502,7 @@ export function buildTodo(events, recs, keep = () => true) {
   // Eine gesetzliche Frist gibt es nur für Strom und Gas (§ 40c Abs. 2 EnWG) — sonst sagt die Zeile das
   for (const e of due.filter(x => x.kind === 'bill_expected')) {
     const deadline = e.ref?.deadline;
-    items.push({ icon: '🧾', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.title,
+    items.push({ icon: 'beleg', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.title,
       sub: deadline ? t(e.ref?.overdue ? 'dashboard.todo.billOverdueSince' : 'dashboard.todo.billDeadline', { date: fmt.date(deadline) })
         : t('dashboard.todo.billNoDeadline'),
       href: e.href, ev: e, action: t('dashboard.todo.billAction') });
@@ -454,14 +510,14 @@ export function buildTodo(events, recs, keep = () => true) {
   // v3.11.0 (F1035) — Deine Rechte als Kunde: Titel des Befunds (wie die Empfehlung), mit Frist darunter; abhakbar
   for (const e of due.filter(x => x.kind === 'rights')) {
     const rec = recById.get(e.ref?.recommendation_id);
-    items.push({ icon: '⚖️', tone: e.severity === 'urgent' || e.severity === 'overdue' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+    items.push({ icon: 'waage', tone: e.severity === 'urgent' || e.severity === 'overdue' ? 'alert' : 'warn', text: rec?.title ?? e.title,
       sub: e.ref?.deadline ? t('rights.deadline', { date: fmt.date(e.ref.deadline) }) : '',
       recId: e.ref?.recommendation_id, href: e.href, ev: e, action: t('dashboard.todo.rightsAction') });
   }
   // v3.11.0 (D, #54) — Verträge widersprechen sich: Titel der Empfehlung, Sprung zu den Verträgen (dort Ende setzen oder „Beides stimmt“)
   for (const e of due.filter(x => x.kind === 'contract_conflict')) {
     const rec = recById.get(e.ref?.recommendation_id);
-    items.push({ icon: '📄', tone: 'warn', text: rec?.title ?? e.title, sub: rec?.detail ?? '',
+    items.push({ icon: 'dokument', tone: 'warn', text: rec?.title ?? e.title, sub: rec?.detail ?? '',
       recId: e.ref?.recommendation_id, href: e.href, ev: e, action: t('dashboard.todo.contractAction') });
   }
   // v3.9.0 (#38) — Heizgrenze anpassen: Vorher/Nachher und Wirkung, „Übernehmen“ und „Nicht jetzt“
@@ -470,13 +526,15 @@ export function buildTodo(events, recs, keep = () => true) {
     const h = { best: r.best, current: r.current, own: r.own, range: r.range, before: r.before, after: r.after, effect: r.effect };
     // je Satz eine Zeile (am Handy sonst ein Block): Zähler, vorher/nachher, Wirkung
     const lines = [`${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`, ...heatLimitFacts(h, r.unit || 'kWh'), ...heatLimitEffect(h)];
-    items.push({ icon: '🌡️', tone: 'warn', text: t('heatLimit.title', { best: fmt.num(Number(r.best), 1) }),
+    items.push({ icon: 'art-fernwaerme', tone: 'warn', text: t('heatLimit.title', { best: fmt.num(Number(r.best), 1) }),
       sub: lines.join(' '), subLines: lines,
+      // v3.12.0 (M4) — der Saldo in dieser Zeile in Farbe, wie an der Karte
+      htmlLines: [escapeHtml(lines[0]), ...heatLimitFacts(h, r.unit || 'kWh').map(escapeHtml), ...heatLimitEffect(h, { html: true })],
       // v3.9.0 (Skeptiker N4) — Einsteiger: kurz, ohne Fachwörter; das Übrige aufklappbar
-      short: { text: t('heatLimit.beginner.title', { label: e.params?.label ?? '' }), subLines: heatLimitBeginnerLines(h) },
+      short: { text: t('heatLimit.beginner.title', { label: e.params?.label ?? '' }), subLines: heatLimitBeginnerLines(h), htmlLines: heatLimitBeginnerLines(h, { html: true }) },
       // v3.9.0 (Skeptiker R2-5) — steht in „Zu tun“, also nicht noch einmal unter „Top-Empfehlungen“
       recId: r.recommendation_id,
-      href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
+      href: inSight(e.href, 'balance'), ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
   }
   // v3.9.0 (ablesung-pruefen) — Ablesung prüfen (gemessen gegen erwartet davor und danach;
   // „Stand ist richtig“, „Nur für die Abrechnung“, „Korrigieren“), doppelt eingetragen
@@ -486,21 +544,21 @@ export function buildTodo(events, recs, keep = () => true) {
   for (const e of due.filter(x => x.kind === 'reading_duplicate')) {
     const r = e.ref || {};
     const lines = [meterLine(e), t('readingCheck.duplicate.sub', { counter: `${fmt.num(Number(r.counter), 1)} ${r.unit || ''}`.trim() })];
-    items.push({ icon: '📋', tone: 'warn', text: t('readingCheck.duplicate.title', { date: fmt.date(r.date) }), sub: lines.join(' '), subLines: lines,
-      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+    items.push({ icon: 'klemmbrett', tone: 'warn', text: t('readingCheck.duplicate.title', { date: fmt.date(r.date) }), sub: lines.join(' '), subLines: lines,
+      href: inSight(e.href, 'readings'), ev: e, action: t('dashboard.todo.readingCheckAction'),
       readingCheck: { kind: 'duplicate', utility: r.utility, meterId: r.meter_id, ids: r.delete_ids || [] } });
   }
   for (const e of due.filter(x => x.kind === 'reading_check')) {
     const r = e.ref || {};
     const lines = [meterLine(e), ...readingCheckLines(r)];
-    items.push({ icon: '🔎', tone: 'warn', text: readingCheckTitle(r), sub: lines.join(' '), subLines: lines,
-      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+    items.push({ icon: 'suche', tone: 'warn', text: readingCheckTitle(r), sub: lines.join(' '), subLines: lines,
+      href: inSight(e.href, 'readings'), ev: e, action: t('dashboard.todo.readingCheckAction'),
       readingCheck: { kind: 'check', utility: r.utility, meterId: r.meter_id, ids: r.reading_ids || [], count: Number(r.count) || 1 } });
   }
   for (const e of due.filter(x => x.kind === 'level_shift')) {
     const r = e.ref || {};
     const lines = [meterLine(e), ...levelShiftLines(r)];
-    items.push({ icon: r.direction === 'higher' ? '📉' : '📈', tone: 'warn', text: levelShiftTitle(r), sub: lines.join(' '), subLines: lines,
+    items.push({ icon: r.direction === 'higher' ? 'verlaufskurve' : 'verlaufskurve', tone: 'warn', text: levelShiftTitle(r), sub: lines.join(' '), subLines: lines,
       href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
       readingCheck: { kind: 'level', utility: r.utility, meterId: r.meter_id, date: r.date, basis: r.basis } });
   }
@@ -523,16 +581,17 @@ function todoItemsHtml(items, { go = true, beginner = false } = {}) {
     const short = beginner && x.short ? x.short : null;
     const text = short ? short.text : x.text;
     const subLines = short ? short.subLines : x.subLines;
+    const htmlLines = short ? short.htmlLines : x.htmlLines;
     return `<li class="dash-todo__item dash-todo__item--${x.tone}${checkable(x) ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
-      <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-      <span class="dash-todo__text"><strong>${escapeHtml(text)}</strong>${subLines ? subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
+      <span class="dash-todo__icon" aria-hidden="true">${icon(x.icon, { size: 20 })}</span>
+      <span class="dash-todo__text"><strong>${escapeHtml(text)}</strong>${htmlLines ? htmlLines.map(s => `<span class="muted">${s}</span>`).join('') : subLines ? subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
         : x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
-      <span class="dash-todo__chev" aria-hidden="true">›</span>
+      <span class="dash-todo__chev" aria-hidden="true">${icon('rechts', { size: 16 })}</span>
     </a>
     ${checkable(x) ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
-      title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: text }))}"><span aria-hidden="true">✓</span></button>` : ''}
+      title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: text }))}">${icon('haken')}</button>` : ''}
     ${x.heatLimit ? heatLimitActionsHtml(x, i) : ''}
     ${short ? `<details class="dash-todo__more" data-role="todo-more"><summary>${escapeHtml(t('heatLimit.beginner.more'))}</summary>
       <p class="muted small"><strong>${escapeHtml(x.text)}.</strong> ${(x.subLines || []).map(escapeHtml).join(' ')}</p></details>` : ''}
@@ -550,7 +609,7 @@ function readingCheckActionsHtml(x, i) {
   const attrs = `class="dash-todo__actions" data-role="reading-check-todo" data-kind="${escapeHtml(rc.kind)}" data-meter="${escapeHtml(String(rc.meterId ?? ''))}"`;
   if (rc.kind === 'check') {
     return `<div ${attrs}>
-      <button type="button" class="btn btn--sm btn--util" data-rc-verify="${i}">${escapeHtml(tp('readingCheck.verify', rc.count))}</button>
+      <button type="button" class="btn btn--sm btn--primary" data-rc-verify="${i}">${escapeHtml(tp('readingCheck.verify', rc.count))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-rc-billing="${i}" title="${escapeHtml(t('readingCheck.billingOnlyHint'))}">${escapeHtml(t('readingCheck.billingOnly'))}</button>
       <a class="btn btn--sm btn--ghost" data-rc-correct="${i}" href="${escapeHtml(correctHref(rc.utility, rc.meterId, rc.ids[0] || ''))}">${escapeHtml(t('readingCheck.correct'))}</a>
     </div>`;
@@ -561,7 +620,7 @@ function readingCheckActionsHtml(x, i) {
     </div>`;
   }
   return `<div ${attrs}>
-      <button type="button" class="btn btn--sm btn--util" data-rc-baseline="${i}">${escapeHtml(t('levelShift.set'))}</button>
+      <button type="button" class="btn btn--sm btn--primary" data-rc-baseline="${i}">${escapeHtml(t('levelShift.set'))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-rc-later="${i}">${escapeHtml(t('levelShift.notNow'))}</button>
     </div>`;
 }
@@ -588,7 +647,7 @@ export function efficiencyIncompleteText(eff) {
 function heatLimitActionsHtml(x, i) {
   const group = isGroupId(x.heatLimit.id);
   return `<div class="dash-todo__actions" data-role="heat-limit-todo" data-meter="${escapeHtml(String(x.heatLimit.id ?? ''))}">
-      <button type="button" class="btn btn--sm btn--util" data-heat-apply="${i}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
+      <button type="button" class="btn btn--sm btn--primary" data-heat-apply="${i}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-heat-later="${i}" title="${escapeHtml(t('heatLimit.notNowHint'))}">${escapeHtml(t('heatLimit.notNow'))}</button>
     </div>`;
 }
@@ -597,24 +656,77 @@ function heatLimitActionsHtml(x, i) {
  * v3.5.0 (F1028) — `f`: Filter nach Zuständigkeit {filter, names, hidden};
  * mit Filter bleibt die Karte auch ohne passende Zeile stehen (umschaltbar).
  */
-function todoHtml(items, f = null) {
-  if (!items.length && !f) return '';
-  return `
-    <section class="card dash-todo" aria-labelledby="dash-todo-title">
-      <div class="dash-todo__head">
-        <h2 class="card__title" id="dash-todo-title"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.todo.title'))}</h2>
+function todoHtml(items, f = null, o = {}) {
+  // v3.12.0 (M2) — die Seite Zu tun: ohne Überschrift (sie hat ihre eigene), mit weiteren Zeilen davor und danach
+  const rows = `${o.before || ''}${todoItemsHtml(items, { beginner: !!o.beginner })}${o.after || ''}`;
+  if (!rows.trim() && !f) return o.empty || '';
+  const head = o.page
+    ? (f ? `<div class="dash-todo__head dash-todo__head--filter">${filterHtml({ id: 'todo-assignee', value: f.filter, names: f.names })}</div>` : '')
+    : `<div class="dash-todo__head">
+        <h2 class="card__title" id="dash-todo-title">${icon('aufgaben')} ${escapeHtml(t('dashboard.todo.title'))}</h2>
         ${f ? filterHtml({ id: 'todo-assignee', value: f.filter, names: f.names }) : ''}
-      </div>
-      ${items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items)}</ul>`
+      </div>`;
+  return `
+    <section class="card dash-todo" ${o.page ? `aria-label="${escapeHtml(t('todo.title'))}"` : 'aria-labelledby="dash-todo-title"'}>
+      ${head}
+      ${rows.trim() ? `<ul class="dash-todo__list">${rows}</ul>`
         : `<p class="muted" data-role="assignee-empty">${escapeHtml(t('assignee.emptyFiltered'))}</p>`}
       ${f ? filterNoteHtml(f.hidden, f.filter) : ''}
     </section>`;
 }
 
-/** Einsteiger: höchstens vier Zeilen, ohne Knopf „Zum …". */
-function beginnerTodoHtml(items) {
-  return items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items.slice(0, 4), { go: false, beginner: true })}</ul>`
+/**
+ * Auszug auf der Übersicht: höchstens vier Zeilen, ohne Knopf „Zum …". Einsteiger bekommen dazu die kurze
+ * Fassung ohne Fachwörter. v3.12.0 (M4) — in allen Stufen; alles Weitere steht unter Zu tun.
+ */
+function excerptTodoHtml(items, beginner = true) {
+  const shown = excerptItems(items);
+  // v3.12.0 — „Noch n weitere“ zählt wie „Zu tun“ und die Seitenleiste (`total` = todo.js offenCount: auch
+  // Empfehlungen, Post und Vorschläge der KI); bis dahin nur die Fristen und Termine des Auszugs
+  const total = Number.isFinite(items.total) ? Math.max(items.total, items.length) : items.length;
+  const more = total - shown.length;
+  // v3.12.0 — eine Quelle hat nicht geantwortet: die Fehlerzeile, nie „Gerade nichts. Gut so.“
+  const failed = items.failed ? failedLineHtml(items.failed) : '';
+  const list = shown.length ? `<ul class="dash-todo__list">${todoItemsHtml(shown, { go: false, beginner })}</ul>` : '';
+  const moreHtml = more <= 0 ? ''
+    : `<p class="muted small" data-role="todo-more">${escapeHtml(shown.length ? tp('dashboard.todo.more', more) : tp('dashboard.todo.waiting', more))}</p>`;
+  return failed || list || moreHtml ? `${failed}${list}${moreHtml}`
     : `<p class="muted">${escapeHtml(t('dashboard.beginner.todo.none'))}</p>`;
+}
+
+/**
+ * v3.12.0 — die Zeilen von „Zu tun“ für den Auszug, aus derselben Ladung wie die Seite „Zu tun“ und die
+ * Seitenleiste (todo.js loadOffen). Dazu `total` (die Zahl unter „Alle“, offenCount) und `failed` (der erste
+ * Fehler einer Quelle, sonst null). todo.js lädt erst hier, wie in der Seitenleiste (es importiert diese Datei).
+ */
+async function loadTodo(settings = getSettingsSync() || {}) {
+  const { loadOffen, offenCount } = await import('./todo.js');
+  // Vorschläge der KI nur, wenn sie in der App bestätigt werden (sonst gibt es keine, und es bleibt beim Abruf ohne Anlass)
+  const d = await loadOffen({ proposals: wantsProposals(settings) });
+  const todo = d.todo;
+  todo.total = offenCount(d);
+  todo.failed = d.failed ? (d.error || new Error('')) : null;
+  todo.proposals = d.proposals;
+  return todo;
+}
+const wantsProposals = (settings) => settings?.mcp_enabled === true && settings?.mcp_apply_in_app !== false;
+
+/** Höchstens so viele Zeilen im Auszug auf der Übersicht. */
+export const EXCERPT_ROWS = 4;
+
+/**
+ * v3.12.0 (m4b) — die Zeilen des Auszugs: Überfälliges zuerst, dann Fristen aus „Deine Rechte“, dann der Rest,
+ * je in der Reihenfolge der Liste. Eine Rechte-Zeile fällt nie heraus, auch wenn vier überfällige Termine davor
+ * stehen: Sie nimmt den letzten Platz. Bis dahin zeigte der Auszug die ersten vier Zeilen der Liste, und im
+ * Schaufenster fiel die Sonderkündigung mit ihrer Frist hinter Wartungsterminen heraus.
+ */
+export function excerptItems(items, max = EXCERPT_ROWS) {
+  const rank = (x) => (x.tone === 'alert' ? 0 : x.ev?.kind === 'rights' ? 1 : 2);
+  const sorted = (items || []).map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([x]) => x);
+  const out = sorted.slice(0, max);
+  const right = sorted.find(x => x.ev?.kind === 'rights');
+  if (right && !out.includes(right) && max > 0) out[max - 1] = right;
+  return out;
 }
 
 /**
@@ -622,9 +734,9 @@ function beginnerTodoHtml(items) {
  * kleiner Dialog (Datum, Notiz, Beleg), danach ist die Zeile weg; „Rückgängig"
  * im Hinweis holt sie zurück.
  */
-export function renderTodoBox(box, items) {
+export function renderTodoBox(box, items, o = {}) {
   if (!box?.isConnected) return;
-  const full = box.dataset.variant !== 'beginner';
+  const full = !['beginner', 'excerpt'].includes(box.dataset.variant);
   // v3.5.0 (F1028) — Filter nach Zuständigkeit (volle Übersicht; je Gerät gemerkt)
   // v3.7.0 — über die Ereignisse (auch geerbte Zuständigkeit, auch Ablesungen in der Sammelzeile)
   const filter = storedFilter();
@@ -635,18 +747,20 @@ export function renderTodoBox(box, items) {
   const shown = !withFilter ? items : src ? buildTodo(src.events, src.recs, keep) : items.filter(x => keep(x.ev));
   const hidden = src ? due.filter(e => !keep(e)).length : items.length - shown.length;
   box.innerHTML = full
-    ? todoHtml(shown, withFilter ? { filter, names: assigneeNames(due), hidden } : null)
-    : beginnerTodoHtml(items);
-  if (withFilter) bindFilter(box, () => renderTodoBox(box, items));
-  const refresh = () => refreshTodo(box);
+    ? todoHtml(shown, withFilter ? { filter, names: assigneeNames(due), hidden } : null, o)
+    : excerptTodoHtml(items, box.dataset.variant === 'beginner');
+  if (withFilter) bindFilter(box, () => renderTodoBox(box, items, o));
+  const refresh = o.refresh || (() => refreshTodo(box));
+  o.onDraw?.(box);
   box.querySelectorAll('[data-todo-done]').forEach(btn => btn.addEventListener('click', async () => {
-    const x = shown[Number(btn.dataset.todoDone)];
+    const x = (full ? shown : excerptItems(items))[Number(btn.dataset.todoDone)];
     if (!x?.ev) return;
     // v3.10.0 — vor dem Fälligkeitstag erledigt: Danke-Hinweis unter der Liste
-    if (await markEventDone(x.ev, { title: x.text, onChange: refresh, thanksAfter: box })) btn.closest('li')?.remove();
+    if (await markEventDone(x.ev, { title: x.text, onChange: refresh, thanksAfter: box })) { btn.closest('li')?.remove(); o.afterChange?.(); }
   }));
   // v3.9.0 (#38) — Heizgrenze übernehmen (mit Rückgängig) oder für diesen Datenstand ausblenden
-  const list = full ? shown : items;
+  // v3.12.0 (m4b) — im Auszug die Zeilen in seiner Reihenfolge (excerptItems), sonst träfe der Knopf eine andere Zeile
+  const list = full ? shown : excerptItems(items);
   box.querySelectorAll('[data-heat-apply]').forEach(btn => btn.addEventListener('click', async () => {
     const h = list[Number(btn.dataset.heatApply)]?.heatLimit;
     if (!h) return;
@@ -665,6 +779,7 @@ export function renderTodoBox(box, items) {
       // bis die Daten sich ändern: die Empfehlung trägt den Datenstand in ihrer ID; ein Jahr als Obergrenze
       await api.dismissRecommendation(h.recId, heatLimitLaterUntil());
       btn.closest('li')?.remove();
+      o.afterChange?.();
       toastUndo(t('heatLimit.dismissed'), async () => {
         try { await api.restoreRecommendation(h.recId); await refresh(); } catch (e) { toastErr(e.message); }
       });
@@ -688,8 +803,8 @@ export function renderTodoBox(box, items) {
 
 async function refreshTodo(box) {
   try {
-    const [events, recs] = await Promise.all([api.agenda(90).then(d => d?.events || []), api.recommendations().catch(() => [])]);
-    renderTodoBox(box, buildTodo(events, recs));
+    // v3.12.0 — dieselbe Ladung wie beim ersten Zeichnen (Zahl wie „Zu tun“, Fehler als Fehler)
+    renderTodoBox(box, await loadTodo());
   } catch { /* der alte Stand bleibt stehen */ }
   window.dispatchEvent(new CustomEvent('et:badges-refresh'));
 }
@@ -703,7 +818,12 @@ async function groupPeriods(utilityKey, consumption) {
   return new Map(groups.map((g, i) => [g.id, lists[i]]));
 }
 
-function renderUtilityCard({ utility, consumption, billing = null, groups = null }) {
+/**
+ * v3.12.0 (M4) — Kachel einer Verbrauchsart: feste Plätze für Kopf, Zeitraum, zwei Werte mit Trend,
+ * Spur und Fuß. Rechnung wie bis v3.11 (renderUtilityCard); jede Einzelheit der alten Karte steht
+ * hier (Liste in umsetzung-m4.md), dazu neu der Fuß mit letzter Ablesung oder Füllstand.
+ */
+export function artTileHtml({ utility, consumption, billing = null, groups = null }, { summary = null, tanks = [], pvYear = null } = {}) {
   const monthly = consumption?.monthly_total || [];
   const sumKey = utility.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   // v2.15.0 (Review FE-08) — Jede Karte nennt ihr Fenster: Bei Gas endete es
@@ -731,8 +851,6 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   const trendCost = billing
     ? (billing.price_missing || billing.prev_same_span?.price_missing ? null : sameSpanTrend(billing, spanCost))
     : yoyTrend(costRows, withBonus ? 'cost_without_bonus' : 'cost', { months: 12, minMonths: 6, within });
-  // v3.10.0 (Skeptiker M1) — Weg zu den Ablesungen, wenn der Trend eher nach einem falschen Stand aussieht
-  const checkHref = `#/utility/${encodeURIComponent(utility.key)}`;
   // v3.10.0 (Skeptiker N3) — ohne Namen nur die Daten, sonst stünden sie doppelt da
   const win2 = billing ? periodWindow(billing, fmt.date) : null;
   const windowText = billing
@@ -740,8 +858,6 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
       + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOfReading', { date: fmt.date(addDaysIso(billing.as_of, 1)) }) : '')
     : win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
     + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
-  // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
-  // achtmal auf der Übersicht; die Zähler sind einen Klick entfernt
   const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
   // v2.13.0 (Review FE-06) — Einspeisung ist ein Erlös, Erzeugung hat weder
   // Kosten noch Vertrag; bei beiden ist mehr besser (Trendfarbe)
@@ -751,38 +867,84 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   // v3.10.0 (GitHub #36) — im Abrechnungsjahr zählen die Kacheln seit dessen Beginn, nicht 12 Monate
   // (Einspeisung und Erzeugung haben kein Abrechnungsjahr); ganz gerechnet „im Abrechnungsjahr“
   const sofar = !!billing && !!billing.as_of && billing.as_of < billing.until;
-  const valueLabel = t(feedIn ? 'dashboard.kpi.feedIn' : generation ? 'dashboard.kpi.generation'
-    : !billing ? 'dashboard.kpi.consumption' : sofar ? 'dashboard.kpi.consumptionSoFar' : 'dashboard.kpi.consumptionPeriod');
-  const costLabel = t(feedIn ? 'dashboard.kpi.revenue'
-    : !billing ? 'dashboard.kpi.cost' : sofar ? 'dashboard.kpi.costSoFar' : 'dashboard.kpi.costPeriod');
-
+  const valueKey = feedIn ? 'feedIn' : generation ? 'generation' : !billing ? 'consumption' : sofar ? 'consumptionSoFar' : 'consumptionPeriod';
+  const costKey = feedIn ? 'revenue' : !billing ? 'cost' : sofar ? 'costSoFar' : 'costPeriod';
+  const trendOpts = {
+    moreIsGood: better,
+    // v3.10.0 (Skeptiker M1) — Weg zu den Ablesungen, wenn der Trend eher nach einem falschen Stand aussieht
+    checkHref: `#/utility/${encodeURIComponent(utility.key)}?view=readings`,
+    noneTitle: billing ? t('dashboard.trend.noneTitleBilling') : t(beginnerTrendNoneKey(monthly)),
+  };
+  const groupsHtml = groupBreakdown(consumption, sumKey, utility, billing ? { period: billing, groups } : null);
+  // Der kurze Name steht sichtbar, der lange (mit Zeitraum) als Tooltip: In der Kachel nennt der Zeitraum ihn schon
+  const slot = (key, value, rest) => `<div class="kpi art-kachel__wert">
+          <div class="kpi__label" title="${escapeHtml(t(`dashboard.kpi.${key}`))}">${escapeHtml(t(`dashboard.tile.${key}`))}</div>
+          <div class="kpi__value">${value}</div>
+          ${rest}
+        </div>`;
+  const pct = pvYear && generation ? pvYear.eigenverbrauchsquote : null;
   return `
-    <div class="card" data-utility="${utility.key}">
-      <div class="section-head" style="margin-bottom: var(--sp-3)">
-        <h2><span style="color: ${utility.color}" aria-hidden="true">${utility.icon}</span> ${escapeHtml(utility.label)}</h2>
-        <div class="section-actions">
-          <a class="btn btn--sm btn--ghost" href="#/utility/${utility.key}/meters">${t('dashboard.card.meters')}</a>
-          <a class="btn btn--sm btn--util" href="#/utility/${utility.key}">${t('dashboard.card.details')}</a>
-        </div>
-      </div>
-      ${windowText ? `<p class="dash-window">${escapeHtml(windowText)}</p>` : ''}
-      <div class="grid grid-2 dash-util-kpis">
-        <div class="kpi">
-          <div class="kpi__label">${valueLabel}</div>
-          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(trendCons, better, checkHref)}</div>
-          <div class="kpi__sub">${utility.consumption_unit}</div>
-        </div>
-        ${generation ? '' : `<div class="kpi">
-          <div class="kpi__label">${costLabel}</div>
-          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better, checkHref)}`}</div>
+    <div class="card art-kachel" data-utility="${escapeHtml(utility.key)}">
+      <h3 class="art-kachel__titel"><a class="art-kachel__kopf" href="#/utility/${escapeHtml(utility.key)}" aria-label="${escapeHtml(`${utility.label}: ${t('dashboard.card.details')}`)}">${artIcon(utility, { size: 20 })} ${escapeHtml(utility.label)}</a></h3>
+      <p class="dash-window art-kachel__zeit">${escapeHtml(windowText)}</p>
+      <div class="art-kachel__werte">
+        ${slot(valueKey, escapeHtml(fmt.unit(totalCons, utility.consumption_unit, 0)), trendHtml(trendCons, trendOpts))}
+        ${generation
+          // v3.12.0 (M4) — Erzeugung kostet nichts: Wie viel davon im Haus bleibt
+          ? (pct != null ? `<div class="kpi art-kachel__wert" data-role="tile-self-use">
+          <div class="kpi__label">${escapeHtml(t('dashboard.tile.selfUse', { year: pvYear.year }))}</div>
+          <div class="kpi__value">${escapeHtml(fmt.pct(pct, 0))}</div>
+          ${pvYear.autarkiequote != null ? `<div class="kpi__sub">${escapeHtml(t('dashboard.tile.autarky', { pct: fmt.pct(pvYear.autarkiequote, 0) }))}</div>` : ''}
+        </div>` : '')
+          : slot(costKey,
+            noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : escapeHtml(fmt.eur(totalCost)),
+            `${noContract ? '' : trendHtml(trendCost, trendOpts)}
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : billing ? escapeHtml(t('billing.dashboard.costSub', { advances: fmt.eur(billing.advances) })) : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
-          ${bonusText && !noContract ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
-        </div>`}
+          ${bonusText && !noContract ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}`)}
       </div>
-      ${last12.length >= 2 ? `<div class="dash-spark"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : ''}
-      ${groupBreakdown(consumption, sumKey, utility, billing ? { period: billing, groups } : null)}
+      ${last12.length >= 2 ? `<div class="dash-spark art-kachel__spur"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : '<div class="art-kachel__spur" aria-hidden="true"></div>'}
+      ${groupsHtml}
+      ${tileFootHtml(utility, consumption, summary, tanks)}
     </div>
   `;
+}
+
+/**
+ * Fuß der Kachel: links der Stand (letzte Ablesung, Füllstand), rechts der Sprung zu den Zählern.
+ * Hauptzähler zählen für den Stand, weil ein Zwischenzähler „zuletzt abgelesen“ sonst schönt;
+ * mitgezählt in „n Zähler“ werden alle.
+ */
+function tileFootHtml(utility, consumption, summary, tanks) {
+  const all = (summary?.meters || []).filter(m => m.utility === utility.key);
+  const main = all.filter(m => !m.is_sub_meter);
+  const groupCount = new Set((consumption?.meters || []).map(e => e.meter?.meter_group_id).filter(Boolean)).size;
+  const mine = (tanks || []).filter(tk => tk.utility.key === utility.key);
+  const delivery = utility.reading_kind === 'delivery';
+  const n = all.length || (consumption?.meters || []).length;
+  const count = (!delivery ? tp('dashboard.card.metersCount', n, {}) : utility.volume_unit === 'kg' ? tp('dashboard.card.storesCount', n, {}) : tp('dashboard.card.tanksCount', n, {}))
+    + (groupCount ? `, ${tp('dashboard.card.groupsCount', groupCount, {})}` : '');
+  let stand = '';
+  if (delivery && mine.length) {
+    const stock = mine.reduce((s, x) => s + x.stock, 0);
+    const cap = mine.reduce((s, x) => s + x.cap, 0);
+    const pct = cap > 0 ? Math.max(0, Math.min(100, stock / cap * 100)) : 0;
+    const level = tankLevel(pct, getSettingsSync()?.tank_warn_pct);
+    stand = `<span class="art-kachel__stand${level === 'ok' ? '' : ` ton-${level === 'alert' ? 'fehler' : 'warn'}`}" data-role="tile-stock" data-level="${escapeHtml(level)}">${escapeHtml(t(utility.volume_unit === 'kg' ? 'dashboard.card.store' : 'dashboard.card.tank', {
+      pct: fmt.pct(pct / 100, 0), stock: fmt.num(stock, 0), cap: fmt.num(cap, 0), unit: mine[0].unit,
+    }))}</span>`;
+  } else if (!delivery) {
+    const dated = main.filter(m => m.last_reading_date);
+    if (dated.length) {
+      const latest = dated.reduce((a, b) => (b.last_reading_date > a.last_reading_date ? b : a));
+      const days = Number(latest.days_since_reading) || 0;
+      const period = latest.capture === 'period';
+      const due = main.some(m => m.reading_due);
+      stand = `<span class="art-kachel__stand${due ? ' ton-warn' : ''}" data-role="tile-last-reading" title="${escapeHtml(fmt.date(latest.last_reading_date))}">${escapeHtml(tp(period ? 'utility.banner.lastPeriod' : 'utility.banner.lastReading', days, { days }))}</span>`;
+    } else if (main.length) {
+      stand = `<span class="art-kachel__stand ton-warn" data-role="tile-last-reading">${escapeHtml(t('dashboard.card.noReading'))}</span>`;
+    }
+  }
+  return `<div class="art-kachel__fuss">${stand || '<span></span>'}<a href="#/household/meters?art=${escapeHtml(utility.key)}" aria-label="${escapeHtml(`${t('dashboard.card.meters')}: ${utility.label}`)}">${escapeHtml(count)}</a></div>`;
 }
 
 // F1006 — Zähler-Gruppen als Dashboard-Summe. Pro Gruppe mit Mitgliedern wird
@@ -836,51 +998,6 @@ function groupBreakdown(consumption, sumKey, utility, billing = null) {
           </li>`).join('')}
       </ul>
     </details>`;
-}
-
-// B — kleiner Trend-Indikator. Mehr Verbrauch/Kosten = ungünstig (danger ▲),
-// weniger = gut (success ▼). v2.15.0 — `trend` aus yoyTrend(): dieselben
-// vollen Monate des Vorjahres. Leer, wenn kein belastbarer Vergleich möglich ist.
-function trendBadge(trend, moreIsGood = false, checkHref = null) {
-  if (!trend) return '';
-  const pct = trend.pct;
-  if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
-  // v3.10.0 (Skeptiker M1) — mehr als doppelt bzw. weniger als halb so viel: eher eine falsche
-  // Ablesung als ein anderer Verbrauch; statt „▲ 1.382 %“ der Weg zu den Ablesungen
-  if (trendNeedsCheck(pct)) {
-    const label = escapeHtml(t('dashboard.trend.checkLabel'));
-    const text = escapeHtml(t('dashboard.trend.check'));
-    return checkHref
-      ? `<a class="kpi__trend kpi__trend--check" href="${escapeHtml(checkHref)}" title="${label}" aria-label="${label}" data-role="trend-check">${text}</a>`
-      : `<span class="kpi__trend kpi__trend--check" title="${label}" aria-label="${label}" data-role="trend-check">${text}</span>`;
-  }
-  const up = pct > 0;
-  // v2.13.0 (Review FE-06) — bei Einspeisung und Erzeugung ist mehr gut
-  const tone = up === moreIsGood ? 'success' : 'danger';
-  const arrow = up ? '▲' : '▼';
-  const pctStr = fmt.num(Math.abs(pct), 0);
-  // A11y: Pfeil + Farbe sind rein visuell — der aria-label nennt Richtung
-  // und Bezug im Klartext; der Pfeil-Glyph bleibt aus dem Accessibility-Tree.
-  let title, label;
-  if (trend.prevFrom) {
-    // v3.10.0 (GitHub #36) — Abrechnungsjahr: beide Spannen mit Datum (sameSpanTrend)
-    const p = { pct: pctStr, span: `${fmt.date(trend.from)} – ${fmt.date(trend.until)}`, prev: `${fmt.date(trend.prevFrom)} – ${fmt.date(trend.prevUntil)}` };
-    // Nachtrag #36 — ohne fairen Vergleich mit der Periode davor: dieselben Kalendertage ein Jahr früher
-    if (trend.basis === 'calendar') {
-      title = escapeHtml(t('dashboard.trend.vsCalendarDays', p));
-      label = escapeHtml(t(up ? 'dashboard.trend.moreThanCalendarDays' : 'dashboard.trend.lessThanCalendarDays', p));
-    } else {
-      title = escapeHtml(t('dashboard.trend.vsPrevPeriod', p));
-      label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrevPeriod' : 'dashboard.trend.lessThanPrevPeriod', p));
-    }
-  } else {
-    const span = trend.months.length > 1
-      ? `${fmt.month(trend.months[0])} – ${fmt.month(trend.months[trend.months.length - 1])}` : fmt.month(trend.months[0]);
-    title = escapeHtml(t('dashboard.trend.vsPrev', { span }));
-    label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr, span }));
-  }
-  return `<span class="kpi__trend kpi__trend--${tone}" title="${title}" aria-label="${label}">` +
-    `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
 
 /**
@@ -1022,20 +1139,30 @@ function certificateHtml(eff, utilities = []) {
   const label = (k) => utilities.find(u => u.key === k)?.label ?? k;
   const approx = (x) => x.fuel_basis_approx?.length
     ? ' ' + t('dashboard.efficiency.certificateApprox', { fuels: x.fuel_basis_approx.map(label).join(', ') }) : '';
-  const up = c.upcoming;
   return `
           <p class="kpi__sub dash-eff__cert">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
             value: fmt.num(c.kwh_per_m2, 0), cls: cls(c),
           }))}${infoNote(t('glossary.efficiency.term'), t('dashboard.efficiency.certificateTitle', {
             basis: basis(c), area: fmt.num(c.area_m2, 0),
             required: c.months_required ?? 36, months: c.months_in_window ?? c.months_36,
-          }) + approx(c))}</p>
-          ${up ? `<p class="muted dash-eff__note" data-role="cert-upcoming">${escapeHtml(t('dashboard.efficiency.certificateUpcoming', {
-            date: fmt.date(up.from), basis: basis(up),
-            dhw: fmt.num(up.dhw_rule, 0), dhwOld: fmt.num(c.dhw_rule, 0),
-            required: up.months_required, requiredOld: c.months_required,
-            value: fmt.num(up.kwh_per_m2, 0), cls: cls(up),
-          }) + approx(up))}</p>` : ''}`;
+          }) + approx(c))}</p>`;
+}
+
+/** v3.5.0 — vor einem neuen Verfahren: was es ändert und welche Zahl es ergäbe. */
+function certificateUpcomingHtml(eff, utilities = []) {
+  const c = eff.certificate;
+  const up = c.upcoming;
+  const cls = (x) => eff.scale !== null && x.class ? ' · ' + x.class : '';
+  const basis = (x) => x.fuel_basis === 'hs' ? t('dashboard.efficiency.basis.hs') : t('dashboard.efficiency.basis.hi');
+  const label = (k) => utilities.find(u => u.key === k)?.label ?? k;
+  const approx = (x) => x.fuel_basis_approx?.length
+    ? ' ' + t('dashboard.efficiency.certificateApprox', { fuels: x.fuel_basis_approx.map(label).join(', ') }) : '';
+  return `<p class="muted dash-eff__note" data-role="cert-upcoming">${escapeHtml(t('dashboard.efficiency.certificateUpcoming', {
+    date: fmt.date(up.from), basis: basis(up),
+    dhw: fmt.num(up.dhw_rule, 0), dhwOld: fmt.num(c.dhw_rule, 0),
+    required: up.months_required, requiredOld: c.months_required,
+    value: fmt.num(up.kwh_per_m2, 0), cls: cls(up),
+  }) + approx(up))}</p>`;
 }
 
 // v3.1.0 (H8, MKT-11) — Einordnung des eigenen Verbrauchs an selbst eingetragenen
@@ -1083,12 +1210,12 @@ export function comparisonCardHtml(c, utilities = []) {
   }
   const field = (c.missing || []).find(k => COMPARISON_INVITE[k]);
   const invite = field ? `<p class="cmp-invite" data-role="cmp-invite">${escapeHtml(t('comparison.invite.' + COMPARISON_INVITE[field]))}
-          <a href="#/settings/household?field=${encodeURIComponent(field)}">${escapeHtml(t('comparison.invite.' + COMPARISON_INVITE[field] + 'Link'))}</a></p>` : '';
+          <a href="#/household/building?field=${encodeURIComponent(field)}">${escapeHtml(t('comparison.invite.' + COMPARISON_INVITE[field] + 'Link'))}</a></p>` : '';
   if (!rows.length && !invite) return '';
   const own = (s && s.own_value != null) || (c.heating || []).some(x => x.own_value != null);
   return `
-      <div class="card dash-insight" data-role="comparison">
-        <h2 class="card__title"><span aria-hidden="true">📏</span> ${escapeHtml(t('comparison.title', { year: c.year }))}</h2>
+      <div class="card dash-insight kennzahl" data-role="comparison">
+        <h2 class="card__title">${icon('lineal')} ${escapeHtml(t('comparison.title', { year: c.year }))}</h2>
         ${rows.length ? `<ul class="cmp-list">${rows.join('')}</ul>` : ''}
         ${c.source && own ? `<p class="muted small">${escapeHtml(t('comparison.source', { source: c.source }))}</p>` : ''}
         ${invite}
@@ -1147,17 +1274,22 @@ export function beginnerMoneyLines(meters, byKey) {
     const v = exp.value;
     // v3.9.0 (Skeptiker H3) — dieselbe Unsicherheit wie die Saldo-Karte: Spanne statt eines sicheren Betrags
     const unc = exp.unc;
-    const credit = !unc && v < 0, even = !unc && Math.abs(v) < 1;
-    const text = unc ? `${uncertainRangeText(unc)} (${t('balanceUncertain.verdict')})`
-      : even ? t('dashboard.beginner.money.even')
+    // v3.12.0 (Sichtung S1) — neutral nur bei genau 0; unter einem Euro auf den Cent, nicht „rund 0 €“
+    const credit = !unc && v < 0, even = !unc && Math.abs(v) < 0.005;
+    // v3.12.0 — genau 0 heißt „ausgeglichen“ wie an der Saldo-Karte (bis dahin „etwa ausgeglichen“); unter einem
+    // Euro der Betrag auf den Cent ohne „rund“ (bis dahin „rund 0,38 €“)
+    const cent = Math.abs(v) < 1;
+    const text = unc ? ''
+      : even ? t('saldo.even')
       // v3.9.0 (L2) — „rund“ nur mit gerundeter Zahl
+      : cent ? t(credit ? 'dashboard.beginner.money.creditExact' : 'dashboard.beginner.money.dueExact', { amount: fmt.eur(Math.abs(v)) })
       : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur0(Math.abs(v)) });
     // v3.10.0 (Skeptiker v3.9.0, R2-3) — auch eine sichere Schätzung hat eine Breite, wie an der Karte
     const band = !unc ? bandText(exp.band) : '';
     // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
     const until = m.contract.period_last_day || m.contract.period_end;
-    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even || unc ? '' : credit ? 'success-text' : 'danger-text'}"${unc ? ' data-role="money-uncertain"' : ''}>${escapeHtml(text)}</span>
+    return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even || unc ? '' : credit ? 'ton-ok' : 'ton-fehler'}"${unc ? ' data-role="money-uncertain"' : ''}>${unc ? `${uncertainRangeHtml(unc)} (${escapeHtml(t('balanceUncertain.verdict'))})` : escapeHtml(text)}</span>
       ${band ? `<span class="muted small" data-role="money-band"> · ${escapeHtml(band)}</span>` : ''}
       ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
   });
@@ -1177,36 +1309,108 @@ export function beginnerTrendNoneKey(monthly) {
   return hasPrevYear ? 'dashboard.beginner.trend.fewMeasured' : 'dashboard.beginner.trend.none';
 }
 
-async function renderBeginner(container, { utilities, datasets, todo, settings }) {
-  const byKey = new Map(utilities.map(u => [u.key, u]));
-  const [summary, budget] = await Promise.all([
-    api.summary().catch(() => null),
-    settings.wohnverhaeltnis === 'miete' ? tenancyBudget().catch(() => null) : Promise.resolve(null),
-  ]);
-  const withContract = moneyMeters(summary?.meters || [], byKey);
-  const moneyLines = beginnerMoneyLines(summary?.meters || [], byKey);
+/**
+ * v3.12.0 (Skeptiker M1) — offene Vorschläge der KI warten in der App: Hinweis über „Zu tun“ (nur Verwalter
+ * bekommen die Liste, sonst bleibt es still). Kein Ereignis der Agenda: das ginge auch in Kalender und Home Assistant.
+ */
+function showMcpProposals(container, settings, loaded = null) {
+  if (!wantsProposals(settings)) return;
+  // v3.12.0 — die Liste kommt aus derselben Ladung wie „Zu tun“ (loadTodo), kein zweiter Abruf
+  (Array.isArray(loaded) ? Promise.resolve(loaded) : api.mcpProposals()).then((open) => {
+    const n = Array.isArray(open) ? open.length : 0;
+    const box = container.querySelector('[data-role="todo"]');
+    if (!n || !box?.isConnected) return;
+    box.insertAdjacentHTML('beforebegin', `<p class="infobox infobox--info" data-role="mcp-proposals-waiting">
+      <a href="#/todo?art=ki">${escapeHtml(tp('dashboard.mcpProposals', n, { count: n }))}</a></p>`);
+  }).catch(() => { /* Mitglied oder älterer Server: kein Hinweis */ });
+}
 
+/**
+ * v3.12.0 — die Antwort „Mehr oder weniger als im Vorjahr?“ zu einem Trend, mit derselben Schwelle wie die
+ * Kachel daneben (components/trend.js SAME_BELOW_PCT). Bis dahin galt hier unter 2 % „etwa wie im Vorjahr“,
+ * während die Kachel schon „−2 %“ zeigte. Rein, geprüft in tests/browser-render.test.mjs.
+ * @param {{pct: number}} trend
+ * @param {object} u  Verbrauchsart
+ * @returns {{same: boolean, word: string, tone: string}}
+ */
+export function trendAnswer(trend, u) {
+  const pct = Number(trend?.pct);
+  const same = Math.abs(pct) < SAME_BELOW_PCT;
+  const good = moreIsBetter(u) ? pct > 0 : pct < 0;
+  const word = same ? t('dashboard.beginner.trend.same')
+    : t(pct > 0 ? 'dashboard.beginner.trend.more' : 'dashboard.beginner.trend.less', { pct: fmt.pct(Math.abs(pct) / 100, 0) });
+  return { same, word, tone: same ? '' : good ? 'ton-ok' : 'ton-fehler' };
+}
+
+/**
+ * v3.12.0 — eine Quelle der Übersicht hat nicht geantwortet: eine Fehlerzeile mit der Meldung des Servers (bei
+ * einem Serverfehler mit Fehler-ID), nie der Leerzustand. Bis dahin stand bei einem Fehler „Gerade nichts. Gut so.“
+ * bzw. „Noch kein Vertrag mit Abschlag erfasst.“, als wäre es die Antwort.
+ * @param {Error|object} err
+ * @param {{inline?: boolean}} [o]  inline: nur der Text, ohne Box (in einer Zeile der Liste)
+ */
+function failedLineHtml(err, { inline = false } = {}) {
+  const msg = String(err?.message || '').trim();
+  const html = `${rich('dashboard.answers.failed')}${msg ? ` <span class="muted small" data-role="error-detail">${escapeHtml(msg)}</span>` : ''}`;
+  return inline ? `<span class="ton-fehler" data-role="answer-failed">${html}</span>`
+    : `<p class="infobox infobox--fehler" role="alert" data-role="answer-failed">${html}</p>`;
+}
+
+/**
+ * Die Antworten der Übersicht, seit v3.12.0 (M4) in allen Stufen: Was ist zu tun, bekomme ich Geld
+ * zurück, mehr oder weniger als im Vorjahr; bei Miete dazu: Reicht die Vorauszahlung?
+ */
+async function answersHtml({ utilities, datasets, settings, summary, summaryError = null, todo, lever = false }) {
+  const byKey = new Map(utilities.map(u => [u.key, u]));
+  const budget = settings.wohnverhaeltnis === 'miete' ? await tenancyBudget().catch(() => null) : null;
+  const moneyLines = beginnerMoneyLines(summary?.meters || [], byKey);
   const trendLines = datasets.filter(d => (d.consumption?.monthly_total || []).length).map(({ utility: u, consumption }) => {
     const monthly = consumption.monthly_total;
     const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
     const win = lastMonths(monthly, 12);
     const trend = yoyTrend(monthly, key, { months: 12, minMonths: 6, within: win?.rows.map(m => m.ym) });
     if (!trend) {
-      return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+      return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
         <span><strong>${escapeHtml(u.label)}:</strong> <span class="muted">${escapeHtml(t(beginnerTrendNoneKey(monthly)))}</span></span></li>`;
     }
     // v3.10.0 (Skeptiker M1) — so stark verändert, dass eher eine Ablesung falsch ist
     if (trendNeedsCheck(trend.pct)) {
-      return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-        <span><strong>${escapeHtml(u.label)}:</strong> <a href="#/utility/${encodeURIComponent(u.key)}" data-role="trend-check">${escapeHtml(t('dashboard.trend.checkLabel'))}</a></span></li>`;
+      return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
+        <span><strong>${escapeHtml(u.label)}:</strong> <a href="#/utility/${encodeURIComponent(u.key)}?view=readings" data-role="trend-check">${escapeHtml(t('dashboard.trend.checkLabel'))}</a></span></li>`;
     }
-    const good = moreIsBetter(u) ? trend.pct > 0 : trend.pct < 0;
-    const same = Math.abs(trend.pct) < 2;
-    const word = same ? t('dashboard.beginner.trend.same')
-      : t(trend.pct > 0 ? 'dashboard.beginner.trend.more' : 'dashboard.beginner.trend.less', { pct: fmt.pct(Math.abs(trend.pct) / 100, 0) });
-    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${same ? '' : good ? 'success-text' : 'danger-text'}">${escapeHtml(word)}</span></span></li>`;
+    const { word, tone } = trendAnswer(trend, u);
+    return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${tone}">${escapeHtml(word)}</span></span></li>`;
   });
+  // v3.12.0 — eine Art, deren Verbrauch nicht geladen wurde, steht mit dem Fehler da (bis dahin fehlte sie still)
+  const failedTrend = datasets.filter(d => d.failed).map(({ utility: u, failed }) => `<li class="dash-answer__row" data-role="answer-failed">${artIcon(u, { size: 16 })}
+      <span><strong>${escapeHtml(u.label)}:</strong> ${failedLineHtml(failed, { inline: true })}</span></li>`);
+  return `
+    <div class="grid grid-2 dash-answers">
+      <section class="card dash-answer dash-todo" aria-labelledby="dash-a-todo">
+        <h2 class="card__title" id="dash-a-todo">${icon('aufgaben')} ${escapeHtml(t('dashboard.beginner.todo.title'))}</h2>
+        <div data-role="todo" data-variant="${currentLevel() === 'beginner' ? 'beginner' : 'excerpt'}">${excerptTodoHtml(todo, currentLevel() === 'beginner')}</div>
+        <p class="dash-answer__fuss"><a class="btn btn--ghost btn--sm" href="#/todo" data-role="todo-all">${escapeHtml(t('dashboard.todo.all'))}</a></p>
+      </section>
+      <section class="card dash-answer" aria-labelledby="dash-a-money">
+        <h2 class="card__title" id="dash-a-money">${icon('geld')} ${escapeHtml(t('dashboard.beginner.money.title'))}</h2>
+        ${summaryError ? failedLineHtml(summaryError)
+          : moneyLines.length ? `<ul class="dash-answer__list">${moneyLines.join('')}</ul>`
+          : `<p class="muted">${escapeHtml(t('dashboard.beginner.money.none'))} <a href="#/contracts">${escapeHtml(t('dashboard.beginner.money.add'))}</a></p>`}
+      </section>
+      <section class="card dash-answer" aria-labelledby="dash-a-trend">
+        <h2 class="card__title" id="dash-a-trend">${icon('verlaufskurve')} ${escapeHtml(t('dashboard.beginner.trend.title'))}</h2>
+        <ul class="dash-answer__list">${[...trendLines, ...failedTrend].join('')}</ul>
+      </section>
+      ${budget ? tenancyAnswerHtml(budget) : ''}
+      ${lever ? leverSlotHtml('beginner') : ''}
+    </div>`;
+}
+
+async function renderBeginner(container, { utilities, datasets, todo, settings, summary, summaryError = null }) {
+  const byKey = new Map(utilities.map(u => [u.key, u]));
+  const withContract = moneyMeters(summary?.meters || [], byKey);
+  const answers = await answersHtml({ utilities, datasets, settings, summary, summaryError, todo, lever: true });
 
   // Schaubild zur ersten Antwort: der Vertrag mit dem höchsten Abschlag
   const main = [...withContract].sort((a, b) => Math.abs(Number(b.contract.advance_month) || 0) - Math.abs(Number(a.contract.advance_month) || 0))[0];
@@ -1220,33 +1424,16 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
   }
 
   container.innerHTML = `
+    <!-- v3.12.0 (Sichtung S5) — ein Knopf fürs Erfassen: der in Kopf- und Tab-Leiste. Ist eine Ablesung fällig, steht sie unter „Zu tun“. -->
     <div class="section-head">
       <h1>${t('dashboard.title')}</h1>
-      <div class="section-actions">
-        <a class="btn btn--primary" href="#/zaehlerstaende">${escapeHtml(t('dashboard.beginner.capture'))}</a>
-      </div>
     </div>
     <div data-role="level-hint"></div>
-    <div class="grid grid-2 dash-answers">
-      <section class="card dash-answer" aria-labelledby="dash-a-money">
-        <h2 class="card__title" id="dash-a-money"><span aria-hidden="true">💶</span> ${escapeHtml(t('dashboard.beginner.money.title'))}</h2>
-        ${moneyLines.length ? `<ul class="dash-answer__list">${moneyLines.join('')}</ul>`
-          : `<p class="muted">${escapeHtml(t('dashboard.beginner.money.none'))} <a href="#/contracts">${escapeHtml(t('dashboard.beginner.money.add'))}</a></p>`}
-      </section>
-      <section class="card dash-answer" aria-labelledby="dash-a-trend">
-        <h2 class="card__title" id="dash-a-trend"><span aria-hidden="true">📈</span> ${escapeHtml(t('dashboard.beginner.trend.title'))}</h2>
-        <ul class="dash-answer__list">${trendLines.join('')}</ul>
-      </section>
-      ${budget ? tenancyAnswerHtml(budget) : ''}
-      <section class="card dash-answer" aria-labelledby="dash-a-todo">
-        <h2 class="card__title" id="dash-a-todo"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.beginner.todo.title'))}</h2>
-        <div data-role="todo" data-variant="beginner">${beginnerTodoHtml(todo)}</div>
-      </section>
-      ${leverSlotHtml('beginner')}
-    </div>
+    ${answers}
     ${whatIfHtml()}
     ${explainer ? `<section class="card" style="margin-top: var(--sp-5)">${explainer}</section>` : ''}`;
   renderTodoBox(container.querySelector('[data-role="todo"]'), todo);   // v3.4.0 (F1024)
+  showMcpProposals(container, settings, todo.proposals);
   loadLeverTile(container, utilities);   // v3.6.0 — „Dein Hebel“ auch für Einsteiger
   playExplainers(container);
   const hintBox = container.querySelector('[data-role="level-hint"]');
@@ -1267,15 +1454,15 @@ function tenancyAnswerHtml(b) {
   const credit = r <= 0;
   const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur0(Math.abs(r)) });   // v3.9.0 (L2)
   return `<section class="card dash-answer" aria-labelledby="dash-a-rent">
-    <h2 class="card__title" id="dash-a-rent"><span aria-hidden="true">🏢</span> ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
-    <p class="${credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</p>
+    <h2 class="card__title" id="dash-a-rent">${icon('block')} ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
+    <p class="${credit ? 'ton-ok' : 'ton-fehler'}">${escapeHtml(text)}</p>
     ${!credit && b.suggested_prepayment_eur ? `<p class="muted small">${escapeHtml(t('dashboard.beginner.rent.suggest', { amount: fmt.eur(b.suggested_prepayment_eur) }))}</p>` : ''}
   </section>`;
 }
 
 // ── v3.2.0 (F1020) — Schaubilder auf der Übersicht (Experte) ────────────
 
-async function loadExplainers(utilities, box) {
+export async function loadExplainers(utilities, box) {
   const byKey = new Map(utilities.map(u => [u.key, u]));
   // v3.4.0 (F1026) — „heute“ in Ortszeit wie in der Verbrauchsansicht (UTC lag
   // zwischen 0 und 2 Uhr einen Tag zurück)
@@ -1331,10 +1518,10 @@ async function levelSuggestion(utilities, summary = null) {
   if (!open.length) return '';
   markShown(open);
   const name = t('level.' + next);
-  return `<div class="banner banner--info level-hint" role="note" data-reasons="${escapeHtml(open.join(' '))}" data-next="${next}">
+  return `<div class="infobox infobox--info infobox--zeile level-hint" role="note" data-reasons="${escapeHtml(open.join(' '))}" data-next="${next}">
     <span>${escapeHtml(t('level.hint.data', { level: name }))}
       <span class="muted small">${open.map(r => escapeHtml(t('level.reason.' + r))).join(' · ')}</span></span>
-    <span class="level-hint__actions">
+    <span class="infobox__aktion">
       <button type="button" class="btn btn--sm btn--primary" data-act="raise">${escapeHtml(t('level.hint.switch', { level: name }))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">${escapeHtml(t('level.hint.dismiss'))}</button>
     </span>

@@ -208,11 +208,14 @@ $ingressMeta = $ingress && \Energietracker\Services\AuthService::fromTrustedProx
   <!-- Thin top bar -->
   <header class="topbar">
     <div class="topbar__brand">
-      <span class="topbar__logo" aria-hidden="true"></span>
-      <span class="topbar__title">ENERGIETRACKER</span>
+      <!-- v3.12.0 (M6) — Logo und Name führen zur Übersicht -->
+      <a class="topbar__home" href="#/dashboard" data-shell-title="nav.footer.home" title="<?= $h($tShell('nav.footer.home', 'Zur Übersicht')) ?>">
+        <span class="topbar__logo" aria-hidden="true"></span>
+        <span class="topbar__title">Energietracker</span>
+      </a>
     </div>
     <div class="topbar__actions">
-      <button type="button" class="btn btn--primary btn--sm topbar__capture" data-action="open-capture"><span aria-hidden="true">＋</span> <span data-shell="nav.captureButton"><?= $h($tShell('nav.captureButton', 'Erfassen')) ?></span></button>
+      <button type="button" class="btn btn--primary btn--sm topbar__capture" data-action="open-capture"><svg class="ico ico--16" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg> <span data-shell="nav.captureButton"><?= $h($tShell('nav.captureButton', 'Erfassen')) ?></span></button>
       <button type="button" id="theme-toggle" class="topbar__btn" aria-label="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>" title="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>">
         <span class="topbar__btn-icon" aria-hidden="true"></span>
       </button>
@@ -225,13 +228,18 @@ $ingressMeta = $ingress && \Energietracker\Services\AuthService::fromTrustedProx
     <nav class="sidebar__nav" id="primary-nav" aria-label="<?= $h($tShell('app.primaryNav', 'Hauptnavigation')) ?>">
       <div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt …')) ?></div>
     </nav>
+    <!-- v3.12.0 (M6) — Version · Hilfe · Stern · Herz. Der Stern ersetzt den Link „GitHub“ und führt auf die
+         Projektseite, das Herz zum Unterstützen; beide öffnen einen neuen Tab, Beschriftung für Maus und Vorleser
+         aus dem Katalog (data-shell-label). Am iPhone steht die Fußzeile unter „Mehr“. -->
     <div class="sidebar__footer">
       <span>v<?= $h($version) ?></span>
       <span aria-hidden="true">·</span>
       <!-- v2.13.0 — Hilfe: erste Schritte, Begriffe, Doku (auch im iPhone-Menü) -->
       <a href="#/help" data-shell="nav.help"><?= $h($tShell('nav.help', 'Hilfe')) ?></a>
       <span aria-hidden="true">·</span>
-      <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a>
+      <a class="sidebar__footer-ico" data-role="footer-star" href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener" data-shell-label="nav.footer.star" aria-label="<?= $h($tShell('nav.footer.star', 'Stern auf GitHub vergeben (neuer Tab)')) ?>" title="<?= $h($tShell('nav.footer.star', 'Stern auf GitHub vergeben (neuer Tab)')) ?>"><svg class="ico ico--16" aria-hidden="true" focusable="false"><use href="#i-stern"/></svg></a>
+      <span aria-hidden="true">·</span>
+      <a class="sidebar__footer-ico" data-role="footer-heart" href="https://buymeacoffee.com/bingerminger" target="_blank" rel="noopener" data-shell-label="nav.footer.heart" aria-label="<?= $h($tShell('nav.footer.heart', 'Unterstützen über Buy Me a Coffee (neuer Tab)')) ?>" title="<?= $h($tShell('nav.footer.heart', 'Unterstützen über Buy Me a Coffee (neuer Tab)')) ?>"><svg class="ico ico--16" aria-hidden="true" focusable="false"><use href="#i-herz"/></svg></a>
     </div>
   </aside>
   <!-- v2.11.0 — Hintergrund des Menüs auf dem iPhone (tippen schließt) -->

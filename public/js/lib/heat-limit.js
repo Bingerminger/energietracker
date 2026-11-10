@@ -13,7 +13,7 @@
 import { api } from '../api.js';
 import { t } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
-import { balanceRangeEnds } from './semantics.js';
+import { balanceRangeEnds, tHtml } from './semantics.js';
 import { currentLevel } from './levels.js';   // v3.9.0 (Skeptiker N4) — Einsteiger kurz
 import { toastErr, toastOk, toastUndo } from '../components/toast.js';
 
@@ -68,15 +68,18 @@ export function heatLimitFacts(h, unit = 'kWh') {
   return out;
 }
 
-// Saldo in Worten wie die Saldo-Karte (positiv = Nachzahlung); eine Spanne, wo die Schätzung unsicher ist
-function balanceWords(side) {
-  const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
+// Saldo in Worten wie die Saldo-Karte (positiv = Nachzahlung); eine Spanne, wo die Schätzung unsicher ist.
+// v3.12.0 (M4) — `html`: als fertiges HTML, jeder Betrag in der Farbe seines Vorzeichens (Sichtung S1)
+function balanceWords(side, { html = false } = {}) {
+  const plain = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
+  const word = !html ? plain
+    : (v) => (Math.abs(v) < 1 ? escapeHtml(plain(v)) : `<span class="${v > 0 ? 'ton-fehler' : 'ton-ok'}">${escapeHtml(plain(v))}</span>`);
   const r = Array.isArray(side?.balance_range) ? side.balance_range.map(Number) : null;
   if (r && r.length === 2 && r.every(Number.isFinite)) {
     // v3.9.0 (Paket doku) — Lesereihenfolge wie an der Saldo-Karte (zwei Guthaben: kleineres zuerst)
     const [a, b] = balanceRangeEnds(r);
-    return t('heatLimit.effect.between', { low: word(a), high: word(b) });
+    return html ? tHtml('heatLimit.effect.between', {}, { low: word(a), high: word(b) }) : t('heatLimit.effect.between', { low: word(a), high: word(b) });
   }
   return side?.balance != null ? word(Number(side.balance)) : '–';
 }
@@ -88,15 +91,24 @@ function advanceWords(side) {
   return t('heatLimit.effect.noAdvance');
 }
 
-/** Wirkung auf erwarteten Saldo und Abschlag des laufenden Vertrags (oder leer). */
-export function heatLimitEffect(h) {
+/**
+ * Wirkung auf erwarteten Saldo und Abschlag des laufenden Vertrags (oder leer).
+ * @param {object} h
+ * @param {{html?: boolean}} [o]  html: fertiges HTML mit den Salden in Farbe, sonst Text
+ */
+export function heatLimitEffect(h, { html = false } = {}) {
   const e = h?.effect;
   if (!e?.before || !e?.after) return [];
-  const out = [t('heatLimit.effect.balance', { date: e.until ? fmt.date(e.until) : '–', best: deg(h.best),
-    before: balanceWords(e.before), after: balanceWords(e.after) })];
+  const params = { date: e.until ? fmt.date(e.until) : '–', best: deg(h.best) };
+  const out = [html
+    ? tHtml('heatLimit.effect.balance', params, { before: balanceWords(e.before, { html }), after: balanceWords(e.after, { html }) })
+    : t('heatLimit.effect.balance', { ...params, before: balanceWords(e.before), after: balanceWords(e.after) })];
   const changed = advanceWords(e.before) !== advanceWords(e.after);
-  if (changed) out.push(t('heatLimit.effect.advance', { best: deg(h.best), before: advanceWords(e.before), after: advanceWords(e.after),
-    current: e.current_advance != null ? fmt.eur0(e.current_advance) : '–' }));
+  if (changed) {
+    const line = t('heatLimit.effect.advance', { best: deg(h.best), before: advanceWords(e.before), after: advanceWords(e.after),
+      current: e.current_advance != null ? fmt.eur0(e.current_advance) : '–' });
+    out.push(html ? escapeHtml(line) : line);
+  }
   return out;
 }
 
@@ -105,15 +117,22 @@ export function heatLimitEffect(h) {
  * erwarteten Saldo und (wenn er sich ändert) den passenden Abschlag. Die Fachzeilen
  * (heatLimitFacts, heatLimitEffect) stehen aufklappbar darunter.
  */
-export function heatLimitBeginnerLines(h) {
+export function heatLimitBeginnerLines(h, { html = false } = {}) {
   const out = [t('heatLimit.beginner.sentence', { best: deg(h.best) })];
   const e = h?.effect;
   if (!e?.before || !e?.after) return out;
-  out.push(t('heatLimit.beginner.balance', { date: e.until ? fmt.date(e.until) : '–', before: balanceWords(e.before), after: balanceWords(e.after) }));
+  const date = e.until ? fmt.date(e.until) : '–';
+  if (html) {
+    out[0] = escapeHtml(out[0]);
+    out.push(tHtml('heatLimit.beginner.balance', { date }, { before: balanceWords(e.before, { html }), after: balanceWords(e.after, { html }) }));
+  } else {
+    out.push(t('heatLimit.beginner.balance', { date, before: balanceWords(e.before), after: balanceWords(e.after) }));
+  }
   const has = (side) => side?.advance != null || Array.isArray(side?.advance_range);
   const before = advanceWords(e.before), after = advanceWords(e.after);
   if (has(e.after) && before !== after) {
-    out.push(t(has(e.before) ? 'heatLimit.beginner.advance' : 'heatLimit.beginner.advanceOnly', { before, after }));
+    const line = t(has(e.before) ? 'heatLimit.beginner.advance' : 'heatLimit.beginner.advanceOnly', { before, after });
+    out.push(html ? escapeHtml(line) : line);
   }
   return out;
 }
@@ -125,23 +144,23 @@ export function heatLimitBeginnerLines(h) {
 export function heatLimitHintHtml(h, { context = 'balance', unit = 'kWh', id = '', label = '', beginner = currentLevel() === 'beginner' } = {}) {
   if (!h?.suggest || h.best == null) return '';
   const group = isGroupId(id);
-  const lines = [...heatLimitFacts(h, unit), ...(context === 'balance' || context === 'workshop' ? heatLimitEffect(h) : []),
-    t(group ? 'heatLimit.scopeGroup' : 'heatLimit.scope')];
-  const button = `<button type="button" class="btn btn--sm btn--util" data-role="heat-limit-hint-apply" data-value="${escapeHtml(String(h.best))}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>`;
+  const lines = [...heatLimitFacts(h, unit).map(escapeHtml), ...(context === 'balance' || context === 'workshop' ? heatLimitEffect(h, { html: true }) : []),
+    escapeHtml(t(group ? 'heatLimit.scopeGroup' : 'heatLimit.scope'))];
+  const button = `<button type="button" class="btn btn--sm btn--primary" data-role="heat-limit-hint-apply" data-value="${escapeHtml(String(h.best))}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>`;
   const head = `${escapeHtml(t(`heatLimit.hint.${context}`))} <strong>${escapeHtml(t('heatLimit.title', { best: deg(h.best) }))}.</strong>`;
   // v3.9.0 (Skeptiker N4, Runde 2) — Einsteiger: wie in „Zu tun“ kurz (ein Satz, Wirkung, Knopf), die Fachzeilen aufklappbar
   if (beginner) {
-    return `<div class="banner banner--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}" data-variant="beginner">
+    return `<div class="infobox infobox--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}" data-variant="beginner">
       <p><strong>${escapeHtml(label ? t('heatLimit.beginner.title', { label }) : t('heatLimit.beginner.titlePlain'))}</strong></p>
-      <p class="small">${heatLimitBeginnerLines(h).map(escapeHtml).join(' ')}</p>
+      <p class="small">${heatLimitBeginnerLines(h, { html: true }).join(' ')}</p>
       ${button}
       <details class="heat-limit-hint__more" data-role="heat-limit-more"><summary>${escapeHtml(t('heatLimit.beginner.more'))}</summary>
-        <p class="small">${head} ${lines.map(escapeHtml).join(' ')}</p></details>
+        <p class="small">${head} ${lines.join(' ')}</p></details>
     </div>`;
   }
-  return `<div class="banner banner--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}">
+  return `<div class="infobox infobox--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}">
       <p>${head}</p>
-      <p class="small">${lines.map(escapeHtml).join(' ')}</p>
+      <p class="small">${lines.join(' ')}</p>
       ${button}
     </div>`;
 }

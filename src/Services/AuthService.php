@@ -31,7 +31,8 @@ use Energietracker\Storage\JsonStore;
  */
 final class AuthService
 {
-    private const FILE = 'auth.json';
+    /** v3.12.0 — öffentlich für JsonStore::SECRET_FILES (Rechte 0600, SecretFilesTest) */
+    public const FILE = 'auth.json';
     public const MODES = ['off', 'password', 'proxy'];
     public const COOKIE = 'et_session';
     private const SESSION_TTL = 30 * 86400;
@@ -843,8 +844,12 @@ final class AuthService
 
     // ── API-Schlüssel für Skripte (v2.6.0) ──────────────────────────────
 
-    /** Bereiche eines API-Schlüssels (v3.7.0 (Paket betrieb): `inbox` — nur ablegen). */
-    public const API_KEY_SCOPES = ['read', 'admin', 'calendar', 'inbox'];
+    /**
+     * Bereiche eines API-Schlüssels (v3.7.0 (Paket betrieb): `inbox` — nur ablegen).
+     * v3.12.0 (F1037) — `mcp` (KI lesen) und `mcp_write` (KI lesen und
+     * vorschlagen): nur an /api/mcp, `mcp_write` dazu für `POST /api/inbox`.
+     */
+    public const API_KEY_SCOPES = ['read', 'admin', 'calendar', 'inbox', 'mcp', 'mcp_write'];
 
     /** @return list<array{id:string,name:string,scope:string,created_at:string,last_used_at:?string}> */
     public function apiKeys(): array
@@ -901,18 +906,45 @@ final class AuthService
     /** Scope eines gültigen API-Schlüssels, sonst null. */
     public function apiKeyScope(?string $key): ?string
     {
+        return $this->apiKey($key)['scope'] ?? null;
+    }
+
+    /**
+     * v3.12.0 (F1037) — ID, Name und Bereich eines gültigen API-Schlüssels
+     * (ohne Hash), sonst null.
+     *
+     * v3.12.0 — Härtung: nur nachschlagen. `last_used_at` setzt touchApiKey(),
+     * sobald die App die Anfrage mit dem Schlüssel angenommen hat; bis dahin
+     * stand dort auch ein Versuch, der danach abgewiesen wurde.
+     *
+     * @return array{id:string, name:string, scope:string}|null
+     */
+    public function apiKey(?string $key): ?array
+    {
         if ($key === null || !str_starts_with($key, 'etk_')) return null;
         $hash = hash('sha256', $key);
-        $keys = (array)($this->data()['api_keys'] ?? []);
-        foreach ($keys as $i => $k) {
+        foreach ((array)($this->data()['api_keys'] ?? []) as $k) {
             if (!hash_equals((string)($k['hash'] ?? ''), $hash)) continue;
-            $last = $k['last_used_at'] ?? null;
-            if ($last === null || strtotime((string)$last) < time() - 3600) {
-                $keys[$i]['last_used_at'] = date('c');
-                try { $this->save(['api_keys' => $keys]); } catch (\Throwable) {}
-            }
-            return (string)($k['scope'] ?? 'read');
+            return ['id' => (string)($k['id'] ?? ''), 'name' => (string)($k['name'] ?? ''), 'scope' => (string)($k['scope'] ?? 'read')];
         }
         return null;
+    }
+
+    /**
+     * v3.12.0 — Härtung: „zuletzt benutzt“ eines Schlüssels, den die App gerade
+     * angenommen hat; höchstens stündlich geschrieben (Statistik, kein Grund zum
+     * Scheitern).
+     */
+    public function touchApiKey(string $id): void
+    {
+        $keys = (array)($this->data()['api_keys'] ?? []);
+        foreach ($keys as $i => $k) {
+            if (($k['id'] ?? null) !== $id) continue;
+            $last = $k['last_used_at'] ?? null;
+            if ($last !== null && strtotime((string)$last) >= time() - 3600) return;
+            $keys[$i]['last_used_at'] = date('c');
+            try { $this->save(['api_keys' => array_values($keys)]); } catch (\Throwable) {}
+            return;
+        }
     }
 }

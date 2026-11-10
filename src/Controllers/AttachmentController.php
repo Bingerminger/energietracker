@@ -70,19 +70,35 @@ final class AttachmentController
         };
     }
 
+    /**
+     * v3.12.0 — Härtung: `private, no-cache` mit ETag statt ein Jahr
+     * `immutable`. Der Browser fragt vor jeder Anzeige nach (unverändert: 304
+     * ohne Inhalt); nach dem Abmelden antwortet der Server darauf 401, statt
+     * dass der Beleg aus dem Zwischenspeicher kommt. Der ETag ist die
+     * gespeicherte Prüfsumme des Inhalts.
+     */
     public function show(Request $req): never
     {
         $id = (string)$req->param('id');
         $path = $this->attachments->path($id);
         $a = $this->attachments->get($id);
+        $hash = (string)($a['sha256'] ?? '');
+        if (!preg_match('/^[0-9a-f]{64}$/', $hash)) $hash = sha1($id . '|' . (int)@filesize($path) . '|' . (int)@filemtime($path));
+        $etag = '"' . substr($hash, 0, 32) . '"';
         while (ob_get_level() > 0) ob_end_clean();
+        $match = in_array($etag, array_map('trim', explode(',', (string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''))), true);
         if (!headers_sent()) {
+            header('Cache-Control: private, no-cache');
+            header('ETag: ' . $etag);
+            header('X-Content-Type-Options: nosniff');
+            if ($match) {
+                http_response_code(304);
+                header_remove('Content-Type');
+                exit;
+            }
             header('Content-Type: ' . $a['mime']);
             header('Content-Length: ' . (string)filesize($path));
             header('Content-Disposition: inline; filename="' . $id . '.' . AttachmentService::extension($a['mime']) . '"');
-            // Ein Beleg ändert sich nie (neue Datei = neue ID)
-            header('Cache-Control: private, max-age=31536000, immutable');
-            header('X-Content-Type-Options: nosniff');
             // Ein PDF läuft ohne Skripte und ohne Zugriff auf die App
             if ($a['mime'] === 'application/pdf') header('Content-Security-Policy: sandbox');
         }

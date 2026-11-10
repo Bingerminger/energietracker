@@ -7,7 +7,7 @@
 Energietracker is deliberately **dependency-free**: no Composer, no npm build, no
 database, no external service at runtime — apart from Open-Meteo for the
 temperature sync (since v2.8.0 automatically once a day, can be switched off
-under *Settings → Weather data → Fill weather automatically*) and, only on
+under *Connections → Weather data → Fill weather automatically*) and, only on
 request, the place search (since v2.12.0) — plus, only if you set one up, your
 own text recognition service in the home network and, only on request,
 the download of wholesale electricity prices from SMARD (both since v3.1.0). A
@@ -62,7 +62,7 @@ Under `demo-data/` the repository contains a complete example dataset for **all
 eight** utilities (gas, electricity, water, district heating, heating oil,
 pellets, PV feed-in, PV generation), including realistic tank sizes and delivery
 cadence. The most convenient way to load it is directly in the app via
-**Settings → Data → Backup & restore → Load demo data** (F1007). Alternatively
+**Settings → Data and backup → Backup & restore → Load demo data** (F1007). Alternatively
 via the file system:
 
 ```bash
@@ -96,7 +96,10 @@ The web server user needs **write permission** on `data/` (including
 `data/backups/`). Writing requests run one after another (lock on
 `data/.write.lock`, since v2.5.3), and every file is written atomically
 (temporary file, then rename; since v2.6.0 with `fsync` first) — an abort in
-mid-write leaves no half-written file. The system diagnostics
+mid-write leaves no half-written file. A backup writes many files: if the
+process ends halfway, `/api/health` reports `checks.restore` since v3.12.0,
+naming the snapshot from before (`pre-restore-…`), which you restore under Data
+and backup. The system diagnostics
 (`Settings → System → System diagnostics`, or `GET /api/diagnostics`) show
 whether the write permissions are set correctly.
 
@@ -123,7 +126,7 @@ chosen directory.
 
 There are three complementary mechanisms:
 
-1. **Full JSON backup** (`Settings → Data → Backup & restore`): a single JSON
+1. **Full JSON backup** (`Settings → Data and backup → Backup & restore`): a single JSON
    file in format `3.0` that contains *all* utilities, meters, contracts,
    deliveries, temperatures and settings and is re-importable. This is the
    authoritative backup format.
@@ -142,7 +145,7 @@ Simply copying the entire `data/` directory is also a complete backup.
 
 ## 5. Updating to a new version
 
-1. **Export a backup** (*Settings → Data → Backup & restore → Download JSON
+1. **Export a backup** (*Settings → Data and backup → Backup & restore → Download JSON
    backup*) or copy the `data/` directory. This is the only way back: a schema
    migration cannot be undone.
 2. **Read the CHANGELOG** — whatever is listed under “Migration” applies to you.
@@ -170,7 +173,7 @@ converted on the first start.
 
 Old readings are best brought into the app as **CSV**: per meter through
 ⚙️ Meters → **CSV import** (date and reading, semicolon or comma, with a preview
-before writing); temperatures under Settings → Weather data. From Excel: save the
+before writing); temperatures under Connections → Weather data. From Excel: save the
 sheet as CSV.
 
 > The old Excel import from v1.0.0 (a Python script, marked as deprecated

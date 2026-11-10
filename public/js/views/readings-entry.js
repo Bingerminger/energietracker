@@ -32,11 +32,15 @@ import { getUtilities, getSettings } from '../state.js';
 import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso, formatForInput } from '../lib/format.js';
-import { checkReading, confirmIssues, issueText } from '../lib/plausibility.js';
+import { checkReading, confirmIssues, issueText, neighbours } from '../lib/plausibility.js';
 import { showFieldError } from '../lib/form.js';
 import { info } from '../components/info.js';
 import * as outbox from '../lib/outbox.js';
 import { shrinkPhoto } from '../lib/photo.js';
+import { icon, meterGlyph } from '../lib/icons.js';
+
+// Zeichen einer Zeile: die Grafik der Art, oder was jemand selbst am Zähler eingetragen hat
+const readingGlyph = (r) => meterGlyph({ icon: r.meter_icon }, { key: r.utility, icon: r.utility_icon }, { size: 24 });
 
 // Abmeldung der Warteschlangen-Anzeige (cleanup)
 let _offOutbox = null;
@@ -85,7 +89,7 @@ export async function render(container, _params = [], ctx = {}) {
     _ocrOn = !!String(settings?.ocr_endpoint || '').trim();
   } catch (e) {
     listEl.innerHTML = `<div class="empty" style="padding:32px">
-      <div class="empty-icon">⚠️</div>
+      <div class="empty-icon" aria-hidden="true">${icon('achtung', { size: 48 })}</div>
       <h2>${t('readingsEntry.error.title')}</h2>
       <p class="muted">${esc(e.message || t('readingsEntry.error.unknown'))}</p>
     </div>`;
@@ -95,9 +99,9 @@ export async function render(container, _params = [], ctx = {}) {
   if (rows.length === 0) {
     // D — CTA zum Zähler-Anlegen (erste kumulative Verbrauchsart).
     const cumUtil = (await getUtilities().catch(() => [])).find(u => u.reading_kind === 'cumulative');
-    const ctaHref = cumUtil ? `#/utility/${cumUtil.key}/meters` : '#/settings';
+    const ctaHref = cumUtil ? `#/household/meters?art=${cumUtil.key}` : '#/settings';
     listEl.innerHTML = `<div class="empty" style="padding:32px">
-      <div class="empty-icon">📋</div>
+      <div class="empty-icon" aria-hidden="true">${icon('klemmbrett', { size: 48 })}</div>
       <h2>${t('readingsEntry.empty.title')}</h2>
       <p class="muted">${t('readingsEntry.empty.text')}</p>
       <a class="btn btn--primary" href="${ctaHref}">${t('readingsEntry.empty.cta')}</a>
@@ -113,7 +117,7 @@ export async function render(container, _params = [], ctx = {}) {
     <div class="readings-entry__toolbar">
       <label class="field field--date">
         <span class="field__label">${t('readingsEntry.globalDateLabel')}</span>
-        <input class="input" data-role="global-date" type="date" value="${esc(today)}" />
+        <input class="input" data-role="global-date" type="date" min="1900-01-01" max="2100-12-31" value="${esc(today)}" />
       </label>
     </div>
     ${rows.map(r => r.capture === 'period' ? renderPeriodRow(r) : renderRow(r, today)).join('')}
@@ -243,7 +247,7 @@ function renderRow(r, today) {
   return `
     <article class="reading-card" data-row-index="${escIdx(r)}" data-utility="${esc(r.utility)}" data-meter-id="${esc(r.meter_id)}" aria-labelledby="rc-name-${escIdx(r)}">
       <div class="reading-card__head">
-        <span class="reading-card__icon" aria-hidden="true">${esc(r.utility_icon || r.meter_icon || '•')}</span>
+        <span class="reading-card__icon" aria-hidden="true">${readingGlyph(r)}</span>
         <div class="reading-card__title">
           <div class="reading-card__name" id="rc-name-${escIdx(r)}">${esc(r.meter_name)}</div>
           <div class="reading-card__sub">${esc(r.utility_label)}${r.meter_notes ? ` · ${esc(r.meter_notes)}` : ''}</div>
@@ -278,7 +282,7 @@ function renderRow(r, today) {
       <div class="reading-card__date" data-role="date-wrap" id="rc-date-${escIdx(r)}" hidden>
         <label class="field field--date">
           <span class="field__label">${t('readingsEntry.row.dateLabel')}</span>
-          <input class="input" data-role="date" type="date" value="${esc(today)}" />
+          <input class="input" data-role="date" type="date" min="1900-01-01" max="2100-12-31" value="${esc(today)}" />
         </label>
       </div>
 
@@ -306,7 +310,7 @@ function renderRow(r, today) {
         </button>
         <!-- v3.1.0 (MKT-08) — Foto als Beleg; capture öffnet am Handy die Kamera -->
         <label class="btn btn--ghost btn--sm reading-card__photo-btn">
-          <span aria-hidden="true">📷</span> ${t('readingsEntry.photo.add')}
+          ${icon('kamera')} ${t('readingsEntry.photo.add')}
           <input type="file" accept="image/*" capture="environment" data-role="photo" class="sr-only" />
         </label>
       </div>
@@ -324,7 +328,7 @@ function renderRow(r, today) {
         </label>
       </div>
 
-      <div class="reading-card__hint" data-role="hint" role="status" aria-live="polite" hidden></div>
+      <div class="infobox infobox--achtung reading-card__hint" data-role="hint" role="status" aria-live="polite" hidden></div>
     </article>
   `;
 }
@@ -339,9 +343,11 @@ function escIdx(r) {
 
 // A — Verbrauchs-Vorschau: Differenz zum letzten Stand + Tage seit der
 // letzten Ablesung. Liefert null, wenn kein voriger Stand vorliegt.
-function previewText(r, value, dateVal) {
+export function previewText(r, value, dateVal) {
   const last = r.last_reading;
   if (!last || last.counter == null || Number.isNaN(value)) return null;
+  // v3.12.0 — Nachtrag vor dem letzten Stand: kein Vergleich mit dem späteren (wie rowIssues: `prev` nur, wenn älter)
+  if (last.date && dateVal && dateVal < last.date) return null;
   const diff = value - Number(last.counter);
   const sign = diff < 0 ? '−' : '+';
   const delta = `${sign}${fmt.num(Math.abs(diff), 3)}`;
@@ -358,7 +364,23 @@ function previewText(r, value, dateVal) {
 // v2.6.0 — Rückfragen zu einer Karte (lib/plausibility.js). Vergleichsbasis
 // ist der letzte Stand aus der Übersicht; stammt er von einem anderen Gerät
 // als dem eingebauten, ist ein kleinerer Wert der Tausch selbst.
-function rowIssues(r, value, date, today) {
+// v3.12.0 — ein Nachtrag (am oder vor dem letzten Stand) wird wie im Dialog „+ Ablesung“ gegen den vorigen
+// und den nächsten Stand ZUM GEWÄHLTEN DATUM geprüft (neighbours). Bis dahin kannte die Seite nur den letzten
+// Stand: Ein Nachtrag hatte weder Vorgänger noch Nachfolger, ein Wert über dem nächsten oder unter dem vorigen
+// ging ohne Rückfrage durch. Die Stände des Zählers lädt die Karte erst, wenn ein Nachtrag gewählt ist.
+const needsHistory = (r, date) => !!(r.last_reading?.date && date && date <= r.last_reading.date);
+function historyOf(r) {
+  r.__history ??= Promise.all([api.readings(r.utility, r.meter_id), api.meters(r.utility)])
+    .then(([readings, meters]) => ({ readings: readings || [], meter: (meters || []).find(m => m.id === r.meter_id) || null }))
+    .catch(() => { r.__history = null; return null; });   // ohne Liste: wie bisher gegen den letzten Stand
+  return r.__history;
+}
+
+function rowIssues(r, value, date, today, history = null) {
+  if (history && needsHistory(r, date)) {
+    const sameDay = history.readings.find(x => x.date === date && !x.is_future && x.id) || null;
+    return checkReading({ value, date, today, typical: r.typical_per_day ?? null, sameDay, ...neighbours(history.readings, history.meter, date) });
+  }
   const last = r.last_reading;
   const sameDay = last && last.date === date && last.id ? last : null;
   const deviceChanged = !!(last?.device_id && r.active_device_id && last.device_id !== r.active_device_id);
@@ -411,7 +433,11 @@ function bindRow(card, r) {
     }
     // v2.6.0 — alle Rückfragen schon beim Tippen (vorher nur „kleiner")
     const date = dateEl?.value || todayIso();
-    const issues = rowIssues(r, v, date, todayIso());
+    // Nachtrag: die Liste des Zählers einmal laden, dann neu prüfen
+    if (needsHistory(r, date) && !r.__historyValue) {
+      historyOf(r)?.then(h => { if (h && !r.__historyValue) { r.__historyValue = h; update(); } });
+    }
+    const issues = rowIssues(r, v, date, todayIso(), r.__historyValue || null);
     hintEl.hidden = issues.length === 0;
     hintEl.textContent = issues.map(i => issueText(i, { unit: r.unit, date })).join(' · ');
     const prev = previewText(r, v, dateEl?.value);
@@ -482,11 +508,11 @@ function setCardStatus(statusEl, kind) {
   if (!statusEl) return;
   const map = {
     saving:  { glyph: '…', cls: 'pending', label: t('readingsEntry.status.saving') },
-    saved:   { glyph: '✓', cls: 'ok',      label: t('readingsEntry.status.saved') },
-    failed:  { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.failed') },
-    invalid: { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.invalid') },
-    held:    { glyph: '!', cls: 'warn',    label: t('readingsEntry.status.held') },
-    queued:  { glyph: '⏳', cls: 'warn',   label: t('readingsEntry.queue.queued') },
+    saved:   { glyph: icon('haken', { size: 16 }), cls: 'ok',      label: t('readingsEntry.status.saved') },
+    failed:  { glyph: icon('kreuz', { size: 16 }), cls: 'err',     label: t('readingsEntry.status.failed') },
+    invalid: { glyph: icon('kreuz', { size: 16 }), cls: 'err',     label: t('readingsEntry.status.invalid') },
+    held:    { glyph: icon('achtung', { size: 16 }), cls: 'warn',    label: t('readingsEntry.status.held') },
+    queued:  { glyph: icon('warten', { size: 16 }), cls: 'warn',   label: t('readingsEntry.queue.queued') },
   };
   const s = map[kind];
   if (!s) return;
@@ -517,7 +543,7 @@ function renderPeriodRow(r) {
   return `
     <article class="reading-card reading-card--period" data-row-index="${i}" data-utility="${esc(r.utility)}" data-meter-id="${esc(r.meter_id)}" data-capture="period" aria-labelledby="rc-name-${i}">
       <div class="reading-card__head">
-        <span class="reading-card__icon" aria-hidden="true">${esc(r.utility_icon || r.meter_icon || '•')}</span>
+        <span class="reading-card__icon" aria-hidden="true">${readingGlyph(r)}</span>
         <div class="reading-card__title">
           <div class="reading-card__name" id="rc-name-${i}">${esc(r.meter_name)}</div>
           <div class="reading-card__sub">${esc(r.utility_label)} · ${t('readingsEntry.period.kind')}</div>
@@ -666,7 +692,8 @@ async function trySaveCard(card, r, today = todayIso()) {
 
   // v2.6.0 — Rückfrage je auffälliger Karte, mit Zählername im Titel. Wer
   // ablehnt, behält die Eingabe; die Karte ist markiert und wird nachgemeldet.
-  const issues = rowIssues(r, counter, date, today);
+  const history = needsHistory(r, date) ? (r.__historyValue || await historyOf(r)) : null;
+  const issues = rowIssues(r, counter, date, today, history);
   if (issues.length) {
     const ok = await confirmIssues(issues, {
       unit: r.unit, date, utility: r.utility,
@@ -751,7 +778,7 @@ async function renderOutbox(el, rows, listEl, today) {
   const waiting = items.filter(i => i.status === 'waiting').length;
   const line = (i) => {
     const when = i.kind === 'period' ? esc(i.month || '') : fmt.date(i.date);
-    const what = `${esc(i.meter_label || i.meter_id)} · ${fmt.num(i.counter, 3)} ${esc(i.unit || '')} · ${when}${i.photo_blob || i.attachment_id ? ' · 📷' : ''}`;
+    const what = `${esc(i.meter_label || i.meter_id)} · ${fmt.num(i.counter, 3)} ${esc(i.unit || '')} · ${when}${i.photo_blob || i.attachment_id ? ` · ${icon('kamera', { size: 16 })}` : ''}`;
     const ref = esc(i.client_ref);
     let state, actions = '';
     if (i.status === 'conflict') {
@@ -838,6 +865,7 @@ async function refreshLastReadings(listEl, rows, today) {
       const next = byKey.get(r.utility + ':' + r.meter_id);
       if (!next) return;
       r.last_reading      = next.last_reading;
+      r.__history = null; r.__historyValue = null;   // v3.12.0 — die Liste für Nachträge ist jetzt alt
       r.expected_next_min = next.expected_next_min;
       r.typical_per_day   = next.typical_per_day;
       r.active_device_id  = next.active_device_id;

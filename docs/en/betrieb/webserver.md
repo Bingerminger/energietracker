@@ -73,7 +73,7 @@ A VirtualHost for it:
 `AllowOverride None` silences the `.htaccess` — then Apache serves `data/`, and
 the cache rules are missing. If only `mod_rewrite` is missing, a fallback with
 `mod_alias` (`RedirectMatch 404`) blocks the same paths since v3.4.0. Whether
-the protection works is shown under Settings → Access → "Security check". Running in a sub-directory (such as
+the protection works is shown under Settings → Access and security → "Security check". Running in a sub-directory (such as
 `/energietracker/`) works without changes; the rules of the `.htaccess` are
 relative.
 
@@ -131,18 +131,20 @@ server {
     # never serve other PHP source raw
     location ~ \.php$ { return 404; }
 
-    # 4. cache headers
+    # 4. cache headers; nosniff in every location with files (v3.12.0)
     location ~ ^/public/(js|locales)/ {
         add_header Cache-Control "no-cache, must-revalidate" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri =404;
     }
     location ~ \.(woff2?|ttf|eot)$ {
         add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri =404;
     }
 
     # 3. static file or the interface
-    location / { try_files $uri @spa; }
+    location / { add_header X-Content-Type-Options "nosniff" always; try_files $uri @spa; }
     location @spa {
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
@@ -155,6 +157,12 @@ server {
 nginx passes the `Authorization` header on to PHP-FPM by itself (point 5). For a
 sub-directory every pattern would need the prefix — a host name of its own is
 simpler.
+
+**Access log without the query** *(v3.12.0)*: the calendar subscription carries
+its key in the link. The default format writes it into the log; the `et_main`
+format from `docker/nginx.conf` (`map` and `log_format` in the `http` block)
+names only the path. The Apache counterpart is in
+[Security § 10](sicherheit.md#10-logging-and-troubleshooting).
 
 ## Upload limits and PHP memory *(v3.1.0)*
 
@@ -191,7 +199,7 @@ same values:
   a large backup.
 - An upload above `post_max_size` reaches PHP empty; the app recognises this
   and answers with `400` and `errors.attachment.size` including the limit
-  (“The file is too large – … MB at most.”).
+  (“The file is too large. … MB at most.”).
 - If a reverse proxy sits in front, it too needs a time limit above 300
   seconds when text recognition may take long — for reading in the inbox via a
   cloud service up to 660 seconds *(v3.7.0)*.

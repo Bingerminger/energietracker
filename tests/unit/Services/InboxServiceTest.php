@@ -204,6 +204,32 @@ final class InboxServiceTest extends ServiceTestCase
         self::assertSame('errors.inbox.noText', $this->inbox->get($e['id'])['error']['key']);
     }
 
+    /**
+     * v3.12.0 — kaputtes PDF (Kopf „%PDF-“, Inhalt unlesbar): pdf.js im Browser scheitert, bevor der Server etwas
+     * bekommt. Der Browser meldet es (`status: failed`, `reason: pdf_unreadable`); der Eintrag steht dann wie beim Scan
+     * ohne Textebene auf „fehlgeschlagen“ mit eigener Meldung, statt „neu“ zu bleiben. Andere Gründe und „failed“ ohne
+     * Grund lehnt der Server ab; ein erledigtes oder abgelegtes Dokument bleibt, wie es ist.
+     */
+    public function testTheBrowserReportsAnUnreadablePdf(): void
+    {
+        $e = $this->inbox->upload(InboxFixture::pdf('kaputt'), 'kaputt.pdf');
+        $x = $this->inbox->update($e['id'], ['status' => 'failed', 'reason' => 'pdf_unreadable']);
+        self::assertSame(['failed', 'errors.inbox.pdfUnreadable'], [$x['status'], $x['error']['key']]);
+        foreach ([['status' => 'failed'], ['status' => 'failed', 'reason' => 'model_down'], ['status' => 'read']] as $bad) {
+            try {
+                $this->inbox->update($e['id'], $bad);
+                self::fail('angenommen: ' . json_encode($bad));
+            } catch (LocalizedException $ex) {
+                self::assertSame('errors.inbox.statusInvalid', $ex->key, json_encode($bad));
+            }
+        }
+        $f = $this->inbox->upload(InboxFixture::pdf('abgelegt'), 'abgelegt.pdf');
+        $this->inbox->update($f['id'], ['status' => 'filed']);
+        self::assertSame('filed', $this->inbox->update($f['id'], ['status' => 'failed', 'reason' => 'pdf_unreadable'])['status']);
+        self::assertNotSame('', $this->i18n->t('errors.inbox.pdfUnreadable'));
+        self::assertNotSame('errors.inbox.pdfUnreadable', $this->i18n->t('errors.inbox.pdfUnreadable'));
+    }
+
     public function testAnotherProviderNeedsConsentAndAnUnknownOneNeverFallsBack(): void
     {
         // ein Cloud-Anschluss ist erst wählbar, wenn das Auslesen in der Cloud für ihn eingeschaltet ist und ein Schlüssel da ist

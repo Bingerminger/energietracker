@@ -16,7 +16,8 @@ import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
 import { GLOSSARY, glossaryTerm, glossaryText, billLine } from '../components/info.js';
 import { setupSteps, setupListHtml, openSteps } from '../lib/onboarding.js';
-import { docUrl, docsInOtherLanguage, ISSUES_URL, CASES } from '../lib/docs.js';
+import { docUrl, docsInOtherLanguage, ISSUES_URL, CASES, DEMO_URL, DISCUSSIONS_URL, roadmapUrl } from '../lib/docs.js';
+import { icon } from '../lib/icons.js';
 
 export async function render(container, _params = [], ctx = {}) {
   const terms = GLOSSARY
@@ -33,6 +34,22 @@ export async function render(container, _params = [], ctx = {}) {
       </div>
     </div>
 
+    <!-- v3.12.0 (M6) — dieselbe Linkreihe wie oben im README -->
+    <nav class="help-links-row" aria-label="${escapeHtml(t('help.links.label'))}" data-role="help-links">
+      <a class="btn btn--ghost btn--sm" href="${DEMO_URL}" target="_blank" rel="noopener">${escapeHtml(t('help.links.demo'))}</a>
+      <a class="btn btn--ghost btn--sm" href="${escapeHtml(docUrl('compendium'))}">${escapeHtml(t('help.links.handbook'))}</a>
+      <a class="btn btn--ghost btn--sm" href="${roadmapUrl()}" target="_blank" rel="noopener">${escapeHtml(t('help.links.roadmap'))}</a>
+      <a class="btn btn--ghost btn--sm" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${escapeHtml(t('help.links.discussions'))}</a>
+    </nav>
+
+    <section class="card guide-hero" aria-labelledby="help-setups">
+      <div>
+        <h2 class="card__title" id="help-setups">${escapeHtml(t('setups.title'))}</h2>
+        <p class="small">${escapeHtml(t('setups.helpText'))}</p>
+      </div>
+      <a class="btn btn--primary btn--sm" href="#/help/setups">${escapeHtml(t('setups.open'))}</a>
+    </section>
+
     <div class="help-grid">
       <section class="card" aria-labelledby="help-setup">
         <h2 class="card__title" id="help-setup">${escapeHtml(t('help.setup.title'))}</h2>
@@ -42,7 +59,7 @@ export async function render(container, _params = [], ctx = {}) {
       <section class="card" aria-labelledby="help-docs">
         <h2 class="card__title" id="help-docs">${escapeHtml(t('help.docs.title'))}</h2>
         <p class="help-actions help-docs__open">
-          <a class="btn btn--primary btn--sm" href="${escapeHtml(docUrl('compendium'))}" data-role="handbook"><span aria-hidden="true">📖</span> ${escapeHtml(t('help.docs.open'))}</a>
+          <a class="btn btn--primary btn--sm" href="${escapeHtml(docUrl('compendium'))}" data-role="handbook">${icon('buch')} ${escapeHtml(t('help.docs.open'))}</a>
         </p>
         <ul class="help-links">
           ${doc('start', 'help.docs.start')}
@@ -52,6 +69,7 @@ export async function render(container, _params = [], ctx = {}) {
           ${doc('useCases', 'help.docs.useCases')}
           ${doc('rights', 'rights.title')}
           ${doc('homeAssistant', 'help.docs.homeAssistant')}
+          ${doc('aiAssistant', 'help.docs.aiAssistant')}
           ${doc('troubleshoot', 'help.docs.troubleshoot')}
         </ul>
         <p class="muted small">${escapeHtml(t('help.docs.local', { version }))}</p>
@@ -79,7 +97,7 @@ export async function render(container, _params = [], ctx = {}) {
         </div>`).join('')}
       </dl>
       <p class="help-actions">
-        <a class="btn btn--ghost btn--sm" href="#/settings/general">${escapeHtml(t('help.cases.tryExample'))}</a>
+        <a class="btn btn--ghost btn--sm" href="#/settings">${escapeHtml(t('help.cases.tryExample'))}</a>
         <a class="btn btn--ghost btn--sm" href="${escapeHtml(docUrl('useCases'))}">${escapeHtml(t('help.docs.useCases'))}</a>
       </p>
     </section>
@@ -127,6 +145,6 @@ export async function render(container, _params = [], ctx = {}) {
   const steps = await setupSteps().catch(() => []);
   const box = container.querySelector('[data-role="setup"]');
   if (box && box.isConnected) {
-    box.innerHTML = `${openSteps(steps).length === 0 ? `<p class="banner banner--success">${escapeHtml(t('help.setup.allDone'))}</p>` : ''}${setupListHtml(steps)}`;
+    box.innerHTML = `${openSteps(steps).length === 0 ? `<p class="infobox infobox--erfolg">${escapeHtml(t('help.setup.allDone'))}</p>` : ''}${setupListHtml(steps)}`;
   }
 }

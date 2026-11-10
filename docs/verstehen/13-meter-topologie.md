@@ -98,7 +98,12 @@ Summe der Verbrauchsart             500 kWh                               140 �
 - **Rest unter null:** Misst der Subzähler in einem Monat mehr als der
   Elternzähler, stimmt meist eine Ablesung nicht. Der Elternvertrag rechnet
   diesen Monat nicht negativ ab (0 kWh, 0 € Arbeitspreis), der Hinweis nennt die
-  Menge (`short_kwh`) und bittet, die Ablesungen zu prüfen.
+  Menge (`short_kwh`) und bittet, die Ablesungen zu prüfen. *(v3.12.0)* Vorn im
+  Hinweis steht die **abgerechnete** Menge (`billed`), die Zeile geht auf:
+  „488 kWh = 882 kWh gemessen − 644 kWh Wallbox + 250 kWh“, die 250 kWh misst
+  der Subzähler in einem Monat mehr als der Zähler davor. Bis v3.11 stand dort
+  238 kWh, weniger als abgerechnet. Endet ein Prüfzeitraum nach dem letzten
+  Stand des Elternzählers, zieht die App den Subzähler nur bis zu diesem Stand ab.
 - **Je Zählwerk** *(v3.10.0)*: Hat der Elternzähler mehrere Zählwerke (HT und
   NT, je ein Zähler in einer Gruppe), rechnet die App den Rest je Zählwerk wie
   der Versorger: HT minus HT, NT minus NT, jedes zu seinem Preis. Ein Zählwerk

@@ -68,13 +68,14 @@ t('Zeilenliste: Datum 10,5 rem | Betrag 9 rem | Zusatz | ✕',
   /var\(--row-cols, 10\.5rem 9rem minmax\(0, 1fr\) auto\)/.test(rule(C, '.rowlist__row')) && /grid-column: -2 \/ -1/.test(rule(C, '.rowlist__row > .rowlist__del')));
 t('Zeilenliste: Beschriftung nur über der ersten Zeile (sonst sr-only)',
   /clip: rect\(0, 0, 0, 0\)/.test(rule(C, '.rowlist__row + .rowlist__row > .field:not(.rowlist__sub) > :is(label, .label)')));
-// Versalien nur für Feldbeschriftungen — nie für Kästchen-Texte
-const upper = rule(C, '.field > label:not(.btn, .check, .settings-field__check), .label');
-t('Versalien nur für Feldbeschriftungen, Kästchen in Satzschreibung',
-  /text-transform: uppercase/.test(upper) && /text-transform: none/.test(rule(C, '.check, .settings-field__check'))
+// v3.12.0 — keine Versalien mehr; Feldbeschriftungen in 14 px, halbfett, Text
+const labelRule = rule(C, '.field > label:not(.btn, .check, .settings-field__check), .label');
+t('Keine Versalien, Feldbeschriftung 14 px in Textfarbe, Kästchen in Satzschreibung',
+  !/text-transform: uppercase/.test(C) && /--fs-body/.test(labelRule) && /--text-1/.test(labelRule) && /--fs-sm/.test(rule(C, '.check, .settings-field__check'))
   && !/\.field label\b/.test(C));
-t('Einstellungen: Karten oben bündig, Zahlen in breiten Karten höchstens 12 rem',
-  /align-items: start/.test(rule(C, '.settings-grid')) && /max-width: 12rem/.test(rule(C, '.settings-card--wide .settings-field > .input:not(.input--text)')));
+t('Einstellungen: Formulare stehen untereinander, Beschriftung links, Feld rechts (Regel R2)',
+  /grid-template-columns: minmax\(0, 1fr\)/.test(rule(C, '.settings-grid')) && /max-width: 860px/.test(rule(C, '.settings-grid'))
+  && /minmax\(0, 1fr\) 240px/.test(rule(C, '.settings-field, .field.settings-field')));
 
 // ── Ansichten: keine Einzel-Flicken ───────────────────────────────────
 console.log('Ansichten');
@@ -125,7 +126,7 @@ const { mountThemeToggle, refreshThemeToggle } = await import(`${JS}/lib/theme.j
 const btn = document.getElementById('theme-toggle');
 const state = () => {
   const badge = btn.querySelector('[data-theme-badge]');
-  return { mode: btn.dataset.themeMode, icon: btn.querySelector('.topbar__btn-icon').textContent,
+  return { mode: btn.dataset.themeMode, icon: btn.querySelector('.topbar__btn-icon use')?.getAttribute('href') || '',
     badge: badge && !badge.hidden ? badge.textContent : null, theme: document.documentElement.getAttribute('data-theme'),
     toast: [...document.querySelectorAll('#toast-stack .toast__msg')].map(e => e.textContent).at(-1) || null,
     toasts: document.querySelectorAll('#toast-stack .toast').length, label: btn.getAttribute('aria-label') };
@@ -134,22 +135,23 @@ localStorage.removeItem('et-theme');
 mountThemeToggle(btn);
 refreshThemeToggle();
 let s = state();
-t('System dunkel: Mond mit Abzeichen „A", keine Meldung beim Start', s.mode === 'system' && s.icon === '🌙' && s.badge === 'A' && s.toast === null, JSON.stringify(s));
-t('Beschriftung nennt den Modus wie bisher', s.label === 'Darstellung: wie das System – umschalten', s.label);
+t('System dunkel: Mond mit Abzeichen „A", keine Meldung beim Start', s.mode === 'system' && s.icon === '#i-mond' && s.badge === 'A' && s.toast === null, JSON.stringify(s));
+t('Beschriftung nennt den Modus wie bisher', s.label === 'Darstellung umschalten (jetzt: wie das System)', s.label);
 btn.click(); s = state();
-t('Klick → hell: Sonne, kein Abzeichen, Meldung „Hell"', s.mode === 'light' && s.theme === 'light' && s.icon === '☀️' && s.badge === null && s.toast === 'Hell', JSON.stringify(s));
+t('Klick → hell: Sonne, kein Abzeichen, Meldung „Hell"', s.mode === 'light' && s.theme === 'light' && s.icon === '#i-sonne' && s.badge === null && s.toast === 'Hell', JSON.stringify(s));
 btn.click(); s = state();
-t('Klick → dunkel: Mond, kein Abzeichen, Meldung „Dunkel"', s.mode === 'dark' && s.icon === '🌙' && s.badge === null && s.toast === 'Dunkel', JSON.stringify(s));
+t('Klick → dunkel: Mond, kein Abzeichen, Meldung „Dunkel"', s.mode === 'dark' && s.icon === '#i-mond' && s.badge === null && s.toast === 'Dunkel', JSON.stringify(s));
 await new Promise(r => setTimeout(r, 300));
 systemLight = true;
 btn.click(); s = state();
-t('Klick → wie das System (hell): Sonne mit „A", Meldung „Automatisch – folgt dem System"',
-  s.mode === 'system' && s.theme === 'light' && s.icon === '☀️' && s.badge === 'A' && s.toast === 'Automatisch – folgt dem System', JSON.stringify(s));
+t('Klick → wie das System (hell): Sonne mit „A", Meldung „Automatisch: folgt dem System"',
+  s.mode === 'system' && s.theme === 'light' && s.icon === '#i-sonne' && s.badge === 'A' && s.toast === 'Automatisch: folgt dem System', JSON.stringify(s));
 t('schnelles Weiterklicken stapelt keine Meldungen', s.toasts <= 2, `${s.toasts} Meldungen`);
 
 // ── Doku ──────────────────────────────────────────────────────────────
 console.log('Doku');
-const settingsSrc = read('public/js/views/settings.js');
+// v3.12.0 — die Einstellungen liegen in einem Modul je Seite
+const settingsSrc = readdirSync(resolve(JS, 'views')).filter(f => /^settings.*\.js$/.test(f)).map(f => read(`public/js/views/${f}`)).join('\n');
 const url = (settingsSrc.match(/const SUPPORT_URL = '([^']+)'/) || [])[1];
 for (const [lang, ans, fun] of [['de', 'docs/referenz/ansichten.md', 'docs/einstieg/funktionen.md'], ['en', 'docs/en/referenz/ansichten.md', 'docs/en/einstieg/funktionen.md']]) {
   const a = read(ans), f = read(fun);
@@ -188,13 +190,13 @@ t('Home-Assistant-App: Knopf in README (DE/EN), Handbuch (DE/EN) und App',
 console.log('v3.6.0 (Zugriff ruhig, Aufklappbereich)');
 const sel = rule(C, '.select:not([multiple]):not([size])');
 t('Auswahlfelder ohne Systemdarstellung (Höhe wie Eingaben), Pfeil aus dem Theme, Textschrift',
-  /-webkit-appearance: none; appearance: none;/.test(sel) && /font-family: var\(--font-sans\)/.test(sel) && /padding-right: 32px/.test(sel) && /var\(--text-2\)/.test(sel));
+  /-webkit-appearance: none; appearance: none;/.test(sel) && /font-family: var\(--font-sans\)/.test(sel) && /padding-right: var\(--sp-8\)/.test(sel) && /var\(--text-2\)/.test(sel));
 t('Textfelder ohne Safaris Eigendarstellung (Kästchen, Datei, Regler ausgenommen)',
   /appearance: none/.test(rule(C, '.input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"])')));
 t('16 px auch bei iPad mit Trackpad (any-pointer: coarse)', /@media \(any-pointer: coarse\) \{ \.input, \.select, textarea\.input \{ font-size: 16px; \} \}/.test(C));
 t('kein Vergrößern beim Drehen (text-size-adjust)', /html \{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; \}/.test(css('public/css/app.css')));
-t('Einstellungen: Feldabstand wie im Raster (16 px), Hinweis ohne Extraabstand',
-  /gap: var\(--sp-4\)/.test(rule(C, '.settings-fields')) && /margin-top: 0/.test(rule(C, '.settings-field__hint')));
+t('Einstellungen: Feldabstand einheitlich über den Trennstrich, Hinweis ohne Extraabstand',
+  /display: block/.test(rule(C, '.settings-fields')) && /padding: var\(--sp-3\) 0/.test(rule(C, '.settings-field, .field.settings-field')) && /margin-top: 0/.test(rule(C, '.settings-field__hint')));
 for (const role of ['sec-form', 'me-form', 'user-form', 'pw-reset-form', 'sec-disable-form']) {
   t(`Passwortformular ${role} (Safari erkennt es, Enter schickt nichts ab)`, new RegExp(`<form[^>]*data-role="${role}"`).test(settingsSrc)
     && new RegExp(`form\\[data-role="${role}"\\][^\\n]*submit`).test(settingsSrc));
@@ -213,11 +215,11 @@ console.log('Schaubilder, Saldo-Karte, Werkstatt, Vertragskarten (components.css
   const ex = decl('.explainer__title');
   // A1 — der Titel eines Schaubilds sieht aus wie ein Kartentitel (Größe, Gewicht, Farbe, Versalien, Sperrung)
   const props = (d) => Object.fromEntries(d.split(';').map(x => x.split(':').map(y => y.trim())).filter(([k, v]) => k && v));
-  const same = ['font-size', 'font-weight', 'color', 'text-transform', 'letter-spacing'].every(k => props(ex)[k] && props(ex)[k] === props(card)[k]);
+  const same = ['font-size', 'font-weight', 'color'].every(k => props(ex)[k] && props(ex)[k] === props(card)[k]);
   t('A1: .explainer__title wie .card__title', same, `${ex} | ${card}`);
   // A2 — die Spanne der unsicheren Schätzung in Fließschrift und kleiner, nicht 22 px Mono über fünf Zeilen
   const range = decl('.balance-verdict__value[data-role="verdict-range"]');
-  t('A2: Spanne der Saldo-Karte kompakt (Fließschrift, 13 px)', /font-family: var\(--font-sans/.test(range) && /font-size: var\(--fs-sm, 13px\)/.test(range), range);
+  t('A2: Spanne der Saldo-Karte kompakt (Fließschrift, 13 px)', /font-family: var\(--font-sans/.test(range) && /font-size: var\(--fs-sm\)/.test(range), range);
   // A4 — Werkstatt am Touchgerät: Felder, Auswahl, Regler und Chips 44 px
   const coarse = (C.match(/@media \(pointer: coarse\) \{ ([^{}]*)\{ min-height: 44px; \} \}/g) || []).join(' ');
   t('A4: Werkstatt bei Touch 44 px (Chips, Zahlenfelder, Auswahl, Regler)', ['.ws-chip', '.ws__controls input[type="number"]', '.ws__controls select', '.ws-range input[type="range"]']
@@ -242,7 +244,7 @@ t('Kästchen und Radio: langer Text bricht neben dem Kästchen um (nicht darunte
   && C.indexOf('.settings-field > label {') < C.indexOf('.settings-field > label.settings-field__check {'), checkRule);
 t('Gruppen in Einstellungskarten ohne Rahmen des Browsers, Legende wie eine Feldbeschriftung',
   /border: 0/.test(rule(C, 'fieldset.settings-field')) && /padding: 0/.test(rule(C, 'fieldset.settings-field'))
-  && /text-transform: uppercase/.test(rule(C, 'fieldset.settings-field > legend')));
+  && /--fs-body/.test(rule(C, 'fieldset.settings-field > legend')) && /--text-1/.test(rule(C, 'fieldset.settings-field > legend')));
 {
   const card = read('public/js/components/ha-notify.js');
   const labels = card.match(/<label[^>]*>\s*<input[^>]*type="(radio|checkbox)"/g) || [];

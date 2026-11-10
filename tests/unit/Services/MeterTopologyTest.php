@@ -107,7 +107,7 @@ final class MeterTopologyTest extends ServiceTestCase
 
         // Blatt → Mitte würde zweite Ebene erzeugen → abgelehnt.
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/[Mm]ehrstufige/');
+        $this->expectExceptionMessageMatches('/Nur eine Ebene Subzähler/');
         $this->meters->update('strom', $leaf, ['parent_meter_id' => $mid]);
     }
 

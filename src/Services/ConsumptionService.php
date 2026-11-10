@@ -73,6 +73,8 @@ final class ConsumptionService
      * wieder der laufende Bedarf gilt; die Karte nennt dann diesen.
      */
     public const SUGGEST_MIN_MONTHS = 3;
+    /** v3.12.0 (Nachprüfung A3) — liegen die letzten Stände einer Gruppe weiter auseinander, ist der Saldo als unsicher gekennzeichnet. */
+    public const GROUP_READINGS_DIFFER_DAYS = 62;
 
     /**
      * Meter ids currently being computed — recursion guard for the
@@ -104,6 +106,51 @@ final class ConsumptionService
      * @var array<string, array<int,array<string,mixed>>>
      */
     private array $forMeterMemo = [];
+
+    /**
+     * v3.12.0 — Stichtag der laufenden Rechnung. forMeter() und contractStatus() mit Datum setzen
+     * ihn für ihre Dauer: Ablesungen und Zäsuren danach sind an diesem Tag noch nicht erfasst, der
+     * Tank rechnet bis zu ihm, die jüngsten Monate der Kalibrierung zählen bis zu ihm. Innere Aufrufe
+     * (Gruppenmitglieder, Subzähler der Rest-Abrechnung, Schmutzwasser-Bezug) erben ihn. Bis v3.11
+     * rechnete forMeter() immer mit dem echten Datum, auch wenn der Aufrufer einen Stichtag hatte
+     * (Rechte-Prüfung, Abrechnungsjahr, Vertragsstatus): Dasselbe Ergebnis hing am Kalender.
+     * Null: heute.
+     */
+    private ?string $asOf = null;
+
+    /** v3.12.0 — der Stichtag der laufenden Rechnung, sonst heute. */
+    private function asOf(): string
+    {
+        return $this->asOf ?? date('Y-m-d');
+    }
+
+    /** v3.12.0 — Schreibgeneration und Stichtag: Schlüssel der Zwischenergebnisse einer Anfrage. */
+    private function memoGen(): string
+    {
+        return $this->store->generation() . '@' . $this->asOf();
+    }
+
+    /**
+     * v3.12.0 — $fn mit dem Stichtag $today rechnen (der innere gilt bis zu seinem Ende); ohne
+     * gültiges Datum unverändert. Öffentlich für Dienste mit eigenem Stichtag, die über einen
+     * anderen Dienst rechnen (Prognose, Werkstatt): Alles, was darin auf forMeter() aufbaut, sieht
+     * denselben Tag.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T
+     */
+    public function atDate(?string $today, callable $fn): mixed
+    {
+        if ($today === null || !Dates::isIsoDate($today) || $today === $this->asOf) return $fn();
+        $outer = $this->asOf;
+        $this->asOf = $today;
+        try {
+            return $fn();
+        } finally {
+            $this->asOf = $outer;
+        }
+    }
 
     public function __construct(
         private JsonStore $store,
@@ -274,6 +321,10 @@ final class ConsumptionService
      */
     public function contractStatus(string $utility, array $meter, ?string $today = null): array
     {
+        // v3.12.0 — mit Stichtag rechnen auch Monatszeilen und Kalibrierung an ihm (bis v3.11 am echten Datum)
+        if ($today !== null && Dates::isIsoDate($today) && $today !== $this->asOf) {
+            return $this->atDate($today, fn() => $this->contractStatus($utility, $meter, $today));
+        }
         $contracts = $this->contracts->list($utility, $meter['id']);
         // v1.3.0 — Schattenverträge tauchen im Vertragsstatus nicht auf
         // (rein hypothetisch; gehören in den Tarifvergleich).
@@ -282,14 +333,17 @@ final class ConsumptionService
         ));
         $monthly   = $this->forMeter($utility, $meter);
         // v3.9.0 (V1) — `$today` von außen (Werkstatt, Bericht, Tests mit festem Tag), sonst heute
-        $today   ??= date('Y-m-d');
+        $today   ??= $this->asOf();
         // v3.9.0 (V1) — die laufende Abrechnungsperiode der Abrechnungsjahre
         // (BillingPeriodService): Saldo, Abrechnungstag und Abschlagsvorschlag
         // jedes Vertrags, der in sie fällt, rechnen über genau diese Periode —
         // auch ohne erfasste Rechnung. Bis v3.7 zählte die Karte ohne Rechnung
         // ab Vertragsbeginn (im Testhaushalt drei Jahre Guthaben seit 11/2022),
         // die Werkstatt das laufende Abrechnungsjahr.
-        $running = Utilities::isFeedIn($utility) ? null : $this->runningPeriod($utility, $meter, $today);
+        // v3.12.0 — auch die Einspeisung rechnet je Abrechnungsjahr (Stichtag `billing_cycle_anchor_pv_einspeisung`),
+        // wie ein Strom- oder Gasvertrag ohne erfasste Rechnung. Bis v3.11 lief ihr Saldo seit Inbetriebnahme: Die Karte
+        // zeigte die Vergütung mehrerer Jahre als offenen Anspruch, obwohl der Netzbetreiber laufend auszahlt.
+        $running = Utilities::isFeedIn($utility) ? $this->feedInPeriod($utility, $today) : $this->runningPeriod($utility, $meter, $today);
         // v3.6.0 (F1030) — Tag nach der letzten erfassten Versorgerrechnung
         // dieses Zählers (bzw. der Mitglieder einer Gruppe) und die
         // Sonderzahlungen, die Rechnungen ausgleichen
@@ -309,7 +363,8 @@ final class ConsumptionService
                         'ym' => $m['ym'], 'kwh' => $p['kwh'], 'cost' => $p['cost'], 'kwh_cost' => $p['kwh_cost'],
                         'base_price_eur' => $p['base_price_eur'], 'bonus_eur' => $p['bonus_eur'],
                         'advance_eur' => $p['advance_eur'],
-                    ];
+                    // v3.12.0 — Wasser teilt einen Monat wie Strom: Menge und Sparten je Vertrag
+                    ] + array_intersect_key($p, array_flip(['m3', 'trinkwasser', 'schmutzwasser', 'niederschlagswasser']));
                 }
                 continue;
             }
@@ -334,6 +389,8 @@ final class ConsumptionService
             $storedEnd = $c['end'] ?? null;
             $supersededOn = $coverage[(string)$cid]['superseded_on'] ?? null;
             if ($supersededOn !== null) $c['end'] = $supersededOn;
+            // v3.12.0 (Skeptiker H5) — bis wann er rechnet: ein Bonus danach zählt am letzten Tag, einer davor an seinem Tag
+            if (($coverage[(string)$cid]['from'] ?? null) !== null) $c['runs_until'] = $coverage[(string)$cid]['to'];
             $isCur   = ($c['start'] ?? '9999') <= $today && (empty($c['end']) || $c['end'] >= $today);
             $isPast  = !empty($c['end']) && $c['end'] < $today;
             $isFut   = ($c['start'] ?? '9999') > $today;
@@ -395,7 +452,7 @@ final class ConsumptionService
             // [max(Beginn, Periodenbeginn), min(Ende, Periodenende)]. Ein weiterlaufender
             // Vertrag hat kein Ende mehr; ein abgelöster endet am Tag vor dem Folgevertrag.
             $period = null; $settleOn = null; $ownEnd = null;
-            $cEnd = $renewed ? null : ((string)($c['end'] ?? '') ?: null);
+            $cEnd = $renewed ? null : (self::ranOnUntil($c, $today) ?? ((string)($c['end'] ?? '') ?: null));
             // offen seit (BillingPeriodService::runningPeriodFor): Periodenbeginn, oder der Tag
             // nach der letzten Rechnung, wenn der Stichtag nicht zu ihr passt
             $openFrom = $running !== null ? (string)($running['open_from'] ?? $running['from']) : null;
@@ -421,7 +478,9 @@ final class ConsumptionService
                 : $isCur && $settledFrom !== null && $settledFrom > $balanceFrom && $settledFrom <= $today;
             if ($windowed) {
                 $balanceFrom = $period !== null ? $openFrom : $settledFrom;
-                $mList = self::rowsFrom($mList, $balanceFrom, $c);
+                // v3.12.0 — die Menge im angeschnittenen Monat nach den gemessenen Tagen ab dem Saldobeginn
+                $bf = $balanceFrom;
+                $mList = self::rowsFrom($mList, $balanceFrom, $c, fn(string $ym): float => $this->quantityShare($utility, $meter, $ym, $bf));
             }
             // v3.9.0 (V1) — in einer angeschnittenen Abrechnungsperiode zählt von den
             // Sonderzahlungen nur die zusätzliche Abschlagszahlung: Rück- und
@@ -444,7 +503,8 @@ final class ConsumptionService
             foreach ($mList as $m) {
                 // v3.9.0 (F1032) — bei Rest-Abrechnung die Menge des Vertrags, nicht die Messung
                 $actualKwh     += self::billedQuantity($m);
-                $actualM3      += (float)($m['m3']  ?? 0);
+                // v3.12.0 — Wasser: die bepreiste Menge (ungerundet), nicht die Anzeige der Zeile
+                $actualM3      += (float)(is_array($m['trinkwasser'] ?? null) ? ($m['trinkwasser']['m3'] ?? $m['m3'] ?? 0) : ($m['m3'] ?? 0));
                 $actualCost    += (float)($m['cost'] ?? 0);
                 $actualKwhCost += (float)($m['kwh_cost'] ?? 0);
                 $actualBase    += (float)($m['base_price_eur'] ?? 0);
@@ -480,19 +540,21 @@ final class ConsumptionService
             // Beginns (bis v3.8 „–“, weil heute noch keiner gilt)
             $priceDay = $isFut && Dates::isIsoDate($c['start'] ?? null) ? (string)$c['start'] : $today;
             [$y, $mn] = [(int)substr($priceDay, 0, 4), (int)substr($priceDay, 5, 2)];
+            // v3.12.0 — „heute gültig“ heißt am Tag, nicht am Monatsersten: ein Preis ab dem 15. gilt
+            // ab dem 15. (bis v3.11 zeigte die Karte bis Monatsende den alten Preis)
             if ($utility === 'wasser') {
                 $tw = $c['trinkwasser']         ?? [];
                 $sw = $c['schmutzwasser']       ?? [];
                 $nw = $c['niederschlagswasser'] ?? [];
-                $curWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-                $curBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $y, $mn);
-                $curSwWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-                $curSwBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $y, $mn);   // v3.9.0 (F1034)
-                $curNwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year',        $y, $mn);
-                $curNwArea = $this->valueValidOnGeneric($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
+                $curWp = $this->contracts->valueOnDate($tw['working_prices'] ?? [], 'ct_per_m3', $priceDay);
+                $curBp = $this->contracts->valueOnDate($tw['base_prices']    ?? [], 'eur_per_month', $priceDay);
+                $curSwWp = $this->contracts->valueOnDate($sw['working_prices'] ?? [], 'ct_per_m3', $priceDay);
+                $curSwBp = $this->contracts->valueOnDate($sw['base_prices'] ?? [], 'eur_per_month', $priceDay);   // v3.9.0 (F1034)
+                $curNwRate = $this->contracts->valueOnDate($nw['rates'] ?? [], 'eur_per_m2_year',        $priceDay);
+                $curNwArea = $this->contracts->valueOnDate($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $priceDay);
             } else {
-                $curWp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
-                $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+                $curWp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $priceDay);
+                $curBp = $this->contracts->valueOnDate($c['base_prices']    ?? [], 'eur_per_month', $priceDay);
                 $curSwWp = $curSwBp = $curNwRate = $curNwArea = null;
             }
             // F1003 — effektiver Abschlagsplan: „mit Auswirkung“ setzt den
@@ -693,6 +755,7 @@ final class ConsumptionService
             if ($projection !== null) {
                 $row += [
                     'measured_until'           => $projection['measured_until'],
+                    'reading_until'            => $projection['reading_until'],   // v3.12.0 (Skeptiker M6, additiv)
                     'cost_to_date'             => $projection['cost_to_date'],
                     'energy_cost_to_date'      => $projection['energy_cost_to_date'],
                     'base_to_date'             => $projection['base_to_date'],
@@ -1012,8 +1075,11 @@ final class ConsumptionService
         if (($sw['basis'] ?? 'trinkwasser') !== 'trinkwasser') {
             $a = 0.0; $b = 0.0;
             foreach ($monthly as $m) {
-                if (($m['contract_id'] ?? null) !== ($c['id'] ?? null) || !is_array($m['schmutzwasser'] ?? null)) continue;
-                $a += (float)($m['trinkwasser']['m3'] ?? $m['m3'] ?? 0); $b += (float)($m['schmutzwasser']['m3'] ?? 0);
+                // v3.12.0 — ein geteilter Monat zählt mit dem Teil dieses Vertrags
+                foreach (!empty($m['contract_parts']) ? $m['contract_parts'] : [$m] as $p) {
+                    if (($p['contract_id'] ?? null) !== ($c['id'] ?? null) || !is_array($p['schmutzwasser'] ?? null)) continue;
+                    $a += (float)($p['trinkwasser']['m3'] ?? $p['m3'] ?? 0); $b += (float)($p['schmutzwasser']['m3'] ?? 0);
+                }
             }
             $share = $a > 0 ? $b / $a : 1.0;
         }
@@ -1048,6 +1114,18 @@ final class ConsumptionService
         return ['working_prices' => $wp, 'base_prices' => $bp] + $c;
     }
 
+    /**
+     * v3.12.0 (Nachprüfung B1) — bis wann ein vergangener Vertrag über sein eingetragenes Ende hinaus weiterlief, ohne
+     * gekündigt zu sein (bis zum Tag vor dem Folgevertrag); sonst null. Bis dahin rechnete seine Zeile den Arbeitspreis über
+     * die Monatszeilen bis dorthin, Grundpreis und Abschläge aber nur bis zum Ende (+105,00 € statt −91,00 €).
+     */
+    private static function ranOnUntil(array $c, string $today): ?string
+    {
+        $end = (string)($c['end'] ?? '');
+        $to = $c['runs_until'] ?? null;
+        return $end !== '' && $end < $today && is_string($to) && $to > $end ? $to : null;
+    }
+
     private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false,
         ?string $from = null, ?array $payments = null, ?string $endExclOverride = null): array
     {
@@ -1061,7 +1139,7 @@ final class ConsumptionService
         // v3.9.0 (V1) — in der laufenden Abrechnungsperiode der Tag nach ihrem
         // letzten Tag (bzw. nach dem Vertragsende, wenn es vorher kommt)
         $endExcl = $endExclOverride
-            ?? (!empty($c['end']) && !$renewed ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd);
+            ?? (!empty($c['end']) && !$renewed ? date('Y-m-d', strtotime((self::ranOnUntil($c, $today) ?? $c['end']) . ' +1 day')) : $effEnd);
         if ($endExcl <= $start) $endExcl = date('Y-m-d', strtotime($start . ' +1 day'));
         $asOf = min(max($today, $start), $endExcl);   // heute, eingeklemmt in den Vertrag
 
@@ -1069,7 +1147,8 @@ final class ConsumptionService
         // Verträgen in einem Monat nur sein Teil (v2.9.0)
         $measuredEnergy = 0.0;
         foreach ($monthly as $m) {
-            $share = $from === null ? 1.0 : self::shareFrom((string)($m['ym'] ?? ''), $from);
+            // v3.12.0 — im angeschnittenen Monat die gemessene Menge ab `$from`, nicht seine Kalendertage
+            $share = $from === null ? 1.0 : $this->quantityShare($utility, $meter, (string)($m['ym'] ?? ''), $from);
             if ($share <= 0.0) continue;
             if (!empty($m['contract_parts'])) {
                 foreach ($m['contract_parts'] as $p) {
@@ -1079,14 +1158,37 @@ final class ConsumptionService
                 $measuredEnergy += (float)($m['kwh_cost'] ?? 0) * $share;
             }
         }
-        $measuredUntil = $this->lastReadingDate($utility, $meter);
-        $gapFrom = max($start, $measuredUntil ?? $start);
+        // v3.12.0 (Skeptiker M6) — bis hierher reichen die Monatszeilen, auch mit einem geschätzten Stand …
+        $readingUntil = $this->lastReadingDate($utility, $meter);
+        // … gemessen ist nur bis zum letzten echten Stand; das Stück danach zählt als geschätzt
+        $measuredUntil = $this->lastMeasuredDate($utility, $meter);
+        $gapFrom = max($start, $readingUntil ?? $start);
 
         $u   = Utilities::get($utility);
         $vf  = ($u['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
-        $est = $this->volumeEstimator($utility, $monthly, $vf, $meter);
+        // v3.12.0 (Nachprüfung A3) — Gruppe mit verschieden weit abgelesenen Mitgliedern: Schätzung und Kalibrierung
+        // nur aus Monaten, in denen alle abgelesen sind. Bis dahin las die Kalibrierung den Monat ohne das früher
+        // abgelesene Mitglied als gesunkenen Verbrauch (bis Faktor 0,50 auf den ganzen Rest des Jahres).
+        $spread = $this->groupReadingSpread($utility, $meter);
+        $estRows = $spread === null ? $monthly
+            : array_values(array_filter($monthly, fn($m) => (string)($m['ym'] ?? '') < substr($spread[0], 0, 7)));
+        $est = $this->volumeEstimator($utility, $estRows, $vf, $meter);
+        if ($est === null && $spread !== null) {   // davor nichts Verwertbares: lieber die Monate, die es gibt, als gar keine Schätzung
+            $estRows = $monthly;
+            $est = $this->volumeEstimator($utility, $monthly, $vf, $meter);
+        }
         // v3.9.0 (F1032) — Rest-Abrechnung: geschätzt wird die Restmenge (Zähler minus Subzähler mit eigenem Vertrag)
         $est = $this->restEstimator($utility, $meter, $est, $vf);
+        // v3.12.0 (Nachprüfung A3) — die Schätzung beginnt am frühesten Stand der Mitglieder, die Monatszeilen enthalten
+        // das später abgelesene Mitglied schon bis zu seinem Stand: Bis v3.11 zählten die Tage dazwischen doppelt.
+        // Darum zählen die Zeilen nur bis zum Beginn der Schätzung; ohne Schätzung oder ohne Lücke bleiben sie ganz.
+        $rowsUntil = $spread !== null && $est !== null && $spread[0] < $asOf ? $spread[0] : null;
+        $rowShare = function (string $ym) use ($rowsUntil, $start, $utility, $meter): float {
+            if ($rowsUntil === null) return 1.0;
+            return $rowsUntil <= $start ? 0.0 : $this->shareBefore($utility, $this->meters->groupMembers($utility, (string)$meter['id']), $ym, $rowsUntil);
+        };
+        $rowEnergy = $rowsUntil === null ? $measuredEnergy
+            : ($rowsUntil <= $start ? 0.0 : $this->energyUntil($utility, $meter, $c, $monthly, $from, $rowsUntil));
         $fallbackWp = null;
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
@@ -1120,10 +1222,17 @@ final class ConsumptionService
         ['base' => $baseToDate, 'bonus' => $bonusToDate, 'advance' => $advToDate] = $sums['to_date'];
         ['base' => $baseRest, 'bonus' => $bonusRest, 'advance' => $advRest] = $sums['rest'];
 
-        $costToDate = $measuredEnergy + $gapEnergy + $baseToDate - $bonusToDate;
+        $costToDate = $rowEnergy + $gapEnergy + $baseToDate - $bonusToDate;
         $current    = round($costToDate - $advToDate + $specialNet, 2);
         // v3.10.0 (#49) — derselbe Saldo nur über die gemessenen Tage (bis zur letzten Ablesung)
-        $measured = $this->measuredBalance($utility, $c, $plan, $start, $asOf, $measuredUntil, $measuredEnergy, $payments);
+        // v3.12.0 (Skeptiker M6) — nur die Menge bis zu diesem Tag: Bei einem geschätzten Stand danach und in einer
+        // Gruppe, deren Mitglieder verschieden weit abgelesen sind, reichen die Monatszeilen weiter
+        $untilEnergy = $measuredEnergy;
+        if ($measuredUntil !== null && ($measuredUntil < (string)$readingUntil || !empty($meter['is_group']))) {
+            $untilEnergy = $this->energyUntil($utility, $meter, $c, $monthly, $from, min($measuredUntil, $asOf));
+        }
+        $tailEnergy = max(0.0, $rowEnergy - $untilEnergy);
+        $measured = $this->measuredBalance($utility, $c, $plan, $start, $asOf, $measuredUntil, $untilEnergy, $payments);
         $restCost   = $remainingEnergy + $baseRest - $bonusRest;
         $projected  = round($current + $restCost - $advRest, 2);
 
@@ -1153,8 +1262,13 @@ final class ConsumptionService
             if (max($asOf, $gapFrom) < $endExcl) $estVolume += array_sum($est(max($asOf, $gapFrom), $endExcl));
         }
         $uncertain = $est !== null
-            ? $this->projectionUncertainty($utility, $monthly, $meter, $gapEnergy + $remainingEnergy, $estVolume, $energyWith, $projected,
-                $curAp !== null ? (float)$curAp : null, $monthsLeft, $asOf === $today)
+            ? $this->projectionUncertainty($utility, $estRows, $meter, $gapEnergy + $remainingEnergy, $estVolume, $energyWith, $projected,
+                $curAp !== null ? (float)$curAp : null, $monthsLeft, $asOf === $today,
+                // v3.12.0 (Nachprüfung A3) — unsicher ist nur, wofür es gar keinen Stand gibt: die geschätzten Tage
+                // abzüglich dessen, was das später abgelesene Mitglied dort schon gemessen hat
+                // v3.12.0 — in Kalendertagen (über eine Zeitumstellung sind Sekunden ÷ 86.400 kein ganzer Tag)
+                $rowsUntil !== null && SubmeterRest::day($spread[1]) - SubmeterRest::day($spread[0]) > self::GROUP_READINGS_DIFFER_DAYS
+                    ? ['earliest' => $spread[0], 'latest' => $spread[1], 'unread_energy' => max(0.0, $gapEnergy - max(0.0, $measuredEnergy - $rowEnergy))] : null)
             : null;
         if ($uncertain !== null) $suggested = null;
         // v3.9.0 (L12) — kurz vor der Abrechnung (weniger als SUGGEST_MIN_MONTHS
@@ -1220,7 +1334,9 @@ final class ConsumptionService
             $measuredByMonth = [];
             foreach ($monthly as $m) {
                 $ym = (string)($m['ym'] ?? '');
-                $share = $from === null ? 1.0 : self::shareFrom($ym, $from);   // v3.6.0 — wie oben
+                // v3.6.0, v3.12.0 (A3) — wie oben; v3.12.0 — die gemessene Menge ab `$from`, wie die Summe darüber
+                $share = $from === null ? $rowShare($ym)
+                    : ($rowsUntil !== null && $rowsUntil <= $start ? 0.0 : $this->quantityShare($utility, $meter, $ym, $from, $rowsUntil));
                 if ($share <= 0.0) continue;
                 if (!empty($m['contract_parts'])) {
                     foreach ($m['contract_parts'] as $p) {
@@ -1272,12 +1388,14 @@ final class ConsumptionService
             'factor_base'              => $est === null ? null : round($this->lastProjection['base'], 2),
             'factor_heat'              => $est === null || $this->lastProjection['model'] === null ? null : round($this->lastProjection['heat'], 2),
             'measured_until'           => $measuredUntil,
+            // v3.12.0 (Skeptiker M6, additiv) — bis hierher reichen die Monatszeilen (mit einem geschätzten Stand weiter als gemessen)
+            'reading_until'            => $readingUntil,
             'cost_to_date'             => round($costToDate, 2),
             // die Teile von cost_to_date — die Oberfläche schlüsselt sie auf
-            'energy_cost_to_date'      => round($measuredEnergy + $gapEnergy, 2),
+            'energy_cost_to_date'      => round($rowEnergy + $gapEnergy, 2),
             'base_to_date'             => round($baseToDate, 2),
             'bonus_to_date'            => round($bonusToDate, 2),
-            'estimated_cost_to_date'   => round($gapEnergy, 2),
+            'estimated_cost_to_date'   => round($gapEnergy + $tailEnergy, 2),
             'estimated_cost_remaining' => round($restCost, 2),
             'advance_paid'             => round($advToDate, 2),
             'advance_remaining'        => round($advRest, 2),
@@ -1304,6 +1422,7 @@ final class ConsumptionService
      * wie die Kachel „Abschläge bis …“, `advance_measured_eur`; Raten mit Rhythmus ganz an
      * ihrem Tag, wenn er vor der Ablesung liegt), Sonderzahlungen vor der Ablesung.
      * Endet wie die Kachel am Tag der letzten Ablesung (exklusiv, wie die Monatszeilen).
+     * v3.12.0 (Skeptiker M6) — der letzten echten Ablesung; `$measuredEnergy` nur bis zu diesem Tag.
      * Bis v3.9 rechnete „Aktueller Saldo“ die Tage seit der letzten Ablesung geschätzt mit;
      * neben der Kachel standen dann zwei Salden mit verschiedenem Vorzeichen.
      * Null ohne Ablesung im Zeitraum des Saldos.
@@ -1342,11 +1461,13 @@ final class ConsumptionService
                 fn($sp) => is_array($sp) && (string)($sp['date'] ?? '') < $until))])['net']
             : 0.0;
         $cost = $measuredEnergy + $base - $bonus;
+        // v3.12.0 (Nachprüfung C6) — aus den gerundeten Teilen, die daneben stehen, wie im Abrechnungsjahr: Bis dahin ein Cent
+        // Unterschied für denselben Stand, und die Teile ergaben die Summe nicht
         return [
             'from' => $start, 'until' => $until,
             'energy_cost' => round($measuredEnergy, 2), 'base' => round($base, 2), 'bonus' => round($bonus, 2),
             'cost' => round($cost, 2), 'advance' => round($adv, 2), 'special_net' => round($special, 2),
-            'balance' => round($cost - $adv + $special, 2),
+            'balance' => round(round($cost, 2) - round($adv, 2) + round($special, 2), 2),
         ];
     }
 
@@ -1566,7 +1687,7 @@ final class ConsumptionService
         // zwei gemessene Monate im letzten Jahr bleibt der Faktor 1
         $recent = array_slice(array_values(array_filter($monthly, fn($m) =>
             empty($m['pre_baseline']) && empty($m['interpolated']) && (int)($m['days'] ?? 0) >= $minDays
-            && (string)($m['ym'] ?? '') >= date('Y-m', strtotime(date('Y-m-01') . ' -12 months')))), -6);
+            && (string)($m['ym'] ?? '') >= date('Y-m', strtotime(substr($this->asOf(), 0, 7) . '-01 -12 months')))), -6);   // v3.12.0 — vom Stichtag
         $clamp = fn(?float $r): float => $r === null ? 1.0 : max(self::PROJECTION_FACTOR_MIN, min(self::PROJECTION_FACTOR_MAX, $r));
         if ($heat !== null && $trusted) {
             // v3.7.0 (wirklichkeit-2, Schritt 3) — der Faktor wirkt nur auf den Teil, aus dem
@@ -1803,7 +1924,7 @@ final class ConsumptionService
         [$from, $to, $step] = self::HEAT_LIMIT_GRID;
         $grid = []; $qs = [];
         // v3.9.0 (#38) — die Gradtage jeder Grenze aus demselben Durchlauf (forMeter merkt sie sich)
-        $hddGrid = $this->hddGridMemo[$utility . '|' . md5(serialize($meter)) . '||' . $this->store->generation()] ?? null;
+        $hddGrid = $this->hddGridMemo[$this->forMeterKey($utility, $meter, null)] ?? null;
         for ($b = $from; $b <= $to + 1e-9; $b += $step) {
             $b = round($b, 1);
             $rows = abs($b - $current) < 1e-9 ? $nowRows : ($this->rowsAtBase($utility, $meter, $nowRows, $hddGrid, $b) ?? $this->forMeter($utility, $meter, $b));
@@ -1883,10 +2004,15 @@ final class ConsumptionService
      * unsicher, steht ihre Spanne statt des Betrags da (`balance_range`,
      * `advance_range`). Null ohne laufenden Vertrag (oder für Einspeisung).
      *
+     * v3.12.0 — `$today`: am Stichtag des Aufrufers (Empfehlungen mit Stichtag, Tests), sonst heute.
+     *
      * @return array{contract_id:string,until:?string,current_advance:?float,before:array,after:array}|null
      */
-    public function heatLimitEffect(string $utility, array $meter, float $base): ?array
+    public function heatLimitEffect(string $utility, array $meter, float $base, ?string $today = null): ?array
     {
+        if ($today !== null && Dates::isIsoDate($today) && $today !== $this->asOf) {
+            return $this->atDate($today, fn() => $this->heatLimitEffect($utility, $meter, $base));
+        }
         if (!Utilities::hasContracts($utility) || Utilities::isFeedIn($utility)) return null;
         $cur = function (array $m) use ($utility): ?array {
             foreach ($this->contractStatus($utility, $m)['contracts'] ?? [] as $c) if (!empty($c['is_current'])) return $c;
@@ -2039,7 +2165,7 @@ final class ConsumptionService
      * @return array<string,mixed>|null null = sicher genug (oder nichts mehr zu schätzen)
      */
     private function projectionUncertainty(string $utility, array $monthly, array $meter, float $estimatedEnergy, float $estimatedVolume,
-        callable $energyWith, float $projected, ?float $curAp, int $monthsLeft, bool $suggestable): ?array
+        callable $energyWith, float $projected, ?float $curAp, int $monthsLeft, bool $suggestable, ?array $groupDiffer = null): ?array
     {
         $p = $this->lastProjection;
         $out = fn(?float $r): bool => $r !== null && ($r < self::PROJECTION_FACTOR_MIN || $r > self::PROJECTION_FACTOR_MAX);
@@ -2065,6 +2191,13 @@ final class ConsumptionService
             $reasons[] = 'few_measured';
             $energies[] = $estimatedEnergy * self::PROJECTION_FACTOR_MIN;
             $energies[] = $estimatedEnergy * self::PROJECTION_FACTOR_MAX;
+        }
+        // v3.12.0 (Nachprüfung A3) — Mitglieder einer Gruppe länger als GROUP_READINGS_DIFFER_DAYS auseinander: Die Tage
+        // ohne jeden Stand bekommen die ganze Kalibrierspanne, der übrige Rest des Jahres nicht
+        if ($groupDiffer !== null) {
+            $reasons[] = 'group_readings_differ';
+            $energies[] = $estimatedEnergy - $groupDiffer['unread_energy'] * (1.0 - self::PROJECTION_FACTOR_MIN);
+            $energies[] = $estimatedEnergy + $groupDiffer['unread_energy'] * (self::PROJECTION_FACTOR_MAX - 1.0);
         }
         $ratio = null;
         if (($quality['model_quality'] ?? null) === 'poor') {
@@ -2100,6 +2233,8 @@ final class ConsumptionService
             'base_load_per_day' => $baseLoad,
             'projected_range'  => $range,
             'suggested_range'  => $sugg,
+            // v3.12.0 (Nachprüfung A3, additiv) — frühester und spätester letzter Stand der Mitglieder
+            'group_readings'   => $groupDiffer === null ? null : ['earliest' => $groupDiffer['earliest'], 'latest' => $groupDiffer['latest']],
         ];
     }
 
@@ -2111,7 +2246,7 @@ final class ConsumptionService
         // Vertragsstatus fragt es für jeden Vertrag und las dafür jedes Mal
         // alle Ablesungen — bei zehn Jahren Tageswerten mit einem Vertrag je
         // Jahr drei Viertel seiner Antwortzeit.
-        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->memoGen();   // v3.12.0 — je Stichtag
         if (array_key_exists($key, $this->lastReadingMemo)) return $this->lastReadingMemo[$key];
         // v3.1.0 (H6) — Gruppe: gemessen bis zum frühesten letzten Stand der Mitglieder
         if (!empty($meter['is_group'])) {
@@ -2120,6 +2255,107 @@ final class ConsumptionService
         }
         [$kept] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
         return $this->lastReadingMemo[$key] = $kept ? (string)end($kept)['date'] : null;
+    }
+
+    /**
+     * v3.12.0 (Nachprüfung A3) — frühester und spätester letzter Stand der Mitglieder einer Gruppe,
+     * wenn sie auseinanderliegen; sonst (keine Gruppe, alle am selben Tag) null.
+     *
+     * @return array{0:string,1:string}|null
+     */
+    private function groupReadingSpread(string $utility, array $meter): ?array
+    {
+        if (empty($meter['is_group'])) return null;
+        $dates = array_filter(array_map(fn($m) => $this->lastReadingDate($utility, $m), $this->meters->groupMembers($utility, (string)$meter['id'])));
+        return $dates !== [] && min($dates) !== max($dates) ? [(string)min($dates), (string)max($dates)] : null;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M6) — Tag der letzten echten Ablesung: wie lastReadingDate(), ohne als
+     * geschätzt erfasste Stände. Gruppe: der früheste der Mitglieder (dort ist alles gemessen).
+     */
+    private function lastMeasuredDate(string $utility, array $meter): ?string
+    {
+        if (!Utilities::isCumulative($utility)) return null;
+        if (!empty($meter['is_group'])) {
+            $dates = array_filter(array_map(fn($m) => $this->lastMeasuredDate($utility, $m), $this->meters->groupMembers($utility, (string)$meter['id'])));
+            return $dates ? min($dates) : null;
+        }
+        [$kept] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+        $real = array_values(array_filter($kept, fn($r) => empty($r['is_estimated'])));
+        return $real ? (string)end($real)['date'] : null;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M6) — Arbeitskosten dieses Vertrags bis zu einem Tag (ausschließlich): die Kosten
+     * der Monatszeile im Verhältnis der Menge vor dem Tag, nach den Tagesabschnitten der Monatsrechnung.
+     *
+     * @param list<array<string,mixed>> $monthly
+     */
+    private function energyUntil(string $utility, array $meter, array $c, array $monthly, ?string $from, string $until): float
+    {
+        $sum = 0.0;
+        foreach ($monthly as $m) {
+            $ym = (string)($m['ym'] ?? '');
+            // v3.12.0 — die Menge in [from, until) nach den Tagesabschnitten, auch wenn beide im selben Monat liegen
+            $share = $this->quantityShare($utility, $meter, $ym, $from, $until);
+            if ($share <= 0.0) continue;
+            if (!empty($m['contract_parts'])) {
+                foreach ($m['contract_parts'] as $p) {
+                    if ($p['contract_id'] === $c['id']) $sum += (float)$p['kwh_cost'] * $share;
+                }
+            } elseif (($m['contract_id'] ?? null) === $c['id']) {
+                $sum += (float)($m['kwh_cost'] ?? 0) * $share;
+            }
+        }
+        return $sum;
+    }
+
+    /**
+     * Anteil der Menge eines Monats vor einem Tag über die Zähler `$members`: aus den Tagesabschnitten
+     * (gleichmäßig innerhalb eines Abschnitts), ohne Abschnitte nach Kalendertagen.
+     *
+     * @param list<array<string,mixed>> $members
+     */
+    /**
+     * v3.12.0 — Anteil der Menge eines Monats in [from, until) nach den Tagesabschnitten der Monatsrechnung (gemessen,
+     * gleichmäßig innerhalb eines Abschnitts), ohne Abschnitte nach Kalendertagen. `null` = offen. Für die Menge im
+     * angeschnittenen Monat (Saldobeginn mitten im Monat): Bis v3.11 nahm die Karte die Kalendertage ab dem Beginn
+     * vom Monatswert, der nur bis zur letzten Ablesung reicht, und zählte damit mehr als gemessen. Grundpreis und
+     * Abschlag bleiben tagesgenau nach Kalendertagen.
+     */
+    private function quantityShare(string $utility, array $meter, string $ym, ?string $from, ?string $until = null): float
+    {
+        if ($from !== null && $ym < substr($from, 0, 7)) return 0.0;
+        if ($until !== null && $ym > substr($until, 0, 7)) return 0.0;
+        $members = null;
+        $before = function (string $day) use ($utility, $meter, $ym, &$members): float {
+            $members ??= !empty($meter['is_group']) ? $this->meters->groupMembers($utility, (string)$meter['id']) : [$meter];
+            return $this->shareBefore($utility, $members, $ym, $day);
+        };
+        $b = $until === null || $ym < substr($until, 0, 7) ? 1.0 : $before($until);
+        $a = $from === null || $ym > substr($from, 0, 7) ? 0.0 : $before($from);
+        return max(0.0, $b - $a);
+    }
+
+    private function shareBefore(string $utility, array $members, string $ym, string $until): float
+    {
+        $all = 0.0; $before = 0.0; $seen = false;
+        foreach ($members as $member) {
+            foreach ($this->meterCoverage($utility, $member)[$ym] ?? [] as $span) {
+                $seen = true;
+                [$a, $b] = $span;
+                $qty = (float)($span[2] ?? 0.0);
+                $all += $qty;
+                if ($b <= $until) $before += $qty;
+                // v3.12.0 — Anteil in Kalendertagen, nicht in Sekunden (eine Stunde Zeitumstellung verschob ihn)
+                elseif ($a < $until) $before += $qty * (SubmeterRest::day($until) - SubmeterRest::day($a)) / max(1, SubmeterRest::day($b) - SubmeterRest::day($a));
+            }
+        }
+        if ($seen && $all > 0.0) return $before / $all;
+        if ($ym < substr($until, 0, 7)) return 1.0;
+        if ($ym > substr($until, 0, 7)) return 0.0;
+        return ((int)substr($until, 8, 2) - 1) / max(1, (int)date('t', (int)strtotime("$ym-01")));
     }
 
     /** @var array<string,?string> v3.7.0 — lastReadingDate() je Anfrage */
@@ -2207,35 +2443,50 @@ final class ConsumptionService
 
     /**
      * v3.6.0 (F1030) — Monatszeilen eines Vertrags ab einem Tag: davor weg,
-     * der Monat des Tags anteilig nach Kalendertagen (Menge, Kosten,
-     * Abschlag, Wasser je Baustein).
+     * der Monat des Tags anteilig (Menge, Kosten, Abschlag, Wasser je Baustein).
+     * v3.12.0 — Menge und Arbeitspreis nach dem gemessenen Anteil ab dem Tag (`$qtyShare`, aus den
+     * Tagesabschnitten), Grundpreis und Abschlag nach Kalendertagen. Bis v3.11 beides nach Kalendertagen: Lag die
+     * letzte Ablesung im selben Monat, zählte die Karte mehr Menge, als ab dem Tag gemessen war.
      *
      * @param list<array<string,mixed>> $rows
+     * @param (callable(string):float)|null $qtyShare Anteil der Menge eines Monats ab `$from` (sonst Kalendertage)
      * @return list<array<string,mixed>>
      */
-    private static function rowsFrom(array $rows, string $from, ?array $contract = null): array
+    private static function rowsFrom(array $rows, string $from, ?array $contract = null, ?callable $qtyShare = null): array
     {
         $out = [];
         foreach ($rows as $r) {
-            $s = self::shareFrom((string)($r['ym'] ?? ''), $from);
+            $ym = (string)($r['ym'] ?? '');
+            $s = self::shareFrom($ym, $from);
             if ($s <= 0.0) continue;
             if ($s < 1.0) {
+                $q = $qtyShare !== null ? $qtyShare($ym) : $s;
                 $bonus = (float)($r['bonus_eur'] ?? 0);
-                foreach (['kwh', 'billed_kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
+                // Kosten = feste Teile (nach Kalendertagen) + Arbeitspreis (nach Menge)
+                $energy = is_numeric($r['kwh_cost'] ?? null) ? (float)$r['kwh_cost'] : 0.0;
+                if (isset($r['cost']) && is_numeric($r['cost'])) $r['cost'] = ((float)$r['cost'] - $energy) * $s + $energy * $q;
+                foreach (['kwh', 'billed_kwh', 'm3', 'kwh_cost'] as $k) {
+                    if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $q;
+                }
+                foreach (['base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
                     if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $s;
                 }
                 // v3.11.0 (Nachprüfung NP7) — der Bonus gehört nach seinem Gutschriftstag ganz in den Monatsteil
                 // ab `$from` oder gar nicht (wie Saldo und Abrechnungsjahr seit #56), kein Tagesanteil. Die
                 // Vertragstabelle zeigte sonst 75 € × 16/31 = 38,71 €, eine Zahl, die in keinem Saldo steckt.
-                if ($contract !== null && $bonus > 0.0 && preg_match('/^\d{4}-\d{2}$/', (string)($r['ym'] ?? ''))) {
-                    $next = (new \DateTimeImmutable($r['ym'] . '-01'))->modify('first day of next month')->format('Y-m-d');
+                if ($contract !== null && $bonus > 0.0 && preg_match('/^\d{4}-\d{2}$/', $ym)) {
+                    $next = (new \DateTimeImmutable($ym . '-01'))->modify('first day of next month')->format('Y-m-d');
                     $exact = min($bonus, ContractService::bonusBetween($contract, $from, $next));
                     if (isset($r['cost']) && is_numeric($r['cost'])) $r['cost'] = (float)$r['cost'] + (float)$r['bonus_eur'] - $exact;
                     $r['bonus_eur'] = $exact;
                 }
-                foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['working_cost', 'base_cost', 'total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
+                foreach (['trinkwasser', 'schmutzwasser', 'niederschlagswasser'] as $part) {
                     if (!is_array($r[$part] ?? null)) continue;
-                    foreach ($keys as $k) if (isset($r[$part][$k]) && is_numeric($r[$part][$k])) $r[$part][$k] = (float)$r[$part][$k] * $s;
+                    $w = is_numeric($r[$part]['working_cost'] ?? null) ? (float)$r[$part]['working_cost'] : 0.0;
+                    if (isset($r[$part]['total']) && is_numeric($r[$part]['total'])) $r[$part]['total'] = ((float)$r[$part]['total'] - $w) * $s + $w * $q;
+                    if (isset($r[$part]['working_cost']) && is_numeric($r[$part]['working_cost'])) $r[$part]['working_cost'] = $w * $q;
+                    if (isset($r[$part]['base_cost']) && is_numeric($r[$part]['base_cost'])) $r[$part]['base_cost'] = (float)$r[$part]['base_cost'] * $s;
+                    if (isset($r[$part]['m3']) && is_numeric($r[$part]['m3'])) $r[$part]['m3'] = (float)$r[$part]['m3'] * $q;
                 }
             }
             $out[] = $r;
@@ -2259,6 +2510,21 @@ final class ConsumptionService
             $p = null;
         }
         return $this->runningMemo[$key] = $p;
+    }
+
+    /**
+     * v3.12.0 — Das laufende Abrechnungsjahr der Einspeisung: das Stichtag-Raster um heute (Rechnungen gibt es dort
+     * nicht, BillingPeriodService führt die Art nicht). Dieselbe Form wie runningPeriod().
+     *
+     * @return array<string,mixed>
+     */
+    private function feedInPeriod(string $utility, string $today): array
+    {
+        $anchor = BillingPeriodService::normalizeAnchor($this->settings->get('billing_cycle_anchor_' . $utility, '01-01'));
+        [$from, $until] = BillingPeriodService::gridAround($anchor, $today);
+        return ['from' => $from, 'until' => $until, 'open_from' => $from, 'source' => 'anchor', 'bill_id' => null,
+                'complete' => false, 'running' => true, 'label' => BillingPeriodService::yearLabel($from, $until),
+                'ends_at_switch' => false, 'anchor' => $anchor];
     }
 
     /** @var array<string,?array> v3.9.0 — runningPeriod() je Anfrage */
@@ -2376,17 +2642,21 @@ final class ConsumptionService
      * `separater_zaehler` reference (see {@see applyWaterContracts()}) cannot
      * trigger infinite recursion.
      */
-    public function forMeter(string $utility, array $meter, ?float $hddBaseOverride = null): array
+    public function forMeter(string $utility, array $meter, ?float $hddBaseOverride = null, ?string $today = null): array
     {
+        // v3.12.0 — Stichtag des Aufrufers (Rechte-Prüfung, Abrechnungsjahr, Vertragsstatus, Werkstatt):
+        // nur Ablesungen bis zu ihm, wie an diesem Tag; ohne Datum heute bzw. der Stichtag der äußeren Rechnung
+        if ($today !== null && Dates::isIsoDate($today) && $today !== $this->asOf) {
+            return $this->atDate($today, fn() => $this->forMeter($utility, $meter, $hddBaseOverride));
+        }
         $meterId = (string)($meter['id'] ?? '');
         if ($meterId !== '' && in_array($meterId, $this->meterComputeStack, true)) {
             return []; // cycle detected — break it
         }
         // v2.6.0 — je Anfrage einmal rechnen (s. $forMeterMemo). Der Schlüssel
         // trägt den ganzen Zähler, damit ein geänderter Datensatz (Tests,
-        // Zäsur-Vorschau) nie ein altes Ergebnis bekommt.
-        $memoKey = $utility . '|' . md5(serialize($meter)) . '|' . ($hddBaseOverride ?? '')
-            . '|' . $this->store->generation();
+        // Zäsur-Vorschau) nie ein altes Ergebnis bekommt. v3.12.0 — und den Stichtag.
+        $memoKey = $this->forMeterKey($utility, $meter, $hddBaseOverride);
         if (isset($this->forMeterMemo[$memoKey])) return $this->forMeterMemo[$memoKey];
         $this->meterComputeStack[] = $meterId;
         try {
@@ -2416,6 +2686,12 @@ final class ConsumptionService
     /** @var array<string,array<string,array<string,float>>> v3.9.0 (#38) — je forMeter-Aufruf: Monat → Grenze → Gradtage */
     private array $hddGridMemo = [];
 
+    /** v3.12.0 — Schlüssel von forMeter() (Zähler, Heizgrenze, Schreibgeneration, Stichtag), auch für hddGridMemo */
+    private function forMeterKey(string $utility, array $meter, ?float $hddBaseOverride): string
+    {
+        return $utility . '|' . md5(serialize($meter)) . '|' . ($hddBaseOverride ?? '') . '|' . $this->memoGen();
+    }
+
     /**
      * v2.6.0 — Welche Ablesungen die Rechnung übergangen hat und warum.
      *
@@ -2429,7 +2705,7 @@ final class ConsumptionService
     public function readingWarnings(string $utility, array $meter): array
     {
         if (!Utilities::isCumulative($utility)) return [];
-        $key = $utility . '|' . ($meter['id'] ?? '');
+        $key = $utility . '|' . ($meter['id'] ?? '') . '|' . $this->asOf();   // v3.12.0 — je Stichtag
         if (($this->readingWarningsGen[$key] ?? null) !== $this->store->generation()) {
             unset($this->readingWarnings[$key]);
             $this->forMeter($utility, $meter);
@@ -2447,10 +2723,20 @@ final class ConsumptionService
      */
     public function skippedReadingIds(string $utility, array $meter, ?array $readings = null): array
     {
-        [, $warnings] = $this->plausibleReadings($readings ?? $this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
         $out = [];
-        foreach ($warnings as $w) if (!empty($w['reading_id'])) $out[(string)$w['reading_id']] = true;
+        foreach ($this->skippedReadings($utility, $meter, $readings) as $w) if (!empty($w['reading_id'])) $out[(string)$w['reading_id']] = true;
         return $out;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M7) — Dieselbe Prüfung mit dem Grund je Stand, ohne die Monatsrechnung.
+     *
+     * @param list<array<string,mixed>>|null $readings die Ablesungen des Zählers, sonst gelesen
+     * @return list<array<string,mixed>> `type` suspect oder outlier, bei outlier `kind` spike oder dip
+     */
+    public function skippedReadings(string $utility, array $meter, ?array $readings = null): array
+    {
+        return $this->plausibleReadings($readings ?? $this->readings->list($utility, (string)($meter['id'] ?? '')), $meter)[1];
     }
 
     /**
@@ -2472,7 +2758,7 @@ final class ConsumptionService
      */
     private function plausibleReadings(array $readings, array $meter): array
     {
-        $today = date('Y-m-d');
+        $today = $this->asOf();   // v3.12.0 — der Stichtag der Rechnung (bis v3.11 immer heute)
         $actual = array_values(array_filter(
             $readings,
             fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
@@ -2486,6 +2772,22 @@ final class ConsumptionService
             'date'       => (string)$r['date'],
             'counter'    => (float)($r['counter'] ?? 0),
         ] + $extra;
+        // v3.12.0 — ein gespeicherter Stand außerhalb des Eingabebereichs (Jahr 0001 aus einer älteren
+        // Version oder einem Restore) bleibt draußen, mit Warnung: Die Monatsrechnung legte sonst
+        // Zeilen für zweitausend Jahre an und brach Übersicht, „Zu tun“ und Agenda am Speicher ab
+        $actual = array_values(array_filter($actual, function (array $r) use (&$warnings, $warn): bool {
+            // v3.12.0 — ebenso ein gespeicherter Stand über der Grenze der Eingabe (ReadingService::MAX_COUNTER):
+            // 2·10¹² rechnete bisher still Billionen kWh, 10³⁰⁸ legte die Ansichten lahm
+            $c = $r['counter'] ?? null;
+            if (!is_numeric($c) || !is_finite((float)$c) || (float)$c < 0 || (float)$c > ReadingService::MAX_COUNTER) {
+                $warnings[] = ['type' => 'counter_out_of_range', 'reading_id' => $r['id'] ?? null, 'date' => (string)$r['date'],
+                    'counter' => is_numeric($c) && is_finite((float)$c) ? (float)$c : null, 'max' => ReadingService::MAX_COUNTER];
+                return false;
+            }
+            if (Dates::inInputRange((string)$r['date'])) return true;
+            $warnings[] = $warn('out_of_range', $r, ['min' => Dates::MIN_INPUT_YEAR, 'max' => Dates::MAX_INPUT_YEAR]);
+            return false;
+        }));
 
         $kept = [];
         foreach ($actual as $r) {
@@ -2555,7 +2857,6 @@ final class ConsumptionService
         $u = Utilities::get($utility);
         $readings = $this->readings->list($utility, $meter['id']);
         $temps    = $this->temperatures();
-        $today    = date('Y-m-d');
         $hddBase  = $hddBaseOverride ?? $this->hddBaseFor($meter);   // v3.7.0 — je Zähler
         // v2.5.0 — F1012: Der Faktor ist nicht mehr eine Zahl je Zähler,
         // sondern eine Funktion des Tages. Für Gas kommt er aus der datierten
@@ -2574,7 +2875,7 @@ final class ConsumptionService
         // Intervalle kommen direkt aus den Zeiträumen (Beginn bis Ende + 1 Tag,
         // Tagesrate = Wert / Tage). Danach dieselben Schritte wie bei Ständen.
         if (($meter['capture'] ?? 'counter') === 'period') {
-            $warnKey = $utility . '|' . ($meter['id'] ?? '');
+            $warnKey = $utility . '|' . ($meter['id'] ?? '') . '|' . $this->asOf();
             $this->readingWarnings[$warnKey] = [];
             $this->readingWarningsGen[$warnKey] = $this->store->generation();
             [$monthly, $coverage] = $this->periodMonths($utility, $meter, $factorOn, $factorBoundaries);
@@ -2589,7 +2890,7 @@ final class ConsumptionService
         // hier Verbrauch, Prognose, Empfehlungen, CSV und PDF mit HTTP 500 ab.
         // v2.6.0 — dazu verdächtige Stände und eingeklemmte Ausreißer, s.
         // plausibleReadings(); was übergangen wird, steht in den Warnungen.
-        $warnKey = $utility . '|' . ($meter['id'] ?? '');
+        $warnKey = $utility . '|' . ($meter['id'] ?? '') . '|' . $this->asOf();   // v3.12.0 — je Stichtag
         [$actual, $warnings] = $this->plausibleReadings($readings, $meter);
         $this->readingWarnings[$warnKey] = $warnings;
         $this->readingWarningsGen[$warnKey] = $this->store->generation();
@@ -3175,7 +3476,7 @@ final class ConsumptionService
      */
     private function markBaselineMonths(array $monthly, array $meter): array
     {
-        $baseline = MeterService::activeBaselineDate($meter);
+        $baseline = MeterService::activeBaselineDate($meter, $this->asOf());   // v3.12.0 — Zäsur bis zum Stichtag
         $firstPostYm = null;
 
         if ($baseline !== null) {
@@ -3215,14 +3516,19 @@ final class ConsumptionService
      * letzten Ablesung) bleibt `m3` null — die Zeile erscheint, damit die
      * Lücke sichtbar ist, statt still zu fehlen.
      *
+     * v3.12.0 — mit `$contracts` (Rechnung prüfen) auch an Vertrags- und Preisstichtagen wie bei Strom (Grund
+     * `price`): Jede Zeile hat dann einen Arbeitspreis, Preis × Menge = Kosten. Bis v3.11 blieb ein Abschnitt mit
+     * Preiswechsel eine Zeile mit dem alten Preis und nach Tagen geteilten Kosten.
+     *
+     * @param array<int,array<string,mixed>> $contracts
      * @return array{from:string,to:string,rows:array<int,array<string,mixed>>,totals:array<string,mixed>}
      */
-    public function gasBillBreakdown(array $meter, string $from, string $to): array
+    public function gasBillBreakdown(array $meter, string $from, string $to, array $contracts = []): array
     {
         $utility = 'gas';
         // v2.6.0 — dieselbe Plausibilitätsprüfung wie die Verbrauchsrechnung;
         // Intervalle mit Tagesrate (roh). v3.7.0 — einmal je Zähler und Anfrage.
-        [$actual, $warnings, $intervals] = $this->billBasis($utility, $meter);
+        [$actual, $warnings, $intervals, $decreases] = $this->billBasis($utility, $meter);
 
         // v2.5.2 — Zählerstand an einer Grenze samt Ableseart, wie die
         // Rechnung ihn ausweist: eine echte Ablesung (`reading`), eine als
@@ -3263,11 +3569,15 @@ final class ConsumptionService
         foreach ($this->factors()->boundariesBetween($from, $to) as $d) {
             $bounds[$d] = isset($bounds[$d]) ? $bounds[$d] . '+factor' : 'factor';
         }
+        // v3.12.0 — Vertrags- und Preisstichtage wie genericBillRows()
+        foreach ($contracts !== [] ? $this->contracts->segmentsBetween($contracts, $from, $to) : [] as $seg) {
+            if ($seg['from'] > $from) $bounds[$seg['from']] = isset($bounds[$seg['from']]) ? $bounds[$seg['from']] . '+price' : 'price';
+        }
         ksort($bounds);
         $dates = array_keys($bounds);
 
         $rows = [];
-        $totM3 = 0.0; $totKwh = 0.0; $totDays = 0; $gaps = 0;
+        $totM3 = 0.0; $totKwh = 0.0; $totDays = 0; $gaps = 0; $falls = 0;
         $k = 0;
         for ($i = 0; $i < count($dates) - 1; $i++) {
             $a = $dates[$i];
@@ -3285,6 +3595,9 @@ final class ConsumptionService
             if ($m3 === null && $b === $to && $days === 1 && str_starts_with((string)$bounds[$a], 'reading')) $m3 = 0.0;
             $kwh   = $m3 !== null ? $m3 * $entry['kwh_per_m3'] : null;
             if ($m3 === null) $gaps++;
+            // v3.12.0 — ohne Menge: Rückgang oder keine Ablesung
+            $gapReason = $m3 === null ? self::gapReason($decreases, $a) : null;
+            if ($gapReason === 'decrease') $falls++;
 
             $cFrom = $counterAt($a);
             $cTo   = $counterAt($b);
@@ -3304,7 +3617,7 @@ final class ConsumptionService
                 'counter_from_kind' => $cFrom['kind'],
                 'counter_to'        => $cTo['value'],
                 'counter_to_kind'   => $cTo['kind'],
-            ];
+            ] + ($gapReason !== null ? ['gap_reason' => $gapReason] : []);
             $totM3   += $m3  ?? 0.0;
             $totKwh  += $kwh ?? 0.0;
             $totDays += $days;
@@ -3319,6 +3632,7 @@ final class ConsumptionService
                 'm3'   => round($totM3, 1),
                 'kwh'  => round($totKwh, 1),
                 'gaps' => $gaps,
+                'decreases' => $falls,   // v3.12.0 — davon Abschnitte mit fallendem Stand
             ],
             // v2.6.0 — übergangene Ablesungen, s. plausibleReadings()
             'warnings' => $warnings,
@@ -3351,17 +3665,20 @@ final class ConsumptionService
         if (!empty($meter['is_group'])) return $this->groupBillBreakdown($utility, $meter, $from, $to);
         [$contracts, $ctx] = $this->contractScope($utility, $meter);
         $out = $utility === 'gas'
-            ? $this->gasBillBreakdown($meter, $from, $to)
+            ? $this->gasBillBreakdown($meter, $from, $to, $contracts)
             : $this->genericBillRows($utility, $meter, $from, $to, $contracts);
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Je Abschnitt rechnet der Vertrag nur
         // den Rest (`kwh`); daneben die Messung (`measured_kwh`) und der Abzug (`submeter_kwh`)
         $out = $this->restBillRows($utility, $meter, $out);
         $energy = 0.0; $fixed = 0.0; $missingPrice = false;
         $cuts = $this->contracts->cutDates($contracts);
+        unset($out['totals']['_m3']);
         foreach ($out['rows'] as &$row) {
-            $qty = $utility === 'wasser' ? ($row['m3'] ?? null) : ($row['kwh'] ?? null);
+            // v3.12.0 — Wasser bepreist die ungerundete Menge des Abschnitts (die Zeile zeigt sie auf 0,01 m³)
+            $qty = $utility === 'wasser' ? ($row['_m3'] ?? $row['m3'] ?? null) : ($row['kwh'] ?? null);
+            unset($row['_m3']);
             $c = $utility === 'wasser'
-                ? $this->waterRowCosts($row['from'], $row['to'], $qty, $contracts, $meter)
+                ? $this->waterRowCosts($row['from'], $row['to'], $qty, $contracts, $meter, $cuts)
                 : $this->rowCosts($row['from'], $row['to'], $qty, $contracts, $ctx, $cuts);
             $row += $c;
             $energy += (float)($c['energy_cost'] ?? 0);
@@ -3370,10 +3687,12 @@ final class ConsumptionService
         }
         unset($row);
         $bonus = 0.0; $bonusItems = [];
-        foreach ($contracts as $c) {
+        // v3.12.0 (Skeptiker H5) — dieselbe Regel wie Monate und Saldo-Karte (ContractService::bonusDay)
+        foreach ($this->contracts->withRunsUntil($contracts) as $c) {
             if (!self::carriesFixed($c, $ctx)) continue;
             foreach ($c['bonuses'] ?? [] as $b) {
-                $d = (string)($b['credit_date'] ?? '');
+                if (!Dates::isIsoDate($b['credit_date'] ?? null)) continue;
+                $d = ContractService::bonusDay($c, (string)$b['credit_date']);
                 if ($d >= $from && $d < $to && is_numeric($b['amount_eur'] ?? null)) {
                     $bonus += (float)$b['amount_eur'];
                     $bonusItems[] = ContractService::bonusItem($b);   // v3.7.0 (#33)
@@ -3411,11 +3730,17 @@ final class ConsumptionService
         $names = [];
         foreach ($subs as $s) $names[(string)$s['meter']['id']] = (string)($s['meter']['name'] ?? $s['meter']['id']);
         $acc = null; $billed = 0.0; $measured = 0.0;
+        // v3.12.0 — abgezogen wird nur bis zum letzten Stand des Elternzählers: Der Tag nach seiner letzten Ablesung
+        // hat keinen Verbrauch (Endstand), die fortgeschriebene Tagesrate des Subzählers dort ergab ein falsches
+        // „Rest unter null“, sobald der Prüfzeitraum einen Tag länger war
+        [$parentReadings] = $this->billBasis($utility, $meter);
+        $parentEnd = $parentReadings !== [] ? (string)end($parentReadings)['date'] : null;
         foreach ($out['rows'] as &$row) {
             $q = $row['kwh'] ?? null;
             if ($q === null) continue;
             $measured += (float)$q;
-            $d = $this->submeterDeduction($subs, (string)$row['from'], (string)$row['to']);
+            $dTo = $parentEnd !== null && $parentEnd < (string)$row['to'] ? max((string)$row['from'], $parentEnd) : (string)$row['to'];
+            $d = $this->submeterDeduction($subs, (string)$row['from'], $dTo);
             if ($d['by'] === []) { $billed += (float)$q; continue; }
             $rest = (float)$q - $d['total'];
             $row['measured_kwh'] = $q;
@@ -3437,7 +3762,7 @@ final class ConsumptionService
     private function groupBillBreakdown(string $utility, array $group, string $from, string $to): array
     {
         $rows = []; $warnings = [];
-        $tot = ['days' => 0, 'kwh' => 0.0, 'm3' => 0.0, 'gaps' => 0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
+        $tot = ['days' => 0, 'kwh' => 0.0, 'm3' => 0.0, 'gaps' => 0, 'decreases' => 0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
                 'bonus' => 0.0, 'total' => 0.0, 'price_missing' => false, 'bonus_items' => []];
         $restOf = null;
         // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (wie computeForGroup)
@@ -3457,6 +3782,7 @@ final class ConsumptionService
             $tot['bonus_items'] = array_merge($tot['bonus_items'], (array)($t['bonus_items'] ?? []));
             foreach (['kwh', 'm3', 'energy_cost', 'fixed_cost', 'bonus', 'total'] as $k) $tot[$k] += (float)($t[$k] ?? 0);
             $tot['gaps'] += (int)($t['gaps'] ?? 0);
+            $tot['decreases'] += (int)($t['decreases'] ?? 0);   // v3.12.0
             $tot['price_missing'] = $tot['price_missing'] || !empty($t['price_missing']);
             foreach ($b['warnings'] ?? [] as $w) $warnings[] = $w;
         }
@@ -3487,7 +3813,7 @@ final class ConsumptionService
         return [$k < $n && $intervals[$k]['start'] <= $date ? (float)$intervals[$k]['rate'] : null, $k];
     }
 
-    /** @var array<string,array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>}> */
+    /** @var array<string,array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>,3:list<array{start:string,end:string}>}> */
     private array $billBasisMemo = [];
 
     /**
@@ -3503,22 +3829,34 @@ final class ConsumptionService
      * interpolierbar; über einen Zählertausch hinweg gibt es keinen
      * fortlaufenden Zählerstand).
      *
-     * @return array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>}
+     * v3.12.0 — dazu die Ableseabstände mit fallendem Stand (`decreases`, 4. Element) und je einer die Warnung
+     * `decrease` wie in readingMonths().
+     *
+     * @return array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>,3:list<array{start:string,end:string}>}
      */
     private function billBasis(string $utility, array $meter): array
     {
-        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->memoGen();   // v3.12.0 — je Stichtag
         if (isset($this->billBasisMemo[$key])) return $this->billBasisMemo[$key];
         [$actual, $warnings] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
         $devicesById = [];
         foreach ($meter['devices'] ?? [] as $d) $devicesById[$d['id']] = $d;
         $intervals = [];
+        $decreases = [];
         for ($i = 1; $i < count($actual); $i++) {
             $prev = $actual[$i - 1];
             $curr = $actual[$i];
             $days = (int)(new \DateTime($prev['date']))->diff(new \DateTime($curr['date']))->days;
             if ($days <= 0) continue;
             $raw = $this->consumptionBetween($prev, $curr, $devicesById, $meter);
+            // v3.12.0 — ein fallender Stand auf demselben Gerät ist keine Lücke ohne Ablesung: dieselbe Warnung
+            // `decrease` wie die Verbrauchsansicht (readingMonths) und der Abschnitt für den Grund der Zeile
+            if ($raw !== null && $raw < 0 && ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null)) {
+                $warnings[] = ['type' => 'decrease', 'reading_id' => $curr['id'] ?? null, 'date' => (string)$curr['date'],
+                               'counter' => (float)($curr['counter'] ?? 0),
+                               'previous' => ['date' => (string)$prev['date'], 'counter' => (float)($prev['counter'] ?? 0)]];
+                $decreases[] = ['start' => (string)$prev['date'], 'end' => (string)$curr['date']];
+            }
             if ($raw === null || $raw < 0) continue;
             $intervals[] = [
                 'start' => (string)$prev['date'],
@@ -3529,7 +3867,20 @@ final class ConsumptionService
                 'same_device'   => ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null),
             ];
         }
-        return $this->billBasisMemo[$key] = [$actual, $warnings, $intervals];
+        return $this->billBasisMemo[$key] = [$actual, $warnings, $intervals, $decreases];
+    }
+
+    /**
+     * v3.12.0 — Warum ein Abschnitt der Rechnungsprüfung keine Menge hat: `decrease`, wenn er in einem
+     * Ableseabstand mit fallendem Stand liegt (beide Enden abgelesen, Zählertausch oder Überlauf nicht
+     * erfasst?), sonst `no_reading` (kein Ableseabstand umschließt ihn).
+     *
+     * @param list<array{start:string,end:string}> $decreases
+     */
+    private static function gapReason(array $decreases, string $date): string
+    {
+        foreach ($decreases as $d) if ($d['start'] <= $date && $date < $d['end']) return 'decrease';
+        return 'no_reading';
     }
 
     /**
@@ -3557,7 +3908,7 @@ final class ConsumptionService
     /** Zeilen für Strom, Fernwärme, Wasser: Grenzen an Ablesungen und Vertrags-/Preisstichtagen. */
     private function genericBillRows(string $utility, array $meter, string $from, string $to, array $contracts): array
     {
-        [$actual, $warnings, $intervals] = $this->billBasis($utility, $meter);   // v3.7.0 — wie gasBillBreakdown
+        [$actual, $warnings, $intervals, $decreases] = $this->billBasis($utility, $meter);   // v3.7.0 — wie gasBillBreakdown
         $byDate = [];
         foreach ($actual as $r) $byDate[(string)$r['date']] = $r;
         $counterAt = function (string $date) use ($byDate, $intervals): array {
@@ -3585,7 +3936,7 @@ final class ConsumptionService
         ksort($bounds);
         $dates = array_keys($bounds);
         $unitKey = $utility === 'wasser' ? 'm3' : 'kwh';
-        $rows = []; $tot = 0.0; $totDays = 0; $gaps = 0;
+        $rows = []; $tot = 0.0; $totDays = 0; $gaps = 0; $falls = 0;
         $k = 0;
         for ($i = 0; $i < count($dates) - 1; $i++) {
             [$a, $b] = [$dates[$i], $dates[$i + 1]];
@@ -3597,6 +3948,8 @@ final class ConsumptionService
             // eine Tag danach bis zum Ende hat keinen Verbrauch und ist keine Lücke
             if ($q === null && $b === $to && $days === 1 && str_starts_with((string)$bounds[$a], 'reading')) $q = 0.0;
             if ($q === null) $gaps++;
+            $gapReason = $q === null ? self::gapReason($decreases, $a) : null;   // v3.12.0
+            if ($gapReason === 'decrease') $falls++;
             $cFrom = $counterAt($a); $cTo = $counterAt($b);
             $rows[] = [
                 'from' => $a, 'to' => $b, 'to_inclusive' => (new \DateTime($b))->modify('-1 day')->format('Y-m-d'),
@@ -3604,12 +3957,15 @@ final class ConsumptionService
                 $unitKey => $q !== null ? round($q, $unitKey === 'm3' ? 2 : 1) : null,
                 'counter_from' => $cFrom['value'], 'counter_from_kind' => $cFrom['kind'],
                 'counter_to' => $cTo['value'], 'counter_to_kind' => $cTo['kind'],
-            ];
+            ] + ($gapReason !== null ? ['gap_reason' => $gapReason] : [])
+              // v3.12.0 — Wasser: die ungerundete Menge für den Preis (billBreakdown nimmt sie wieder heraus); die Zeile zeigt 0,01 m³
+              + ($unitKey === 'm3' && $q !== null ? ['_m3' => $q] : []);
             $tot += $q ?? 0.0;
             $totDays += $days;
         }
         return ['from' => $from, 'to' => $to, 'rows' => $rows,
-                'totals' => ['days' => $totDays, $unitKey => round($tot, $unitKey === 'm3' ? 2 : 1), 'gaps' => $gaps],
+                'totals' => ['days' => $totDays, $unitKey => round($tot, $unitKey === 'm3' ? 2 : 1), 'gaps' => $gaps, 'decreases' => $falls]
+                    + ($unitKey === 'm3' ? ['_m3' => $tot] : []),
                 'warnings' => $warnings];
     }
 
@@ -3668,61 +4024,61 @@ final class ConsumptionService
      * und mit den Abrechnungsjahren (F1030) auch in deren Kosten, während das
      * Kalenderjahr es aus den Monatszeilen mitzählte.
      *
+     * v3.12.0 — je Vertragsabschnitt mit den Preisen seines ersten Tages (ContractService::priceDate), wie Strom.
+     * Bis v3.11 galten Vertrag und Preise des Monatsersten.
+     *
+     * @param list<string>|null $cuts Schnitttage der Verträge (einmal je Rechnungsprüfung)
      * @return array<string,mixed>
      */
-    private function waterRowCosts(string $a, string $b, ?float $m3, array $contracts, array $meter): array
+    private function waterRowCosts(string $a, string $b, ?float $m3, array $contracts, array $meter, ?array $cuts = null): array
     {
         $days = max(1, self::daysBetweenDates($a, $b));
         $tw = 0.0; $sw = 0.0; $nw = 0.0; $base = 0.0; $swKnown = true; $priced = $m3 !== null; $cid = null;
         $swM3 = 0.0;
         $swBase = 0.0;   // v3.9.0 (F1034) — Grundpreis Schmutzwasser
-        $other = [];   // Menge anderer Zähler in [a, b), einmal je Zähler
-        $otherM3 = function (string $id) use (&$other, $a, $b): float {
-            return $other[$id] ??= $this->waterVolumeBetween($id, $a, $b);
-        };
-        for ($p = $a; $p < $b;) {
-            $next = min($b, date('Y-m-01', (int)strtotime(substr($p, 0, 7) . '-01 +1 month')));
-            $d = self::daysBetweenDates($p, $next);
-            $dim = (int)date('t', (int)strtotime($p));
-            $y = (int)substr($p, 0, 4); $mn = (int)substr($p, 5, 2);
-            $c = $this->contracts->findActiveForDate($contracts, substr($p, 0, 7) . '-01');
-            if ($c !== null) {
-                $cid ??= (string)$c['id'];
-                $part = $m3 !== null ? $m3 * $d / $days : 0.0;
-                $twWp = $this->contracts->valueValidOn($c['trinkwasser']['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-                $twBp = $this->contracts->valueValidOn($c['trinkwasser']['base_prices'] ?? [], 'eur_per_month', $y, $mn);
-                if ($twWp === null) $priced = false; else $tw += $part * $twWp / 100;
-                if ($twBp !== null) $base += $twBp * $d / $dim;
-                $sws = $c['schmutzwasser'] ?? [];
-                $basis = (string)($sws['basis'] ?? 'trinkwasser');
-                // Schmutzwassermenge dieses Monatsstücks — dieselben Regeln wie applyWaterContracts
-                $swPart = match ($basis) {
-                    'trinkwasser' => $part,
-                    // ohne Verweis bewusst 0 (v2.1.4), nicht die Trinkwassermenge
-                    'separater_zaehler' => !empty($sws['separater_zaehler_meter_id'])
-                        ? $otherM3((string)$sws['separater_zaehler_meter_id']) * $d / $days : 0.0,
-                    'trinkwasser_minus_abzug' => max(0.0, $part - array_sum(array_map(
-                        fn($id) => (string)$id === '' ? 0.0 : $otherM3((string)$id) * $d / $days, (array)($sws['abzug_meter_ids'] ?? [])))),
-                    default => null,
-                };
-                if ($swPart === null) {
-                    $swKnown = false;
-                } else {
-                    $swM3 += $swPart;
-                    $swWp = $this->contracts->valueValidOn($sws['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-                    if ($swWp !== null) $sw += $swPart * $swWp / 100;
-                }
-                // v3.9.0 (F1034) — Grundpreis Schmutzwasser nach Tagen wie der des Trinkwassers
-                $swBp = $this->contracts->valueValidOn($sws['base_prices'] ?? [], 'eur_per_month', $y, $mn);
-                if ($swBp !== null) $swBase += $swBp * $d / $dim;
-                $nws = $c['niederschlagswasser'] ?? [];
-                $nwP = $this->valueValidOnGeneric($nws['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
-                $nwA = $this->valueValidOnGeneric($nws['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
-                if ($nwP !== null && $nwA !== null) $nw += $nwP * $nwA / 12 * $d / $dim;
+        $segments = $cuts !== null ? $this->contracts->segmentsWithin($contracts, $cuts, $a, $b) : $this->contracts->segmentsBetween($contracts, $a, $b);
+        foreach ($segments as $seg) {
+            $c = $seg['contract'];
+            if ($c === null) { $priced = false; continue; }
+            $cid ??= (string)$c['id'];
+            $date = ContractService::priceDate($seg);
+            [$sa, $sb] = [(string)$seg['from'], (string)$seg['to']];
+            $part = $m3 !== null ? $m3 * $seg['days'] / $days : 0.0;
+            $twWp = $this->contracts->valueOnDate($c['trinkwasser']['working_prices'] ?? [], 'ct_per_m3', $date);
+            if ($twWp === null) $priced = false; else $tw += $part * $twWp / 100;
+            $sws = $c['schmutzwasser'] ?? [];
+            $basis = (string)($sws['basis'] ?? 'trinkwasser');
+            // Schmutzwassermenge dieses Abschnitts — dieselben Regeln wie applyWaterContracts
+            $swPart = match ($basis) {
+                'trinkwasser' => $part,
+                // ohne Verweis bewusst 0 (v2.1.4), nicht die Trinkwassermenge
+                'separater_zaehler' => !empty($sws['separater_zaehler_meter_id'])
+                    ? $this->waterVolumeBetween((string)$sws['separater_zaehler_meter_id'], $sa, $sb) : 0.0,
+                'trinkwasser_minus_abzug' => max(0.0, $part - array_sum(array_map(
+                    fn($id) => (string)$id === '' ? 0.0 : $this->waterVolumeBetween((string)$id, $sa, $sb), (array)($sws['abzug_meter_ids'] ?? [])))),
+                default => null,
+            };
+            if ($swPart === null) {
+                $swKnown = false;
             } else {
-                $priced = false;
+                $swM3 += $swPart;
+                $swWp = $this->contracts->valueOnDate($sws['working_prices'] ?? [], 'ct_per_m3', $date);
+                if ($swWp !== null) $sw += $swPart * $swWp / 100;
             }
-            $p = $next;
+            $twBp = $this->contracts->valueOnDate($c['trinkwasser']['base_prices'] ?? [], 'eur_per_month', $date);
+            $swBp = $this->contracts->valueOnDate($sws['base_prices'] ?? [], 'eur_per_month', $date);
+            $nws = $c['niederschlagswasser'] ?? [];
+            $nwP = $this->contracts->valueOnDate($nws['rates'] ?? [], 'eur_per_m2_year', $date);
+            $nwA = $this->contracts->valueOnDate($nws['rates'] ?? [], 'versiegelte_flaeche_m2', $date);
+            // feste Kosten nach Kalendertagen je Monat (v3.9.0 (F1034): Grundpreis Schmutzwasser wie Trinkwasser)
+            for ($p = $sa; $p < $sb;) {
+                $next = min($sb, date('Y-m-01', (int)strtotime(substr($p, 0, 7) . '-01 +1 month')));
+                $w = self::daysBetweenDates($p, $next) / (int)date('t', (int)strtotime($p));
+                if ($twBp !== null) $base += $twBp * $w;
+                if ($swBp !== null) $swBase += $swBp * $w;
+                if ($nwP !== null && $nwA !== null) $nw += $nwP * $nwA / 12 * $w;
+                $p = $next;
+            }
         }
         return [
             'tw_m3'       => $m3 !== null ? round($m3, 2) : null,
@@ -3747,7 +4103,8 @@ final class ConsumptionService
     {
         $m = $this->meters->get('wasser', $meterId);
         if ($m === null || !empty($m['is_group'])) return 0.0;
-        return (float)($this->genericBillRows('wasser', $m, $a, $b, [])['totals']['m3'] ?? 0.0);
+        $t = $this->genericBillRows('wasser', $m, $a, $b, [])['totals'];
+        return (float)($t['_m3'] ?? $t['m3'] ?? 0.0);   // v3.12.0 — ungerundet wie die Menge des Hauptzählers
     }
 
     private static function daysBetweenDates(string $a, string $b): int
@@ -4579,15 +4936,16 @@ final class ConsumptionService
             $diff = ((float)$curr['counter']) - ((float)$prev['counter']);
             // v2.6.0 — Überlauf des Zählwerks (Gerätefeld `digits`)
             if ($diff < 0) {
-                $roll = $this->rolloverAmount((float)$prev['counter'], (float)$curr['counter'], $devicesById[$prevDev] ?? null);
+                $roll = $this->rolloverAmount((float)$prev['counter'], (float)$curr['counter'], $devicesById[(string)$prevDev] ?? null);
                 if ($roll !== null) return $roll;
             }
             return $diff;
         }
 
         // Different devices → bridge via final_counter / initial_counter
-        $oldDev = $devicesById[$prevDev] ?? null;
-        $newDev = $devicesById[$currDev] ?? null;
+        // v3.12.0 — eine Ablesung vor dem ersten Gerät hat keine Kennung: null als Schlüssel ist ab PHP 8.5 veraltet
+        $oldDev = $devicesById[(string)$prevDev] ?? null;
+        $newDev = $devicesById[(string)$currDev] ?? null;
         if (!$oldDev || !$newDev) return null;
 
         $finalOld = $oldDev['final_counter'];
@@ -4868,6 +5226,8 @@ final class ConsumptionService
         // v1.3.0 — Schattenverträge fließen NICHT in den Saldo ein.
         // v3.1.0 (H6, #17) — dazu der Gruppenvertrag, wenn der Zähler Mitglied ist
         [$contracts, $ctx] = $this->contractScope($utility, $meter);
+        // v3.12.0 (Skeptiker H5) — bis wann jeder rechnet: die eine Regel für den Tag eines Bonus
+        $contracts = $this->contracts->withRunsUntil($contracts);
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Der Vertrag dieses Zählers rechnet
         // nur den Rest. Die Abschnitte tragen danach die Restmenge, die Zeile `rest_of`.
         $subs = $this->deductingSubmeters($utility, $meter);
@@ -4876,7 +5236,7 @@ final class ConsumptionService
             return $this->applyEmptyContractFields($monthly, $utility);
         }
         $monthly = $utility === 'wasser'
-            ? $this->applyWaterContracts($monthly, $contracts, $utility)
+            ? $this->applyWaterContracts($monthly, $contracts, $utility, $coverage)
             : $this->applyStandardContracts($monthly, $contracts, $coverage, $ctx);
         // v3.1.0 (H7, MKT-16) — Einspeisung: Gutschriften des Direktvermarkters ersetzen kWh × ct im Zeitraum
         return Utilities::isFeedIn($utility) ? $this->applyRevenueStatements($monthly, $contracts) : $monthly;
@@ -4972,9 +5332,16 @@ final class ConsumptionService
      */
     public const REST_EXTRAPOLATE_DAYS = 92;
 
+    /**
+     * v3.12.0 — So weit darf die angezeigte Monatsmenge (auf 0,1 m³ gerundet) von der Summe ihrer Tagesabschnitte
+     * abweichen, damit Wasser mit der ungerundeten Summe rechnet (halbe Stelle plus Rechenrauschen). Weicht sie
+     * weiter ab, hat ein anderer Schritt die Menge geändert; dann gilt die Zeile wie bisher.
+     */
+    private const DISPLAY_ROUNDING_M3 = 0.0500001;
+
     private function coverageKey(string $utility, array $meter): string
     {
-        return $utility . '|' . ($meter['id'] ?? '') . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+        return $utility . '|' . ($meter['id'] ?? '') . '|' . md5(serialize($meter)) . '|' . $this->memoGen();   // v3.12.0 — je Stichtag
     }
 
     /**
@@ -5027,7 +5394,7 @@ final class ConsumptionService
         }
         $id = (string)($meter['id'] ?? '');
         if ($id === '') return [];
-        $key = $utility . '|' . $id . '|' . $this->store->generation();
+        $key = $utility . '|' . $id . '|' . $this->memoGen();   // v3.12.0 — je Stichtag (Tagesabschnitte der Subzähler)
         if (isset($this->deductingMemo[$key])) return $this->deductingMemo[$key];
         $this->deductingMemo[$key] = [];   // Schutz gegen Rekursion (max. eine Ebene ist ohnehin Regel)
         $out = [];
@@ -5605,7 +5972,8 @@ final class ConsumptionService
                         (string)($p['first_from'] ?? $monthStart), (string)($p['last_to'] ?? $nextMonth)))
                     : [];
                 // v3.7.0 (#33) — die Boni einzeln (Datum, Art, Notiz) für „Bonus −X € am …“
-                $p['bonus_items'] = !$fixedShare || ($p['assumed'] && ($c['end'] ?? '') < $monthStart) ? [] : ContractService::bonusesForMonth($c, $y, $mn);
+                // v3.12.0 (Skeptiker H5) — auch im verlängerten Teil: Der Bonus zählt an seinem Tag, solange der Vertrag rechnet
+                $p['bonus_items'] = !$fixedShare ? [] : ContractService::bonusesForMonth($c, $y, $mn);
                 $p['bonus']   = (float)array_sum(array_column($p['bonus_items'], 'amount_eur'));
                 $p['cost']    = $p['kwh_cost'] + $p['base'] - $p['bonus'];
                 $sum['kwh']      += $p['kwh'];
@@ -5703,155 +6071,244 @@ final class ConsumptionService
      *   m.niederschlagswasser = { eur_per_m2_year, versiegelte_flaeche_m2, total }
      *   m.cost                = trinkwasser.total + schmutzwasser.total + niederschlagswasser.total − bonus
      */
-    private function applyWaterContracts(array $monthly, array $contracts, string $utility): array
+    private function applyWaterContracts(array $monthly, array $contracts, string $utility, array $coverage = []): array
     {
         $running = [];
         // Lazily-filled cache: separate-meter id → (ym → m³). Computed on first
         // use so a contract without a separater_zaehler reference costs nothing,
         // and so two contracts referencing the same meter share one computation.
         $sepMeterM3Cache = [];
+        $sepM3 = function (string $id, string $ym) use (&$sepMeterM3Cache, $utility): float {
+            if (!array_key_exists($id, $sepMeterM3Cache)) $sepMeterM3Cache[$id] = $this->monthlyM3ForMeterId($utility, $id);
+            return (float)($sepMeterM3Cache[$id][$ym] ?? 0.0);
+        };
+        // v3.12.0 — tagesgenau wie Strom: Schnitttage einmal je Zähler (Beginn, Ende und die Preise der drei
+        // Sparten, ContractService::cutDates). Bis v3.11 galt je Monat der Vertrag und der Preis des Monatsersten:
+        // Ein Preis ab dem 15. wirkte erst im Folgemonat, ein Vertragswechsel am 15. rechnete die Menge nach dem
+        // Monatsersten, Grundpreis und Abschlag aber tagesgenau.
+        $cuts = $this->contracts->cutDates($contracts);
 
         foreach ($monthly as &$m) {
-            $first = $m['ym'] . '-01';
-            $c = $this->contracts->findActiveForDate($contracts, $first);
-            if (!$c) {
+            $ym = (string)$m['ym'];
+            $y = (int)$m['year']; $mn = (int)$m['month'];
+            $monthStart = sprintf('%04d-%02d-01', $y, $mn);
+            $nextMonth = date('Y-m-d', (int)strtotime($monthStart . ' +1 month'));
+            $dim = (int)date('t', (int)strtotime($monthStart));
+
+            // v3.9.0 (ablesung-pruefen) — überbrückter Monat: Kosten nach dem Stand (`_bill_kwh` trägt bei Wasser m³)
+            $m3 = (float)($m['_bill_kwh'] ?? $m['m3'] ?? 0);
+            // Tage mit Verbrauch und ihre Menge (wie Strom); auf die Menge des Monats abgeglichen
+            $spans = $coverage[$ym] ?? [];
+            $spanSum = array_sum(array_map(fn($s) => (float)($s[2] ?? 0.0), $spans));
+            // v3.12.0 — bepreist wird die Menge, die die Stände ergeben: Die Abschnitte tragen sie ungerundet, `m3` der
+            // Zeile ist die Anzeige (0,1 m³). Bisher rechneten Kosten und Saldo mit der gerundeten Menge, je Monat bis
+            // 0,05 m³ daneben; die Saldo-Karte nannte so einen anderen Cent als das Abrechnungsjahr.
+            if (!array_key_exists('_bill_kwh', $m) && $spanSum > 0.0 && abs($spanSum - $m3) <= self::DISPLAY_ROUNDING_M3) $m3 = $spanSum;
+            if ($spans === [] || ($spanSum <= 0.0 && $m3 > 0.0)) {
+                $spans = [[$monthStart, date('Y-m-d', (int)strtotime($monthStart . ' +' . max(1, min($dim, (int)($m['days'] ?? $dim))) . ' days')), $m3]];
+                $spanSum = $m3;
+            }
+            $scale = $spanSum > 0.0 ? $m3 / $spanSum : 0.0;
+
+            /** @var array<string,array<string,mixed>> $parts */
+            $parts = [];
+            foreach ($spans as $span) {
+                [$a, $b] = $span;
+                $q = (float)($span[2] ?? 0.0) * $scale;
+                $spanDays = max(1, self::daysBetweenDates((string)$a, (string)$b));
+                foreach ($this->contracts->segmentsWithin($contracts, $cuts, (string)$a, (string)$b) as $seg) {
+                    $c = $seg['contract'];
+                    if ($c === null) continue;
+                    $id = (string)$c['id'];
+                    $parts[$id] ??= self::emptyWaterPart($c);
+                    $share = $q * $seg['days'] / $spanDays;
+                    $date = ContractService::priceDate($seg);
+                    $twWp = $this->contracts->valueOnDate($c['trinkwasser']['working_prices'] ?? [], 'ct_per_m3', $date);
+                    $swWp = $this->contracts->valueOnDate($c['schmutzwasser']['working_prices'] ?? [], 'ct_per_m3', $date);
+                    $parts[$id]['m3'] += $share;
+                    if ($twWp !== null) $parts[$id]['tw_work'] += $share * $twWp / 100.0;
+                    $parts[$id]['qty'][] = [$share, $swWp];
+                    $parts[$id]['assumed'] = $parts[$id]['assumed'] || $seg['assumed'];
+                }
+            }
+            // Grundpreise, Niederschlagswasser und Abschlag nach Kalendertagen des Monats
+            foreach ($this->contracts->segmentsWithin($contracts, $cuts, $monthStart, $nextMonth) as $seg) {
+                $c = $seg['contract'];
+                if ($c === null) continue;
+                $id = (string)$c['id'];
+                $parts[$id] ??= self::emptyWaterPart($c);
+                $date = ContractService::priceDate($seg);
+                $w = $seg['days'] / $dim;
+                $twBp = $this->contracts->valueOnDate($c['trinkwasser']['base_prices'] ?? [], 'eur_per_month', $date);
+                $swBp = $this->contracts->valueOnDate($c['schmutzwasser']['base_prices'] ?? [], 'eur_per_month', $date);
+                $nwRate = $this->contracts->valueOnDate($c['niederschlagswasser']['rates'] ?? [], 'eur_per_m2_year', $date);
+                $nwArea = $this->contracts->valueOnDate($c['niederschlagswasser']['rates'] ?? [], 'versiegelte_flaeche_m2', $date);
+                if ($twBp !== null) { $parts[$id]['tw_base'] += $twBp * $w; $parts[$id]['tw_bp'] ??= $twBp; }
+                if ($swBp !== null) { $parts[$id]['sw_base'] += $swBp * $w; $parts[$id]['sw_bp'] ??= $swBp; }
+                if ($nwRate !== null && $nwArea !== null) {
+                    $parts[$id]['nw'] += $nwRate * $nwArea / 12.0 * $w;
+                    $parts[$id]['nw_rate'] ??= $nwRate; $parts[$id]['nw_area'] ??= $nwArea;
+                }
+                $parts[$id]['days'] += $seg['days'];
+                $parts[$id]['dates'][] = [$date, $w];
+                $parts[$id]['advance_date'] ??= $date;
+                $parts[$id]['first_from'] ??= $seg['from'];
+                $parts[$id]['last_to'] = $seg['to'];
+                $parts[$id]['assumed'] = $parts[$id]['assumed'] || $seg['assumed'];
+            }
+
+            if ($parts === []) {
                 $m['contract_id'] = null; $m['advance_eur'] = null;
                 $m['trinkwasser'] = null; $m['schmutzwasser'] = null; $m['niederschlagswasser'] = null;
                 $m['bonus_eur'] = null;
                 $m['monthly_balance'] = null; $m['cumulative_balance'] = null;
                 continue;
             }
-            $y = (int)$m['year']; $mn = (int)$m['month'];
 
-            // v3.9.0 (ablesung-pruefen) — überbrückter Monat: Kosten nach dem Stand (`_bill_kwh` trägt bei Wasser m³)
-            $m3 = (float)($m['_bill_kwh'] ?? $m['m3'] ?? 0);
-            $tw = $c['trinkwasser']         ?? [];
-            $sw = $c['schmutzwasser']       ?? [];
-            $nw = $c['niederschlagswasser'] ?? [];
-
-            // ── Trinkwasser ─────────────────────────────────────────
-            $twWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-            $twBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $y, $mn);
-            $twWorking = ($twWp !== null && $m3 > 0) ? round($m3 * $twWp / 100.0, 2) : 0.0;
-            $twBase    = $twBp !== null ? (float)$twBp : 0.0;
-            $twTotal   = round($twWorking + $twBase, 2);
-
-            // ── Schmutzwasser ──────────────────────────────────────
-            // basis = 'trinkwasser'       → identical volume as Trinkwasser
-            // basis = 'separater_zaehler' → volume read from the referenced
-            //   meter's monthly m³ (F-01 fix). If the reference is missing or
-            //   produces no data for the month, the volume falls back to 0 so
-            //   the cost is not silently wrong-by-trinkwasser-volume.
-            $swWp    = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-            $swBasis = (string)($sw['basis'] ?? 'trinkwasser');
-            $swMeterId = $sw['separater_zaehler_meter_id'] ?? null;
-            if ($swBasis === 'separater_zaehler') {
-                // v2.1.4 — basis 'separater_zaehler' MIT Referenz: Volumen aus dem
-                // referenzierten Zähler (0, wenn für den Monat keine Daten). OHNE
-                // Referenz bewusst swM3 = 0 statt Trinkwasser-Volumen — sonst kippt
-                // die Schmutzwasser-Menge still aufs Trinkwasser-Volumen (genau der
-                // „silently wrong" Fall, den der Kommentar oben verhindern will).
-                // Der Speicherpfad (ContractService) erzwingt zwar eine Referenz;
-                // unvalidierte Daten (Backup-Import/Legacy) können sie aber missen.
-                if ($swMeterId) {
-                    if (!array_key_exists($swMeterId, $sepMeterM3Cache)) {
-                        $sepMeterM3Cache[$swMeterId] = $this->monthlyM3ForMeterId($utility, (string)$swMeterId);
+            $dates = [];
+            foreach ($parts as $id => &$p) {
+                $c = $p['contract'];
+                $sw = $c['schmutzwasser'] ?? [];
+                // ── Schmutzwasser ──────────────────────────────────────
+                // basis = 'trinkwasser'       → identical volume as Trinkwasser
+                // basis = 'separater_zaehler' → volume read from the referenced
+                //   meter's monthly m³ (F-01 fix), je Abschnitt im Verhältnis der Menge. Without the reference
+                //   bewusst 0 (v2.1.4), nicht die Trinkwassermenge.
+                // basis = 'trinkwasser_minus_abzug' → v3.1.0 (Review CALC-20): Hauptzähler minus Abzugszähler
+                //   (Garten), nie unter 0.
+                $basis = (string)($sw['basis'] ?? 'trinkwasser');
+                $sepId = $sw['separater_zaehler_meter_id'] ?? null;
+                $factor = 1.0; $byDays = null;
+                if ($basis === 'separater_zaehler') {
+                    $tot = $sepId ? $sepM3((string)$sepId, $ym) : 0.0;
+                    if ($m3 > 0.0) $factor = $tot / $m3; else { $factor = 0.0; $byDays = $tot; }
+                } elseif ($basis === 'trinkwasser_minus_abzug') {
+                    $deduct = 0.0;
+                    foreach ((array)($sw['abzug_meter_ids'] ?? []) as $did) {
+                        if ((string)$did !== '') $deduct += $sepM3((string)$did, $ym);
                     }
-                    $swM3 = (float)($sepMeterM3Cache[$swMeterId][$m['ym']] ?? 0.0);
-                } else {
-                    $swM3 = 0.0;
+                    $factor = $m3 > 0.0 ? max(0.0, $m3 - $deduct) / $m3 : 0.0;
+                    $p['abzug_m3'] = $m3 > 0.0 ? $p['m3'] * (1.0 - $factor) : 0.0;
                 }
-            } elseif ($swBasis === 'trinkwasser_minus_abzug') {
-                // v3.1.0 (Review CALC-20) — Hauptzähler minus Abzugszähler (Garten).
-                // Der Hauptzähler misst alles; was im Garten versickert, kostet
-                // Trinkwasser, aber kein Schmutzwasser. Nie unter 0.
-                $deductM3 = 0.0;
-                foreach ((array)($sw['abzug_meter_ids'] ?? []) as $did) {
-                    $did = (string)$did;
-                    if ($did === '') continue;
-                    if (!array_key_exists($did, $sepMeterM3Cache)) {
-                        $sepMeterM3Cache[$did] = $this->monthlyM3ForMeterId($utility, $did);
+                foreach ($p['qty'] as [$share, $swWp]) {
+                    $p['sw_m3'] += $share * $factor;
+                    if ($swWp !== null) $p['sw_work'] += $share * $factor * $swWp / 100.0;
+                }
+                if ($byDays !== null && $byDays > 0.0) {
+                    // eigener Abwasserzähler ohne Trinkwasser im Monat: seine Menge nach Kalendertagen
+                    foreach ($p['dates'] as [$date, $w]) {
+                        $p['sw_m3'] += $byDays * $w;
+                        $swWp = $this->contracts->valueOnDate($sw['working_prices'] ?? [], 'ct_per_m3', $date);
+                        if ($swWp !== null) $p['sw_work'] += $byDays * $w * $swWp / 100.0;
                     }
-                    $deductM3 += (float)($sepMeterM3Cache[$did][$m['ym']] ?? 0.0);
                 }
-                $swM3 = max(0.0, $m3 - $deductM3);
-            } else {
-                $swM3 = $m3;
+                // v3.5.0 (GitHub #34) — der effektive Abschlagsplan wie beim Standardvertrag; v3.9.0 (F1034) — mit
+                // Rhythmus die Raten, die in den Vertragstagen des Monats fällig sind; v3.12.0 — tagesanteilig je Vertrag
+                $plan = $this->contracts->effectiveAdvanceSchedule($c);
+                $p['advance'] = $p['advance_date'] !== null
+                    ? ContractService::advanceIn($plan, (string)$p['advance_date'], (string)($p['first_from'] ?? $monthStart),
+                        (string)($p['last_to'] ?? $nextMonth), min(1.0, $p['days'] / $dim), $dim)
+                    : null;
+                if ($p['advance'] !== null && array_filter($plan, fn($r) => is_array($r) && ContractService::hasRhythm($r)) !== []) {
+                    // v3.9.0 (auswertung, Nachtrag) — die Raten samt Tag (advanceBetween zählt sie nach Termin)
+                    foreach (ContractService::installments($plan, (string)($p['first_from'] ?? $monthStart), (string)($p['last_to'] ?? $nextMonth)) as $r) {
+                        $dates[] = $r + ['contract_id' => $id];
+                    }
+                }
+                $p['bonus_items'] = ContractService::bonusesForMonth($c, $y, $mn);
+                $p['bonus'] = (float)array_sum(array_column($p['bonus_items'], 'amount_eur'));
+                $p['tw_total'] = $p['tw_work'] + $p['tw_base'];
+                $p['sw_total'] = $p['sw_work'] + $p['sw_base'];
+                $p['cost'] = $p['tw_total'] + $p['sw_total'] + $p['nw'] - $p['bonus'];
             }
-            $swWorking = ($swWp !== null && $swM3 > 0) ? round($swM3 * $swWp / 100.0, 2) : 0.0;
-            // v3.9.0 (F1034) — Grundpreis Schmutzwasser (Basis- und Bereitstellungspreis), je Monat
-            $swBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $y, $mn);
-            $swBase = $swBp !== null ? (float)$swBp : 0.0;
-            $swTotal = round($swWorking + $swBase, 2);
+            unset($p);
 
-            // ── Niederschlagswasser ────────────────────────────────
-            $nwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
-            $nwArea = $this->valueValidOnGeneric($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
-            $nwTotal = ($nwRate !== null && $nwArea !== null)
-                ? round(((float)$nwArea * (float)$nwRate) / 12.0, 2)
-                : 0.0;
+            // Die Zeile gehört dem Vertrag mit den meisten Tagen im Monat (wie Strom)
+            uasort($parts, fn($x, $z) => [$z['days'], (string)($z['contract']['start'] ?? '')] <=> [$x['days'], (string)($x['contract']['start'] ?? '')]);
+            $mainId = (string)array_key_first($parts);
+            $main = $parts[$mainId];
+            $mc = $main['contract'];
+            $mainDate = (string)($main['advance_date'] ?? $monthStart);
+            $sum = fn(string $k): float => (float)array_sum(array_column($parts, $k));
+            $twM3 = $sum('m3'); $twWork = $sum('tw_work'); $twBase = $sum('tw_base');
+            $swM3 = $sum('sw_m3'); $swWork = $sum('sw_work'); $swBase = $sum('sw_base');
+            $nwTotal = $sum('nw'); $bn = $sum('bonus');
+            $advances = array_values(array_filter(array_column($parts, 'advance'), fn($v) => $v !== null));
+            // ungerundet wie bisher (ein Plan mit 66,6667 € ergibt im Jahr 800,00 €, nicht 12 × 66,67)
+            $ap = $advances === [] ? null : (float)array_sum($advances);
+            $mainSw = $mc['schmutzwasser'] ?? [];
+            $swBasis = (string)($mainSw['basis'] ?? 'trinkwasser');
+            $twWp = $twM3 > 0.0 && $twWork > 0.0 ? $twWork / $twM3 * 100.0
+                : $this->contracts->valueOnDate($mc['trinkwasser']['working_prices'] ?? [], 'ct_per_m3', $mainDate);
+            $swWp = $swM3 > 0.0 && $swWork > 0.0 ? $swWork / $swM3 * 100.0
+                : $this->contracts->valueOnDate($mainSw['working_prices'] ?? [], 'ct_per_m3', $mainDate);
+            $hasSwBase = array_filter(array_column($parts, 'sw_bp'), fn($v) => $v !== null) !== [];
+            $bonusItems = array_merge(...array_values(array_map(fn($p) => $p['bonus_items'], $parts)));
+            $combined = round(round($twWork + $twBase, 2) + round($swWork + $swBase, 2) + round($nwTotal, 2) - $bn, 2);
 
-            // v3.5.0 (GitHub #34) — der effektive Abschlagsplan wie beim
-            // Standardvertrag: eine Rück- oder Nachzahlung „mit Auswirkung“
-            // setzt den Abschlag ab ihrem Stichtag (ohne Sonderzahlungen
-            // derselbe Wert wie advance_payments)
-            $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
-            // v3.9.0 (F1034) — mit Rhythmus: die Raten, die im Monat fällig sind (sonst 0); monatlich wie bisher
-            $apPlan = $this->contracts->effectiveAdvanceSchedule($c);
-            if (array_filter($apPlan, fn($r) => is_array($r) && ContractService::hasRhythm($r)) !== []) {
-                $ap = ContractService::advanceIn($apPlan, $first, $first,
-                    date('Y-m-d', (int)strtotime($first . ' +1 month')), 1.0, (int)date('t', (int)strtotime($first)));
-                // v3.9.0 (auswertung, Nachtrag) — die Raten samt Tag (advanceBetween zählt sie nach Termin)
-                $wDates = array_map(fn($r) => $r + ['contract_id' => (string)$c['id']],
-                    ContractService::installments($apPlan, $first, date('Y-m-d', (int)strtotime($first . ' +1 month'))));
-                if ($wDates !== []) $m['advance_dates'] = $wDates;
-            }
-            $bonusItems = ContractService::bonusesForMonth($c, $y, $mn);
-            $bn = (float)array_sum(array_column($bonusItems, 'amount_eur'));
-
-            $combined = round($twTotal + $swTotal + $nwTotal - $bn, 2);
-
-            $m['contract_id']  = $c['id'];
+            $m['contract_id']  = $mainId;
+            $m['contract_assumed'] = $main['assumed'];
             $m['advance_eur']  = $ap;
+            if ($dates !== []) $m['advance_dates'] = $dates;
             $m['bonus_eur']    = round($bn, 2);
             if ($bonusItems !== []) $m['bonus_items'] = $bonusItems;   // v3.7.0 (#33) — additiv
             $m['trinkwasser']  = [
-                'm3'             => $m3,
-                'ct_per_m3'      => $twWp,
-                'base_price_eur' => $twBp,
-                'working_cost'   => $twWorking,
-                'base_cost'      => $twBase,
-                'total'          => $twTotal,
+                'm3'             => round($m3, 3),   // v3.12.0 — die bepreiste Menge (bisher die gerundete der Zeile)
+                'ct_per_m3'      => $twWp !== null ? round($twWp, 4) : null,
+                'base_price_eur' => $main['tw_bp'],
+                'working_cost'   => round($twWork, 2),
+                'base_cost'      => round($twBase, 2),
+                'total'          => round($twWork + $twBase, 2),
             ];
             $m['schmutzwasser'] = [
                 'basis'                       => $swBasis,
-                'separater_zaehler_meter_id'  => $swMeterId,
+                'separater_zaehler_meter_id'  => $mainSw['separater_zaehler_meter_id'] ?? null,
                 // v3.1.0 — Abzugszähler und abgezogene Menge (nur bei trinkwasser_minus_abzug)
-                'abzug_meter_ids'             => $swBasis === 'trinkwasser_minus_abzug' ? array_values((array)($sw['abzug_meter_ids'] ?? [])) : [],
+                'abzug_meter_ids'             => $swBasis === 'trinkwasser_minus_abzug' ? array_values((array)($mainSw['abzug_meter_ids'] ?? [])) : [],
                 'abzug_m3'                    => $swBasis === 'trinkwasser_minus_abzug' ? round($m3 - $swM3, 3) : null,
-                'm3'                          => $swM3,
-                'ct_per_m3'                   => $swWp,
-                'total'                       => $swTotal,
-            ] + ($swBp !== null ? ['working_cost' => $swWorking, 'base_price_eur' => $swBp, 'base_cost' => $swBase] : []);   // v3.9.0 (F1034) — additiv, nur mit Grundpreis
+                'm3'                          => round($swM3, 6),
+                'ct_per_m3'                   => $swWp !== null ? round($swWp, 4) : null,
+                'total'                       => round($swWork + $swBase, 2),
+            ] + ($hasSwBase ? ['working_cost' => round($swWork, 2), 'base_price_eur' => $main['sw_bp'], 'base_cost' => round($swBase, 2)] : []);   // v3.9.0 (F1034) — additiv, nur mit Grundpreis
             $m['niederschlagswasser'] = [
-                'eur_per_m2_year'        => $nwRate,
-                'versiegelte_flaeche_m2' => $nwArea,
-                'total'                  => $nwTotal,
+                'eur_per_m2_year'        => $main['nw_rate'],
+                'versiegelte_flaeche_m2' => $main['nw_area'],
+                'total'                  => round($nwTotal, 2),
             ];
             $m['cost'] = $combined;
 
             // For the legacy/standard fields the UI's monthly table reads,
             // we keep working_price_ct = trinkwasser ct/m³ (the headline
             // tariff) and base_price_eur = trinkwasser base + niederschlag/month.
-            $m['working_price_ct'] = $twWp;
+            $m['working_price_ct'] = $m['trinkwasser']['ct_per_m3'];
             $m['base_price_eur']   = round($twBase + $swBase + $nwTotal, 2);   // v3.9.0 (F1034) — mit Grundpreis Schmutzwasser
-            $m['kwh_cost']         = round($twWorking + $swWorking, 2); // Verbrauchsabhängig
+            $m['kwh_cost']         = round($twWork + $swWork, 2); // Verbrauchsabhängig
+
+            // v3.12.0 — zwei Verträge im Monat (Wechsel am 15.): jeder mit seinem Teil, wie bei Strom
+            if (count($parts) > 1) {
+                $m['contract_parts'] = array_values(array_map(fn($id, $p) => [
+                    'contract_id'    => (string)$id,
+                    'days'           => $p['days'],
+                    'kwh'            => null,
+                    'm3'             => round($p['m3'], 3),
+                    'kwh_cost'       => round($p['tw_work'] + $p['sw_work'], 2),
+                    'base_price_eur' => round($p['tw_base'] + $p['sw_base'] + $p['nw'], 2),
+                    'advance_eur'    => $p['advance'] !== null ? round($p['advance'], 2) : null,
+                    'bonus_eur'      => round($p['bonus'], 2),
+                    'cost'           => round($p['cost'], 2),
+                    'assumed'        => $p['assumed'],
+                    'trinkwasser'    => ['m3' => round($p['m3'], 3), 'working_cost' => round($p['tw_work'], 2), 'base_cost' => round($p['tw_base'], 2), 'total' => round($p['tw_total'], 2)],
+                    'schmutzwasser'  => ['m3' => round($p['sw_m3'], 3), 'working_cost' => round($p['sw_work'], 2), 'base_cost' => round($p['sw_base'], 2), 'total' => round($p['sw_total'], 2)],
+                    'niederschlagswasser' => ['total' => round($p['nw'], 2)],
+                ], array_keys($parts), $parts));
+            }
 
             if ($ap !== null) {
-                $delta = $combined - (float)$ap;
-                $m['monthly_balance'] = round($delta, 2);
-                $running[$c['id']] = ($running[$c['id']] ?? 0.0) + $delta;
-                $m['cumulative_balance'] = round($running[$c['id']], 2);
+                foreach ($parts as $id => $p) {
+                    if ($p['advance'] !== null) $running[$id] = ($running[$id] ?? 0.0) + $p['cost'] - $p['advance'];
+                }
+                $m['monthly_balance'] = round($combined - $ap, 2);
+                $m['cumulative_balance'] = isset($running[$mainId]) ? round($running[$mainId], 2) : null;
             } else {
                 $m['monthly_balance'] = null;
                 $m['cumulative_balance'] = null;
@@ -5859,6 +6316,14 @@ final class ConsumptionService
         }
         unset($m);
         return $monthly;
+    }
+
+    /** @return array<string,mixed> v3.12.0 — leerer Anteil eines Wasservertrags an einem Monat */
+    private static function emptyWaterPart(array $contract): array
+    {
+        return ['contract' => $contract, 'm3' => 0.0, 'tw_work' => 0.0, 'tw_base' => 0.0, 'tw_bp' => null, 'sw_m3' => 0.0, 'sw_work' => 0.0,
+                'sw_base' => 0.0, 'sw_bp' => null, 'nw' => 0.0, 'nw_rate' => null, 'nw_area' => null, 'qty' => [], 'dates' => [],
+                'days' => 0, 'advance_date' => null, 'first_from' => null, 'last_to' => null, 'assumed' => false, 'abzug_m3' => 0.0];
     }
 
     /**
@@ -5881,26 +6346,15 @@ final class ConsumptionService
                 $out[$m['ym']] = (float)($m['m3'] ?? 0);
             }
         }
+        // v3.12.0 — ungerundet aus den Tagesabschnitten wie beim Hauptzähler (applyWaterContracts); die Zeile rundet auf 0,1 m³
+        foreach ($this->meterCoverage($utility, $meter) as $ym => $spans) {
+            if (!isset($out[$ym])) continue;
+            $q = array_sum(array_map(fn($s) => (float)($s[2] ?? 0.0), (array)$spans));
+            if ($q > 0.0 && abs($q - $out[$ym]) <= self::DISPLAY_ROUNDING_M3) $out[$ym] = $q;
+        }
         return $out;
     }
 
-    /**
-     * Generic stichtag-lookup for entries with an arbitrary numeric field
-     * (used by the Niederschlagswasser rates which have two fields per entry).
-     */
-    private function valueValidOnGeneric(array $entries, string $field, int $year, int $month): ?float
-    {
-        if (empty($entries)) return null;
-        $first = sprintf('%04d-%02d-01', $year, $month);
-        usort($entries, fn($a, $b) => strcmp($a['from'] ?? '', $b['from'] ?? ''));
-        $val = null;
-        foreach ($entries as $e) {
-            if (($e['from'] ?? '9999') <= $first) {
-                if (isset($e[$field]) && is_numeric($e[$field])) $val = (float)$e[$field];
-            } else break;
-        }
-        return $val;
-    }
 
     /**
      * v1.3.0 — Wetterbereinigung (Witterungsbereinigung nach VDI 3807 +
@@ -6051,27 +6505,28 @@ final class ConsumptionService
      * Delegiert an DeliveryConsumptionService.
      * @return array<string,float>  date(YYYY-MM-DD) → verbrauch_kwh
      */
-    public function dailyDeliveryConsumption(string $utility, array $meter): array
+    public function dailyDeliveryConsumption(string $utility, array $meter, ?string $today = null): array
     {
-        return $this->getDeliveryConsumption()->dailyDeliveryConsumption($utility, $meter);
+        return $this->getDeliveryConsumption()->dailyDeliveryConsumption($utility, $meter, $today ?? $this->asOf());
     }
 
     /**
      * Delegiert an DeliveryConsumptionService.
      * @return array<string,float> date → Abzug in Mengeneinheiten/Tag
      */
-    public function dailyDeliveryStockDraw(string $utility, array $meter): array
+    public function dailyDeliveryStockDraw(string $utility, array $meter, ?string $today = null): array
     {
-        return $this->getDeliveryConsumption()->dailyDeliveryStockDraw($utility, $meter);
+        return $this->getDeliveryConsumption()->dailyDeliveryStockDraw($utility, $meter, $today ?? $this->asOf());
     }
 
     /**
      * v2.10.0 — Delegiert an DeliveryConsumptionService::tankModel().
+     * v3.12.0 — `$today`: bis zu diesem Tag (sonst heute bzw. der Stichtag der laufenden Rechnung).
      * @return array<string,mixed>
      */
-    public function tankModel(string $utility, array $meter): array
+    public function tankModel(string $utility, array $meter, ?string $today = null): array
     {
-        return $this->getDeliveryConsumption()->tankModel($utility, $meter);
+        return $this->getDeliveryConsumption()->tankModel($utility, $meter, $today ?? $this->asOf());
     }
 
     /**
@@ -6098,7 +6553,7 @@ final class ConsumptionService
         // Durchschnittspreis des Tankinhalts statt zum Preis der letzten
         // Lieferung; der Anfangsbestand ist nicht mehr kostenlos.
         $delivery   = $this->getDeliveryConsumption();
-        $model      = $delivery->tankModel($utility, $meter);
+        $model      = $delivery->tankModel($utility, $meter, $this->asOf());   // v3.12.0 — bis zum Stichtag
         if (empty($model['days'])) return [];
         $kwhPerUnit = $delivery->kwhPerUnit($utility);
 

@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.11.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.12.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -27,6 +27,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 |---|---|
 | [Erste Schritte](einstieg/erste-schritte.md) | Installation → erster Zähler → erste Ablesung → erster Vertrag → erste Prognose |
 | [Einrichten und Nutzungsstufen](einstieg/einrichtung.md) | Einrichtungsassistent, die vier Beispielhaushalte und das Schaufenster, Einsteiger · Erfahren · Experte, Schaubilder, öffentliche Demo |
+| [Wegweiser](einstieg/wegweiser.md) | Welcher Weg passt zu dir: von Hand, mit Versorgerpost, mit Home Assistant, mit KI, mit Schaubildern |
 | [Was der Energietracker kann](einstieg/funktionen.md) | Alle Funktionen, nach Fragen geordnet |
 | [Fragen und Antworten](einstieg/faq.md) | Die häufigsten Fragen, kurz beantwortet |
 | [Auf dem Handy nutzen](einstieg/handy.md) | Im Heimnetz aufrufen, als App installieren, Foto als Beleg, Offline-Warteschlange |
@@ -35,15 +36,16 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 
 | Dokument | Inhalt |
 |---|---|
+| [**KI-Assistent anbinden (MCP)**](anleitungen/ki-assistent.md) | *Neu in v3.12.0:* Frag deine KI nach Saldo, Verbrauch und Fristen: einschalten, Schlüssel, Einrichtung für Claude Code, VS Code, Cursor, LM Studio und Open WebUI, Prompts und Ressourcen, Ändern nur mit Vorschlag und Zustimmung, Grenzen, Zugang aus der Cloud, Datenschutz |
 | [**Haushalt aus Dokumenten anlegen**](anleitungen/haushalt-aus-dokumenten.md) | *Neu in v3.7.0:* Versorgerpost ablegen und auslesen, ein Entwurf über alle Dokumente — Zähler, Verträge mit Preiskette, Ablesungen, Rechnungen, Termine; nur Zweifelhaftes prüfen, mit einem Klick übernehmen; welche Dokumente helfen, Grenzen |
 | [**Was wäre wenn? Die Prognose-Werkstatt**](anleitungen/was-waere-wenn.md) | *Neu in v3.6.0:* Was kostet ein kalter Winter, was bringt die Dämmung, lohnt der Wechsel? Regler bewegen, Ergebnis sofort sehen — Ergebniskarte, Kurven, Rangliste, beste Kombination unter einem Budget; speichern, drucken, als Bild teilen |
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
 | [CO₂-Kosten mit dem Vermieter teilen](anleitungen/co2-aufteilung.md) | Anteil des Vermieters nach CO2KostAufG: bei eigener Gastherme ausrechnen und einfordern, bei Zentralheizung die Abrechnung prüfen; Frist und Anschreiben |
-| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“ |
+| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“; *seit v3.12.0* die HACS-Integration (Sensoren ohne YAML) |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Zählerstände aus anderen Systemen senden: gemeinsamer Vertrag und je ein Rezept |
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
-| [Einen Brief schreiben](anleitungen/brief-schreiben.md) | *Neu in v3.11.0:* Brief zu einem Hinweis „Deine Rechte als Kunde“: fünf feste Vorlagen, immer Deutsch, vorbelegt aus Vertrag und Zähler, als PDF für den Fensterumschlag oder als Text; nichts gespeichert; als verschickt markieren |
+| [Einen Brief schreiben](anleitungen/brief-schreiben.md) | Drei Wege zum Brief (Hinweis, Rechnung prüfen, Vertragskarte); *v3.12.0:* Abschlagsanpassung und Kündigung auch ohne Hinweis; *v3.11.0:* Brief zu einem Hinweis „Deine Rechte als Kunde“: fünf feste Vorlagen, immer Deutsch, vorbelegt aus Vertrag und Zähler, als PDF für den Fensterumschlag oder als Text; nichts gespeichert; als verschickt markieren |
 | [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz; *seit v3.9.0* „Ablesung prüfen“ |
 | [Texterkennung im Heimnetz](anleitungen/texterkennung.md) | Zählerstand vom Foto vorschlagen lassen: Ollama oder LM Studio einrichten, Datenschutz, Fehlersuche |
 | [Posteingang: Versorgerpost auslesen lassen](anleitungen/posteingang.md) | *Neu in v3.7.0:* PDF ablegen (am iPad aus der Dateien-App), lokal mit qwen3.8 auslesen, jede Angabe mit Belegstelle prüfen, mit einem Klick übernehmen; von Hand erfassen neben dem Dokument, viele auf einmal, Datenschutz; in der Cloud auslesen als Opt-in — Claude (Anthropic) oder ein OpenAI-kompatibler Dienst, Schlüssel, was hinausgeht, Grenzen |
@@ -71,6 +73,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Meter-Topologie](verstehen/13-meter-topologie.md) | Subzähler, Zählergruppen und der Gruppenvertrag; *seit v3.9.0* Rest-Abrechnung am Elternzähler, Kaskade und der Assistent „Messkonzept“ |
 | [Länderprofile](verstehen/14-laenderprofile.md) | Währung, Formate, Effizienzskala, CO₂-Faktoren, Gaseinheiten und Begriffe der Rechnung je Land |
 | [Szenario Wohnung](verstehen/07-szenario-wohnung.md) · [Szenario Eigenheim](verstehen/08-szenario-eigenheim.md) | Durchgerechnete Beispiele |
+| [Woher eine Zahl kommt](verstehen/18-herkunft.md) | *Neu in v3.12.0:* gemessen, eingetragen, verteilt, angenommen, geschätzt; das Zahl-Objekt der KI-Schnittstelle und das Vorzeichen beim Saldo |
 | [Glossar & Formelsammlung](verstehen/09-glossar.md) | Alle Begriffe und Formeln kompakt |
 
 ## 📖 Referenz — *nachschlagen*
@@ -117,7 +120,7 @@ Planung: [roadmap.md](../roadmap.md)
 ## Konventionen in dieser Doku
 
 - Begriffe der Oberfläche stehen so da, wie die App sie zeigt; Menüpfade als
-  „Einstellungen → Wetterdaten“.
+  „Verbindungen → Wetterdaten“.
 - Formeln stehen als Klartext-Codeblock und sind gegen den Quellcode geprüft,
   nicht aus dem Gedächtnis notiert.
 - **[Unverifiziert]** markiert Annahmen und Standardwerte ohne belastbare

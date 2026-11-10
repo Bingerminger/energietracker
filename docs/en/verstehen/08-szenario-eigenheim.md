@@ -145,7 +145,7 @@ Since v1.7.0, two PV utilities belong to the standard home setup:
 `pv_einspeisung` (the distribution grid operator's meter) and `pv_erzeugung` (the
 inverter's total yield). They are NOT active in the default settings — anyone
 without a system sees nothing of them. Anyone with a system activates both in
-*Settings → Utilities & billing → Active utilities*.
+*Household → Utilities → Active utilities*.
 
 ### 6.1 Which meters do I need?
 
@@ -153,7 +153,7 @@ without a system sees nothing of them. Anyone with a system activates both in
 |---|---|
 | Only a feed-in meter (standard commissioning up to ~2022) | Activate only `pv_einspeisung`. The electricity balance is computed, self-consumption/self-sufficiency rate stay zero (`has_generation_meter: false`). |
 | Feed-in meter + generation meter at the inverter | Activate both. Full view: electricity balance, self-consumption rate, self-sufficiency rate. |
-| System with a battery | Activate both as above; the app shows the *effective* self-sufficiency rate (the battery automatically raises the self-consumption in the numbers). Since v3.1.0 also one meter each for charging and discharging under PV generation (roles “Battery – charging”, “Battery – discharging”) — then the card “Battery” shows losses, efficiency and full cycles ([PV §7](12-pv.md#7-battery-v310)). |
+| System with a battery | Activate both as above; the app shows the *effective* self-sufficiency rate (the battery automatically raises the self-consumption in the numbers). Since v3.1.0 also one meter each for charging and discharging under PV generation (roles “Battery (charging)”, “Battery (discharging)”) — then the card “Battery” shows losses, efficiency and full cycles ([PV §7](12-pv.md#7-battery-v310)). |
 | Several PV strings (e.g. south and east roof with separate inverters) | Create one `pv_erzeugung` meter per string — the app sums them for the dashboard automatically. |
 
 ### 6.2 Contract = feed-in tariff
@@ -283,7 +283,7 @@ drops: with module 1 by a fixed amount per year (in the electricity contract
 
 ---
 
-## 7. Appointments & maintenance
+## 7. Dates
 
 Create recurring appointments (heating service, chimney sweep, meter calibration
 deadline, PV system inspection every 4 years). Due/overdue appointments appear on

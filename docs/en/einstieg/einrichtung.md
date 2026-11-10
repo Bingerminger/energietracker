@@ -28,7 +28,7 @@ data.
 
 ### The steps
 
-The “Set up” dialog has five steps (“Step 1 of 5”), six with electricity and solar. Since **v3.9.0** each
+The “Set up” dialog has six steps (“Step 1 of 6”), seven with electricity and solar. Since **v3.9.0** each
 question has a small drawing next to it (globe, houses, meters, levels, tray),
 and each answer to “Who are you?” shows a small house picture instead of an
 emoji. The pictures are only decoration; the question and the text of the
@@ -62,13 +62,16 @@ answer say everything.
    different layout preselects “Set up metering concept” at the end; afterwards
    the “metering concept” assistant opens
    ([views](../referenz/ansichten.md#assistant-set-up-metering-concept-v390-github-40)).
-   The dialog then has six steps.
+   The dialog then has seven steps.
 
    ![Step “How are your meters connected?” with “One meter per utility” and “A different layout”](../../ui/screenshots/en/einrichtung-zaehler.png)
 
 4. **“How much experience do you have?”** — Beginner, Experienced or Expert
    ([§ 3](#3-experience-levels)).
-5. **“What comes next”** — the summary and one of three ways *(since
+5. **“How do you want to work?”** *(since v3.12.0)* — the three questions of the quick choice from the
+   [setup guide](wegweiser.md): smart meters or Home Assistant, supplier mail, AI. No question is required,
+   nothing is set up and nothing is saved in the household. At the end, the last step names the matching way as a link.
+6. **“What comes next”** — the summary and one of three ways *(since
    v3.7.0)*, with electricity since v3.9.0 one of four:
    - **“From documents”** *(recommended)* takes you to the inbox: file supplier
      mail as PDF, have it read, and a draft of your household is built —
@@ -91,7 +94,7 @@ answer say everything.
      snapshot first.
 
 Nothing is saved until **“Let’s go”**: the active utilities, the tenure
-(Settings → Household & building → “I live”: “in a rented home” for “I rent my
+(Household → Building → “I live”: “in a rented home” for “I rent my
 home”, otherwise “in my own home”), your answer in step 2 and the level.
 Language and country only if you changed them:
 
@@ -120,7 +123,7 @@ Wood pellets on, Gas off.
 
 ### Start it again
 
-Settings → General → card “Experience level and setup” → **“Start the setup
+Settings → For you → card “Experience level and setup” → **“Start the setup
 assistant”**. When you start it again, the language of this device, your
 country, your active utilities and your level are preselected; below the
 country you see what applies now (“Current settings for …”). An answer in
@@ -211,7 +214,7 @@ The sample households show the difference that the note in step 3 explains:
 
 - **In the assistant:** choose the answer in step 2, then “Look at it with
   sample data” at the end.
-- **Settings → Data → “Load demo data”** and **“Try with sample data”** on the
+- **Settings → Data and backup → “Load demo data”** and **“Try with sample data”** on the
   empty overview load the showcase.
 
 A sample household **replaces the whole household**: meters, readings,
@@ -221,8 +224,8 @@ v3.5.0 so do **language, country, currency, time zone and the unit of the
 calorific value** (up to v3.4 the language fell back to German). Location,
 heating limit and CO₂ factors come with the sample household — it is in
 Leipzig. The app saves a
-snapshot first; if there is data already, it asks before. To go back: Settings
-→ Data → “Stored snapshots” → “Restore…”. With
+snapshot first; if there is data already, it asks before. To go back: Settings →
+Data and backup → “Stored snapshots” → “Restore…”. With
 [users](../anleitungen/benutzer.md), only someone who manages the installation
 can load one.
 
@@ -249,7 +252,7 @@ level. Every feature on its own, with three households to choose from:
 
 | Area | 🌱 Beginner | 🌿 Experienced | 🌳 Expert |
 |---|---|---|---|
-| Overview | three answers: Will I get money back? More or less than last year? What needs doing? — with one explainer | all key figures, since v3.7.0 with the “Explainers” section | as Experienced |
+| Overview | three answers: Will I get money back? More or less than last year? What needs doing? — with one explainer | plus tiles per utility and figures; the cards and “Explainers” under Analysis › Key figures | as Experienced |
 | Meter readings | record, photo as a receipt | plus CSV import | plus time series from portals |
 | Consumption per utility | monthly trend, balance, explainers — for PV, wallbox and heat pump too | plus previous year, weather-adjusted, table; since v3.7.0 seasonal performance factor, battery and payback, charging record | plus hot water heat and CO₂ price in the fuel |
 | Contracts | unit price, standing charge, advance; since v3.7.0 the notice period and, for district heating, capacity and metering charge | plus price changes, bonuses, how cancellation takes effect, minimum term, special payments | plus groups and peak/off-peak, § 14a, monthly prices, district heating key figures |
@@ -276,7 +279,7 @@ level. Every feature on its own, with three households to choose from:
 
 - **Top bar**, next to light/dark: the “Experience level” selector. The level
   applies at once; navigation and view rebuild themselves.
-- **Settings → General → “Experience level and setup”**: the same selector,
+- **Settings → For you → “Experience level and setup”**: the same selector,
   plus one line per level on what it shows.
 
 **Who it applies to:** without sign-in the level applies to the whole
@@ -305,13 +308,13 @@ three answers instead of all key figures:
   prepayment per month when it gets tight.
 
 Below, the explainer “Where does my money go?” explains the contract with the
-highest advance; at the top is the button “Add reading”. The figures are the
-same as at the other levels.
+highest advance. Readings go through “Add” at the top or in the tab bar.
+The figures are the same as at the other levels.
 
 ### Suggestions to move up
 
 If your household needs more than the level shows, the overview suggests the
-next level: “Your household has more than this level shows — “…” shows it.”
+next level: “Your household has more than this level shows. “…” shows it.”
 
 | Level | Reason in the household | Suggestion |
 |---|---|---|
@@ -340,7 +343,7 @@ Four pictures, each answering one question — with your figures:
 
 - **Consumption view of a utility**, at every level: the card “Explainers”
   with all that fit this utility.
-- **Overview, from the Experienced level** (since v3.7.0, up to v3.6 Expert): the “Explainers” section — money and timeline for
+- **Analysis › Key figures, from the Experienced level** (since v3.12.0, before that on the overview): the “Explainers” section — money and timeline for
   the contract with the highest advance, the energy flow of the previous year
   and “Colder, or used more?” for the heating.
 - **Overview, Beginner level:** one explainer, “Where does my money go?”.
@@ -357,9 +360,9 @@ with CSS animation, without a library.
 ## 5. The public demo
 
 Without installing anything: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/).
-On the first visit the assistant opens with four steps — “Language and
-country”, “Who are you?”, “How much experience do you have?” and “What comes
-next”. The demo then shows the chosen sample household; “Skip” shows the
+On the first visit the assistant opens with five steps — “Language and
+country”, “Who are you?”, “How much experience do you have?”, “How do you want
+to work?” and “What comes next”. The demo then shows the chosen sample household; “Skip” shows the
 showcase.
 
 - **Language:** applies per device, like the language choice in the notice
@@ -367,7 +370,7 @@ showcase.
   and cannot be changed — the demo has no server that could store it.
 - **The browser remembers** the language, the sample household and the level.
   Nothing else is saved in the demo.
-- **Change it:** Settings → General → “Start the setup assistant”.
+- **Change it:** Settings → For you → “Start the setup assistant”.
 - **Link directly:** `?persona=` with the name of the sample household, for
   example
   [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/?persona=eigenheim-modern).

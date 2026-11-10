@@ -17,10 +17,15 @@ use PHPUnit\Framework\Attributes\CoversClass;
  *
  * Erfundener Haushalt: Gas, abgelesen am 01.01.2025 und 01.01.2026, dazwischen 16.500 kWh.
  * Mit der angenommenen Fläche von 100 m²: 16.500 / 100 = 165 kWh/m²·a, Klasse F (160 bis 200).
+ *
+ * v3.12.0 — fester Stichtag 01.03.2026 (Empfehlungen und Kennzahl): Bezugsjahr ist das letzte volle
+ * Kalenderjahr, 2025. Mit dem echten Datum wäre es ab 2027 das Jahr 2026, ohne Ablesungen.
  */
 #[CoversClass(RecommendationService::class)]
 final class EfficiencyAreaAssumedTest extends ServiceTestCase
 {
+    private const TODAY = '2026-03-01';
+
     private function household(array $settings = []): array
     {
         $this->store->write('settings.json', ['gas_conversion_factors' => [['from' => null, 'kwh_per_m3' => 1.0]]] + $settings);
@@ -32,9 +37,9 @@ final class EfficiencyAreaAssumedTest extends ServiceTestCase
         ]);
         $this->store->write('gas/contracts.json', []);
         $recs = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings,
-            new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n),
+            new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n, null, self::TODAY),
             new DeliveryService($this->store, $this->meters, $this->i18n), $this->i18n);
-        return array_values(array_filter($recs->all(), fn($r) => str_starts_with((string)$r['id'], 'r7_')));
+        return array_values(array_filter($recs->atDate(self::TODAY)->all(), fn($r) => str_starts_with((string)$r['id'], 'r7_')));
     }
 
     public function testTheEfficiencyClassSaysWhenTheLivingAreaIsAssumed(): void

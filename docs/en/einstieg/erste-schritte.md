@@ -107,11 +107,11 @@ From now on the app computes not only consumption but also **costs** and the
 ## 5. Fetch temperatures (for heating analysis & forecast)
 
 So that "consumed more, or just colder?" can be answered, gas (and district
-heating) need outdoor temperatures. Sidebar → **Settings → Weather data**:
+heating) need outdoor temperatures. Sidebar → **Connections → Weather data**:
 
 - **Open-Meteo** for the location stored in the settings (default: Leipzig —
   change it to your location!). Since v2.8.0 the app fetches the temperatures
-  itself once a day when it is opened (*Settings → Weather data → Fill weather
+  itself once a day when it is opened (*Connections → Weather data → Fill weather
   automatically*); only the location, rounded to about 1 km, is transmitted. The
   **Sync Open-Meteo** button triggers the sync immediately. **Or**
 - import a temperature CSV — the sync never overwrites your own values.
@@ -144,7 +144,7 @@ Now the input pays off:
 
 ## 7. Back up
 
-Sidebar → **Settings → Data → Backup & restore → Download JSON backup**. That
+Sidebar → **Settings → Data and backup → Backup & restore → Download JSON backup**. That
 is a complete, portable snapshot (format 3.0) for moving or backing up. In
 Docker operation your data is in the mounted `data/` volume anyway.
 
@@ -152,6 +152,7 @@ Docker operation your data is in the mounted `data/` volume anyway.
 
 ## What next?
 
+- **Which way suits you, with or without Home Assistant and AI?** → [Setup guide](wegweiser.md)
 - **Main and sub-meters, bundling meters?** →
   [Meter topology](../verstehen/13-meter-topologie.md)
 - **Values automatically from Home Assistant?** → [Home Assistant](../anleitungen/home-assistant.md)
@@ -166,7 +167,7 @@ Docker operation your data is in the mounted `data/` volume anyway.
 
 ## Shortcut: demo data
 
-To just try it out you don't have to type anything: **Settings → Data → Backup &
+To just try it out you don't have to type anything: **Settings → Data and backup → Backup &
 restore → Load demo data** imports a complete example dataset across eight
 utilities — all except heat (with a warning + auto-snapshot if data already
 exists). After that you
@@ -174,7 +175,7 @@ can continue right at [step 6](#6-evaluate).
 
 Since v3.2.0 there are also four smaller sample households — rented flat,
 owner-occupied flat with district heating, classic and modern house. You load
-them through the setup assistant (Settings → General → “Start the setup
+them through the setup assistant (Settings → For you → “Start the setup
 assistant”), see [The sample households](einrichtung.md#2-the-sample-households).
 
 Since v3.0.0 the sample household reaches up to today: readings, deliveries and

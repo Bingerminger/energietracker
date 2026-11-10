@@ -49,7 +49,9 @@ final class AdvanceRhythmTest extends ServiceTestCase
 
     private function balanceRow(): array
     {
-        return $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->meterId), '2026-07-31')['contracts'][0];
+        // v3.12.0 — Stichtag am Tag der Ablesung 01.08.: Juli ist gemessen. Am 31.07. gibt es den Stand vom
+        // 01.08. noch nicht, der Juli wäre geschätzt (bis v3.11 zählte der Stand trotzdem schon mit).
+        return $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->meterId), '2026-08-01')['contracts'][0];
     }
 
     public function testMonthlyStaysExactlyAsBefore(): void

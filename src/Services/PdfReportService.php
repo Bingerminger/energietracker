@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Services\Pdf\Chart;
+use Energietracker\Services\Pdf\Icons;
 use Energietracker\Services\Pdf\Metrics;
 use Energietracker\Services\Pdf\PdfWriter;
 use Energietracker\Config\Utilities;
@@ -279,14 +280,14 @@ final class PdfReportService
         $this->pageTitle = $m['texts']['important'];
         $pdf->bookmark($m['texts']['important'], 0, self::TOP);
         $W = $this->W(); $cw = $this->cw();
-        // Kopf: Titel, Haushalt, Datum
-        $pdf->roundRect(self::M, self::TOP, $cw, 86, 8, self::ACCENT);
-        $pdf->text(self::M + 18, self::TOP + 22, 'ENERGIETRACKER', 9, true, [219, 234, 254]);
-        $pdf->text(self::M + 18, self::TOP + 50, (string)$m['texts']['title'], 24, true, [255, 255, 255]);
+        // Kopf: Titel, Haushalt, Datum. v3.12.0 (Sichtung S7) — ruhig: Schrift auf Papier, eine feine Linie statt einer blauen Fläche
+        $pdf->text(self::M, self::TOP + 10, 'Energietracker', 10, true, self::MUTE);
+        $pdf->text(self::M, self::TOP + 38, (string)$m['texts']['title'], 24, true, self::INK);
         $sub = trim((string)$m['location_name']);
         $created = $this->i18n->t('report.createdOn', ['date' => $this->i18n->date((string)$m['created_on'])]);
-        $pdf->text(self::M + 18, self::TOP + 72, $sub !== '' ? "$sub · $created" : $created, 10, false, [255, 255, 255]);
-        $this->y = self::TOP + 104;
+        $pdf->text(self::M, self::TOP + 58, $sub !== '' ? "$sub · $created" : $created, 10, false, self::MUTE);
+        $pdf->line(self::M, self::TOP + 70, self::M + $cw, self::TOP + 70, 0.5, self::RULE);
+        $this->y = self::TOP + 84;
         $pdf->text(self::M, $this->y + 10, $m['texts']['important'], 15, true, self::INK);
         $this->y += 24;
 
@@ -364,11 +365,12 @@ final class PdfReportService
     {
         $pdf = $this->pdf;
         $x = self::M + $indent;
-        $sym = ['one', 'two', 'three'][max(0, min(2, (int)($t['priority'] ?? 3) - 1))];
+        $prio = max(1, min(3, (int)($t['priority'] ?? 3)));
         $col = [1 => [185, 28, 28], 2 => [161, 98, 7], 3 => [71, 85, 105]][(int)($t['priority'] ?? 3)] ?? self::MUTE;
         // eine Aufgabe nicht über zwei Seiten reißen
         if (!$this->measuring) $this->ensure($this->measure(fn() => $this->taskBlock($t, $indent, $width, $compact)));
-        $pdf->symbol($x, $this->y + 11, $sym, 12, $col);
+        // v3.12.0 (Sichtung S7) — die Rangzahl als Text in der Farbe der Dringlichkeit, kein Symbol
+        $pdf->text($x + 2, $this->y + 11, (string)$prio, 11, true, $col);
         $titleLines = $pdf->wrap((string)$t['title'], 11, $width - 22, true);
         foreach ($titleLines as $k => $line) $pdf->text($x + 20, $this->y + 11 + $k * 14, $line, 11, true, self::INK);
         $this->y += 11 + count($titleLines) * 14 - 2;
@@ -400,7 +402,7 @@ final class PdfReportService
         if ($items === []) $this->para($m['texts']['successesNone'], self::BODY, self::MUTE);
         foreach ($items as $s) {
             $this->ensure(60);
-            $pdf->symbol(self::M, $this->y + 11, 'star', 12, [21, 128, 61]);
+            Icons::draw($pdf, 'erfolg', self::M - 1, $this->y, 14, [21, 128, 61]);
             $lines = $pdf->wrap((string)$s['title'], 11.5, $this->cw() - 22, true);
             foreach ($lines as $k => $line) $pdf->text(self::M + 20, $this->y + 11 + $k * 14, $line, 11.5, true, self::INK);
             $this->y += 11 + count($lines) * 14 - 2;
@@ -422,7 +424,7 @@ final class PdfReportService
             $this->h2($m['texts']['goodToKnow']);
             foreach ($infos as $i) {
                 $this->ensure(36);
-                $pdf->symbol(self::M, $this->y + 10, 'diamond', 9, self::MUTE);
+                Icons::draw($pdf, 'info', self::M - 1, $this->y, 14, self::MUTE);
                 $pdf->text(self::M + 20, $this->y + 10, (string)$i['title'], 11, true, self::INK);
                 $this->y += 14;
                 $this->para((string)$i['reason'], self::SMALL, self::INK, false, 20, 8);

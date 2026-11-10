@@ -39,10 +39,12 @@ dom.window.scrollTo = () => {};
 
 // Gestelltes fetch: jede Antwort braucht 150 ms und respektiert das Abbruchsignal
 const fetchLog = [];
+let healthVersion = null;   // v3.12.0 — Version, die /api/health meldet (null: keine)
 global.fetch = (url, opts = {}) => new Promise((res, rej) => {
   const entry = { url: String(url), signal: opts.signal, aborted: false };
   fetchLog.push(entry);
-  const timer = setTimeout(() => res(new Response(JSON.stringify({ success: true, data: { ok: 1 } }),
+  const data = healthVersion && String(url).includes('/api/health') ? { status: 'ok', version: healthVersion } : { ok: 1 };
+  const timer = setTimeout(() => res(new Response(JSON.stringify({ success: true, data }),
     { status: 200, headers: { 'content-type': 'application/json' } })), 150);
   opts.signal?.addEventListener('abort', () => {
     entry.aborted = true;
@@ -103,7 +105,8 @@ const routes = [
 ];
 const view = document.getElementById('view');
 console.error = () => {};   // der Router protokolliert den absichtlichen Fehler
-startRouter(view, { routes, views });
+calls.reloads = 0;
+startRouter(view, { routes, views, reload: () => { calls.reloads++; } });
 await sleep(20);
 
 // 1. Eine langsame Ansicht überschreibt die schnellere nicht
@@ -147,7 +150,7 @@ t('Ansicht ohne Wegklicken bekommt ihre Daten', view.textContent.includes('Daten
 location.hash = '#/failing';
 await sleep(60);
 const retry = view.querySelector('[data-act="retry"]');
-t('Fehler zeigt „Erneut versuchen"', !!retry && !!view.querySelector('.banner--error'));
+t('Fehler zeigt „Erneut versuchen"', !!retry && !!view.querySelector('.infobox--fehler'));
 retry?.click();
 await sleep(60);
 t('„Erneut versuchen" lädt die Ansicht neu', calls.failRenders === 2, `${calls.failRenders} Versuche`);
@@ -155,7 +158,26 @@ t('„Erneut versuchen" lädt die Ansicht neu', calls.failRenders === 2, `${call
 // 6. Unbekannte Adresse
 location.hash = '#/gibtsnicht';
 await sleep(40);
-t('unbekannte Adresse meldet sich', !!view.querySelector('.banner--warning'));
+t('unbekannte Adresse meldet sich', !!view.querySelector('.infobox--achtung'));
+await sleep(200);
+t('… und lädt nicht neu, solange der Server keine andere Version meldet', calls.reloads === 0, `${calls.reloads}×`);
+
+// 6b. v3.12.0 — Tab, der über ein Update offen blieb: Der Server meldet eine andere Version als
+// body[data-app-version] ("0"). Die neue Adresse kennt nur der neue Stand: einmal neu laden.
+healthVersion = '9.9.9';
+location.hash = '#/neu-nach-dem-update';
+await sleep(250);
+t('unbekannte Adresse nach einem Update lädt die Seite neu', calls.reloads === 1, `${calls.reloads}×`);
+location.hash = '#/start';
+await sleep(60);
+location.hash = '#/neu-nach-dem-update';
+await sleep(250);
+t('… nur einmal je Version (keine Schleife)', calls.reloads === 1, `${calls.reloads}×`);
+healthVersion = '0';
+location.hash = '#/gibtsnicht-2';
+await sleep(250);
+t('… und nicht, wenn der Server dieselbe Version meldet', calls.reloads === 1, `${calls.reloads}×`);
+healthVersion = null;
 
 // 7. Zurück-Taste schließt einen offenen Dialog, ohne die Seite zu verlassen
 location.hash = '#/start';

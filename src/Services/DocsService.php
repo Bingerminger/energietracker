@@ -16,8 +16,9 @@ namespace Energietracker\Services;
  * Dateibestand:
  *   • Seiten unter docs/ (`*.md`) — ohne die Weiterleitungen alter Pfade
  *     (`<!-- umgezogen: … -->` bzw. `<!-- moved: … -->` in Zeile 1);
- *   • Bilder: PNG unter docs/ui/screenshots/ (docs/assets/promo/ und alles
- *     andere bleibt außen vor);
+ *   • Bilder: PNG unter docs/ui/screenshots/ und, seit v3.12.0, die erzeugten
+ *     SVG unter docs/ui/wegweiser/ (docs/assets/promo/ und alles andere bleibt
+ *     außen vor);
  *   • eine feste Liste von Dateien im Wurzelverzeichnis (ROOT_FILES), die die
  *     Doku verlinkt, als `root/<name>`.
  * Eine Anfrage ist ein reiner Nachschlag in dieser Map: Der Pfad aus der
@@ -46,9 +47,14 @@ final class DocsService
         'LICENSE'            => 'en',
     ];
 
-    /** Bilder: Verzeichnis unter docs/ und erlaubte Typen (Endung → Content-Type). */
-    private const ASSET_DIR = 'ui/screenshots/';
-    private const ASSET_TYPES = ['png' => 'image/png'];
+    /**
+     * Bilder: Verzeichnisse unter docs/ mit ihren Typen (Endung → Content-Type). SVG nur
+     * aus dem Wegweiser: Die Dateien erzeugt tools/build-setup-guide.mjs, die CI prüft sie.
+     */
+    private const ASSET_DIRS = [
+        'ui/screenshots/' => ['png' => 'image/png'],
+        'ui/wegweiser/'   => ['svg' => 'image/svg+xml'],
+    ];
 
     /** @var array{pages: array<string,string>, assets: array<string,string>, stubs: array<string,string>}|null */
     private ?array $index = null;
@@ -104,6 +110,16 @@ final class DocsService
         ];
     }
 
+    /** Content-Type eines Bildes, oder null, wenn Ordner und Endung nicht zusammen freigegeben sind. */
+    private static function assetType(string $key): ?string
+    {
+        $ext = strtolower(pathinfo($key, PATHINFO_EXTENSION));
+        foreach (self::ASSET_DIRS as $dir => $types) {
+            if (str_starts_with($key, $dir) && isset($types[$ext])) return $types[$ext];
+        }
+        return null;
+    }
+
     /**
      * Ein Bild: Datei und Content-Type — oder null, wenn nicht freigegeben.
      *
@@ -113,7 +129,7 @@ final class DocsService
     {
         $file = $this->assets()[$path] ?? null;
         if ($file === null) return null;
-        return ['file' => $file, 'type' => self::ASSET_TYPES[strtolower(pathinfo($file, PATHINFO_EXTENSION))]];
+        return ['file' => $file, 'type' => self::assetType($path) ?? 'application/octet-stream'];
     }
 
     /**
@@ -184,7 +200,7 @@ final class DocsService
                 if (str_ends_with($key, '.md')) {
                     if (self::isStub($f->getPathname())) $stubs[$key] = $f->getPathname();
                     else $pages[$key] = $f->getPathname();
-                } elseif (str_starts_with($key, self::ASSET_DIR) && isset(self::ASSET_TYPES[strtolower($f->getExtension())])) {
+                } elseif (self::assetType($key) !== null) {
                     $assets[$key] = $f->getPathname();
                 }
             }

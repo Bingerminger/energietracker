@@ -22,6 +22,7 @@ export const AREAS = {
   tenancy_statement: 'tenancy',  // v3.5.0 — Nebenkostenabrechnung geändert
   recommendation: 'recommendations',
   inbox: 'contracts',            // v3.7.0 — aus einem Dokument im Posteingang übernommen
+  reading: 'readings',           // v3.12.0 (F1037) — Ablesung von einer KI vorgeschlagen und übernommen
 };
 export const AREA_KEYS = ['reminders', 'contracts', 'readings', 'tank', 'tenancy', 'recommendations'];
 
@@ -67,7 +68,14 @@ export function byText(by) {
   if (!by) return '';
   switch (by.type) {
     case 'person': return personText(by);
-    case 'key': return t('activity.by.key', { name: by.name || '' });
+    // v3.12.0 (F1037) — eine KI über ihren Schlüssel (`via: mcp`); (Skeptiker M1) in der App bestätigt: beides
+    case 'key': {
+      const name = by.name || '';
+      if (by.via !== 'mcp') return t('activity.by.key', { name });
+      const c = by.confirmed_by;
+      if (!c) return t('activity.by.mcp', { name });
+      return c.type === 'person' ? t('activity.by.mcpConfirmed', { name, person: personText(c) }) : t('activity.by.mcpConfirmedApp', { name });
+    }
     case 'integration': return INTEGRATIONS[by.name] || by.name || '';
     case 'auto': return t('activity.by.auto');
     default: return '';

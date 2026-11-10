@@ -8,7 +8,7 @@
 // (`accounting_kind` in `/api/utilities`).
 // =====================================================================
 import { t } from './i18n.js';
-import { fmt } from './format.js';
+import { fmt, escapeHtml } from './format.js';
 
 export const isFeedIn     = (u) => u?.accounting_kind === 'feed_in';
 export const isGeneration = (u) => u?.accounting_kind === 'generation';
@@ -22,7 +22,7 @@ export const usesGasFactors = (u) => u?.unit === 'm³' && u?.consumption_unit ==
 export function changeTone(delta, u) {
   if (!delta) return '';
   const good = moreIsBetter(u) ? delta > 0 : delta < 0;
-  return good ? 'success-text' : 'danger-text';
+  return good ? 'ton-ok' : 'ton-fehler';
 }
 
 /**
@@ -116,8 +116,9 @@ export function bandText(band) {
 export function balanceView(v, u, money = fmt.eur) {
   const n = Number(v);
   if (v == null || !Number.isFinite(n)) return null;
+  // v3.12.0 (Sichtung S1) — neutral nur bei genau 0, und dann ohne Betrag
   if (Math.abs(n) < 0.005) {
-    return { credit: null, amount: 0, word: t('saldo.even'), cls: 'muted', signed: money(0) };
+    return { credit: null, amount: 0, word: t('saldo.even'), cls: 'muted', signed: t('saldo.even') };
   }
   const credit = isFeedIn(u) ? n > 0 : n < 0;
   const amount = Math.abs(n);
@@ -125,9 +126,67 @@ export function balanceView(v, u, money = fmt.eur) {
     credit,
     amount,
     word: t(credit ? 'saldo.credit' : (isFeedIn(u) ? 'saldo.reclaim' : 'saldo.due')),
-    cls: credit ? 'success-text' : 'danger-text',
+    cls: credit ? 'ton-ok' : 'ton-fehler',
     signed: `${credit ? '+' : '−'}${money(amount)}`,
   };
+}
+
+/**
+ * v3.12.0 (Sichtung S1) — ein Saldo als fertiges HTML: Wort und Betrag in der Farbe seines Vorzeichens, bei genau 0
+ * nur das Wort. Die eine Stelle für Karten, Zeilen und Sätze, leer ohne Saldo.
+ * @param {number|null|undefined} v  positiv = Nachzahlung (Einspeisung: Anspruch)
+ * @param {object} u  Verbrauchsart
+ * @param {(n: number) => string} [money]
+ * @returns {string}
+ */
+export function balanceHtml(v, u, money = fmt.eur) {
+  const b = balanceView(v, u, money);
+  if (!b) return '';
+  return b.credit === null
+    ? `<span class="${b.cls}" data-saldo="even">${escapeHtml(b.word)}</span>`
+    : `<span class="${b.cls}" data-saldo="${b.credit ? 'credit' : 'due'}">${escapeHtml(`${b.word} ${money(b.amount)}`)}</span>`;
+}
+
+/**
+ * v3.12.0 (Sichtung S1) — der Schlüssel unter `utility.verdict` nach dem Vorzeichen. Der Server meldet `verdict` mit einer
+ * Toleranz von 5 € (API, bleibt); die Oberfläche nennt bis auf den Cent, wohin der Saldo zeigt.
+ */
+export function verdictKey(v, u) {
+  const b = balanceView(v, u);
+  if (!b || b.credit === null) return 'balanced';
+  if (isFeedIn(u)) return b.credit ? 'payout' : 'reclaim';
+  return b.credit ? 'refund' : 'surcharge';
+}
+
+/**
+ * v3.12.0 (Sichtung S1) — Katalogtext mit Teilen, die schon HTML sind: Der Rest wird maskiert, die Teile bleiben.
+ * @param {string} key
+ * @param {object} params  Parameter als Text
+ * @param {Object<string, string>} html  Parameter als fertiges HTML
+ * @returns {string}
+ */
+export function tHtml(key, params, html) {
+  const names = Object.keys(html);
+  const marks = Object.fromEntries(names.map((k, i) => [k, `\u0001${i}\u0002`]));
+  return escapeHtml(t(key, { ...params, ...marks })).replace(/\u0001(\d+)\u0002/g, (_, i) => html[names[Number(i)]]);
+}
+
+/**
+ * v3.12.0 (Sichtung S1) — die Spanne einer unsicheren Schätzung wie `uncertainRangeText`, jedes Ende in der Farbe seines
+ * Vorzeichens: Eine Spanne über die Null hinweg zeigt Grün und Rot, statt neutral zu bleiben.
+ * @param {object|null|undefined} unc
+ * @returns {string} leer ohne Spanne
+ */
+export function uncertainRangeHtml(unc) {
+  const r = Array.isArray(unc?.projected_range) ? unc.projected_range.map(Number) : null;
+  if (!r || r.length !== 2 || !r.every(Number.isFinite)) return '';
+  const end = (v) => {
+    if (Math.abs(v) < 1) return `<span class="muted" data-saldo="even">${escapeHtml(t('balanceUncertain.even'))}</span>`;
+    const text = t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
+    return `<span class="${v > 0 ? 'ton-fehler' : 'ton-ok'}" data-saldo="${v > 0 ? 'due' : 'credit'}">${escapeHtml(text)}</span>`;
+  };
+  const [a, b] = balanceRangeEnds(r);
+  return tHtml('balanceUncertain.short', {}, { low: end(a), high: end(b) });
 }
 
 /**

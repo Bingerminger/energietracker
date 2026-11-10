@@ -18,7 +18,7 @@ Die Beispiele verwenden `192.168.178.10:8080` als Adresse — setze deine ein.
 
 **Vorbereitung im Energietracker** (wie bei Home Assistant, Schritte 1 und 2):
 
-- Unter **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** einen
+- Unter **Verbindungen → Home Assistant** einen
   **Token** erzeugen (`et_…`). Ohne Anmeldung ist er optional, mit
   eingeschalteter Anmeldung Pflicht. Er gilt nur für den Push — ein
   API-Schlüssel (`etk_…`) ist etwas anderes.

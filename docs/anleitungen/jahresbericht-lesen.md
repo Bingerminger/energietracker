@@ -157,6 +157,13 @@ eine Saldo-Schätzung unsicher, zeigt die Ampel „Abrechnung“ keinen Haken, s
 „Schätzung unsicher“ mit der Spanne, und „Wohin geht mein Geld?“ nennt Kosten und
 Ergebnis als Spanne.
 
+*(v3.12.0)* **Zahl, Prozentangabe und Linie der Kachel „Verbrauch“ zeigen dieselbe
+Größe.** Bereinigt wird eine Heizart nur, wenn beide verglichenen Jahre bereinigt
+sind; dann auch in der Linie. Fehlt einem früheren Jahr die bereinigte Menge,
+etwa vor einer Analyse-Zäsur, bleibt sein Punkt leer, statt roh dazwischen zu
+stehen. Die Linie endet damit bei der großen Zahl. Bis v3.11 nahm sie je Jahr
+für sich die bereinigte Menge, wo es eine gab.
+
 Einen Rechtshinweis gibt es nur dort, wo die App ihn ohnehin führt: bei einer
 Preiserhöhung derselbe Hinweis wie an der Saldo-Karte (nur in Deutschland): das
 Sonderkündigungsrecht nach § 41 Abs. 5 EnWG bzw. § 5 Abs. 3 StromGVV/GasGVV je
@@ -200,8 +207,8 @@ Details in der [API-Referenz](../referenz/api.md#get-apireportsyearlypdfyearyyyy
 Der Energietracker verschickt selbst nichts. Wer den Bericht jedes Jahr
 automatisch bekommen möchte, lässt Home Assistant ihn holen und weiterreichen.
 
-**1. API-Schlüssel** (nur mit eingeschalteter Anmeldung): Einstellungen →
-Zugriff → „API-Schlüssel für Skripte“, Bereich **„Lesen“**. Ohne Anmeldung
+**1. API-Schlüssel** (nur mit eingeschalteter Anmeldung): Verbindungen → Schlüssel →
+„API-Schlüssel für Skripte“, Bereich **„Lesen“**. Ohne Anmeldung
 entfällt die Kopfzeile mit `Authorization`.
 
 **2. Befehl zum Holen** in die `secrets.yaml` — der ganze Befehl, damit der

@@ -9,7 +9,7 @@ import { fmt, escapeHtml } from './format.js';
 import { t } from './i18n.js';
 
 export const AREA_LINKS = {
-  household: '#/settings/household?field=wohnflaeche_m2',
+  household: '#/household/building?field=wohnflaeche_m2',
   tenancy:   '#/tenancy?field=wohnflaeche_m2',
 };
 
@@ -18,6 +18,6 @@ export const AREA_LINKS = {
  * @param {'household'|'tenancy'} where  wohin der Link führt
  */
 export function areaAssumedHtml(area, where = 'household') {
-  return `<p class="banner banner--warning" data-role="area-assumed">${escapeHtml(t('area.assumed', { area: fmt.num(area, 0) }))}
+  return `<p class="infobox infobox--achtung" data-role="area-assumed">${escapeHtml(t('area.assumed', { area: fmt.num(area, 0) }))}
     <a href="${AREA_LINKS[where] || AREA_LINKS.household}">${escapeHtml(t(where === 'tenancy' ? 'area.enterTenancy' : 'area.enterHousehold'))}</a></p>`;
 }

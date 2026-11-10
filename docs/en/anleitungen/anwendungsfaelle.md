@@ -24,7 +24,7 @@ used in concrete living situations. Each case names the **meters**, the
 
 Four households come ready-made, with made-up data. To load one:
 
-1. Settings → General → **“Start the setup assistant”**.
+1. Settings → For you → **“Start the setup assistant”**.
 2. At “Who are you?” pick the household: “I rent my home”, “Owner-occupied flat
    with district heating”, “Own house with gas, oil or pellets” or “Own house
    with heat pump and solar”. “Just look at everything first” loads the
@@ -32,12 +32,12 @@ Four households come ready-made, with made-up data. To load one:
 3. At the end choose **“Look at it with sample data”**.
 
 This replaces **all** data of this installation. The app takes a snapshot
-first; you restore it under Settings → Data. Once users are set up, only an
+first; you restore it under Settings → Data and backup. Once users are set up, only an
 administrator may do this.
 
 In the [public demo](https://bingerminger.github.io/energietracker/) the
 assistant asks on your first visit which household you want to see. You pick
-another one there the same way, under Settings → General → Setup assistant.
+another one there the same way, under Settings → For you → Setup assistant.
 More: [Setup](../einstieg/einrichtung.md).
 
 ---
@@ -90,7 +90,7 @@ meter). Nobody wants to type values anymore.
 
 **Setup.**
 
-1. In **Settings → Integrations → 🏠 Home Assistant integration**, generate an
+1. In **Connections → Home Assistant**, generate an
    **API token** (copy it once).
 2. Give each meter an **alias**: `strom_haus`, `gas_haus`, `wasser_haus`.
 3. In HA, insert the ready-made `rest_command` YAML (copyable from the settings)
@@ -137,7 +137,7 @@ consumption of the heat pump.
 
 **Setup.**
 
-1. In **Settings → Utilities & billing → Active utilities**, activate
+1. In **Household → Utilities → Active utilities**, activate
    `pv_einspeisung` and `pv_erzeugung`.
 2. Create meters:
    - `strom` *"house connection"* (grid draw),
@@ -164,7 +164,7 @@ consumption of the heat pump.
   electricity, SPF 3.6 (made-up example;
   [Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
 - **Battery.** Charging and discharging meters under PV generation (roles
-  “Battery – charging” and “Battery – discharging”) give losses, efficiency and
+  “Battery (charging)” and “Battery (discharging)”) give losses, efficiency and
   full cycles ([PV §7](../verstehen/12-pv.md#7-battery-v310)).
 - **Payback.** Investment and commissioning date on the inverter meter show
   when the system has paid for itself
@@ -213,7 +213,7 @@ separately and prepare the later utility bill.
 **What happens.** Under **Consumption → Electricity** or **Water**, the
 selection at the top shows every meter with consumption, cost and the balance of
 its contract; the overview shows the total per utility. The CSV export of the
-readings (Settings → Data) carries the meter on every row — the unit can be
+readings (Settings → Data and backup) carries the meter on every row — the unit can be
 filtered from it. The monthly overview exports the total per utility, not per
 unit.
 
@@ -283,7 +283,7 @@ contract — who sends you the bill?
 **Rule of thumb:** if you have a contract with the heat supplier yourself,
 create **District heating**. Otherwise it is **Heat**. That holds even if your
 rented building is on a district heating network: the landlord has the
-contract, for you it is heat. Under Settings → Household & building → “Heat
+contract, for you it is heat. Under Household → Building → “Heat
 comes from” you then choose “District heating” — it only counts for the CO₂
 approximation ([Heat §5](../verstehen/15-waerme.md#5-co₂--an-approximation)).
 The same goes for an owner-occupied flat where the owners’ association has the
@@ -580,7 +580,7 @@ contract is deducted.
 
 <!-- doc-claim: concept-wizard (metering-concepts.test.mjs) -->
 Fastest with the **Set up metering concept** assistant *(v3.9.0)*: under
-**Meters** of electricity or under **Settings → Utilities & billing → Metering
+**Meters** of electricity or under **Household → Utilities → Metering
 concept**. Answers: solar system, “Heat pump with a heat pump tariff”, HT/NT
 “Yes, on every import meter”, layout **Cascade**. It creates the meters per
 register with OBIS code, both groups, feed-in, solar generation and the three
@@ -589,7 +589,7 @@ v3.10.0 it also creates the feed-in register of Z2 and gives solar generation
 (Z3) the code 2.8.0; the diagram shows the solar system behind Z2. Before that
 the app saves a snapshot. By hand it goes like this:
 
-1. Under **Settings → Utilities & billing → Active utilities** activate
+1. Under **Household → Utilities → Active utilities** activate
    electricity, solar feed-in and solar generation.
 2. Create one electricity meter per **register**:
    - “Z1 import HT” and “Z1 import NT”, role “Heat pump (heating electricity)”,

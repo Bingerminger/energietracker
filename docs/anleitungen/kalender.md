@@ -18,8 +18,8 @@ als ganztägige Termine der nächsten 365 Tage, dazu alles schon Fällige:
 
 | Eintrag im Kalender | Wann |
 |---|---|
-| Termin aus „Termine & Wartung“ (Rauchmelder, Eichfrist …) | am Tag der nächsten Fälligkeit |
-| „Strom: Zählerstand ablesen (…)“ | wenn die letzte Ablesung länger her ist als unter Einstellungen → Allgemein → „Warnung nach“ eingestellt (Standard 45 Tage); ist das schon so, steht der Eintrag heute |
+| Termin aus „Zu tun → Termine“ (Rauchmelder, Eichfrist …) | am Tag der nächsten Fälligkeit |
+| „Strom: Zählerstand ablesen (…)“ | wenn die letzte Ablesung länger her ist als unter Einstellungen → Anzeige und Erinnerungen → „Warnung nach“ eingestellt (Standard 45 Tage); ist das schon so, steht der Eintrag heute |
 | „…: letzter Tag für die Kündigung (Anbieter)“ | am Kündigungsstichtag eines laufenden oder künftigen Vertrags — dafür braucht der Vertrag eine Kündigungsfrist und ein festes Ende. Seit v3.4.0 nicht mehr bei Verträgen, die weiterlaufen, unbefristet oder jederzeit kündbar sind: Ihr „letzter Tag“ war immer heute und wanderte täglich durch den Kalender |
 | „…: Vertragsende (Anbieter)“ | am festen Vertragsende; nicht bei Verträgen, die sich verlängern |
 | „…: Preisgarantie endet (Anbieter)“ | am letzten Tag der Preisgarantie |
@@ -44,7 +44,7 @@ ein **erledigter Hinweis** (von Hand abgehakt oder durch einen lückenlosen
 Folgevertrag) mit derselben UID stehen, bekommt „✓ “ vor den Titel und keine
 Vorab-Erinnerung mehr — wie das geht:
 [Hinweise erledigen](hinweise-erledigen.md). Die Texte stehen in
-der **Standardsprache der Installation** (Einstellungen → Allgemein), denn
+der **Standardsprache der Installation** (Einstellungen → Region und Sprache), denn
 Kalender schicken keine Sprache mit.
 
 **Zuständig *(v3.5.0)*:** Ist an einem Termin jemand zuständig, steht in der
@@ -60,7 +60,7 @@ im Haushalt derselbe; benachrichtigt wird niemand —
 
 ## Abo einrichten
 
-In der App: **Hinweise → Termine & Wartung → „Im Kalender abonnieren“**. Das
+In der App: **Zu tun → Termine → „Im Kalender abonnieren“**. Das
 Fenster zeigt zwei Adressen mit je einem Knopf „Adresse kopieren“:
 
 - `webcal://…` öffnet auf Mac und iPhone direkt die Kalender-App.
@@ -141,7 +141,7 @@ bis `/api.php` durch `http://<Adresse von Home Assistant>:8095`.
 - **Vorwarnung.** Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien,
   Preiserhöhungen und *(v3.11.0)* die Fristen aus „Deine Rechte als Kunde“
   (Sonderkündigung, Gebührenbescheid) tragen eine Erinnerung so viele Tage vorher, wie unter
-  Einstellungen → Allgemein → Erinnerungen → „Termin „bald fällig“ ab“ steht
+  Einstellungen → Anzeige und Erinnerungen → Erinnerungen → „Termin „bald fällig“ ab“ steht
   (Standard 14). `0` schaltet sie ab. Fällige Ablesungen und Lieferungen haben
   keine Vorwarnung — sie stehen ohnehin am heutigen Tag. Die Fristen der
   Nebenkostenabrechnung und der CO₂-Erstattung (v3.1.0) haben ebenfalls keine;
@@ -164,7 +164,7 @@ bis `/api.php` durch `http://<Adresse von Home Assistant>:8095`.
   Schlüssel mit mehr Rechten in einer Kalender-Synchronisation.
 - Die Adresse mit Schlüssel lässt sich später nicht noch einmal anzeigen —
   gleich kopieren. Jedes weitere „Link erzeugen“ legt einen weiteren Schlüssel
-  an. **Widerrufen** unter **Einstellungen → Zugriff → API-Schlüssel für
+  an. **Widerrufen** unter **Verbindungen → Schlüssel → API-Schlüssel für
   Skripte → Widerrufen**; danach bekommt das Abo keine neuen Einträge mehr. Für
   ein neues Abo das Fenster erneut öffnen und den Link erzeugen.
 - Die Adresse mit Schlüssel verrät Fristen und Anbieternamen. Behandle sie wie
@@ -182,9 +182,9 @@ Technische Einzelheiten (Form der Ereignisse, UIDs, Zugriffsregeln):
 | Der Kalender bleibt leer oder alt | Das abrufende Gerät erreicht die App nicht: Abo in iCloud statt „Auf meinem Mac/iPhone“, unterwegs außerhalb des Heimnetzes, oder Google ohne Erreichbarkeit aus dem Internet. |
 | Fehler „nicht autorisiert“ (401) | Der Kalender-Schlüssel wurde widerrufen, oder in der Adresse steht ein Lese- bzw. Verwaltungs-Schlüssel. Über „Im Kalender abonnieren“ eine neue Adresse holen. |
 | Ein Kündigungsstichtag fehlt | Am Vertrag ist keine Kündigungsfrist gepflegt, der Stichtag liegt mehr als 365 Tage voraus, oder der Vertrag läuft weiter, ist unbefristet bzw. jederzeit kündbar (seit v3.4.0 ohne datierten Stichtag). |
-| Ein Eintrag trägt „✓ “ und erinnert nicht mehr | Er ist erledigt — abgehakt oder durch einen lückenlosen Folgevertrag (v3.4.0). Rückgängig unter Hinweise → Erledigt. |
+| Ein Eintrag trägt „✓ “ und erinnert nicht mehr | Er ist erledigt — abgehakt oder durch einen lückenlosen Folgevertrag (v3.4.0). Rückgängig unter Zu tun → Verlauf. |
 | Keine Vorwarnung | Vorwarnung auf 0 gestellt, im Abo die Hinweise entfernt, oder Google Kalender. |
-| Die Fristen der Nebenkostenabrechnung fehlen | Unter Einstellungen → Haushalt & Gebäude steht „Ich wohne: im Eigentum“, es gibt kein Mietverhältnis, oder bei der Abrechnung fehlt „Erhalten am“ (dann gibt es keine Einwandfrist). Ist die Abrechnung für den letzten Zeitraum erfasst, entfällt die Erinnerung an sie. |
+| Die Fristen der Nebenkostenabrechnung fehlen | Unter Haushalt → Gebäude steht „Ich wohne: im Eigentum“, es gibt kein Mietverhältnis, oder bei der Abrechnung fehlt „Erhalten am“ (dann gibt es keine Einwandfrist). Ist die Abrechnung für den letzten Zeitraum erfasst, entfällt die Erinnerung an sie. |
 | Die Frist für die CO₂-Erstattung fehlt | Keine Gasrechnung des Jahres unter Rechnung prüfen → „Laut Rechnung“ erfasst, das Land ist nicht Deutschland, die Heizkostenabrechnung trägt CO₂-Angaben (dann gilt Zentralheizung, und der Vermieter rechnet), oder der Betrag ist 0 (Stufe 1 oder Kürzung auf 0). |
 
 ---

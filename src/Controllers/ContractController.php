@@ -24,7 +24,15 @@ final class ContractController
         private ContractService $contracts,
         private I18nService $i18n,
         private ?ResponsibilityService $responsibility = null,
+        private ?\Energietracker\Services\LetterService $letters = null,   // v3.12.0 — `letters` an der Vertragskarte
     ) {}
+
+    /** v3.12.0 — je Vertrag additiv `letters`: die Briefe, die seine Karte ohne Befund anbietet. */
+    private function withLetters(string $utility, array $list): array
+    {
+        if ($this->letters === null) return $list;
+        return array_map(fn($c) => $c + ['letters' => $this->letters->contractKinds($utility, $c)], $list);
+    }
 
     /** v3.7.0 — Vertrag mit Zuständigkeit für die Antwort. */
     private function out(array $c): array
@@ -48,6 +56,7 @@ final class ContractController
         $list = $this->contracts->list($utility, $meterId);
         $all = $meterId === null ? $list : $this->contracts->list($utility);
         $out = $this->contracts->withConflicts($utility, $this->contracts->withPhase($list, $all));   // v3.11.0 (D, #54)
+        $out = $this->withLetters($utility, $out);
         Response::json($this->responsibility?->decorateAll($out) ?? $out);
     }
 
@@ -56,7 +65,7 @@ final class ContractController
         $utility = (string)$req->param('utility');
         $c = $this->contracts->get($utility, $req->param('id'));
         if (!$c) Response::error($this->i18n->t('errors.contract.notFound'), 404);
-        Response::json($this->out($this->contracts->withPhase([$c], $this->contracts->list($utility))[0]));
+        Response::json($this->out($this->withLetters($utility, $this->contracts->withPhase([$c], $this->contracts->list($utility)))[0]));
     }
 
     public function create(Request $req): never

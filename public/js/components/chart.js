@@ -139,7 +139,12 @@ function applyDefaults() {
   Chart.defaults.borderColor = gridColor();
   Chart.defaults.font.family = 'DM Sans, system-ui, sans-serif';
   Chart.defaults.font.size = 12;
+  // v3.12.0 — Designsprache: Legende oben links in 12 px, ruhige Achsen ohne eigene Linie
   Chart.defaults.plugins.legend.labels.color = themeColors.text1;
+  Chart.defaults.plugins.legend.align = 'start';
+  Chart.defaults.plugins.legend.labels.boxWidth = 12;
+  Chart.defaults.plugins.legend.labels.boxHeight = 12;
+  if (Chart.defaults.scale?.border) Chart.defaults.scale.border.display = false;
   Chart.defaults.plugins.tooltip.backgroundColor = themeColors.bg2;
   Chart.defaults.plugins.tooltip.borderColor = themeColors.border;
   Chart.defaults.plugins.tooltip.borderWidth = 1;
@@ -248,7 +253,7 @@ export function chartTableHtml({ caption = '', columns = [], rows = [] }) {
   if (!rows.length) return '';
   const cell = (v, i) => i === 0
     ? `<th scope="row">${escapeHtml(v ?? '')}</th>`
-    : `<td class="num">${escapeHtml(v == null || v === '' ? '–' : v)}</td>`;
+    : `<td class="num">${v?.html ?? escapeHtml(v == null || v === '' ? '–' : v)}</td>`;
   return `<details class="chart-data">
       <summary>${escapeHtml(t('chart.dataTable'))}</summary>
       <div class="table-wrap"><table class="table table--compact">

@@ -74,7 +74,7 @@ const bp = await import(JS('lib/billing-period.js'));
   // v3.11.0 (Skeptiker N9) — abgelöst vor dem eingetragenen Ende: „Abgelöst“ und das wirksame Ende, nicht „Beendet 2024–2029“
   const sup = { phase: 'past', start: '2024-01-01', end: '2029-12-31', coverage: { superseded_on: '2025-12-31' } };
   const pill = order.phasePill(sup);
-  t('abgelöst: eigene Marke, Jahre bis zum wirksamen Ende', /data-phase="past"/.test(pill) && /ABGELÖST|contracts\.phase\.superseded/.test(pill)
+  t('abgelöst: eigene Marke, Jahre bis zum wirksamen Ende', /data-phase="past"/.test(pill) && /Abgelöst|contracts\.phase\.superseded/.test(pill)
     && order.yearsOf(sup).span === '2024–2025' && order.supersededOn(sup) === '2025-12-31', pill);
   t('abgelöst am Ende selbst (lückenlos): weiter „Beendet“', order.supersededOn({ phase: 'past', start: '2024-01-01', end: '2025-12-31', coverage: { superseded_on: '2025-12-31' } }) === null);
 }
@@ -221,10 +221,15 @@ try {
   const oldC = await mk({ start: '2023-01-01', end: '2023-12-31', auto_renews: false, tariff_name: 'Alt' });
   const renewedC = await mk({ start: '2024-01-01', end: `${Y - 1}-12-31`, tariff_name: 'Weiter' }, [{ from: '2025-01-01', ct_per_kwh: 32 }]);
 
-  // Wasser: 400 Tageswerte bis heute (wie aus Home Assistant), zwei Verdachtsfälle weit hinten
+  // Wasser: 500 Tageswerte bis heute (wie aus Home Assistant), zwei Verdachtsfälle weit hinten.
+  // v3.12.0 — geblättert wird im Jahr mit den meisten Werten (PY), gewechselt in ein zweites mit
+  // mindestens 51 (OY). Bis v3.11 waren es 400 Werte und immer das laufende Jahr: Von Dezember bis
+  // März hatte es zu wenige für Seite 51–100, und an manchen Tagen gab es kein zweites Jahr mit
+  // Blätterleiste. Mit 500 Werten gibt es an jedem Tag beide.
+  const N = 500;
   const water = await call('POST', '/api/utility/wasser/meters', { name: 'Garten täglich' });
   const deviceId = water.devices?.[0]?.id ?? null;
-  const daily = Array.from({ length: 400 }, (_, i) => {
+  const daily = Array.from({ length: N }, (_, i) => {
     const d = new Date(Date.UTC(Y, today.getMonth(), today.getDate() - i));
     return { id: `r_daily_${i}`, meter_id: water.id, device_id: deviceId, date: iso(d), counter: 5000 - i * 0.3,
       price_cents: null, note: '', is_estimated: false, is_future: false, ...(i === 300 || i === 350 ? { is_suspect: true } : {}) };
@@ -233,7 +238,14 @@ try {
   let existing = [];
   try { existing = JSON.parse(readFileSync(rFile, 'utf8')); } catch { /* noch keine */ }
   writeFileSync(rFile, JSON.stringify([...existing, ...daily]));
-  const inY = daily.filter(r => r.date.startsWith(String(Y))).length;
+  const perYear = {};
+  for (const r of daily) perYear[r.date.slice(0, 4)] = (perYear[r.date.slice(0, 4)] || 0) + 1;
+  const byCount = Object.keys(perYear).map(Number).sort((a, b) => perYear[b] - perYear[a] || b - a);
+  const PY = byCount[0];
+  const inPY = perYear[PY];
+  const OY = byCount.find(y => y !== PY && perYear[y] >= 51);
+  const inOY = perYear[OY] || 0;
+  const newestPY = daily.find(r => r.date.startsWith(String(PY))).date.split('-').reverse().join('.');
 
   // Einstellungen: Experte, kein Wetterabruf, Wasser aktiv, Stichtag Strom 01.04.
   const sFile = join(dataDir, 'settings.json');
@@ -331,8 +343,8 @@ try {
   const nPast = cards.filter(c => c.group === 'past').length;
   t('Kosten → Verträge: „Beendet“ ab drei Einträgen eingeklappt', !!pastBox && pastBox.open === (nPast < 3)
     && /Beendet \(\d+\)/.test(text(pastBox.querySelector('summary'))), `${nPast} beendet, offen=${pastBox?.open}`);
-  t('Kosten → Verträge: weiterlaufender Vertrag heißt „VERLÄNGERT“', cards.find(c => c.id === renewedC.id)?.label === 'VERLÄNGERT'
-    && cards.find(c => c.id === oldC.id)?.label === 'BEENDET', `${cards.find(c => c.id === renewedC.id)?.label}`);
+  t('Kosten → Verträge: weiterlaufender Vertrag heißt „Verlängert“', cards.find(c => c.id === renewedC.id)?.label === 'Verlängert'
+    && cards.find(c => c.id === oldC.id)?.label === 'Beendet', `${cards.find(c => c.id === renewedC.id)?.label}`);
   const curCard = view().querySelector(`.contract-card[data-contract-id="${wpOpen}"]`);
   t('Kosten → Verträge: Karte nennt heutige Werte, Zählungen erst ab „Experte“',
     /Arbeitspreis [\d,.]+ ct\/kWh/.test(text(curCard?.querySelector('.contract-card__values')))
@@ -388,39 +400,49 @@ try {
 
   // ── Ablesungen mit Tageswerten: Blättern ──
   const W = `#/utility/wasser?meter=${encodeURIComponent(water.id)}`;
+  // zum Blätterjahr: Die Seite öffnet im jüngsten Jahr mit Verbrauch (am 01.01. das Vorjahr),
+  // die Jahreswahl der Karte stellt um
+  const shownYear = () => Number(view().querySelector('.year-pills .pill.active')?.dataset.year);
+  const openW = async () => {
+    await go(W);
+    if (shownYear() !== PY) await change(view().querySelector('[data-role="list-year"]'), String(PY));
+  };
   await go(W);
   const range = () => text(view().querySelector('[data-role="list-card"] .pager__range'));
   const firstDate = () => text(view().querySelector('[data-role="list-body"] tbody tr td strong'));
   const rowCount = () => view().querySelectorAll('[data-role="list-body"] tbody tr').length;
   const nf = new Intl.NumberFormat('de-DE');
-  t('Tageswerte: Anzahl im Jahr und gesamt', text(view().querySelector('[data-role="list-count"]')) === `${inY} in ${Y} · 400 gesamt`,
+  const y0 = shownYear();
+  t('Tageswerte: Anzahl im Jahr und gesamt', (y0 === Y || y0 === Y - 1)
+    && text(view().querySelector('[data-role="list-count"]')) === `${perYear[y0] || 0} in ${y0} · ${N} gesamt`,
     text(view().querySelector('[data-role="list-count"]')));
+  if (y0 !== PY) await change(view().querySelector('[data-role="list-year"]'), String(PY));
   t('Tageswerte: Blätterleiste ab 51 Zeilen, Seite 1 mit den neuesten 25',
-    range() === `1–25 von ${nf.format(inY)}` && rowCount() === 25 && firstDate() === new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(today),
-    `${range()} · ${rowCount()} Zeilen · ${firstDate()}`);
+    range() === `1–25 von ${nf.format(inPY)}` && rowCount() === 25 && firstDate() === newestPY,
+    `${range()} · ${rowCount()} Zeilen · ${firstDate()} (Jahr ${PY})`);
   t('Tageswerte: Blätterleiste als nav mit Bezeichnung', !!view().querySelector('nav.pager[aria-label="Seiten der Liste"]'));
   view().querySelector('[data-pager-go="next"]').click();
   await settle();
-  t('Weiter: 26–50', range() === `26–50 von ${nf.format(inY)}`, range());
+  t('Weiter: 26–50', range() === `26–50 von ${nf.format(inPY)}`, range());
   await change(view().querySelector('[data-pager-size]'), '50');
   t('Seitengröße 50: gemerkt, oberste Zeile bleibt im Blick', w.localStorage.getItem('et-page-size:utility-readings') === '50'
-    && range() === `1–50 von ${nf.format(inY)}`, range());
+    && range() === `1–50 von ${nf.format(inPY)}`, range());
   view().querySelector('[data-pager-go="next"]').click();
   await settle();
   // dasselbe Jahr noch einmal wählen zeichnet die Seite neu, wie nach dem Bearbeiten einer Zeile
-  view().querySelector(`.year-pills .pill[data-year="${Y}"]`).click();
+  view().querySelector(`.year-pills .pill[data-year="${PY}"]`).click();
   await settle();
-  t('Neu zeichnen (wie nach dem Bearbeiten): Seite bleibt', range() === `51–100 von ${nf.format(inY)}`, range());
+  t('Neu zeichnen (wie nach dem Bearbeiten): Seite bleibt', range() === `51–100 von ${nf.format(inPY)}`, range());
   await go('#/dashboard');
-  await go(W);
-  t('Neuer Aufruf: Seite 1, Seitengröße gemerkt', range() === `1–50 von ${nf.format(inY)}`, range());
+  await openW();
+  t('Neuer Aufruf: Seite 1, Seitengröße gemerkt', range() === `1–50 von ${nf.format(inPY)}`, range());
   view().querySelector('[data-pager-go="next"]').click();
   await settle();
-  await change(view().querySelector('[data-role="list-year"]'), String(Y - 1));
-  t('Jahreswechsel: zurück auf Seite 1', range() === `1–50 von ${nf.format(400 - inY)}`
-    && text(view().querySelector('[data-role="list-count"]')) === `${400 - inY} in ${Y - 1} · 400 gesamt`, range());
+  await change(view().querySelector('[data-role="list-year"]'), String(OY));
+  t('Jahreswechsel: zurück auf Seite 1', range() === `1–50 von ${nf.format(inOY)}`
+    && text(view().querySelector('[data-role="list-count"]')) === `${inOY} in ${OY} · ${N} gesamt`, range());
   await change(view().querySelector('[data-role="list-year"]'), 'all');
-  t('„Alle Jahre“: alle 400, blätterbar', range() === `1–50 von ${nf.format(400)}` && text(view().querySelector('[data-role="list-count"]')) === '400 gesamt', range());
+  t(`„Alle Jahre“: alle ${N}, blätterbar`, range() === `1–50 von ${nf.format(N)}` && text(view().querySelector('[data-role="list-count"]')) === `${N} gesamt`, range());
   const flt = view().querySelector('[data-role="flagged-only"]');
   t('„Nur auffällige“ angeboten', !!flt && /Nur auffällige \(2\)/.test(text(flt.closest('label'))));
   flt.checked = true;
@@ -429,9 +451,9 @@ try {
   t('„Nur auffällige“: die zwei Verdachtsfälle von Seite 7 und 8, ohne Blätterleiste',
     rowCount() === 2 && !view().querySelector('[data-role="list-card"] nav.pager')
       && [...view().querySelectorAll('[data-role="list-body"] tbody tr')].every(tr => tr.classList.contains('row--flagged')), `${rowCount()} Zeilen`);
-  await change(view().querySelector('[data-role="list-year"]'), String(Y));
-  t('Jahreswahl der Karte stellt die Seite um (Kacheln, Liste)', !!view().querySelector(`.year-pills .pill.active[data-year="${Y}"]`)
-    && range() === `1–50 von ${nf.format(inY)}`, range());
+  await change(view().querySelector('[data-role="list-year"]'), String(PY));
+  t('Jahreswahl der Karte stellt die Seite um (Kacheln, Liste)', !!view().querySelector(`.year-pills .pill.active[data-year="${PY}"]`)
+    && range() === `1–50 von ${nf.format(inPY)}`, range());
 
   // ── Rechnung prüfen ──
   const tableShown = () => !!view().querySelector('#bc-result table');
@@ -465,8 +487,9 @@ try {
   t('Verbrauchsart wechseln: Zeitraum bleibt, neu gerechnet, Adresse folgt', tableShown()
     && view().querySelector('#bc-from')?.value === pick.from && view().querySelector('#bc-until')?.value === pick.until
     && /utility=wasser/.test(w.location.hash) && w.location.hash.includes(`from=${pick.from}`), w.location.hash);
-  await go('#/bill-check?utility=strom&from=2025-01-01&to=2026-01-01');
-  t('ältere Verweise (`to` ausschließlich) gelten weiter', view().querySelector('#bc-until')?.value === '2025-12-31' && tableShown());
+  // v3.12.0 (M3b) — ein Zeitraum, der nicht zufällig der vorgewählte ist (2025 war es: Die Probe blieb grün)
+  await go('#/bill-check?utility=strom&from=2024-01-01&to=2025-01-01');
+  t('ältere Verweise (`to` ausschließlich) gelten weiter', view().querySelector('#bc-until')?.value === '2024-12-31' && tableShown(), view().querySelector('#bc-until')?.value);
 } catch (e) {
   t('Test mit Beispielhaushalt', false, e.stack || e.message);
 } finally {

@@ -8,13 +8,13 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 4 Nov 2026 · **Current version:** v3.11.0
+**As of:** 10 Nov 2026 · **Current version:** v3.11.0
 
 ---
 
-## In progress: v3.12.0 — Energietracker for your AI
+## Being released: v3.12.0 — Energietracker for your AI
 
-Released when it is finished and checked.
+Finished and checked, out in the next few days.
 
 - **Connect an AI:** an AI assistant connects to your Energietracker via MCP and reads the overview,
   deadlines, contracts, consumption, forecast and “Check bill”, every figure with its origin (measured,
@@ -25,6 +25,11 @@ Released when it is finished and checked.
   every access in the log.
 - **Home Assistant via HACS:** the integration with its own sensors, as a custom repository and with a request
   for the default list.
+- **New interface ([#59](https://github.com/Bingerminger/energietracker/issues/59)):** a menu in two areas
+  (everyday, setup), settings by topic with a search, our own graphics instead of emoji, a fixed grid. No feature
+  goes away, old addresses keep working.
+- **Balance of meter groups ([#58](https://github.com/Bingerminger/energietracker/issues/58)):** fix for groups
+  whose meters were not read on the same day.
 
 ---
 
@@ -35,8 +40,9 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.13.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. |
-| **v3.14.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
+| **v3.13.0** · planned for Tuesday, 17 Nov 2026 | **Forecast for heat pump, PV and electric car** | The forecast calculates the heat pump by the weather and includes PV, battery and electric car; feed-in payouts can be recorded. Plus consistent terms in every language, length limits for free text and a faster tank model. |
+| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. |
+| **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
 
 ---
 

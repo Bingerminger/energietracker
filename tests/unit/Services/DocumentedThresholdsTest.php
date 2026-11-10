@@ -205,12 +205,15 @@ final class DocumentedThresholdsTest extends TestCase
     {
         $keys = (new \ReflectionClassConstant(\Energietracker\App::class, 'ADMIN_SETTINGS'))->getValue();
         $n = count($keys);
-        $num = ['de' => [14 => 'Vierzehn', 15 => 'Fünfzehn', 16 => 'Sechzehn'], 'en' => [14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen']];
+        // v3.12.0 (F1037) — neunzehn mit den drei mcp_*-Schaltern (mcp_allowed_origins entfiel, Paket protokoll)
+        // v3.12.0 (Härtung) — neunundzwanzig mit Hinweis auf neue Versionen, Standort und Wetterabgleich
+        $num = ['de' => [14 => 'Vierzehn', 15 => 'Fünfzehn', 16 => 'Sechzehn', 19 => 'Neunzehn', 20 => 'Zwanzig', 24 => 'Vierundzwanzig', 29 => 'Neunundzwanzig'],
+                'en' => [14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen', 19 => 'Nineteen', 20 => 'Twenty', 24 => 'Twenty-four', 29 => 'Twenty-nine']];
         foreach (['de' => 'docs/referenz/einstellungen.md', 'en' => 'docs/en/referenz/einstellungen.md'] as $lang => $rel) {
             $d = self::flat($rel);
             $start = (int)strpos($d, $num[$lang][$n] ?? "($n)");
             self::assertGreaterThan(0, $start, "$rel: „{$num[$lang][$n]} …“ fehlt (ADMIN_SETTINGS hat $n Schlüssel)");
-            $para = substr($d, $start, 900);
+            $para = substr($d, $start, 1300);
             foreach ($keys as $k) self::assertStringContainsString("`$k`", $para, "$rel: `$k` fehlt in der Liste der Verwalter-Schlüssel");
         }
     }

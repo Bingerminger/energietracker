@@ -1278,9 +1278,13 @@ final class Proposals
             }
             $bp = self::value($e, 'base_price_new');
             if (is_numeric($bp) && !Utilities::isFeedIn($u)) {
-                $monthly = self::value($e, 'base_price_period') === 'year' ? round((float)$bp / 12, 4) : (float)$bp;
+                $yearly = self::value($e, 'base_price_period') === 'year';
+                $monthly = $yearly ? round((float)$bp / 12, 4) : (float)$bp;
+                // v3.12.0 — der bisherige Grundpreis in derselben Einheit wie der neue (je Monat), nicht roh als Jahreswert
+                $old = self::value($e, 'base_price_old');
+                $old = $yearly && is_numeric($old) ? round((float)$old / 12, 4) : $old;
                 $out[] = $bpP = $this->withProvenance($this->priceEntry('contract_base_price', 'basePriceChange', $ct, 'base_prices', 'eur_per_month', $from, $monthly,
-                    ['base_price_new', 'base_price_period', 'valid_from'], [], ['old' => self::value($e, 'base_price_old')]), $ct, $row);
+                    ['base_price_new', 'base_price_period', 'valid_from'], [], ['old' => $old]), $ct, $row);
                 $sim['base_prices'] = self::withEntry((array)($ct['base_prices'] ?? []), ['from' => $from, 'eur_per_month' => $monthly] + (array)($bpP['data']['row'] ?? []));
             }
             array_push($out, ...$this->priceChangeAdvance($c, $from), ...$this->priceChangeTermin($c, $a, $sim, $from));

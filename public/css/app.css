@@ -15,6 +15,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+strong, b { font-weight: 600; }
+/* Mono nur für Code und YAML */
+code, pre, kbd, samp { font-family: var(--font-code); font-size: var(--fs-sm); }
+small, .small { font-size: var(--fs-sm); }
 /* v3.6.0 — Safari vergrößert Text beim Drehen ins Querformat nicht von sich aus */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
@@ -49,7 +53,7 @@ h1, h2, h3, h4 { margin: 0; }
   position: fixed;
   top: 8px; left: 8px;
   z-index: 1000;
-  padding: 10px 16px;
+  padding: var(--sp-3) var(--sp-4);
   background: var(--bg-1);
   color: var(--text-1);
   border: 1px solid var(--accent);
@@ -104,6 +108,9 @@ h1, h2, h3, h4 { margin: 0; }
 .topbar__brand {
   display: flex; align-items: center; gap: var(--sp-3);
 }
+/* v3.12.0 (M6) — Logo und Name sind der Weg zur Übersicht */
+.topbar__home { display: inline-flex; align-items: center; gap: var(--sp-3); color: inherit; text-decoration: none; border-radius: var(--r-sm); }
+.topbar__home:hover .topbar__title { color: var(--accent); }
 .topbar__logo {
   width: 22px; height: 22px;
   background-image: url("../img/icon-light.png");
@@ -115,15 +122,12 @@ h1, h2, h3, h4 { margin: 0; }
   background-image: url("../img/icon-dark.png");
 }
 .topbar__title {
-  font-family: var(--font-mono);
-  font-size: 13px; font-weight: 500;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-body); font-weight: 600;
   color: var(--text-1);
 }
-.topbar__status {
-  font-family: var(--font-mono); font-size: 11px;
+.topbar__status { font-size: var(--fs-xs);
   color: var(--text-2);
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: var(--sp-2);
 }
 .topbar__status .dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -151,17 +155,16 @@ h1, h2, h3, h4 { margin: 0; }
 .login-card {
   width: min(360px, 100%);
   display: flex; flex-direction: column; gap: var(--sp-3);
-  padding: var(--sp-6); border-radius: var(--r-lg);
+  padding: var(--sp-6); border-radius: var(--r-md);
   background: var(--bg-1); border: 1px solid var(--border-1);
-  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,.2));
 }
 .login-card__brand {
-  display: flex; align-items: center; gap: var(--sp-2);
-  font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: .12em; color: var(--text-2);
+  display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--text-2);
 }
-.login-card h1 { font-size: var(--fs-xl, 22px); margin: 0; }
+.login-card h1 { font-size: var(--fs-xl); margin: 0; }
 .login-card__label { font-size: var(--fs-sm); color: var(--text-2); }
 .login-card .input { font-size: 16px; }   /* iOS zoomt unter 16 px */
+.login-card .ico { flex: none; }
 .login-card .btn { justify-content: center; }
 .login-card__hint { font-size: var(--fs-xs); margin: 0; }
 .topbar__btn {
@@ -172,7 +175,7 @@ h1, h2, h3, h4 { margin: 0; }
   border-radius: var(--r-sm);
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 15px; line-height: 1;
+  font-size: var(--fs-base); line-height: 1;
   transition: var(--transition);
 }
 .topbar__btn:hover {
@@ -182,7 +185,7 @@ h1, h2, h3, h4 { margin: 0; }
 .topbar__btn:active { transform: translateY(1px); }
 .topbar__btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  outline: 2px solid var(--accent); outline-offset: 1px;
 }
 .topbar__btn-icon { display: inline-block; }
 /* v3.4.0 (N1021) — Darstellung: Das Symbol zeigt, was gilt (☀️/🌙); folgt die
@@ -190,10 +193,9 @@ h1, h2, h3, h4 { margin: 0; }
 #theme-toggle { position: relative; }
 .topbar__badge {
   position: absolute; right: -5px; bottom: -5px;
-  min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px;
+  min-width: 16px; height: 16px; padding: 0 var(--sp-1); border-radius: var(--r-md);
   background: var(--accent); color: var(--accent-fg);
-  font-family: var(--font-sans); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
-  box-shadow: 0 0 0 2px var(--bg-1); pointer-events: none;
+  font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 600; line-height: 16px; text-align: center; pointer-events: none;
 }
 
 /* v3.2.0 (F1019) — Umschalter der Nutzungsstufe neben Tag/Nacht */
@@ -205,9 +207,13 @@ h1, h2, h3, h4 { margin: 0; }
   font-size: var(--fs-sm); cursor: pointer;
 }
 .topbar__select:hover { background: var(--bg-2); border-color: var(--border-strong); }
-.topbar__select:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+/* Am Telefon reicht der Platz nur für das Zeichen der Stufe; die Liste liegt darüber */
+.topbar__level { position: relative; display: inline-flex; align-items: center; }
+.topbar__level-ico { display: none; }
+.topbar__select:focus-visible { outline: none; outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (max-width: 640px) {
-  .topbar__select { max-width: 52px; font-size: 16px; }   /* am iPhone nur das Symbol sichtbar; 16 px gegen Zoom */
+  .topbar__level-ico { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border-2); border-radius: var(--r-sm); }
+  .topbar__select { position: absolute; inset: 0; width: 100%; max-width: none; opacity: 0; font-size: 16px; }   /* 16 px gegen den Zoom */
 }
 
 /* v3.2.0 (F1019) — was erst eine höhere Stufe zeigt. Ausgeblendet, nicht
@@ -217,11 +223,6 @@ html[data-level="beginner"] [data-min-level="expert"],
 html[data-level="advanced"] [data-min-level="expert"] { display: none !important; }
 
 /* Hinweis über einer Seite der höheren Stufe, und Vorschläge zum Hochstufen */
-.level-hint {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-4);
-}
-.level-hint__actions { display: inline-flex; gap: var(--sp-2); }
 
 /* ── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
@@ -236,24 +237,23 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
   overflow-y: auto;
 }
 .sidebar__nav {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: var(--sp-0);
   padding: 0 var(--sp-3);
   flex: 1;
 }
 /* v2.11.0 — Bereiche als einzelne Einträge, die Verbrauchsarten als Gruppe */
-.sidebar__group { display: flex; flex-direction: column; gap: 2px; margin: var(--sp-2) 0; }
+.sidebar__group { display: flex; flex-direction: column; gap: var(--sp-0); margin: var(--sp-2) 0; }
 /* v2.11.0 (Review UI-09) — 11 px in --text-2 statt 9 px unter 3:1 */
 .sidebar__group-label {
-  font-size: 11px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   color: var(--text-2);
-  text-transform: uppercase; letter-spacing: 0.12em;
   padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
 .sidebar__item {
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: 8px 14px;
+  padding: var(--sp-2) var(--sp-3);
   color: var(--text-2);
-  font-size: 13px; font-weight: 500;
+  font-size: var(--fs-sm); font-weight: 500;
   border-radius: var(--r-sm);
   position: relative;
   transition: var(--transition);
@@ -264,32 +264,25 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
   text-decoration: none;
 }
 .sidebar__icon {
-  width: 22px; height: 22px;
+  width: 20px; height: 20px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 4px;
-  background: var(--bg-3);
-  font-size: 11px;
   flex-shrink: 0;
 }
 .sidebar__item.active {
   background: var(--bg-2);
   color: var(--text-1);
+  --ico: var(--accent);
 }
-.sidebar__item.active::before {
-  content: '';
-  position: absolute; left: 0; top: 0; bottom: 0;
-  width: 2px; border-radius: 1px;
-  background: var(--accent);
-}
-/* Der farbige Aktiv-Marker je Verbrauchsart kommt seit v2.2.0 aus
-   utility-theme.js (SSOT) — vorher hatten ihn nur gas/strom/wasser. */
 .sidebar__footer {
   border-top: 1px solid var(--border-1);
   padding: var(--sp-3) var(--sp-4);
-  font-size: 11px; color: var(--text-3);
-  display: flex; gap: 6px; align-items: center;
+  font-size: var(--fs-xs); color: var(--text-3);
+  display: flex; gap: var(--sp-1h); align-items: center;
 }
 .sidebar__footer a { color: var(--text-2); }
+/* v3.12.0 (M6) — Stern und Herz: Grafik in der Farbe des Textes, beim Überfahren der Akzent */
+.sidebar__footer-ico { display: inline-flex; align-items: center; --ico: currentColor; --ico-f: transparent; }
+.sidebar__footer-ico:hover, .sidebar__footer-ico:focus-visible { color: var(--accent); --ico-f: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 /* ── View / main content area ───────────────────────────────────── */
 .view {
@@ -313,171 +306,139 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
   margin-bottom: var(--sp-4); gap: var(--sp-4); flex-wrap: wrap;
 }
 .view-header__title {
-  font-size: 20px; font-weight: 700; line-height: 1.2;
+  font-size: var(--fs-xl); font-weight: 600; line-height: 1.25;
   color: var(--text-1);
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
 }
 .view-header__subtitle {
-  font-size: 12px; color: var(--text-2);
-  margin-top: 4px;
+  font-size: var(--fs-body); color: var(--text-2);
+  margin-top: var(--sp-1); max-width: 72ch;
 }
 .view-header__actions {
-  display: flex; gap: 8px; flex-wrap: wrap;
+  display: flex; gap: var(--sp-2); flex-wrap: wrap;
 }
 
 /* ── KPI grid ───────────────────────────────────────────────────── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
-  gap: 14px;
-  margin-bottom: var(--sp-5);
-}
+.kpi-grid { margin-bottom: var(--sp-5); }
 .kpi {
   position: relative;
+  display: flex; flex-direction: column;
   background: var(--bg-1);
   border: 1px solid var(--border-1);
   border-radius: var(--r-md);
-  padding: 16px 18px;
-  transition: var(--transition);
-  overflow: hidden;
+  padding: var(--sp-3) var(--sp-4);
+  min-width: 0;
 }
-/* v2.12.0 (Review UI-21) — kein Anheben beim Überfahren: die Kacheln sind
-   nicht klickbar und versprachen mit der Bewegung etwas, das nicht kam */
-.kpi::after {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--kpi-c, var(--accent)), transparent);
-}
-/* .kpi.c-<key> wird seit v2.2.0 aus der SSOT erzeugt (utility-theme.js). */
-.kpi.c-blue   { --kpi-c: var(--c-blue); }
-.kpi.c-violet { --kpi-c: var(--c-violet); }
-.kpi.c-yellow { --kpi-c: var(--c-yellow); }
-.kpi.c-red    { --kpi-c: var(--c-red); }
-
 .kpi__label {
-  font-size: 11px; font-weight: 500; color: var(--text-2);
-  text-transform: uppercase; letter-spacing: 0.07em;
-  margin-bottom: 8px;
-  display: flex; align-items: center; gap: 6px;
-  /* v2.11.0 (Review UI-21) — „EIGENVERBRAUCHSQUOT…" wurde abgeschnitten */
-  flex-wrap: wrap; overflow-wrap: anywhere; hyphens: auto;
+  font-size: var(--fs-sm); font-weight: 500; color: var(--text-2); line-height: 1.3;
+  margin-bottom: var(--sp-1h);
+  overflow-wrap: anywhere; hyphens: auto;
 }
-.kpi__value {
-  font-family: var(--font-mono); font-size: 22px; font-weight: 500;
-  line-height: 1.1; color: var(--text-1);
+.kpi__value { font-size: var(--fs-xl); font-weight: 600;
+  line-height: 1.15; color: var(--text-1);
 }
 .kpi__sub {
-  font-size: 12px; color: var(--text-2);
-  margin-top: 6px; font-family: var(--font-mono);
+  font-size: var(--fs-sm); color: var(--text-2);
+  margin-top: var(--sp-1);
 }
 .kpi__sub.positive { color: var(--success); }
 .kpi__sub.negative { color: var(--danger); }
 .kpi__trend {
-  display: inline-flex; align-items: center; gap: 3px;
-  margin-left: 6px; padding: 1px 7px;
-  font-size: 11px; font-weight: 600;
-  border-radius: 100px;
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  margin-left: var(--sp-1h); padding: var(--sp-0) var(--sp-1h);
+  font-size: var(--fs-xs); font-weight: 600;
+  border-radius: var(--r-sm);
 }
 .kpi__trend.up { background: var(--danger-soft); color: var(--danger); }
 .kpi__trend.down { background: var(--success-soft); color: var(--success); }
 .kpi__trend.flat { background: var(--bg-3); color: var(--text-2); }
 
-/* ── Status banner (overdue alert / OK banner) ──────────────────── */
-.status-banner {
-  display: flex; align-items: center; gap: var(--sp-4);
-  padding: 12px 16px;
-  border-radius: var(--r-md);
-  margin-bottom: var(--sp-5);
-  border: 1px solid;
-  font-size: 13px;
-}
-.status-banner.ok    { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); color: var(--success); }
-.status-banner.warn  { background: var(--warning-soft); border-color: rgba(245,200,66,.3); color: var(--warning); }
-.status-banner.alert { background: var(--danger-soft);   border-color: color-mix(in srgb, var(--danger) 30%, transparent); color: var(--danger); }
-.status-banner__icon { font-size: 18px; line-height: 1; }
-.status-banner__text { flex: 1; }
-.status-banner strong { font-weight: 600; }
 
 /* ── Card ───────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-1);
   border: 1px solid var(--border-1);
   border-radius: var(--r-md);
-  padding: var(--sp-5);
-  margin-bottom: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-4);
+  min-width: 0;
 }
-/* .card--<key> wird seit v2.2.0 aus der SSOT erzeugt (utility-theme.js). */
 .card__title {
-  font-size: 11px; font-weight: 500;
-  color: var(--text-2);
-  text-transform: uppercase; letter-spacing: 0.07em;
-  margin-bottom: 14px;
-  display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-base); font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: var(--sp-3);
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2);
 }
+.card h2:not(.card__title), .card h3:not(.card__title) { font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
+.card h4 { font-size: var(--fs-body); font-weight: 600; color: var(--text-1); }
+.card > p:not(.infobox), .view p:not(.infobox) { max-width: 72ch; }
 .card__title-action { margin-left: auto; }
 
-/* ── Generic grid helpers ───────────────────────────────────────── */
-.grid { display: grid; gap: var(--sp-4); }
-/* v2.0.0 (UX) — im Grid übernimmt der gap den Abstand; der zusätzliche
-   margin-bottom der Karte entfällt, damit Karten-Reihen gleichmäßig sitzen. */
-.grid > .card { margin-bottom: 0; }
-/* v2.5.3 (UI-01) — min(…, 100%): Auf dem iPhone SE (375 px) war eine
-   360-px-Spalte samt Rand breiter als der Bildschirm. */
-.grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
-.grid-3 { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
-.grid-4 { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+/* ── Raster: feste Spalten, gleiche Höhe je Reihe, keine Lücke ───────
+   Regeln R3 und R4 der Designsprache: Die Spaltenzahl setzt lib/fit-grid.js als
+   --spalten aus der Zahl sichtbarer Kacheln; ein Rest füllt die letzte Reihe
+   über --rest. tests/box-raster.test.mjs misst das auf jeder Seite. */
+.grid, .kpi-grid, .dash-answers, .guide-tiles, .export-grid, .raster, .art-raster {
+  display: grid;
+  grid-template-columns: repeat(var(--spalten, 4), minmax(0, 1fr));
+  gap: var(--sp-4);
+  align-items: stretch;
+}
+.grid > *, .kpi-grid > *, .dash-answers > *, .guide-tiles > *, .export-grid > *, .raster > *, .art-raster > * { min-width: 0; margin: 0; }
+.grid > .raster-rest, .kpi-grid > .raster-rest, .dash-answers > .raster-rest, .guide-tiles > .raster-rest, .export-grid > .raster-rest, .raster > .raster-rest, .art-raster > .raster-rest { grid-column: span var(--rest, 1); }
+.grid > a > .card, .grid > div > .card, .kpi-grid > a > .kpi, .kpi-grid > div > .kpi, .raster > a > .kpi, .raster > div > .card { height: 100%; margin: 0; }
 
 /* ── Misc helpers ───────────────────────────────────────────────── */
 .muted { color: var(--text-2); }
 /* v2.11.0 (Review UI-09) — „–" für fehlende Werte ist Information, kein
    gesperrtes Element: --text-3 (5:1) statt --text-disabled (unter 3:1) */
 .dim   { color: var(--text-3); }
-.num   { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.success-text { color: var(--success); }
-.danger-text  { color: var(--danger); }
-.warning-text { color: var(--warning); }
+/* Gleich breite Ziffern, wo Zahlen untereinander stehen: in Tabellen. Im Fließtext und in einer
+   einzelnen Kennzahl stünde die 1 in einer Lücke, dort bleibt die Textschrift. */
+.table, .data-table, .input.num { font-family: var(--font-num); }
+/* Geldrichtung und Zustand: nur als Aussage, immer mit einem Wort oder einer Grafik zusammen */
+.ton-ok     { color: var(--ton-erfolg); }
+.ton-warn   { color: var(--ton-achtung); }
+.ton-fehler { color: var(--ton-fehler); }
 
-/* v3.9.0 (Paket oberflaeche) — ein Leerzustand für alle Listen (lib/empty.js):
-   Symbol im ruhigen Kreis statt eines grau verblassten Emojis, Titel in
-   Textgröße statt einer zweiten Seitenüberschrift, Satz in Lesebreite. */
+/* Ein Leerzustand für alle Listen (lib/empty.js): Grafik 48 px, Titel in
+   Textgröße statt einer zweiten Seitenüberschrift, ein Satz in Lesebreite. */
 .empty {
-  text-align: center; padding: var(--sp-8) var(--sp-5); color: var(--text-2);
+  text-align: center; padding: var(--sp-8) var(--sp-6); color: var(--text-2);
 }
-.empty-icon {
-  display: inline-grid; place-items: center; width: 52px; height: 52px; margin-bottom: var(--sp-3);
-  border-radius: 50%; background: var(--bg-2); border: 1px solid var(--border-1);
-  font-size: 24px; line-height: 1;
-}
-.empty h2, .empty h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-md); font-weight: 600; color: var(--text-1); }
-.empty p    { font-size: var(--fs-sm); max-width: 56ch; margin: 0 auto var(--sp-3); }
+.empty-icon { display: block; margin: 0 auto var(--sp-3); line-height: 0; }
+.empty h2, .empty h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
+.empty p    { font-size: var(--fs-body); max-width: 56ch; margin: 0 auto var(--sp-3); }
 .empty p:last-child { margin-bottom: 0; }
 
-/* ── Bereichs-Tabs (v2.11.0, Review UI-12) ─────────────────────────
-   Seiten eines Bereichs („Kosten & Verträge": Verträge · Wechsel prüfen ·
-   Rechnung prüfen) als Tabs über der Ansicht; die Seitenleiste nennt nur
-   den Bereich. */
-.section-tabs {
-  display: flex; gap: var(--sp-1);
-  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
-  border-bottom: 1px solid var(--border-1);
-  overflow-x: auto; scrollbar-width: none;
+/* ── Untermenü: eine Form für Reiter, Sichten, Filter, Jahre, Zeitraum ────
+   Klein, abgerundet viereckig, aktiv gefüllt. Die Klassen der Bausteine
+   (.section-tabs__tab, .pill, .seg__btn, .ef-seg__btn) tragen sonst keine Form. */
+.section-tabs, .pills, .year-pills, .seg, .ef-seg, .filter-pills { display: flex; flex-wrap: wrap; gap: var(--sp-1h); min-width: 0; }
+.section-tabs { margin: 0 0 var(--sp-4); }
+.section-tabs__tab, .pill, .seg__btn, .ef-seg__btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1h);
+  min-height: 30px; margin: 0; padding: var(--sp-1) var(--sp-3);
+  font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; line-height: 1.2;
+  color: var(--text-1); background: var(--bg-1);
+  border: 1px solid var(--border-2); border-radius: var(--r-sm);
+  white-space: nowrap; text-decoration: none; cursor: pointer;
+  transition: var(--transition);
 }
-.section-tabs::-webkit-scrollbar { display: none; }
-.section-tabs__tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 10px 14px; white-space: nowrap;
-  color: var(--text-2); font-size: var(--fs-sm); font-weight: 500;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+.section-tabs__tab:hover, .pill:hover, .seg__btn:hover, .ef-seg__btn:hover { background: var(--bg-2); color: var(--text-1); text-decoration: none; }
+.section-tabs__tab.active, .pill.active, .seg__btn.active, .seg__btn[aria-pressed="true"], .ef-seg__btn[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-fg);
+  --ico: currentColor; --ico-f: transparent; --c: currentColor;
 }
-.section-tabs__tab:hover { color: var(--text-1); text-decoration: none; }
-.section-tabs__tab.active { color: var(--text-1); border-bottom-color: var(--accent); }
-.section-tabs__tab[data-utility].active { border-bottom-color: var(--util, var(--accent)); }
+.section-tabs__tab .sidebar__badge { margin: 0; }
+.section-tabs__tab.active .sidebar__badge, .pill.active .sidebar__badge { background: transparent; color: inherit; border: 1px solid currentColor; }
 /* Die Verbrauchsarten stehen am Mac in der Seitenleiste */
 .section-tabs--mobile { display: none; }
 
 /* Kartenkopf mit Aktion daneben (die Aktion steht nicht in der Überschrift) */
 .card__head {
   display: flex; align-items: center; gap: var(--sp-2);
-  margin-bottom: 14px;
+  margin-bottom: var(--sp-3);
 }
 .card__head > .card__title { margin-bottom: 0; }
 .card__head > :last-child:not(.card__title) { margin-left: auto; }
@@ -487,7 +448,7 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
 .sidebar__label { flex: 1; min-width: 0; }
 
 /* Erfassen am Mac: Knopf in der Kopfleiste */
-.topbar__capture { gap: 4px; }
+.topbar__capture { gap: var(--sp-1); }
 
 /* Tab-Leiste und Menü-Hintergrund gibt es nur unter 900 px (iPhone, iPad hochkant) */
 .tabbar, .nav-backdrop { display: none; }
@@ -500,7 +461,7 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
    (744–834 px) bekommt die Tab-Leiste. Dieselbe Zahl in nav-model.js
    (NAV_SIDEBAR_QUERY / NAV_TABBAR_QUERY), geprüft in tests/nav-threshold.test.mjs. */
 @media (max-width: 899.98px) {
-  html, body { font-size: 1rem; }   /* 16 px Grundschrift */
+  html, body { font-size: var(--fs-md); }   /* 16 px Grundschrift */
   .layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: var(--topbar-total) 1fr;
@@ -529,7 +490,7 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
     display: block; position: fixed; inset: 0; z-index: 65;
     background: var(--bg-overlay);
   }
-  .sidebar__item { padding: 12px 14px; font-size: var(--fs-md); }
+  .sidebar__item { padding: var(--sp-3) var(--sp-4); font-size: var(--fs-md); }
   .sidebar__footer { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); font-size: var(--fs-sm); }
   /* v2.13.0 — „Hilfe" steht hier; auch ein Fußzeilen-Link braucht 44 px zum Tippen */
   .sidebar__footer a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 var(--sp-2); }
@@ -544,22 +505,23 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
   }
   .tabbar__item {
     position: relative;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    min-height: 44px; padding: 4px 2px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-0);
+    min-height: 44px; padding: var(--sp-1) var(--sp-0);
     background: none; border: none; cursor: pointer;
-    color: var(--text-2); font: inherit; font-size: 11px; font-weight: 500;
+    color: var(--text-2); font: inherit; font-size: var(--fs-xs); font-weight: 500;
     text-decoration: none;
   }
   .tabbar__item:hover { text-decoration: none; color: var(--text-1); }
   .tabbar__item.active { color: var(--accent); }
-  .tabbar__icon { font-size: 20px; line-height: 1; }
+  .tabbar__icon { line-height: 0; }
   .tabbar__label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabbar__item--capture .tabbar__icon {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--accent); color: var(--accent-fg); font-size: 22px; font-weight: 600;
+    width: 36px; height: 36px; border-radius: var(--r-md);
+    background: var(--accent); --ico: var(--accent-fg); --ico-f: transparent;
   }
-  .tabbar__badge { position: absolute; top: 2px; left: 50%; margin-left: 6px; }
+  .tabbar__item.active { --ico: var(--accent); }
+  .tabbar__badge { position: absolute; top: 2px; left: 50%; margin-left: var(--sp-1h); }
   .tabbar__badge .sidebar__badge { margin-left: 0; }
 
   .view {
@@ -570,9 +532,19 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
     padding-bottom: calc(var(--sp-6) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
   .section-tabs--mobile { display: flex; }
-  .section-tabs { margin-top: 0; }
-  .section-tabs__tab { min-height: 44px; }
+  /* Reiter ohne Umbruch querwischbar */
+  .section-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .section-tabs::-webkit-scrollbar { display: none; }
+  .section-tabs__tab { flex: none; }
+}
+/* Tippziel: dieselbe Form, nur höher */
+@media (pointer: coarse), (max-width: 899.98px) {
+  .section-tabs__tab, .pill, .seg__btn, .ef-seg__btn { min-height: 44px; }
 }
 
-/* Knöpfe im Kartentitel erben nicht dessen Versalien */
-.card__title .btn { text-transform: none; letter-spacing: normal; font-size: var(--fs-sm); }
+/* Knöpfe im Kartentitel: normale Bedienschrift */
+.card__title .btn { font-size: var(--fs-sm); }
+
+/* v3.12.0 (M2) — Verbrauch ist eine Untergruppe von Alltag */
+.sidebar__group .sidebar__group { margin: 0; }
+.sidebar__group .sidebar__group .sidebar__group-label { padding-top: var(--sp-2); font-weight: 500; }

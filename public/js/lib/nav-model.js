@@ -7,9 +7,11 @@
 // Rechnungsprüfung und Jahresbericht hatten keinen eigenen Platz, und
 // Menüname und Seitentitel wichen voneinander ab („Dashboard" / „Übersicht").
 //
-// Jetzt sieben Bereiche nach den Fragen der Nutzer:
-//   Übersicht · Zählerstände · Verbrauch (je Verbrauchsart) ·
-//   Kosten & Verträge · Auswertungen · Hinweise · Einstellungen
+// v3.12.0 — zwei Gruppen:
+//   Alltag: Übersicht · Zu tun · Zählerstände · Posteingang · Verbrauch (je Art) ·
+//           Kosten & Verträge · Auswertungen
+//   Einrichtung: Haushalt · Verbindungen · Einstellungen
+// Das Menü ist in jeder Stufe gleich, Stufen wirken auf Reiter und Karten.
 // Ein Bereich mit mehreren Seiten zeigt sie als Tabs über der Ansicht; in
 // der Seitenleiste steht er als ein Eintrag. Alte Adressen bleiben gültig.
 // =====================================================================
@@ -52,10 +54,12 @@ export function sectionPages(section, ctx = {}) {
 function allSectionPages(section, { utilities = [], tenant = false } = {}) {
   switch (section) {
     case 'consumption':
-      return utilities.map(u => ({ view: 'utility:' + u.key, href: `#/utility/${u.key}`, label: u.label, icon: u.icon, utility: u.key }));
+      return utilities.map(u => ({ view: 'utility:' + u.key, href: `#/utility/${u.key}`, label: u.label, utility: u.key }));
     case 'costs': {
       const pages = [
         { view: 'contracts-overview', href: '#/contracts', label: t('nav.contracts') },
+        // v3.12.0 (M4) — beendete und abgelöste Verträge, eigene Ansicht statt Tabelle je Art
+        { view: 'contracts-past', href: '#/contracts/past', label: t('nav.contractsPast') },
         { view: 'tariffs', href: '#/tariffs', label: t('nav.tariffs') },
       ];
       // v3.1.0 (H5, UI-35) — für alle Arten mit Zählerständen und Verträgen (bis
@@ -69,32 +73,41 @@ function allSectionPages(section, { utilities = [], tenant = false } = {}) {
     }
     case 'analysis':
       return [
+        // v3.12.0 (M4) — Kennzahlen zuerst: die Karten der alten Übersicht im festen Raster
+        { view: 'figures', href: '#/figures', label: t('nav.figures') },
         { view: 'analysis', href: '#/analysis', label: t('nav.analysis') },
         { view: 'forecast', href: '#/forecast', label: t('nav.forecast') },
         // v3.3.0 (F1021) — Flexibilität bewerten (Viertelstunden)
         { view: 'flexibility', href: '#/flexibility', label: t('nav.flexibility') },
         { view: 'report', href: '#/report', label: t('nav.report') },
       ];
-    case 'hints':
+    case 'todo':
       return [
-        { view: 'reminders', href: '#/reminders', label: t('nav.reminders'), badge: 'reminders' },
-        { view: 'recommendations', href: '#/recommendations', label: t('nav.recommendations'), badge: 'recommendations' },
-        // v3.4.0 (F1024) — was erledigt wurde, von wem und wann (ab „Erfahren", levels.js)
-        { view: 'activity', href: '#/activity', label: t('nav.activity') },
+        { view: 'todo', href: '#/todo', label: t('nav.todoOpen'), badge: 'hints' },
+        { view: 'reminders', href: '#/todo/dates', label: t('nav.reminders'), badge: 'reminders' },
+        // v3.4.0 (F1024) — was erledigt wurde, von wem und wann
+        { view: 'activity', href: '#/todo/history', label: t('nav.activity') },
       ];
     case 'settings':
-      // v2.12.0 (Review UI-13) — Unterseiten statt einer langen Seite; die
-      // Wetterdaten sind die Ansicht temperatures.js
+      // v2.12.0 (Review UI-13) — Unterseiten statt einer langen Seite;
+      // v3.12.0 — Wetter und Integrationen stehen unter Verbindungen, Haushalt ist ein eigener
+      // Bereich (M3); die Seiten sind Themen, die erste trägt Suche und „Für dich“
       return [
         { view: 'settings:general', href: '#/settings', label: t('settings.page.general.title') },
-        { view: 'settings:household', href: '#/settings/household', label: t('settings.page.household.title') },
-        { view: 'settings:utilities', href: '#/settings/utilities', label: t('settings.page.utilities.title') },
-        { view: 'temperatures', href: '#/temperatures', label: t('nav.weather') },
+        { view: 'settings:region', href: '#/settings/region', label: t('settings.page.region.title') },
+        { view: 'settings:display', href: '#/settings/display', label: t('settings.page.display.title') },
         { view: 'settings:data', href: '#/settings/data', label: t('settings.page.data.title') },
-        { view: 'settings:integrations', href: '#/settings/integrations', label: t('settings.page.integrations.title') },
         { view: 'settings:access', href: '#/settings/access', label: t('settings.page.access.title') },
-        { view: 'settings:expert', href: '#/settings/expert', label: t('settings.page.expert.title') },
+        { view: 'settings:calculation', href: '#/settings/calculation', label: t('settings.page.calculation.title') },
         { view: 'settings:system', href: '#/settings/system', label: t('settings.page.system.title') },
+      ];
+    case 'household':
+      // v3.12.0 (M3) — Zähler stehen an einem Ort (Filter je Art); keine Seite hängt an einer Stufe
+      return [
+        { view: 'household:meters', href: '#/household/meters', label: t('household.meters.tab') },
+        { view: 'household:people', href: '#/household/people', label: t('household.people.tab') },
+        { view: 'household:building', href: '#/household/building', label: t('household.building.tab') },
+        { view: 'household:utilities', href: '#/household/utilities', label: t('household.utilities.tab') },
       ];
     default:
       return [];
@@ -105,37 +118,44 @@ function allSectionPages(section, { utilities = [], tenant = false } = {}) {
  * Die Einträge der Seitenleiste. `section` verbindet einen Eintrag mit den
  * Ansichten, bei denen er als aktiv gilt.
  *
- * @param {Array<{key: string, label: string, icon?: string}>} utilities  aktive Verbrauchsarten
+ * @param {Array<{key: string, label: string}>} utilities  aktive Verbrauchsarten
  */
 export function sidebarModel(utilities) {
-  return [
-    { key: 'dashboard', section: 'overview', href: '#/dashboard', icon: '🏠', label: t('nav.dashboard') },
-    { key: 'readings-entry', section: 'capture', href: '#/zaehlerstaende', icon: '📋', label: t('nav.readings'), badge: 'outbox' },
+  const daily = [
+    { key: 'dashboard', section: 'overview', href: '#/dashboard', icon: 'home', label: t('nav.dashboard') },
+    { key: 'todo', section: 'todo', href: '#/todo', icon: 'aufgaben', label: t('nav.todo'), badge: 'hints' },
+    { key: 'readings-entry', section: 'capture', href: '#/zaehlerstaende', icon: 'klemmbrett', label: t('nav.readings'), badge: 'outbox' },
     // v3.7.0 — Posteingang für Versorgerpost, in jeder Stufe: Ablegen und „Von Hand
     // erfassen“ gehen ohne KI, und das Auslesen nimmt gerade Einsteigern die Formulare ab
-    { key: 'inbox', section: 'inbox', href: '#/inbox', icon: '📥', label: t('nav.inbox'), badge: 'inbox' },
+    { key: 'inbox', section: 'inbox', href: '#/inbox', icon: 'eingang', label: t('nav.inbox'), badge: 'inbox' },
     {
       key: 'consumption', section: 'consumption', group: t('nav.group.consumption'),
       children: utilities.map(u => ({
         key: 'utility:' + u.key, section: 'consumption', href: `#/utility/${u.key}`,
-        icon: u.icon || '•', label: u.label, utility: u.key,
+        label: u.label, utility: u.key, glyph: u.glyph,
       })),
     },
-    { key: 'costs', section: 'costs', href: '#/contracts', icon: '💶', label: t('nav.group.costs') },
+    { key: 'costs', section: 'costs', href: '#/contracts', icon: 'geld', label: t('nav.group.costs') },
     // v3.2.0 — Einsteiger sahen hier nur den Jahresbericht; v3.6.0 (F1031) — zuerst die Prognose-Werkstatt
-    { key: 'analysis', section: 'analysis', href: sectionPages('analysis')[0]?.href || '#/report', icon: '📊', label: t('nav.group.analysis') },
-    { key: 'hints', section: 'hints', href: '#/reminders', icon: '📌', label: t('nav.group.hints'), badge: 'hints' },
-    { key: 'settings', section: 'settings', href: '#/settings', icon: '⚙️', label: t('nav.settings') },
+    { key: 'analysis', section: 'analysis', href: sectionPages('analysis')[0]?.href || '#/report', icon: 'saeulen', label: t('nav.group.analysis') },
+  ];
+  return [
+    { key: 'daily', group: t('nav.group.daily'), children: daily },
+    { key: 'setup', group: t('nav.group.setup'), children: [
+      { key: 'household', section: 'household', href: '#/household', icon: 'block', label: t('nav.household') },
+      { key: 'connections', section: 'connections', href: '#/connections', icon: 'stecker', label: t('nav.connections') },
+      { key: 'settings', section: 'settings', href: '#/settings', icon: 'zahnrad', label: t('nav.settings') },
+    ] },
   ];
 }
 
 /** Die fünf Ziele der Tab-Leiste (iPhone); `capture` öffnet das Erfassen-Blatt. */
 export function tabbarModel(firstUtility) {
   return [
-    { key: 'overview', section: 'overview', href: '#/dashboard', icon: '🏠', label: t('nav.tab.overview') },
-    { key: 'consumption', section: 'consumption', href: firstUtility ? `#/utility/${firstUtility}` : '#/dashboard', icon: '📈', label: t('nav.tab.consumption') },
-    { key: 'capture', section: 'capture', action: 'capture', icon: '＋', label: t('nav.tab.capture'), badge: 'outbox' },
-    { key: 'costs', section: 'costs', href: '#/contracts', icon: '💶', label: t('nav.tab.costs') },
-    { key: 'more', action: 'more', icon: '☰', label: t('nav.tab.more'), badge: 'hints' },
+    { key: 'overview', section: 'overview', href: '#/dashboard', icon: 'home', label: t('nav.tab.overview') },
+    { key: 'todo', section: 'todo', href: '#/todo', icon: 'aufgaben', label: t('nav.tab.todo'), badge: 'hints' },
+    { key: 'capture', section: 'capture', action: 'capture', icon: 'plus', label: t('nav.tab.capture'), badge: 'outbox' },
+    { key: 'consumption', section: 'consumption', href: firstUtility ? `#/utility/${firstUtility}` : '#/dashboard', icon: 'verlaufskurve', label: t('nav.tab.consumption') },
+    { key: 'more', action: 'more', icon: 'menue', label: t('nav.tab.more'), badge: 'inbox' },
   ];
 }

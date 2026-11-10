@@ -55,6 +55,17 @@ entscheidet die Sprache (Englisch → Vereinigtes Königreich). Die
 Standardzähler heißen dann gleich in der richtigen Sprache („Compteur
 principal").
 
+**Der Gesundheitscheck entscheidet nicht *(v3.12.0)*.** <!-- doc-claim: first-start-health -->
+`/api/health` ohne Sprachangabe legt ein leeres Datenverzeichnis nicht an; als
+Sprachangabe zählt auch `Accept-Language: *` („jede Sprache“, so fragen Programme
+auf Node-Basis) nicht. So
+fragen der `HEALTHCHECK` des Docker-Images (alle 30 Sekunden) und damit auch die
+Überwachung durch Home Assistant; bis v3.11 kam er oft vor dem ersten Browser und legte
+die Installation auf Deutsch, Deutschland und Leipzig fest. Den Erststart entscheidet
+jetzt der erste andere Aufruf, normalerweise der Browser. Ein Skript ohne
+`Accept-Language` bekommt wie bisher die deutschen Vorgaben; der
+Einrichtungsassistent fragt Sprache und Land trotzdem ab.
+
 Geschrieben werden **nur die Werte, die vom Default abweichen.** Ein deutscher
 Erststart schreibt also nichts fest — korrigiert ein späteres Update einen
 Default, greift die Korrektur auch dort. Nach dem Erststart ändert die
@@ -62,8 +73,8 @@ Kopfzeile nichts mehr.
 
 **In den Einstellungen.** Die Karte „Sprache & Land" enthält Sprache, Land,
 Währung und Zeitzone; alle wirken sofort. Die Sprache gibt es seit v3.1.0
-zweimal: „Sprache auf diesem Gerät“ (nur dieser Browser) und
-„Standardsprache der Installation“ (Geräte ohne eigene Wahl, PDF, CSV, Home
+zweimal: „Deine Sprache“ (nur dieser Browser) und
+„Sprache, Vorgabe für alle“ (Geräte ohne eigene Wahl, PDF, CSV, Home
 Assistant). Land, Währung und Zeitzone gelten für die ganze Installation.
 Beim Wechsel des Landes zeigt
 ein Dialog, welche Werte das Profil ändern würde — bisher und neu
@@ -106,7 +117,11 @@ Länderabweichungen in `Countries::FORMAT_OVERRIDES`).
 
 Zur Wahl stehen Euro, Schweizer Franken und Pfund Sterling. Die Währung
 bestimmt Symbol und Untereinheit in allen Texten — „ct/kWh" wird zu
-„Rp./kWh" oder „p/kWh", Spaltenköpfe und Achsen zeigen CHF oder £.
+„Rp./kWh" oder „p/kWh", Spaltenköpfe und Achsen zeigen CHF oder £. Das gilt
+auch für den Jahresbericht, die Hinweise und den Posteingang *(v3.12.0; vorher
+standen dort einige feste „ct“)*. Ausgenommen sind die Börsenpreise unter
+Flexibilität: Sie kommen vom Strommarkt Deutschland/Luxemburg und bleiben
+Euro-Cent.
 
 **Beträge werden nicht umgerechnet.** Wer die Währung wechselt, ändert nur
 die Beschriftung; die gespeicherten Zahlen bleiben. Die Datenfelder behalten

@@ -121,6 +121,7 @@ Liefert die statische Konfiguration der neun Verbrauchsarten (`gas`,
       "key": "gas",
       "label": "Gas",
       "icon": "🔥",
+      "glyph": "art-gas",
       "unit": "m³",
       "consumption_unit": "kWh",
       "unit_to_kwh": true,
@@ -520,7 +521,7 @@ m_gas_main;Compteur principal;d_gas_1;01/02/2026;12345,6;;;Non;Non
 Zeilennummer, seit v3.1.0 in der Sprache der Anfrage (bis v3.0 deutsch):
 
 ```json
-"errors": [ "Zeile 4: Monat über 12 (01/15/2026) — Datum bitte mit dem Tag vor dem Monat (TT.MM.JJJJ, TT/MM/JJJJ) oder als JJJJ-MM-TT" ]
+"errors": [ "Zeile 4: Monat über 12 (01/15/2026). Schreib den Tag vor den Monat (TT.MM.JJJJ, TT/MM/JJJJ) oder das Datum als JJJJ-MM-TT." ]
 ```
 
 Die Importlogik steckt im quell-agnostischen
@@ -1745,7 +1746,7 @@ Die Temperaturreihe als Tageswerte: Datum, ø, Min, Max.
 Der Token schützt **nur** den Ingest-Endpoint: Ohne Token nimmt er Werte ohne
 Kopfzeile an, sobald ein Token erzeugt wurde, verlangt er
 `Authorization: Bearer <token>`. Die übrigen Routen schützt seit v2.6.0 die
-**Anmeldung** (opt-in, Einstellungen → Zugriff → „Anmeldung & Zugriff"); ist sie
+**Anmeldung** (opt-in, Einstellungen → Zugang und Sicherheit → „Anmeldung & Zugriff"); ist sie
 eingeschaltet, ist der Token für den Ingest **Pflicht**. Details:
 [Sicherheit](../betrieb/sicherheit.md).
 

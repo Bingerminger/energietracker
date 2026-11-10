@@ -193,9 +193,10 @@ final class SubmeterRestConsumersTest extends ServiceTestCase
     /** Saldo-Schätzung nach der letzten Ablesung: geschätzt wird der Rest (300 kWh je Monat × 20 ct). */
     public function testBalanceProjectionEstimatesTheRest(): void
     {
-        $row = $this->consumption->contractStatus('strom', $this->parentMeter())['contracts'][0];
+        // v3.12.0 — fester Stichtag in der Periode 2026 (bis v3.11 heute: ab 2027 eine andere Periode)
+        $today = '2026-09-30';
+        $row = $this->consumption->contractStatus('strom', $this->parentMeter(), $today)['contracts'][0];
         self::assertSame('forecast', $row['projection_method']);
-        $today = date('Y-m-d');
         $expected = 0.0;
         // Tagesrate je Kalendermonat: Mittel aus 2024 und 2025 (Februar 29 bzw. 28 Tage), Rest 300 kWh × 20 ct
         $perDay = fn(int $mo) => (60.0 / (int)date('t', mktime(0, 0, 0, $mo, 1, 2024)) + 60.0 / (int)date('t', mktime(0, 0, 0, $mo, 1, 2025))) / 2;

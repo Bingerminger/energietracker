@@ -2035,6 +2035,68 @@ function rightsShowcase(d, textOf) {
   ];
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// v3.12.0 (m4b) — Angaben für Briefe im Schaufenster
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Absender und Lieferanschrift im Haushalt, Anschrift, Kunden- und
+// Vertragsnummer an den laufenden Verträgen: So zeigt die Kündigung in Demo und
+// Pages keine Lücken. Alles erfunden (Musterstadt, Postleitzahl 12345).
+
+const LETTER_SETTINGS = {
+  letter_sender_name: 'Anna und Paul Muster',
+  letter_sender_address: 'Musterweg 12\n12345 Musterstadt',
+  letter_supply_address: 'Musterweg 12, 12345 Musterstadt',
+};
+const LETTER_CONTRACTS = {
+  gas:        { c_gas_004: { provider_address: 'Am Windpark 1\n12345 Musterstadt', customer_number: 'K-100471', contract_number: 'V-2026-0815' } },
+  strom:      { c_strom_004: { provider_address: 'Ringstraße 8\n12345 Musterstadt', customer_number: 'K-200815', contract_number: 'V-2026-1123' },
+                c_strom_wp: { provider_address: 'Postfach 1020\n12345 Musterstadt', customer_number: 'K-300042', contract_number: 'V-2025-0042' } },
+  // v3.12.0 — dazu eine Kündigungsfrist am unbefristeten Fernwärmevertrag: ohne sie bliebe der Termin der Kündigung eine Lücke
+  fernwaerme: { c_fw_001: { provider_address: 'Am Markt 1\n12345 Musterstadt', customer_number: 'K-400123', contract_number: 'V-2023-0007',
+                            notice_period_months: 3 } },
+  wasser:     { c_wasser_haupt_2025: { provider_address: 'Brunnenweg 3\n12345 Musterstadt', customer_number: 'K-500321', contract_number: 'V-2025-0031' } },
+};
+
+/** Felder hinter `provider` einfügen (dieselbe Lage wie in der Verzeichnisform). */
+function withAfterProvider(c, fields) {
+  const out = {};
+  for (const [k, v] of Object.entries(c)) {
+    if (k in fields) continue;
+    out[k] = v;
+    if (k === 'provider') Object.assign(out, fields);
+  }
+  return out;
+}
+
+/** @param {(file: string) => string} textOf  Inhalt einer Datei der Verzeichnisform (auch schon geänderte) */
+function lettersShowcase(d, textOf) {
+  d.settings = { ...d.settings, ...LETTER_SETTINGS };
+  const out = [];
+  for (const [k, byId] of Object.entries(LETTER_CONTRACTS)) {
+    const list = d.utilities[k].contracts;
+    let text = textOf(join(ROOT, 'demo-data', k, 'contracts.json'));
+    for (const [id, fields] of Object.entries(byId)) {
+      const i = list.findIndex(c => c.id === id);
+      if (i < 0) throw new Error(`Schaufenster: Vertrag ${id} fehlt`);
+      list[i] = withAfterProvider(list[i], fields);
+      const line = `    "provider": ${JSON.stringify(list[i].provider)},\n`;
+      text = inDirectoryBlock(text, `"id": "${id}"`, line,
+        line + Object.entries(fields).map(([f, v]) => `    ${JSON.stringify(f)}: ${JSON.stringify(v)},\n`).join(''));
+    }
+    out.push([join(ROOT, 'demo-data', k, 'contracts.json'), text]);
+  }
+  // Einstellungen der Verzeichnisform: die drei Angaben am Ende
+  const sFile = join(ROOT, 'demo-data', 'settings.json');
+  let s = textOf(sFile);
+  if (!s.includes('"letter_sender_name"')) {
+    const body = Object.entries(LETTER_SETTINGS).map(([f, v]) => `  ${JSON.stringify(f)}: ${JSON.stringify(v)}`).join(',\n');
+    s = s.replace(/\n\}(\s*)$/, (_, end) => `,\n${body}\n}${end}`);   // Dateiende wie im Original
+  }
+  out.push([sFile, s]);
+  return out;
+}
+
 /**
  * Verzeichnisform: Einträge ans Ende eines Arrays (2 Leerzeichen eingerückt wie
  * die Datei), ohne den Rest neu zu schreiben — die Datei hält PHP-Zahlen wie
@@ -2477,14 +2539,19 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
   // v3.11.0 (Paket doku) — Sonderkündigung, Gebührenbescheid, widersprüchlicher Vertrag
   const textOf3 = (file) => conceptFiles.find(([f]) => f === file)?.[1] ?? textOf2(file);
   const rightsFiles = rightsShowcase(d, textOf3);
-  const later = [...sparseFiles, ...conceptFiles, ...rightsFiles];
+  // v3.12.0 (m4b) — Angaben für Briefe: Absender im Haushalt, Anschrift und Nummern an den laufenden Verträgen
+  const textOf4 = (file) => rightsFiles.find(([f]) => f === file)?.[1] ?? textOf3(file);
+  const letterFiles = lettersShowcase(d, textOf4);
+  const later = [...sparseFiles, ...conceptFiles, ...rightsFiles, ...letterFiles];
+  const notIn = (...groups) => ([f]) => !groups.some(g => g.some(([s]) => s === f));
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
   const files = [
     ...respFiles.filter(([f]) => !later.some(([s]) => s === f)),   // v3.7.0 — Zuständig in der Verzeichnisform
-    ...inboxFiles,
-    ...sparseFiles.filter(([f]) => !conceptFiles.some(([s]) => s === f) && !rightsFiles.some(([s]) => s === f)),
-    ...conceptFiles.filter(([f]) => !rightsFiles.some(([s]) => s === f)),
-    ...rightsFiles,
+    ...inboxFiles.filter(notIn(letterFiles)),
+    ...sparseFiles.filter(notIn(conceptFiles, rightsFiles, letterFiles)),
+    ...conceptFiles.filter(notIn(rightsFiles, letterFiles)),
+    ...rightsFiles.filter(notIn(letterFiles)),
+    ...letterFiles,
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],

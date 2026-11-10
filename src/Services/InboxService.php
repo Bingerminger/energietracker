@@ -160,6 +160,7 @@ final class InboxService
             'provider' => $e['extraction']['provider'] ?? null, 'model' => $e['extraction']['model'] ?? null,
             // v3.7.0 (Paket betrieb) — Kernaussage und Zuordnung für Liste und Akte
             'gist' => is_array($e['gist'] ?? null) ? $e['gist'] : null,
+            'source' => $e['source'] ?? null,   // v3.12.0 (Skeptiker M8) — woher, wenn nicht die Oberfläche
             'meter_id' => $e['assignment']['meter_id'] ?? null, 'contract_id' => $e['assignment']['contract_id'] ?? null,
         ];
     }
@@ -213,7 +214,7 @@ final class InboxService
      *
      * @return array<string,mixed>
      */
-    public function upload(string $bytes, ?string $name = null): array
+    public function upload(string $bytes, ?string $name = null, ?string $source = null): array
     {
         if (AttachmentService::sniff($bytes) !== 'application/pdf') {
             throw new LocalizedException('errors.inbox.pdfOnly', [], 'inbox: not a pdf');
@@ -232,7 +233,7 @@ final class InboxService
             'created_at' => date('c'), 'updated_at' => date('c'),
             'status' => 'new', 'type' => null, 'type_confidence' => null,
             'extraction' => null, 'cache' => [], 'assignment' => null, 'edits' => [], 'applied' => [], 'error' => null,
-        ];
+        ] + ($source !== null ? ['source' => $source] : []);   // v3.12.0 (Skeptiker M8) — `mcp`: mit einem KI-Schlüssel abgelegt
         $all = $this->all();
         $all[] = $entry;
         $this->store->write('inbox.json', $all);
@@ -270,10 +271,23 @@ final class InboxService
                     $e['edits'][$field] = $this->editValue((string)($e['type'] ?? ''), $field, $value);
                 }
             }
+            // v3.12.0 — der Browser meldet ein PDF, das pdf.js nicht lesen kann (Kopf „%PDF-“, Inhalt kaputt): dann
+            // „fehlgeschlagen“ mit eigener Meldung wie beim Scan ohne Textebene; nur mit diesem Grund, und ein
+            // erledigtes oder abgelegtes Dokument bleibt (wie fail())
+            if (($patch['status'] ?? null) === 'failed') {
+                if (($patch['reason'] ?? null) !== 'pdf_unreadable') throw new LocalizedException('errors.inbox.statusInvalid', ['status' => 'failed'], 'status');
+                if (!in_array($e['status'] ?? '', ['done', 'filed'], true)) {
+                    $e['status'] = 'failed';
+                    $e['error'] = ['key' => 'errors.inbox.pdfUnreadable', 'params' => [], 'at' => date('c')];
+                }
+                unset($patch['status']);
+            }
             if (array_key_exists('status', $patch)) {
                 $s = (string)$patch['status'];
                 if (!in_array($s, ['new', 'filed'], true)) throw new LocalizedException('errors.inbox.statusInvalid', ['status' => $s], 'status');
                 $e['status'] = $s === 'new' ? ($e['extraction'] !== null ? 'read' : 'new') : 'filed';
+                // v3.12.0 (Nachprüfung C1) — eine Person hat es abgelegt (anders als das Abheften nach dem Erkennen, classify())
+                if ($s === 'filed') $e['filed_by_person'] = true; else unset($e['filed_by_person']);
             }
             if (array_key_exists('note', $patch)) $e['note'] = mb_substr(trim((string)$patch['note']), 0, self::NOTE_MAX);
             return $e;
@@ -386,6 +400,75 @@ final class InboxService
             $x['error'] = null;
             return $x;
         }));
+    }
+
+    /** v3.12.0 (F1037) — `extraction.provider`, wenn die KI selbst ausgelesen hat (read_document). */
+    public const CLIENT_PROVIDER = 'mcp_client';
+
+    /**
+     * v3.12.0 (F1037) — Auslesen durch die KI selbst („Client als Ausleser“,
+     * Konzept §3.3, Entscheidung 10a): Art, Textebene je Seite und Felder mit
+     * Zitat und Seite kommen vom MCP-Client und werden geprüft wie die Antwort
+     * eines Anbieters (Inbox\Evidence, Marken nach dem Bestand). Es fragt keinen
+     * Anbieter, gibt nie eine Zustimmung für die Cloud und lässt den
+     * Zwischenspeicher der Anbieter unberührt. Die Zitate prüft Evidence gegen den
+     * Text, den die KI mitschickt; Schutz bleibt die Bestätigung beim Übernehmen.
+     *
+     * Die Schreibsperre kommt vor dem Lesen: /api/mcp holt sie nicht vorab
+     * (App::LOCK_LATE), und mutate() liest und schreibt die ganze Liste.
+     *
+     * @param list<string> $pages Textebene je Seite, wie die KI sie gelesen hat
+     * @param array<string,mixed> $fields Feld → {value, quote, page}; Listen: value = Einträge
+     * @param string $model Name des Clients (nur Anzeige: „ausgelesen mit …“)
+     * @return array<string,mixed> Eintrag
+     */
+    public function extractFromClient(string $id, string $type, array $pages, array $fields, string $model): array
+    {
+        $this->store->lock();
+        $e = $this->get($id);
+        if (!InboxSchema::isType($type)) throw new LocalizedException('errors.inbox.badAnswer', [], 'client: invalid type');
+        // v3.12.0 (Skeptiker H3) — was eine Person korrigiert hat und was übernommen ist, ersetzt keine KI:
+        // Bis dahin setzte ein zweites Auslesen einen geprüften Betrag still zurück. Prüfmarken ohne Korrektur zählen nicht.
+        // v3.12.0 (Nachprüfung C1) — auch nicht, was eine Person abgelegt hat: `read_document` machte daraus wieder `read`, `next: propose_document`.
+        // Von früher ohne Kennung: abgelegt, obwohl die Art ausgelesen wird, kann nur eine Person gewesen sein. Nur erkannt (Mahnung, Sonstiges) bleibt offen.
+        $filed = ($e['status'] ?? '') === 'filed' && (!empty($e['filed_by_person']) || InboxSchema::extracts((string)($e['type'] ?? '')));
+        if ($filed || (array)($e['edits'] ?? []) !== [] || ($e['status'] ?? '') === 'done' || (array)($e['applied'] ?? []) !== []) {
+            throw new LocalizedException('errors.mcp.document.alreadyChecked', ['id' => $id], 'client: already checked');
+        }
+        $model = mb_substr(trim($model), 0, 80);
+        $extraction = ['provider' => self::CLIENT_PROVIDER, 'model' => $model !== '' ? $model : 'MCP', 'schema_version' => InboxSchema::VERSION,
+            'type' => $type, 'fields' => [], 'flags' => 0, 'extracted_at' => date('c'),
+            'text' => ['chars' => array_sum(array_map(fn($p) => mb_strlen((string)$p), $pages))]];
+        if (InboxSchema::extracts($type)) {
+            $checked = Evidence::check($type, $fields, $pages);
+            // wie extract(): gespeichert werden die Marken nach dem Bestand
+            $probe = ['type' => $type, 'extraction' => ['fields' => $checked], 'edits' => [], 'assignment' => $e['assignment'] ?? null] + $e;
+            $probe = $this->proposals->marks($probe, is_array($e['assignment'] ?? null) ? $e['assignment'] : $this->proposals->suggest($probe));
+            $extraction['fields'] = $probe['extraction']['fields'];
+            $extraction['flags'] = Evidence::flagCount($extraction['fields']);
+        }
+        return $this->storeGist($this->mutate($id, function (array $x) use ($type, $pages, $extraction): array {
+            $x['type'] = $type;
+            $x['type_confidence'] = null;
+            $x['pages'] = count($pages);
+            $x['extraction'] = $extraction;
+            $x['edits'] = [];
+            // nur erkannt (Mahnung, Widerruf, Sonstiges): abgelegt wie nach classify()
+            $x['status'] = InboxSchema::extracts($type) ? 'read' : 'filed';
+            $x['error'] = null;
+            return $x;
+        }));
+    }
+
+    /**
+     * v3.12.0 (Skeptiker H1) — alle Einträge mit Auslesung, für die Stelle, die Kennnummern
+     * aus Fremdtext nimmt (Mcp\IdentifierMask). Nicht für Antworten.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function rawEntries(): array
+    {
+        return array_values($this->all());
     }
 
     private function provider(bool $consent): ExtractionProvider
@@ -504,9 +587,10 @@ final class InboxService
      * geändert), passiert nichts.
      *
      * @param list<string> $ids
+     * @param string|null $changes v3.12.0 (Skeptiker M9) — die bestätigte Liste der Änderungen, für den Verlauf (KI)
      * @return array<string,mixed>
      */
-    public function apply(string $id, array $ids): array
+    public function apply(string $id, array $ids, ?string $changes = null): array
     {
         $e = $this->get($id);
         if (!is_array($e['extraction']['fields'] ?? null) || !InboxSchema::extracts((string)($e['type'] ?? ''))) {
@@ -540,22 +624,23 @@ final class InboxService
         // v3.7.0 (Paket betrieb) — danach die Kernaussage; bei einer Rechnung läuft
         // damit „Rechnung prüfen“ (BillService::compare) gleich mit
         $entry = $this->storeGist($entry);
+        $activityId = null;   // v3.12.0 (F1037) — Verlaufseintrag dieser Übernahme (additiv in der Antwort)
         if ($res['applied'] !== [] && $this->activity !== null) {
             try {
-                $this->activity->record([
+                $activityId = $this->activity->record([
                     'action' => 'updated',
                     'subject' => ['kind' => 'inbox', 'uid' => 'inbox:' . $id, 'occurrence' => 'inbox:' . $id . '@' . $now],
                     'ref' => array_filter(['inbox_id' => $id, 'utility' => (string)$as['utility'], 'meter_id' => $as['meter_id'] ?? null,
                                            'contract_id' => $as['contract_id'] ?? null], fn($v) => is_string($v) && $v !== ''),
                     'title_key' => 'activity.inbox.applied',
                     'params' => ['name' => (string)($e['name'] ?? ''), 'count' => count($res['applied'])],
-                ]);
+                ] + ($changes !== null ? ['changes' => $changes] : []))['id'];
             } catch (\Throwable) {
                 // der Verlauf darf das Übernehmen nie verhindern
             }
         }
         return $res + ['entry' => self::summary($entry), 'proposals' => $this->proposals->build($this->withDuplicates($entry, $this->duplicatesOf($entry)), $as),
-            'gist' => $entry['gist'] ?? null];
+            'gist' => $entry['gist'] ?? null, 'activity_id' => $activityId];
     }
 
     /**

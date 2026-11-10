@@ -125,6 +125,13 @@ final class ForecastService
 
     public function forMeter(string $utility, array $meter, array $opts = []): array
     {
+        // v3.12.0 — `today` (Stichtag des Aufrufers, etwa der Werkstatt): die ganze Prognose an diesem
+        // Tag (Monatszeilen, Subzähler), sonst heute
+        if (is_string($opts['today'] ?? null)) {
+            $today = $opts['today'];
+            unset($opts['today']);
+            return $this->consumption->atDate($today, fn() => $this->forMeter($utility, $meter, $opts));
+        }
         $u = Utilities::get($utility);
         $monthly = $this->consumption->forMeter($utility, $meter);
         if (count($monthly) < 6) {
@@ -250,10 +257,11 @@ final class ForecastService
         // letzte echte Vertrag vor dem Prognosehorizont endete — die Prognose
         // rechnete dann still mit einem Tarif, den es nicht gibt.
         // v3.1.0 (H6) — HT/NT einer Gruppe als Mischpreis
-        $contracts = array_values(array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), array_filter(
+        // v3.12.0 (Nachprüfung B4) — bis wann jeder rechnet: Ein Bonus zählt an seinem Tag wie im Saldo (ContractService::bonusDay)
+        $contracts = array_values(array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->withRunsUntil(array_values(array_filter(
             $this->contracts->list($utility, (string)($meter['id'] ?? '')),
             fn($c) => empty($c['is_shadow'])
-        )));
+        )))));
 
         // Unsicherheit (v2.8.0): Gewicht der Wetterstreuung = Verbrauch je
         // Gradtag, dazu das Rauschen des Modells.
@@ -693,77 +701,90 @@ final class ForecastService
         float $priceFactor,
         float $sewageShare = 1.0
     ): array {
-        $first = sprintf('%04d-%02d-01', $year, $month);
         if ($utility !== 'wasser') {
             return $this->projectStandardMonth($contracts, $year, $month, $volume, $fallbackPriceCt, $priceFactor);
         }
-        // v2.8.0 (CALC-12) — ohne Folgevertrag läuft der letzte weiter, zu
-        // seinen letzten Preisen (v3.11.0: oder zu den danach eingetragenen).
-        // Bisher fielen Grundpreis und Abschlag weg.
-        // v2.9.0 — nur, wenn er sich verlängert (`auto_renews`).
-        $r = $this->contracts->resolveForDate($contracts, $first);
-        $c = $r['contract'] ?? null;
-        $assumed = $r['assumed'] ?? false;
-        // v3.11.0 (Skeptiker H1) — auch fortgeschrieben die Preise des Monats: ohne Eintrag nach dem Ende
-        // der letzte (wie bisher), mit Eintrag danach dieser (bis v3.10 die Preise des Endmonats)
-        $asOfYear = $year; $asOfMonth = $month;
+        return $this->projectWaterMonth($contracts, $year, $month, $volume, $fallbackPriceCt, $priceFactor, $sewageShare);
+    }
 
-        if (!$c) {
-            // No contract — fall back to the last known unit price.
-            return [
-                'cost'             => $volume * $fallbackPriceCt / 100.0,
-                'advance'          => null,
-                'working_price_ct' => $fallbackPriceCt,
-                'contract_id'      => null,
-                'assumed'          => false,
-            ];
+    /**
+     * v3.12.0 — Finanzen eines Prognosemonats für Wasser, tagesgenau wie die vergangenen Monate
+     * (ConsumptionService::applyWaterContracts) und wie Strom ({@see projectStandardMonth()}): Der Monat wird an
+     * Vertrags- und Preisstichtagen der drei Sparten geteilt, die Menge verteilt sich gleichmäßig auf die Tage, die
+     * Grundpreise und das Niederschlagswasser gelten tagesanteilig, der Abschlag anteilig nach Vertragstagen.
+     * Bis dahin galten Vertrag und Preise des Monatsersten für den ganzen Monat: Ein Preis ab dem 15. wirkte in der
+     * Prognose, in der Prognose-Werkstatt und für die KI erst im Folgemonat, ein Vertragswechsel am 15. gar nicht.
+     *
+     * Schmutzwasser = Menge × Anteil desselben Kalendermonats in der Historie (v3.1.0, sewageShareByMonth).
+     * Ohne Folgevertrag läuft der letzte weiter, wenn er sich verlängert (v2.8.0/v2.9.0, ContractService::segmentsBetween).
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return array{cost:float,advance:?float,working_price_ct:?float,contract_id:?string,assumed:bool}
+     */
+    private function projectWaterMonth(array $contracts, int $year, int $month, float $volume, float $fallbackPriceCt,
+        float $priceFactor, float $sewageShare): array
+    {
+        $monthStart = sprintf('%04d-%02d-01', $year, $month);
+        $nextMonth  = date('Y-m-d', (int)strtotime($monthStart . ' +1 month'));
+        $dim        = (int)date('t', (int)strtotime($monthStart));
+
+        $cost = 0.0; $advance = null; $twCost = 0.0; $twVol = 0.0; $twPriced = false;
+        $byContract = [];   // id → [days, assumed, contract, first, from, to]
+        foreach ($this->contracts->segmentsBetween($contracts, $monthStart, $nextMonth) as $seg) {
+            $vol = $volume * $seg['days'] / $dim;
+            $w   = $seg['days'] / $dim;
+            $c = $seg['contract'];
+            if ($c === null) {
+                // Tage ohne Vertrag: letzter bekannter Einheitspreis (wie bisher für den ganzen Monat)
+                $cost += $vol * $fallbackPriceCt / 100.0;
+                continue;
+            }
+            $date = ContractService::priceDate($seg);
+            $tw = (array)($c['trinkwasser'] ?? []); $sw = (array)($c['schmutzwasser'] ?? []); $nw = (array)($c['niederschlagswasser'] ?? []);
+            $twWp = $this->contracts->valueOnDate($tw['working_prices'] ?? [], 'ct_per_m3', $date);
+            $twBp = $this->contracts->valueOnDate($tw['base_prices'] ?? [], 'eur_per_month', $date);
+            $swWp = $this->contracts->valueOnDate($sw['working_prices'] ?? [], 'ct_per_m3', $date);
+            $swBp = $this->contracts->valueOnDate($sw['base_prices'] ?? [], 'eur_per_month', $date);   // v3.9.0 (F1034)
+            $nwRate = $this->contracts->valueOnDate($nw['rates'] ?? [], 'eur_per_m2_year', $date);
+            $nwArea = $this->contracts->valueOnDate($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $date);
+            $twPrice = $twWp !== null ? $twWp * $priceFactor : $fallbackPriceCt;
+            if ($twWp !== null) $twPriced = true;
+            $cost += $vol * $twPrice / 100.0;
+            if ($twWp !== null) { $twCost += $seg['days'] * $twPrice; $twVol += $seg['days']; }   // Preis nach Tagen (Menge je Tag gleich)
+            if ($twBp !== null) $cost += $twBp * $w;
+            if ($swWp !== null) $cost += $vol * $sewageShare * $swWp * $priceFactor / 100.0;
+            if ($swBp !== null) $cost += $swBp * $w;
+            if ($nwRate !== null && $nwArea !== null) $cost += $nwRate * $nwArea / 12.0 * $w;
+            $id = (string)($c['id'] ?? '');
+            $byContract[$id] ??= ['days' => 0, 'assumed' => false, 'contract' => $c, 'first' => $date, 'from' => $seg['from']];
+            $byContract[$id]['days'] += $seg['days'];
+            $byContract[$id]['to'] = $seg['to'];
+            $byContract[$id]['assumed'] = $byContract[$id]['assumed'] || $seg['assumed'];
         }
-
-        $bonus = $assumed ? 0.0 : $this->contracts->bonusForMonth($c, $year, $month);
-        // v2.8.0 (CALC-12) — der effektive Abschlagsplan: Eine Sonderzahlung
-        // „mit Auswirkung" ändert den Abschlag ab ihrem Datum.
-        $advancePlan = $this->contracts->effectiveAdvanceSchedule($c);
-
-        // Wasser: monatlich (Preise der Stadtwerke wechseln zum Jahresbeginn)
-        $tw = $c['trinkwasser']         ?? [];
-        $sw = $c['schmutzwasser']       ?? [];
-        $nw = $c['niederschlagswasser'] ?? [];
-
-        $twWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
-        $twBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
-        $swWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
-        // Niederschlagswasser rates carry two fields per entry; valueValidOn
-        // walks the same sorted list for each, so both resolve to the same
-        // stichtag entry.
-        $nwRate = $this->contracts->valueValidOn($nw['rates'] ?? [], 'eur_per_m2_year', $asOfYear, $asOfMonth);
-        $nwArea = $this->contracts->valueValidOn($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $asOfYear, $asOfMonth);
-
-        $twPrice   = $twWp !== null ? (float)$twWp * $priceFactor : $fallbackPriceCt;
-        $twWorking = $volume * $twPrice / 100.0;
-        $twBase    = $twBp !== null ? (float)$twBp : 0.0;
-        // v3.1.0 — Schmutzwasser = Trinkwasser × Anteil desselben Kalendermonats
-        // in der Historie (s. sewageShareByMonth); bis v3.0 das volle Volumen.
-        $swCost = $swWp !== null ? $volume * $sewageShare * (float)$swWp * $priceFactor / 100.0 : 0.0;
-        // v3.9.0 (F1034) — Grundpreis Schmutzwasser, wie der des Trinkwassers je Monat
-        $swBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
-        if ($swBp !== null) $swCost += (float)$swBp;
-        $nwMonthly = ($nwRate !== null && $nwArea !== null)
-            ? (float)$nwRate * (float)$nwArea / 12.0
-            : 0.0;
-
-        $cost = $twWorking + $twBase + $swCost + $nwMonthly - $bonus;
-        // v3.9.0 (F1034) — mit Rhythmus: die Raten, die in diesem Monat fällig sind; monatlich wie
-        // bisher der Betrag des Monats (beim weiterlaufenden Vertrag der seines letzten Monats)
-        $next = date('Y-m-d', (int)strtotime($first . ' +1 month'));
-        $ap   = ContractService::advanceIn($advancePlan, sprintf('%04d-%02d-01', $asOfYear, $asOfMonth), $first, $next, 1.0,
-            (int)date('t', (int)strtotime($first)));
-
+        if ($byContract === []) {
+            // Kein Vertrag — letzter bekannter Einheitspreis
+            return ['cost' => $cost, 'advance' => null, 'working_price_ct' => $fallbackPriceCt,
+                    'contract_id' => null, 'assumed' => false];
+        }
+        foreach ($byContract as $b) {
+            $c = $b['contract'];
+            // v3.12.0 (Nachprüfung B4) — ein Bonus an seinem Tag, auch im fortgeschriebenen Teil (wie der Saldo)
+            $cost -= $this->contracts->bonusForMonth($c, $year, $month);
+            // v2.8.0 (CALC-12) — der effektive Abschlagsplan; v3.9.0 (F1034) — mit Rhythmus die Raten, die in den
+            // Vertragstagen des Monats fällig sind
+            $share = min(1.0, $b['days'] / $dim);   // Wasser: Abschlag je Vertrag nach Tagen
+            $ap = ContractService::advanceIn($this->contracts->effectiveAdvanceSchedule($c), $b['first'], $b['from'], $b['to'], $share, $dim);
+            if ($ap !== null) $advance = ($advance ?? 0.0) + $ap;
+        }
+        uasort($byContract, fn($x, $z) => [$z['days'], (string)($z['contract']['start'] ?? '')] <=> [$x['days'], (string)($x['contract']['start'] ?? '')]);
+        $main = $byContract[array_key_first($byContract)];
         return [
             'cost'             => $cost,
-            'advance'          => $ap !== null ? (float)$ap : null,
-            'working_price_ct' => $twWp !== null ? $twPrice : null,
-            'contract_id'      => $c['id'] ?? null,
-            'assumed'          => $assumed,
+            'advance'          => $advance,
+            // Trinkwasserpreis des Monats nach Tagen (die Überschrift der Zeile); ohne Preis am Vertrag null wie bisher
+            'working_price_ct' => $twPriced && $twVol > 0 ? $twCost / $twVol : null,
+            'contract_id'      => (string)array_key_first($byContract),
+            'assumed'          => $main['assumed'],
         ];
     }
 
@@ -811,9 +832,10 @@ final class ForecastService
         }
         foreach ($byContract as $b) {
             $c = $b['contract'];
-            // Boni nur in der eigentlichen Laufzeit; der effektive
+            // v3.12.0 (Nachprüfung B4) — ein Bonus an seinem Tag, solange der Vertrag rechnet, auch im fortgeschriebenen
+            // Teil wie im Saldo (bis dahin nur in der eigentlichen Laufzeit); der effektive
             // Abschlagsplan berücksichtigt „mit Auswirkung" (v2.8.0)
-            if (!$b['assumed']) $cost -= $this->contracts->bonusForMonth($c, $year, $month);
+            $cost -= $this->contracts->bonusForMonth($c, $year, $month);
             // v3.9.0 (F1034) — mit Rhythmus die Raten, die in den Vertragstagen des Monats fällig sind
             $ap = ContractService::advanceIn($this->contracts->effectiveAdvanceSchedule($c), $b['first'], $b['from'], $b['to'], min(1.0, $b['days'] / $dim), $dim);
             if ($ap !== null) $advance = ($advance ?? 0.0) + $ap;

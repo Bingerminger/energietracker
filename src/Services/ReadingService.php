@@ -6,6 +6,8 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Support\Input;
+use Energietracker\Support\LocalizedException;
 use Energietracker\Http\NotFoundException;
 
 /**
@@ -23,7 +25,8 @@ use Energietracker\Http\NotFoundException;
 final class ReadingService
 {
     /** v2.6.0 — erlaubte Werte für das optionale Feld `source` */
-    private const SOURCES = ['ingest', 'csv', 'inbox'];   // v3.7.0 — `inbox`: aus einem Dokument im Posteingang
+    // v3.7.0 — `inbox`: aus einem Dokument im Posteingang; v3.12.0 (F1037) — `mcp`: von einer KI vorgeschlagen und übernommen
+    private const SOURCES = ['ingest', 'csv', 'inbox', 'mcp'];
 
     public function __construct(
         private JsonStore $store,
@@ -88,11 +91,16 @@ final class ReadingService
         if (empty($input['date'])) throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateMissing'));
         if (!array_key_exists('counter', $input)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterMissing'));
 
-        $date = (string)$input['date'];
+        // v3.12.0 — Typen an einer Stelle (Support\Input): eine Liste oder ein Objekt statt
+        // Text ergab bisher 500 („Array to string conversion“)
+        Input::assertTexts($input, ['meter_id', 'note', 'client_ref', 'attachment_id', 'reported_on', 'source']);
+        $date = (string)Input::text($input, 'date');
         $this->assertDate($date);
         $counter = $this->parseCounter($input['counter']);
+        $price = $this->parsePrice($input['price_cents'] ?? null);
+        $estimated = $this->parseFlag($input, 'is_estimated');
 
-        $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
+        $meterId = Input::text($input, 'meter_id', null) ?? $this->meters->defaultId($utility);
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         self::assertCounterMeter($meter);
@@ -102,7 +110,7 @@ final class ReadingService
         // Verbindung riss nach dem Speichern ab) darf keine zweite Ablesung anlegen.
         $clientRef = null;
         if (isset($input['client_ref']) && $input['client_ref'] !== '') {
-            $clientRef = (string)$input['client_ref'];
+            $clientRef = (string)Input::text($input, 'client_ref');
             if (!preg_match('/^[A-Za-z0-9-]{8,64}$/', $clientRef)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.reading.clientRefInvalid'));
             }
@@ -131,19 +139,20 @@ final class ReadingService
             'device_id'    => $device['id'],
             'date'         => $date,
             'counter'      => $counter,
-            'price_cents'  => isset($input['price_cents']) && $input['price_cents'] !== ''
-                              ? (float)$input['price_cents'] : null,
-            'note'         => isset($input['note']) ? (string)$input['note'] : '',
-            'is_estimated' => !empty($input['is_estimated']),
+            'price_cents'  => $price,   // v3.12.0 — „12,5“ ist 12,5 (bisher still 12), „abc“ 400 (bisher 0)
+            'note'         => (string)Input::text($input, 'note'),
+            'is_estimated' => $estimated,
             'is_future'    => $date > date('Y-m-d'),
         ];
         // v2.6.0 — additiv: Herkunft (für /api/health last_ingest) und
         // Verdacht (fallender Stand im Home-Assistant-Push, s. IngestService).
         // Beide nur, wenn gesetzt — bestehende Datensätze bleiben gleich.
         if (in_array($input['source'] ?? null, self::SOURCES, true)) $reading['source'] = $input['source'];
-        if (!empty($input['is_suspect'])) $reading['is_suspect'] = true;
+        // v3.12.0 — Merker als Wahrheitswert (parseFlag): „false“ machte einen Stand bisher verdächtig
+        // bzw. zu „nur Abrechnung“ (er fiel dann aus den Monatswerten)
+        if ($this->parseFlag($input, 'is_suspect')) $reading['is_suspect'] = true;
         // v3.9.0 (ablesung-pruefen) — ein Stand von der Rechnung, der die Monatswerte nicht prägen soll
-        if (!empty($input['is_billing_only'])) $reading['is_billing_only'] = true;
+        if ($this->parseFlag($input, 'is_billing_only')) $reading['is_billing_only'] = true;
         // v3.11.0 (F1035, A5) — an den Versorger gemeldet am (optional, nur wenn gesetzt)
         if (($rep = $this->reportedOn($input)) !== null) $reading['reported_on'] = $rep;
         if ($clientRef !== null) $reading['client_ref'] = $clientRef;
@@ -168,11 +177,27 @@ final class ReadingService
 
     public function update(string $utility, string $id, array $input): array
     {
-        if (array_key_exists('date', $input)) $this->assertDate((string)$input['date']);
+        // v3.12.0 — dieselben Prüfungen wie beim Anlegen: Typen, Datum mit Jahresbereich,
+        // Preis mit Dezimalkomma, „geschätzt“ als Wahrheitswert
+        Input::assertTexts($input, ['date', 'meter_id', 'note', 'attachment_id', 'reported_on', 'source']);
+        if (array_key_exists('date', $input)) $this->assertDate((string)Input::text($input, 'date'));
         if (array_key_exists('counter', $input)) $input['counter'] = $this->parseCounter($input['counter']);
+        if (array_key_exists('price_cents', $input)) $input['price_cents'] = $this->parsePrice($input['price_cents']);
+        foreach (['is_estimated', 'is_suspect', 'is_verified', 'is_billing_only'] as $flag) {
+            if (array_key_exists($flag, $input)) $input[$flag] = $this->parseFlag($input, $flag);
+        }
+        if (array_key_exists('note', $input)) $input['note'] = (string)Input::text($input, 'note');
         // v3.1.0 (H3) — umhängen nur auf einen Zähler mit Zählerständen
-        if (array_key_exists('meter_id', $input) && ($target = $this->meters->get($utility, (string)$input['meter_id'])) !== null) {
+        // v3.12.0 — und nur auf einen Zähler, den es in dieser Verbrauchsart gibt: Bisher hing
+        // ein PATCH die Ablesung auch an einen unbekannten oder artfremden Zähler (200), danach
+        // fiel sie aus allen Auswertungen. Dieselbe Prüfung wie beim Anlegen.
+        if (array_key_exists('meter_id', $input)) {
+            $target = $this->meters->get($utility, (string)Input::text($input, 'meter_id'));
+            if ($target === null) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => (string)Input::text($input, 'meter_id')]));
+            }
             self::assertCounterMeter($target);
+            $input['meter_id'] = (string)$target['id'];
         }
 
         $all = $this->store->read("$utility/readings.json", []);
@@ -185,7 +210,7 @@ final class ReadingService
             foreach (['date', 'counter', 'price_cents', 'note', 'is_estimated', 'meter_id'] as $f) {
                 if (!array_key_exists($f, $input)) continue;
                 if ($f === 'counter') $r['counter'] = (float)$input['counter'];
-                elseif ($f === 'price_cents') $r['price_cents'] = $input['price_cents'] !== '' ? (float)$input['price_cents'] : null;
+                elseif ($f === 'price_cents') $r['price_cents'] = $input['price_cents'];   // parsePrice() oben
                 elseif ($f === 'is_estimated') $r['is_estimated'] = (bool)$input['is_estimated'];
                 else $r[$f] = $input[$f];
             }
@@ -315,10 +340,12 @@ final class ReadingService
             $fields = [
                 'device_id'    => $device['id'],
                 'counter'      => $counter,
-                'note'         => (string)($row['note'] ?? ''),
+                'note'         => is_scalar($row['note'] ?? null) ? (string)$row['note'] : '',
                 'is_estimated' => !empty($row['is_estimated']),
                 'is_future'    => $date > $today,
             ];
+            // v3.12.0 — Preis nur, wenn die Zeile einen trägt (CSV mit Preisspalte); sonst bleibt er
+            if (isset($row['price_cents']) && is_numeric($row['price_cents'])) $fields['price_cents'] = (float)$row['price_cents'];
             if (isset($byDate[$date])) {
                 $r = $all[$byDate[$date]];
                 unset($r['is_suspect']);
@@ -327,8 +354,8 @@ final class ReadingService
                 $all[$byDate[$date]] = array_merge($r, $fields);
                 $overwritten++;
             } else {
-                $new = ['id' => date('Ymd', strtotime($date) ?: time()) . '-' . bin2hex(random_bytes(4)),
-                        'meter_id' => $meterId, 'date' => $date, 'price_cents' => null] + $fields;
+                $new = array_merge(['id' => date('Ymd', strtotime($date) ?: time()) . '-' . bin2hex(random_bytes(4)),
+                        'meter_id' => $meterId, 'date' => $date, 'price_cents' => null], $fields);
                 if (in_array($source, self::SOURCES, true)) $new['source'] = $source;
                 $all[] = $new;
                 $byDate[$date] = array_key_last($all);
@@ -499,6 +526,78 @@ final class ReadingService
         return round($median, 4);
     }
 
+    /** v3.12.0 (F1037) — Tagesverbrauch über dem Dreifachen des typischen: Rückfrage (wie lib/plausibility.js JUMP_FACTOR). */
+    public const JUMP_FACTOR = 3;
+
+    /**
+     * v3.12.0 (F1037) — Rückfragen zu einem neuen Stand, dieselbe Regel wie
+     * `checkReading()` in public/js/lib/plausibility.js (gemeinsame Probe:
+     * tests/fixtures/reading-plausibility.json). Nichts davon blockiert:
+     *   lower      kleiner als der vorige Stand (Zählertausch nicht erfasst?)
+     *   jump       Tagesverbrauch seit dem vorigen Stand > JUMP_FACTOR × typisch
+     *   magnitude  mindestens zehnmal der vorige Stand, solange kein typischer
+     *              Tagesverbrauch bekannt ist („Komma vergessen“)
+     * v3.12.0 (Skeptiker M7) — dazu:
+     *   higher_than_next  größer als der nächste Stand desselben Geräts: Die Verbrauchsrechnung
+     *                     ließe den Stand als Ausreißer stillschweigend aus (`$next`, `$nextDeviceChanged`)
+     * Ein Gerätetausch zwischen beiden Ständen erklärt Rückgang und Sprung.
+     * Datum in der Zukunft und „schon ein Stand an dem Tag“ prüft der Aufrufer.
+     *
+     * @param array{date:string, counter:float|int}|null $prev voriger echter Stand (vor `$date`)
+     * @param array{date:string, counter:float|int}|null $next nächster echter Stand (nach `$date`)
+     * @return list<array{type:string, last?:float, per_day?:float, typical?:float, next?:float}>
+     */
+    public static function plausibilityIssues(float $value, string $date, ?array $prev, ?float $typical, bool $deviceChanged = false,
+                                              ?array $next = null, bool $nextDeviceChanged = false): array
+    {
+        $out = [];
+        if ($prev !== null && (string)$prev['date'] < $date && !$deviceChanged) {
+            $last = (float)$prev['counter'];
+            $days = (int)round((strtotime($date . 'T00:00:00Z') - strtotime((string)$prev['date'] . 'T00:00:00Z')) / 86400);
+            if ($value < $last) $out[] = ['type' => 'lower', 'last' => $last];
+            elseif ($typical !== null && $typical > 0 && $days >= 1 && ($value - $last) / $days > self::JUMP_FACTOR * $typical) {
+                $out[] = ['type' => 'jump', 'per_day' => ($value - $last) / $days, 'typical' => $typical];
+            } elseif (!($typical !== null && $typical > 0) && $last >= 10 && $value >= $last * 10) {
+                $out[] = ['type' => 'magnitude', 'last' => $last];
+            }
+        }
+        if ($next !== null && $date < (string)$next['date'] && !$nextDeviceChanged && $value > (float)$next['counter']) {
+            $out[] = ['type' => 'higher_than_next', 'next' => (float)$next['counter']];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M7) — Rückfragen zu einem Stand gegen die echten Stände des Zählers:
+     * voriger und nächster Stand, Gerätetausch dazwischen, typischer Tagesverbrauch. Für den
+     * Vorschlag einer KI und noch einmal beim Übernehmen (ein Vorschlag kann lange warten).
+     *
+     * @param array<string,mixed> $meter
+     * @return array{issues: list<array<string,mixed>>, prev: ?array<string,mixed>, next: ?array<string,mixed>, typical: ?float, device_changed: bool, real: list<array<string,mixed>>}
+     */
+    public function plausibilityFor(string $utility, array $meter, string $date, float $value): array
+    {
+        $real = array_values(array_filter($this->list($utility, (string)$meter['id']), fn($r) => empty($r['is_future']) && empty($r['is_suspect'])
+            && is_numeric($r['counter'] ?? null) && Dates::isIsoDate($r['date'] ?? null)));
+        $prev = null; $next = null;
+        foreach ($real as $r) {
+            if ($r['date'] < $date) $prev = $r;
+            elseif ($r['date'] > $date && $next === null) $next = $r;
+        }
+        $changed = static function (string $from, string $to) use ($meter): bool {
+            foreach ((array)($meter['devices'] ?? []) as $d) {
+                $on = is_array($d) ? (string)($d['installed_on'] ?? '') : '';
+                if ($on !== '' && $on > $from && $on <= $to) return true;
+            }
+            return false;
+        };
+        $swapped = $prev !== null && $changed((string)$prev['date'], $date);
+        $swappedNext = $next !== null && $changed($date, (string)$next['date']);
+        $typical = $this->typicalPerDay($real);
+        return ['issues' => self::plausibilityIssues($value, $date, $prev, $typical, $swapped, $next, $swappedNext), 'prev' => $prev, 'next' => $next,
+                'typical' => $typical, 'device_changed' => $swapped, 'real' => $real];
+    }
+
     /**
      * v3.11.0 (F1035, A5) — Tag, an dem der Stand dem Versorger gemeldet wurde (`reported_on`):
      * JJJJ-MM-TT oder leer (null). Belegt die Meldung für den Hinweis „Schätzung trotz gemeldetem
@@ -509,15 +608,33 @@ final class ReadingService
         $v = trim((string)($input['reported_on'] ?? ''));
         if ($v === '') return null;
         if (!Dates::isIsoDate($v)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.reportedOnInvalid', ['date' => mb_substr($v, 0, 40)]));
+        Input::assertDateInRange($v, 'reported_on');
         return $v;
     }
 
+    /**
+     * Ablesedatum: Kalendertag JJJJ-MM-TT, seit v3.12.0 auch im Jahresbereich
+     * (Dates::MIN_INPUT_YEAR bis MAX_INPUT_YEAR) — eine Ablesung im Jahr 0001 legte
+     * Übersicht, „Zu tun“ und Agenda lahm, und das erste Gerät wurde dauerhaft auf
+     * 0001-01-01 vorverlegt.
+     */
     private function assertDate(string $date): void
     {
         if (!Dates::isIsoDate($date)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateInvalid', ['date' => $date]));
         }
+        Input::assertDateInRange($date);
     }
+
+    /**
+     * v3.12.0 — höchster Zählerstand: ein Zählwerk hat höchstens zwölf Stellen
+     * (MeterService, `digits`). `1e308` war bisher gültig; Verbrauch und Kosten
+     * wurden unendlich, und die Antwort blieb leer.
+     */
+    public const MAX_COUNTER = 1e12;
+
+    /** v3.12.0 — höchster Preis je Ablesung in ct je Verbrauchseinheit (1.000 €) */
+    public const MAX_PRICE_CENTS = 100000.0;
 
     /**
      * Zählerstand als Zahl ≥ 0. Zahlen und Zahl-Strings mit Punkt sind gültig;
@@ -526,11 +643,38 @@ final class ReadingService
      */
     private function parseCounter(mixed $raw): float
     {
-        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0) {
+        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0 || (float)$raw > self::MAX_COUNTER) {
             $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
             throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterInvalid', ['value' => $shown]));
         }
         return (float)$raw;
+    }
+
+    /**
+     * v3.12.0 — Preis je Ablesung (ct je Verbrauchseinheit): leer = kein Preis
+     * (null), sonst eine Zahl von 0 bis MAX_PRICE_CENTS. Anders als beim
+     * Zählerstand ist ein Komma hier eindeutig der Dezimaltrenner (Support\Input::decimal):
+     * „12,5“ ist 12,5 ct. Bisher wurde „12,5“ still 12, „abc“ 0, und −99 ging durch —
+     * der Preis fließt in die Monatskosten.
+     */
+    private function parsePrice(mixed $raw): ?float
+    {
+        if ($raw === null || $raw === '') return null;
+        $v = Input::decimal($raw);
+        if ($v === null || $v < 0 || $v > self::MAX_PRICE_CENTS) {
+            $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
+            throw new LocalizedException('errors.reading.priceInvalid', ['value' => mb_substr($shown, 0, 40)], 'reading price_cents');
+        }
+        return $v;
+    }
+
+    /** v3.12.0 — Merker wie „geschätzt“ als Wahrheitswert; `(bool)"nein"` war bisher true. */
+    private function parseFlag(array $input, string $key): bool
+    {
+        if (!array_key_exists($key, $input)) return false;
+        $b = Input::bool($input[$key]);
+        if ($b === null) throw new LocalizedException('errors.common.boolExpected', ['field' => $key], "field $key: bool expected");
+        return $b;
     }
 
     /** Aktives (nicht ausgebautes) Device eines Zählers, oder null. */

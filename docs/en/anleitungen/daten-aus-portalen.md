@@ -130,7 +130,7 @@ deleted there without touching the daily values. A year of quarter hours takes u
   alone works too (daily values) — then choose “the start of the interval”,
   otherwise every value lands on the previous day.
 - **Time zone:** stamps without one count in the time zone of the installation
-  (Settings → General → Time zone). Stamps with one are converted into that
+  (Settings → Region and language → Time zone). Stamps with one are converted into that
   time zone before the app determines the day.
 - **Daylight saving time:** the day of the change has 23 or 25 hours, i.e. 92
   or 100 quarter hours. The app counts them all towards their day; nothing is

@@ -25,6 +25,14 @@ final class HardcodedTextTest extends TestCase
         'Storage/JsonStore.php'               => 'steht vor dem I18nService (Zirkel); Text ins Log, der Client bekommt errors.storage.<kind>',
         'Services/BackupService.php'          => 'Snapshot-Fehler sind 500er: Text ins Log, der Client bekommt errors.http.internal',
         'Services/WeatherService.php'         => 'technischer Text fürs Log; der Client bekommt errors.weather.<error_code>',
+        // v3.12.0 (F1037) — Programmierfehler (\LogicException) und Speicherfehler unter data/mcp/: Mcp\Server
+        // antwortet mit -32603 und Fehler-ID (errors.mcp.internal), der Text geht nur ins Log
+        'Services/Mcp/Tool.php'               => 'Programmierfehler beim Anmelden eines Werkzeugs; Client: errors.mcp.internal',
+        'Services/Mcp/Sanitize.php'           => 'Programmierfehler (unbekanntes Feld unter untrusted); Client: errors.mcp.internal',
+        'Services/Mcp/StateFile.php'          => 'Speicherfehler unter data/mcp/; Client: errors.mcp.internal mit Fehler-ID',
+        'Services/Mcp/PendingChanges.php'     => 'Programmierfehler (Art eines Vorschlags); fachliche Fehler sind LocalizedException',
+        'Services/Mcp/Provenance.php'         => 'Programmierfehler (unbekannte Herkunft); Client: errors.mcp.internal',
+        'Services/Mcp/Num.php'                => 'Programmierfehler (Form des Zahl-Objekts); Client: errors.mcp.internal',
     ];
 
     public function testNoHardcodedMessagesReachTheClient(): void

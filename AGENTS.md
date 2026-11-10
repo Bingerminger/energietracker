@@ -38,7 +38,12 @@ must pass too.
 
 Every change brings its test. Do the **counter-check**: turn the new safeguard
 in the code back for a moment, and the test must fail. Tests never depend on
-today's date; use fixed dates or an injected clock.
+today's date: use fixed dates and pass them on (`$today`, `atDate()`,
+`['today' => …]`). A service that receives a reference date passes it down to
+every calculation below it; a reference date means "the state on that day".
+Moving a test's data forward is not a fix. To check, run the suite with the
+clock moved forward (libfaketime,
+`faketime -f "+<seconds>" php vendor/phpunit/phpunit/phpunit`).
 
 ## Rules that matter most
 

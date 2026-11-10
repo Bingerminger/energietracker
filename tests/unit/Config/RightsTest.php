@@ -179,7 +179,12 @@ final class RightsTest extends TestCase
     #[DataProvider('feeNotices')]
     public function testTheDeadlineOfAFeeNotice(string $dated, ?string $served, string $known, string $nominal, string $deadline): void
     {
-        self::assertSame(['known_on' => $known, 'nominal_end' => $nominal, 'deadline' => $deadline], Rights::feeNoticeDeadline('DE', $dated, $served));
+        $fd = (array)Rights::feeNoticeDeadline('DE', $dated, $served);
+        self::assertSame(['known_on' => $known, 'nominal_end' => $nominal, 'deadline' => $deadline],
+            array_intersect_key($fd, array_flip(['known_on', 'nominal_end', 'deadline'])));
+        // v3.12.0 — Grundlage der Bekanntgabe; nur vom Bescheiddatum gerechnet sieben Tage Weichzone
+        self::assertSame($served === null ? 'post' : 'served', $fd['basis']);
+        self::assertSame($served === null ? date('Y-m-d', (int)strtotime("$deadline +7 days")) : $deadline, $fd['soft_until']);
     }
 
     /** Ostersonntag, gegen den Kalender: die beweglichen Feiertage hängen daran. */
@@ -230,6 +235,12 @@ final class RightsTest extends TestCase
             'bis 100.000 kWh'                  => ['imsys', 100000.0, null, false, 'imsys_50000', 140.0],
             'über 100.000 kWh: angemessen'     => ['imsys', 150000.0, null, false, 'imsys_100000', null],
             'Verbrauch unbekannt'              => ['imsys', null, null, false, 'imsys_optional', 30.0],
+            // v3.12.0 — Rundungsrest einer Rechnung ist kein Verbrauch über der Grenze: 6000 ÷ 365 × 365 ergibt im
+            // Gleitkomma 6000,000000000001, zwölf Monatswerte zu 10.000 kWh ebenso knapp darüber
+            'Gleitkomma an 6.000 kWh'          => ['imsys', 6000 / 365 * 365, null, false, 'imsys_optional', 30.0],
+            'Gleitkomma an 10.000 kWh'         => ['imsys', 10000.000000000002, null, false, 'imsys_6000', 40.0],
+            'Gleitkomma an 7 kW'               => ['imsys', 3000.0, 7.000000000000001, false, 'imsys_optional', 30.0],
+            'über 6.000 kWh um 1 Wh'           => ['imsys', 6000.001, null, false, 'imsys_6000', 40.0],
         ];
     }
 

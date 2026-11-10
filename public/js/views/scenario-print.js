@@ -51,10 +51,15 @@ export function assumptions(st, result, contractLabel = (id) => id) {
   if (b.winter_pct) out.push(t(b.winter_pct > 0 ? 'scenario.winter.colder' : 'scenario.winter.milder', { pct: fmt.pct(Math.abs(b.winter_pct) / 100, 0) }));
   if (b.room_temp_delta) out.push(`${t('scenario.room.label')}: ${b.room_temp_delta > 0 ? '+' : '−'}${fmt.dec(Math.abs(b.room_temp_delta), 1)} °C`);
   if (b.saving_pct) out.push(t('scenario.saving.value', { pct: fmt.pct(b.saving_pct / 100, 0) }));
-  if (b.baseload_pct) out.push(`${t('scenario.baseload.label')}: ${pctSigned(b.baseload_pct, 0)}`);
+  const word = t(`scenario.base.${S.baseWord(result)}.label`);
+  if (b.baseload_pct) out.push(`${word}: ${pctSigned(b.baseload_pct, 0)}`);
   for (const m of b.measures) {
     const name = m.label || t(`scenario.measure.kind.${m.kind || 'other'}`);
-    out.push(t('scenario.print.measure', { name, heat: fmt.int(m.heat_pct), base: fmt.int(m.base_pct),
+    // v3.12.0 (F1040) — nur was wirkt, mit dem Wort der Fachgruppe
+    const parts = [];
+    if (m.heat_pct) parts.push(t('scenario.print.heatPart', { pct: fmt.int(m.heat_pct) }));
+    if (m.base_pct) parts.push(t('scenario.print.basePart', { word, pct: fmt.int(m.base_pct) }));
+    out.push(t('scenario.print.measure', { name, effect: parts.join(', ') || t('scenario.none'),
       cost: m.cost_eur != null ? fmt.eur(m.cost_eur) : '–' }) + (m.active ? '' : ` (${t('scenario.print.inactive')})`));
   }
   if (b.tariff.kind === 'cheapest' || b.tariff.kind === 'contract') {
@@ -64,6 +69,20 @@ export function assumptions(st, result, contractLabel = (id) => id) {
   }
   if (b.ev_km) out.push(t('scenario.print.ev', { km: fmt.int(b.ev_km), kwh: fmt.num(b.ev_kwh_per_100km, 1) }));
   if (b.jaz_from != null) out.push(t('scenario.print.jaz', { from: fmt.num(b.jaz_from, 1), to: fmt.num(b.jaz_to, 1) }));
+  // v3.12.0 (F1040, Phase 2) — Lieferungen und PV, mit den Annahmen, mit denen der Server gerechnet hat
+  if (b.price_pct) out.push(`${t('scenario.price.label')}: ${pctSigned(b.price_pct, 0)}`);
+  if (b.replace) {
+    const a = result?.replacement?.assumed || b.replace;
+    out.push(`${t('scenario.replace.title')}: ${t(`scenario.replace.to.${b.replace.to}`)}`
+      + (result?.replacement ? ` (${b.replace.to === 'heat_pump'
+        ? t('scenario.replace.assumedHeatPump', { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
+        : t('scenario.replace.assumedPellets', { ct: fmt.num(a.pellet_ct, 1), eff: fmt.pct(a.efficiency_old, 0), effNew: fmt.pct(a.efficiency_new, 0), kwh: fmt.num(a.kwh_per_kg, 1) })})` : ''));
+  }
+  if (b.pv_size_pct) out.push(`${t('scenario.pv.size.label')}: ${pctSigned(b.pv_size_pct, 0)}`);
+  if (b.battery_kwh) out.push(`${t('scenario.pv.battery.label')}: ${fmt.num(b.battery_kwh, 0)} kWh`);
+  if (b.self_use_pct) out.push(`${t('scenario.pv.selfUse.label')}: ${pctSigned(b.self_use_pct, 0)}`);
+  if (b.feed_in_ct != null) out.push(`${t('scenario.pv.feedIn.label')}: ${fmt.num(b.feed_in_ct, 2)}`);
+  if (result?.calc === 'pv') return out;   // die PV rechnet mit dem gemessenen Jahr, ohne Modellwahl und Budget
   out.push(`${t('scenario.model.label')}: ${t(`scenario.model.${result?.model || b.model}`)}`);
   if (b.budget_eur != null) out.push(`${t('scenario.budget.label')}: ${fmt.eur(b.budget_eur)}`);
   return out;
@@ -85,7 +104,7 @@ export async function render(container, params, ctx) {
       </div>
     </div>`;
   if (!cur?.state?.utility || !cur.state.meter_id) {
-    container.innerHTML = `${toolbar}<div class="banner banner--info">${esc(t('scenario.print.none'))}</div>`;
+    container.innerHTML = `${toolbar}<div class="infobox infobox--info">${esc(t('scenario.print.none'))}</div>`;
     return;
   }
   container.innerHTML = `${toolbar}<div class="loading" role="status">${esc(t('common.loading'))}</div>`;
@@ -104,7 +123,7 @@ export async function render(container, params, ctx) {
   }
   container.querySelector('#print-now')?.addEventListener('click', () => window.print());
   if (!r.valid) {
-    container.innerHTML = `${toolbar}<div class="banner banner--info">${esc(t(r.supported ? 'scenario.tooFew' : 'scenario.unsupported', { label: u?.label || '' }))}</div>`;
+    container.innerHTML = `${toolbar}<div class="infobox infobox--info">${esc(t(r.supported ? 'scenario.tooFew' : 'scenario.unsupported', { label: u?.label || '' }))}</div>`;
     container.querySelector('#print-now')?.addEventListener('click', () => window.print());
     return;
   }
@@ -137,12 +156,13 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
     facts: [], footer: t('scenario.card.footer', { from: fmt.month(r.from), to: fmt.month(r.to), date: fmt.date(todayIso()) }),   // v3.10.0 (Skeptiker N6) — Ortszeit
   }, cardId);
   const row = (label, base, scen, delta) => `<tr><th scope="row">${esc(label)}</th><td class="num">${esc(base)}</td><td class="num">${esc(scen)}</td><td class="num">${esc(delta)}</td></tr>`;
-  const bal = (v) => { const b = balanceView(v, u); return b ? `${b.word} ${fmt.eur(b.amount)}` : '–'; };
+  const bal = (v) => { const b = balanceView(v, u); return !b ? '–' : b.credit === null ? b.word : `${b.word} ${fmt.eur(b.amount)}`; };   // v3.12.0 (Sichtung S1): bei genau 0 ohne Betrag
   const labels = r.months.map(m => fmt.month(m.ym));
   const ranking = (r.ranking || []).map(x => {
     const label = x.kind === 'measure'
       ? ((cur.state.measures || []).find(m => m.id === x.id)?.label || t(`scenario.measure.kind.${(cur.state.measures || []).find(m => m.id === x.id)?.kind || 'other'}`))
       : x.kind === 'tariff' ? t('scenario.tariff.offer', { label: x.tariff_kind === 'custom' ? t('scenario.tariff.custom') : contractLabel(r.tariff.contract_id) })
+      : x.kind === 'baseload' ? t(`scenario.base.${S.baseWord(r)}.label`)
       : t(`scenario.lever.${x.kind}`);
     return `<tr><th scope="row">${esc(label)}</th><td class="num">${esc(signed(x.saving_eur, fmt.eur))}</td>
       <td class="num">${x.cost_eur != null ? esc(fmt.eur(x.cost_eur)) : '–'}</td>
@@ -154,7 +174,7 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
       <section class="print-section report-print__cover">
         <p class="report-print__brand">${esc(t('scenario.card.brand'))}</p>
         <h2 class="report-print__title">${esc(name)}</h2>
-        <p class="report-print__location">${esc(`${u?.icon || ''} ${u?.label || r.utility}${meter ? ` · ${meter.name}` : ''}`)} · ${esc(fmt.month(r.from))} – ${esc(fmt.month(r.to))}</p>
+        <p class="report-print__location">${esc(`${u?.label || r.utility}${meter ? ` · ${meter.name}` : ''}`)} · ${esc(fmt.month(r.from))} – ${esc(fmt.month(r.to))}</p>
         ${card}
         <h3>${esc(t('scenario.print.assumptions'))}</h3>
         <ul>${assumptions(cur.state, r, contractLabel).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
@@ -163,9 +183,10 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
           <thead><tr><th scope="col"></th><th scope="col" class="num">${esc(t('scenario.chart.base'))}</th><th scope="col" class="num">${esc(t('scenario.chart.scenario'))}</th><th scope="col" class="num">${esc(t('scenario.compare.delta'))}</th></tr></thead>
           <tbody>
             ${row(t('scenario.kpi.cost'), fmt.eur(r.totals.base.cost), fmt.eur(r.totals.scenario.cost), signed(d.cost, fmt.eur))}
-            ${row(t('scenario.kpi.qtyYear'), fmt.unit(r.totals.base.qty, r.unit), fmt.unit(r.totals.scenario.qty, r.unit), d.qty_pct != null ? pctSigned(d.qty_pct) : '–')}
+            ${row(t(r.calc === 'pv' ? 'scenario.pv.kpi.import' : 'scenario.kpi.qtyYear'), fmt.unit(r.totals.base.qty, r.unit), fmt.unit(r.totals.scenario.qty, r.unit), d.qty_pct != null ? pctSigned(d.qty_pct) : '–')}
             ${d.co2_kg != null ? row(t('scenario.kpi.co2Year'), `${fmt.int(r.totals.base.co2_kg)} kg`, `${fmt.int(r.totals.scenario.co2_kg)} kg`, `${signed(d.co2_kg, fmt.int)} kg`) : ''}
-            ${r.advance.uncertain
+            ${r.pv?.base?.autarky != null && r.pv?.scenario?.autarky != null ? row(t('scenario.pv.kpi.autarky'), fmt.pct(r.pv.base.autarky, 0), fmt.pct(r.pv.scenario.autarky, 0), '') : ''}
+            ${!r.advance ? '' /* v3.12.0 (F1040, Phase 2) — Lieferungen und PV: kein Abschlag */ : r.advance.uncertain
               // v3.7.0 (wirklichkeit-2) — Gütesperre: Spannen statt Beträge
               ? row(t('scenario.kpi.advance'), ...['base_range', 'scen_range'].map(k => r.advance.uncertain[k]
                   ? t('scenario.kpi.advanceRange', { low: fmt.eur0(r.advance.uncertain[k][0]), high: fmt.eur0(r.advance.uncertain[k][1]) }) : '–'), t('scenario.kpi.advanceUncertain'))
@@ -181,7 +202,7 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
       <section class="print-section">
         <h2>${esc(t('scenario.chart.cumTitle'))}</h2>
         ${lineSvg(labels, r.months.map(m => m.base_cum_cost), r.months.map(m => m.scen_cum_cost), { caption: t('scenario.chart.cumAlt', { base: fmt.eur(r.totals.base.cost), scen: fmt.eur(r.totals.scenario.cost) }), unit: t('scenario.chart.eur') })}
-        <p class="ws-note"><span class="rp-key sp-key--base"></span> ${esc(t('scenario.chart.base'))} <span class="rp-key sp-key--scen"></span> ${esc(t('scenario.chart.scenario'))}</p>
+        <p class="fussnote"><span class="rp-key sp-key--base"></span> ${esc(t('scenario.chart.base'))} <span class="rp-key sp-key--scen"></span> ${esc(t('scenario.chart.scenario'))}</p>
         <h2>${esc(t('scenario.chart.monthTitle'))}</h2>
         ${lineSvg(labels, r.months.map(m => m.base_qty), r.months.map(m => m.scen_qty), { caption: t('scenario.chart.monthAlt', { unit: r.unit }), unit: r.unit })}
         <div class="table-wrap"><table class="table table--compact report-print__table">
@@ -201,5 +222,5 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
           list: o.chosen.map(id => (cur.state.measures || []).find(m => m.id === id)?.label || t(`scenario.measure.kind.${(cur.state.measures || []).find(m => m.id === id)?.kind || 'other'}`)).join(', '),
           budget: fmt.eur(o.budget_eur), cost: fmt.eur(o.cost_eur), saving: fmt.eur(o.saving_eur) }))}</p>` : ''}
       </section>` : ''}
-      <p class="ws-note">${esc(t('scenario.honesty.model', { month: r.basis?.last_measured ? fmt.month(r.basis.last_measured) : '–' }))} ${esc(t('scenario.print.footer'))}</p>`;
+      <p class="fussnote">${esc(t('scenario.honesty.model', { month: r.basis?.last_measured ? fmt.month(r.basis.last_measured) : '–' }))} ${esc(t('scenario.print.footer'))}</p>`;
 }

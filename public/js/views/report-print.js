@@ -17,6 +17,7 @@
 // Tabellen mit Kopfzeilen, jede Grafik mit ihrer Aussage als Text.
 // =====================================================================
 
+import { uncertainRangeHtml } from '../lib/semantics.js';   // v3.12.0 (M4)
 import { api } from '../api.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { t, getLanguages, getLocale } from '../lib/i18n.js';
@@ -30,11 +31,12 @@ import { getUtility } from '../state.js';
 import * as S from '../lib/scenario.js';
 import { scenarioHtml } from './scenario-print.js';
 import { offerThanks } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
+import { icon } from '../lib/icons.js';
 
 const esc = escapeHtml;
 
 /** Ampel: Symbol UND Wort, nie nur Farbe. */
-const LIGHT_SYMBOL = { ok: '✔', warn: '▲', alert: '✖', none: '●' };
+const LIGHT_SYMBOL = { ok: icon('haken', { size: 16 }), warn: icon('achtung', { size: 16 }), alert: icon('kreuz', { size: 16 }), none: icon('neutral', { size: 16 }) };
 
 export async function render(container, params, ctx) {
   const now = new Date().getFullYear();
@@ -229,13 +231,13 @@ function important(m) {
   const lights = (m.headline?.lights || []).map(l => `
     <li class="report-print__light report-print__light--${esc(l.level)}">
       <span class="report-print__light-title">${esc(t(`report.light.title.${l.key}`))}${l.as_of_today ? ` · ${esc(t('report.light.today'))}` : ''}</span>
-      <span class="report-print__light-word"><span aria-hidden="true">${LIGHT_SYMBOL[l.level] || '●'}</span> ${esc(l.word)}</span>
+      <span class="report-print__light-word"><span aria-hidden="true">${LIGHT_SYMBOL[l.level] || LIGHT_SYMBOL.none}</span> ${esc(l.word)}</span>
       <span class="small">${esc(l.detail)}</span>
     </li>`).join('');
   const top = m.headline?.top_tasks || [];
   return `
     <section class="print-section report-print__cover">
-      <div class="report-print__brand">ENERGIETRACKER</div>
+      <div class="report-print__brand">Energietracker</div>
       <h2 class="report-print__title">${esc(tx.title || '')}</h2>
       ${m.location_name ? `<p class="report-print__location">${esc(m.location_name)}</p>` : ''}
       <p class="muted">${esc(t('report.createdOn', { date: fmt.date(m.created_on) }))}</p>
@@ -254,7 +256,7 @@ function successes(m) {
   const items = m.successes || [];
   const infos = m.infos || [];
   const list = items.length ? `<ul class="report-print__successes">${items.map(s => `
-    <li><strong><span aria-hidden="true">★</span> ${esc(s.title)}</strong>
+    <li><strong>${icon('erfolg', { size: 18 })} ${esc(s.title)}</strong>
       ${s.euro ? `<p class="report-print__meta report-print__meta--good">${esc(`${s.euro.text} (${s.euro.basis_text})`)}</p>` : ''}
       ${para(s.reason)}</li>`).join('')}</ul>` : para(tx.successesNone, 'muted');
   const info = infos.length ? `<h3>${esc(tx.goodToKnow || '')}</h3><ul class="report-print__infos">${infos.map(i => `<li><strong>${esc(i.title)}</strong>${para(i.reason)}</li>`).join('')}</ul>` : '';
@@ -291,6 +293,20 @@ function agenda(m) {
   return section('report-print__agenda', tx.agenda || '', today(m, `${para(tx.agendaIntro, 'muted small')}${table}`) + (tl.length ? `<h3>${esc(tx.contracts || '')}</h3>${lines}` : ''));
 }
 
+/**
+ * v3.12.0 (Sichtung S1) — die Farbe eines Saldos im Bericht, das Wort steht im Satz des Servers. Der Satz nennt unter
+ * einem Euro „ausgeglichen“; eine unsichere Spanne über die Null steht als ein Satz ohne Farbe.
+ * v3.12.0 (M4) — darunter dieselbe Spanne mit jedem Ende in seiner Farbe (nur Ansicht, das PDF bleibt beim Satz).
+ */
+function saldoTon(b) {
+  const r = Array.isArray(b.uncertain?.projected_range) ? b.uncertain.projected_range.map(Number) : [Number(b.projected_end_balance), Number(b.projected_end_balance)];
+  const lo = Math.min(...r), hi = Math.max(...r);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return '';
+  if (hi <= -1) return 'ton-ok';
+  if (lo >= 1) return 'ton-fehler';
+  return '';
+}
+
 function money(m) {
   const mo = m.money;
   if (!mo) return '';
@@ -303,7 +319,8 @@ function money(m) {
     return `<div class="report-print__balance">
       <h4>${esc(b.label)}${b.provider ? ` · ${esc(b.provider)}` : ''}</h4>
       ${moneyHtml(b.explainer, { color: u?.color })}
-      <p><strong>${esc(b.text)}</strong></p>
+      <p><strong class="${saldoTon(b)}" data-saldo-ton>${esc(b.text)}</strong></p>
+      ${saldoTon(b) === '' && uncertainRangeHtml(b.uncertain) ? `<p class="small" data-saldo-spanne>${uncertainRangeHtml(b.uncertain)}</p>` : ''}
       ${para(b.advance_text)}
     </div>`;
   }).join('');
@@ -405,7 +422,7 @@ function flexPage(m) {
   const band = (b) => `<h4>${esc(b.label)}</h4>
     <ol class="flex-band" aria-label="${esc(t('flex.ampel.day'))} · ${esc(b.label)}">${b.hours.map((h, i) => `
       <li class="flex-band__h flex-lv--${esc(h.level || 'none')}">
-        <span class="flex-band__sun flex-sun--${esc(h.sun || 'none')}" aria-hidden="true">${h.sun === 'strong' || h.sun === 'some' ? '☀' : ''}</span>
+        <span class="flex-band__sun flex-sun--${esc(h.sun || 'none')}" aria-hidden="true">${h.sun === 'strong' || h.sun === 'some' ? icon('sonne', { size: 16 }) : ''}</span>
         <span class="flex-band__cell" aria-hidden="true">${h.level ? LIGHT_SYMBOL[{ cheap: 'ok', mid: 'warn', expensive: 'alert' }[h.level]] : ''}</span>
         <span class="flex-band__label" aria-hidden="true">${i % 3 === 0 ? i : ''}</span>
         <span class="sr-only">${esc(t('flex.ampel.hourCell', { hour: hh(i), level: t(`flex.ampel.level.${h.level || 'none'}`), ct: h.ct != null ? `${fmt.num(h.ct, 1)} ct` : '–' }))}${h.sun === 'strong' || h.sun === 'some' ? `, ${esc(t(`flex.ampel.sun.${h.sun}`))}` : ''}</span>
@@ -421,7 +438,7 @@ function flexPage(m) {
       <ul class="report-print__actions-list">${f.actions.map(a => `<li><strong>${esc(a.text)}</strong> <span class="muted small">${esc(a.tag)}${a.other ? ` · ${esc(a.other)}` : ''}</span></li>`).join('')}</ul>` : ''}
     ${(f.bands || []).length ? `<h3>${esc(t('flex.ampel.title'))}</h3>${para(f.band_lead, 'muted small')}${f.bands.map(band).join('')}
       <p class="flex-legend small">${['cheap', 'mid', 'expensive'].map((k, i) => `<span class="flex-key flex-lv--${k}" aria-hidden="true">${LIGHT_SYMBOL[['ok', 'warn', 'alert'][i]]}</span> ${esc(f.legend?.[i] || '')}`).join(' ')}
-        <span class="flex-key flex-sun--strong" aria-hidden="true">☀</span> ${esc(f.legend?.[3] || '')}</p>` : ''}
+        <span class="flex-key flex-sun--strong" aria-hidden="true">${icon('sonne', { size: 16 })}</span> ${esc(f.legend?.[3] || '')}</p>` : ''}
     ${f.windows ? `<h3>${esc(t('flex.windows.title'))}</h3>${para(f.windows.lead, 'muted small')}${table(f.windows.head, f.windows.rows)}` : ''}
     ${f.levers ? `<h3>${esc(t('flex.lever.title'))}</h3>${table(f.levers.head, f.levers.rows.map(r => [r.label, `${r.signal} · ${r.real_text}`, r.kwh, r.eur]))}${para(f.levers.total)}` : ''}
     ${f.solar_text ? `<h3>${esc(t('flex.solar.title'))}</h3>${para(f.solar_text)}` : ''}

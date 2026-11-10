@@ -10,12 +10,13 @@ import { api } from '../api.js';
 import { t, tp } from '../lib/i18n.js';
 import { fmt, escapeHtml as esc } from '../lib/format.js';
 import { dossierText, dossierKind, dossierKindLabel } from '../lib/inbox.js';
+import { icon } from '../lib/icons.js';
 
 /** Platzhalter der Akte in einer Karte. `scope`: {utility, meterId} oder {utility, contractId}. */
 export function dossierHtml({ utility, meterId = null, contractId = null }) {
   const attrs = `data-dossier-utility="${esc(utility)}"${meterId ? ` data-dossier-meter="${esc(meterId)}"` : ''}${contractId ? ` data-dossier-contract="${esc(contractId)}"` : ''}`;
   return `<details class="dossier" ${attrs}>
-    <summary class="dossier__summary"><span aria-hidden="true">📁</span> ${esc(t('inbox.dossier.title'))}</summary>
+    <summary class="dossier__summary">${icon('ordner')} ${esc(t('inbox.dossier.title'))}</summary>
     <div class="dossier__body" data-role="dossier-body"><p class="muted small">${esc(t('common.loading'))}</p></div>
   </details>`;
 }

@@ -81,7 +81,9 @@ final class InboxChannelsEndpointTest extends HttpServerTestCase
         $this->startServer();
         // v3.9.0 — der Lauf nach der Antwort (alle fünf Minuten) hat gerade gelesen;
         // geprüft wird hier die Route, die nur Verwalter aufrufen
-        touch($this->dataDir . '/' . FolderIntake::TICK_MARK);
+        // v3.12.0 — Zeit ausdrücklich aus time(): Der Server vergleicht die Dateizeit mit time(); ohne
+        // Angabe setzt das Dateisystem seine eigene Uhr (unter verstellter Uhr eine andere als PHP)
+        touch($this->dataDir . '/' . FolderIntake::TICK_MARK, time());
         mkdir($this->dataDir . '/' . FolderIntake::DIR);
         file_put_contents($this->dataDir . '/' . FolderIntake::DIR . '/brief.pdf', InboxFixture::pdf('folder'));
         touch($this->dataDir . '/' . FolderIntake::DIR . '/brief.pdf', time() - 60);

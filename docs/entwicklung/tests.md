@@ -90,6 +90,8 @@ Kurzbeschreibungen, Datentabellen, Jahr und Zähler aus der Adresse, zwei
 schnelle Prognoseläufe mit einem Chart.
 
 Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
+`tests/mcp-snippet.test.mjs` (Vorlagen der KI-Assistenten gegen die Formate der
+Programme und gegen die Anleitung, DE und EN),
 `tests/plausibility.test.mjs` und seit v2.11.0:
 
 - **`tests/router.test.mjs`** — JSDOM, erfundene Ansichten, ein gestelltes
@@ -99,7 +101,9 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   und die Zurück-Taste schließt einen Dialog, ohne die Seite zu verlassen.
 - **`tests/contrast.test.mjs`** — liest die Farb-Token aus `tokens.css` und
   die Farben der Verbrauchsarten aus `Utilities.php` und prüft alle Paare
-  aus Schrift und Fläche in beiden Themes gegen WCAG AA (4,5:1).
+  aus Schrift und Fläche in beiden Themes gegen WCAG AA (4,5:1); *(v3.12.0)*
+  dazu die farbigen Tabellenspalten (`.table .col-*` in `components.css`) auf
+  Zeile und Kopf (`--bg-1`, `--bg-2`).
 - **`tests/chart.test.mjs`** (v2.15.0) — die Chart-Schicht mit einem
   aufzeichnenden Stub: ein Chart je Canvas, Aufräumen beim Seitenwechsel,
   Neuzeichnen beim Theme-Wechsel samt Achsenfarben, kein Wurf bei einem
@@ -115,6 +119,11 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   Sprachwahl, Rechnungsprüfung mit Vorbelegung, Quellcode-Link auf den Tag,
   Schreiben abgelehnt, CSV und PDF als Dateien. Lokal:
   `node tests/demo.test.mjs` (braucht PHP und jsdom).
+- **`tests/demo-start.test.mjs`** (v3.12.0) — die Demo beginnt nach jedem Release
+  bei null: gespeicherter Haushalt und alte Version → alles weg, gleiche Version →
+  die Wahl bleibt, `meta.json` fehlt oder hängt, Speicher gesperrt → läuft, `?persona=`
+  und `?lang=` gelten weiter, fremde Schlüssel bleiben, jede Fundstelle von
+  `localStorage` hat einen Schlüssel, den der Neustart löscht.
 - **`tests/plural.test.mjs`** (v3.1.0) — `pluralCategory()` aus
   `lib/i18n.js` (Intl.PluralRules, Portugiesisch als pt-PT) gegen
   `tests/fixtures/plural-cases.json`, dieselbe Datei, die `PluralRulesTest` im
@@ -237,6 +246,29 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   Zehnfachen der Messung (CI, fängt einen Rückfall in quadratische Laufzeit),
   mit `ET_PERF_STRICT=1` unter Messung + 50 % (lokal). Port aus
   `ET_LARGE_PORT`, sonst ein freier.
+- **`tests/box-raster.test.mjs`** (v3.12.0) — kein Flattersatz: die echte App im
+  echten Browser (Playwright, Chromium), über Stufe und Breite. In jedem Behälter
+  gilt gleiche Höhe je Reihe und jede Reihe voll, dazu kein Querscrollen und gleich
+  breite Ziffern in Tabellen. Ausnahmen stehen namentlich im Test, eine überflüssige
+  lässt ihn scheitern. Port aus `ET_BOX_PORT`, sonst ein freier.
+- **`tests/laengen.test.mjs`** (v3.12.0) — **lange Sprachen sprengen nichts:** alle
+  sieben Sprachen am iPhone (390 px), die längeren auch am Mac, auf den Hauptrouten
+  mit dem Schaufenster-Haushalt und geöffneten Aufklappbereichen. Kein Text ragt aus
+  Kachel, Karte, Knopf, Zelle oder Feld, kein Knopf bricht auf mehr als zwei Zeilen,
+  keine Seite scrollt quer. Port aus `ET_LEN_PORT`, sonst ein freier.
+- **`tests/design-rules.test.mjs`** (v3.12.0) — die Regeln der Stylesheets: drei
+  Radien, zwei Schatten, die Schriftstufen, keine Versalien, Verläufe, Streifen und
+  Hexwerte außerhalb von `tokens.css`, eine Form für das Untermenü. Wo der Umstieg
+  noch läuft, gelten Höchstzahlen, die nur sinken dürfen.
+- **`tests/icons.test.mjs`** (v3.12.0) — eine Quelle für die Grafiken
+  (`lib/icons.js`): Bauweise, Masken der fünf Töne, SSOT der Verbrauchsarten. Keine
+  Oberflächen-Datei und kein Katalog gibt Emoji als Symbol aus; das Feld `icon`
+  bleibt in API, CSV und Home Assistant.
+- **`tests/rich.test.mjs`** (v3.12.0) — `rich()`: Auszeichnung aus den Katalogen ohne
+  rohes HTML, mit bösartigen Eingaben, die Marken des Wegweisers in allen 7 Sprachen.
+- **`tests/redirects.test.mjs`** (v3.12.0) — Weiterleitungen im Router; jede Adresse,
+  die der Server ausgibt (Agenda, Empfehlungen, Rechte, Posteingang, Manifest),
+  kommt bei einer Ansicht an.
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`, für Tests über HTTP seit

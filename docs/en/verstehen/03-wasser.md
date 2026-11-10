@@ -32,9 +32,22 @@ Water has its own contract model with three components:
 This model was introduced with schema 1.0.3; an auto-migrator transfers old
 simple water tariffs into the drinking-water component.
 
+<!-- doc-claim: water-by-the-day -->
 Each component keeps its prices as **sections from a day on**: if the supplier
 changes its prices on 1 October, there are two rows, and every day is charged at
-the price valid on it. The app keeps **gross prices**. If the bill shows net
+the price valid on it. *(v3.12.0)* This also holds mid-month and **exactly as
+for electricity**: a price from the 15th counts from the 15th, a contract
+switch on the 15th splits quantity, standing charge and advance by the same
+days, and "Check bill" starts a new row on the price date. Example (made up):
+July with 12.4 m³, drinking water €2.10 up to the 14th and €2.60 from the
+15th: **€29.44** instead of €26.04. Up to v3.11 water used the contract and
+price of the first of the month.
+<!-- doc-claim: water-forecast-by-the-day -->
+**The forecast works the same way**, and with it the forecast workshop and the AI.
+Example (made up): March with 9.3 m³, drinking water €2.10 up to the 14th and
+€2.80 from the 15th, waste water €1.90, standing charge €6: **€46.77** instead of
+€43.20. The app calculates with the quantity the readings give; **only the
+display is rounded** (0.1 m³ in the month row). The app keeps **gross prices**. If the bill shows net
 prices, each component has its own tax rate (often 7 % for drinking water and
 19 % for waste water and rainwater). The app reads the rate from the bill; it
 never guesses it. Basic price and provision price of the same component together
@@ -155,8 +168,8 @@ Ordinance (HeizkostenV § 9 (2)):
 Q [kWh] = 2.5 × V [m³] × (t_w − 10)
 ```
 
-`t_w` is the hot-water temperature, setting `warmwasser_temp_c` (Settings →
-Household & building → “Home and hot water”; default 60 °C, allowed 30–90).
+`t_w` is the hot-water temperature, setting `warmwasser_temp_c` (Household →
+Building → “Home and hot water”; default 60 °C, allowed 30–90).
 Examples:
 
 ```text

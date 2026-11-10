@@ -7,6 +7,684 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.12.0] — 2026-11-10 — Energietracker for your AI
+
+MINOR release without a schema step (stays 1.8.0). The main feature is the **AI interface** (F1037):
+Energietracker speaks the Model Context Protocol (MCP), and an AI assistant in the home network asks about
+balance, consumption, contracts and deadlines. Alongside come the **HACS integration 1.0.0** (F1038), a **new
+interface** ([#59]) and the fix of the **balance of meter groups** ([#58]). API, CSV format 1, backup format 3.0
+and the Docker environment only grow additively; where a status code or an address changes, it is listed under
+“For existing installations”.
+
+### Summary
+
+- **Your AI asks Energietracker.** Checked with Open WebUI and a local model via Ollama; Claude Code, VS Code,
+  Cursor, LM Studio and cloud models are experimental. Every figure comes from the same calculation as the app and
+  names its basis. **Off by default, a key of its own, changes only after you confirm them in the app.**
+- **Home Assistant without a single line of YAML:** the HACS integration 1.0.0 with sensors of its own.
+- **New interface, nothing is lost:** the menu in Everyday and Setup, “To do” gathers everything open,
+  “Connections” and “Household” bundle the setup, settings have a search, the overview answers first. **Old
+  addresses and bookmarks lead on.**
+- **Letters where you look for them:** on the contract, prefilled with sender, addresses and numbers from
+  household and contract. Plus a **setup guide** with six ways to work with Energietracker, and the **forecast
+  workshop for every utility**, now also for heating oil, pellets and PV (tank, replacing the heating, battery).
+- **Calculated more correctly and hardened, some figures change:** balance of meter groups ([#58]), water by the
+  day and to the cent, PV feed-in per billing year, a bonus after the contract end; **every input checked by one
+  rule**, in the backup import too. Examples old → new under “Changed”. Files holding access secrets are readable
+  by the web server only.
+
+### ⚠️ For existing installations
+
+- **Reload open tabs once after the update.** A tab that stays open across the update does not know the new
+  addresses. From the next update on, the app reloads itself once in that case.
+- **New interface, old ways lead on** ([#59]): “Reminders & tips” is now “To do”; Integrations, Weather data and
+  parts of Expert and Access live under “Connections”; meters, people, building and utilities under “Household”;
+  settings are ordered by topic. Bookmarks, calendar and Home Assistant lead on through redirects. **`href`** in
+  the agenda, `/api/todo`, notes on rights and the inbox names the new address; if an automation compares `href`,
+  adjust the comparison. On the iPhone, Costs & contracts is under “More”.
+- **AI interface off by default:** nothing changes after the update until an admin switches it on under
+  Connections › AI assistants. If you never want it on a server, set `ET_MCP=off`; then it stays closed even with
+  the switch.
+- **Keys of their own for the AI:** the scopes `mcp` (AI read) and `mcp_write` (AI read and propose) only count
+  at `/api/mcp`, `mcp_write` also at `POST /api/inbox`. Existing keys do not count at the AI interface, and an AI
+  key counts nowhere else. Even with `ET_AUTH=off` or in proxy mode, `/api/mcp` only accepts an AI key.
+- **Confirm in the app only (by default):** `apply_proposal` writes nothing and answers
+  `status: awaiting_confirmation`; you confirm under To do › “AI proposals”. If you switch off “Confirm changes in
+  the app only”, `apply_proposal` applies by itself, protected only by your program’s prompt. **Without sign-in
+  this only protects against the AI interface:** any program in the home network can operate the app and present
+  itself as a browser, including an AI with network or shell access of its own. Only sign-in helps against that;
+  the page says so when it is off.
+- **App in Home Assistant:** an AI program reaches the interface only through an opened port (Configuration →
+  Network), not through Ingress. **HACS integration and YAML templates:** if you already use the templates from
+  step 5, keep them or remove them so nothing appears twice.
+- **File permissions `0600`:** `auth.json`, the key for reading in the cloud and the secret of the Home Assistant
+  notifications now belong to the web server user only; the app converts them on the next request. If you back
+  up the data directory from the host as another user, you can no longer read these three files (they are not
+  part of the app’s backup anyway). **If the container’s UID changes** (for instance rootless on an existing
+  volume), the app answers `503` until the folder belongs to the new UID (`chown -R`); see
+  [Docker operation](docs/en/betrieb/docker.md) and [Security](docs/en/betrieb/sicherheit.md) § 10.
+- **Stricter input, new error codes:** `400` instead of `500` for a wrong type, `400` for broken JSON and for a
+  date outside 1900 to 2100, `404` instead of `200` when deleting an unknown meter or temperature day (list under
+  “Changed”). A reading already stored outside the range stays out of the calculation with a notice. **True/false
+  values follow one rule everywhere** (yes/no, true/false, 1/0, on/off; `null` and empty mean no, nonsense is
+  `400`), **numbers have sensible limits**. **A backup with values that the write routes reject is no longer
+  imported**; the message names pot, row and field.
+- **Only admins** now change (with sign-in) the default language, country, currency and time zone, the note
+  about new versions, the location and the weather sync. Members get `403` and still choose their own language.
+- **Some figures change** (examples under “Changed”): balance of meter groups, water, PV feed-in, the started
+  month, a bonus after the contract end, CO₂ costs in the year of moving in or out and “Year 2 on” in the switch
+  decision. **A balance under €5 is now called “additional payment” or “credit”** instead of “balanced”;
+  `verdict` in the API stays as it is.
+- **Details for letters** are stored in `settings.json` or on the contract, and so in the backup, as soon as you
+  enter them or take them over from the letter dialog; no AI gets them. “Remember the sender on this device” is
+  gone.
+- **Logs:** the image’s access log only writes the path (`?...` instead of the query), the app log masks keys. If
+  you evaluate logs, adjust your pattern.
+
+### Added
+
+#### AI interface (F1037)
+
+- **`POST /api/mcp`** (Apache and Synology: `…/api.php/api/mcp`): MCP over Streamable HTTP, JSON only, without a
+  session. Version 2026-07-28 with `server/discover` and the required headers `MCP-Protocol-Version`,
+  `Mcp-Method` and `Mcp-Name`, plus the older versions with `initialize` (2025-11-25, 2025-06-18, 2025-03-26).
+- **20 tools**, 15 reading (`get_overview`, `list_meters`, `get_deadlines`, `get_contracts`, `get_consumption`,
+  `get_forecast`, `run_scenario`, `list_readings`, `list_bills`, `check_bill`, `get_insights`,
+  `get_yearly_report`, `list_documents`, `get_document`, `get_document_schema`) and 5 writing (`read_document`,
+  `propose_reading`, `propose_document`, `apply_proposal`, `cancel_proposal`), each with a JSON Schema for input
+  and output. **They use the same services as the app** and return the same figures.
+- **Basis per figure:** measured, entered, distributed, assumed or estimated, plus range, reference date, shares
+  and reasons for uncertainty. A sum carries the weakest basis of its parts; over whole reading intervals it
+  counts as measured. **The balance comes in words** (`meaning` and `text` next to `sign`), feed-in as revenue
+  (`revenue`, `accounting_kind`), no amount without a contract (`no_contract`), no verdict without a price
+  (`no_price`), and a started month is marked as such (`complete`, `covered_until`).
+- **Changes only with proposal and consent:** `propose_reading` and `propose_document` check everything as when
+  saving and write nothing. **By default you confirm in the app:** `apply_proposal` answers
+  `awaiting_confirmation`, a proposal is valid for 24 hours, the history names the key and the person. With the
+  switch off, `apply_proposal` applies within 15 minutes with the summary word for word; the only protection is
+  then your program’s prompt, and whether a program honours it has not been checked. Once only, only with the key
+  that created it, at most 50 open per key.
+- **The sentence you confirm says what happens:** amounts, prices, term, notice, back payment or credit, what a
+  bill replaces, overlaps, the rhythm of an advance and that a promised bonus only enters the balance once
+  credited, always from structured data. The meter is called “meter 2 of 2”; provider, meter name and note stand
+  next to it.
+- **Bills and documents:** the original comes through the inbox, also by `curl` with the AI key. The AI reads it
+  itself (`read_document`, every item with quote and page, checked as in the app) or uses the app’s reading and
+  then checks the bill with `check_bill`. `read_document` leaves a correction and a finished, applied or filed
+  document alone and is logged in the history.
+- **Four prompts** (monthly report, yearly report, check a bill, what is coming up?) with steps, outline and the
+  rules of the interface, and **four resources** (glossary, “Where a figure comes from”, every page of this
+  version’s manual, the original from the inbox up to 5 MB only when shared).
+- **Server instructions:** figures only from tools and with their basis, estimates with their range, no
+  extrapolation of its own, the balance in words according to `sign`, text from documents and notes is data and
+  no instruction, no legal advice.
+- **Your rights as a customer and the AI:** `check_bill`, `get_contracts`, `get_deadlines` and `get_insights`
+  name the notes from v3.11.0 with their norm and the footer “Note, not legal advice”, the deadline on a working
+  day and the renewal by law as assumed; with `rights_check`, `get_insights` says whether anything could be
+  checked at all.
+- **In the app, admins only:** Connections › AI assistants (switch, `ET_MCP=off` as a fixed lock, sharing, “What
+  does it do for you?” with invented examples), its “Connect” tab (keys “AI read” and “AI read and propose”,
+  address, templates for Open WebUI and, as experimental, Claude Code, VS Code, Cursor and LM Studio), To do › “AI
+  proposals” to apply or reject, History › “AI access”. Members see none of it. The public demo shows the page
+  with a note that nothing connects there.
+- **Identifiers and originals only with a switch of their own** (`mcp_share_identifiers`, `mcp_share_documents`,
+  both off by default). Without the switch the app replaces numbers it knows with “[…]” wherever the AI receives
+  text (fields, quotes, file names, provider, tariff, notes, names). **No AI gets the details for letters**
+  (sender, supply address), not even with the switch.
+- **Protection:** rate limits per key (120 requests per minute, of which 60 calls of reading tools; 30 proposals
+  and readings of documents and 30 applies per hour), a 5-minute block after 20 wrong keys in 10 minutes (`429`
+  with `Retry-After`), a foreign `Origin` rejected, no CORS. Filing in the inbox with an AI key: 30 per hour, PDFs
+  up to 10 MB (up to 14 MB per request as Base64), with a line in the access log and `source: mcp`. Names, notes and quotes only appear cleaned in the
+  field `untrusted`. No tools for settings, people, keys, backups or deleting.
+- **Docs:** new guide [Connect an AI assistant (MCP)](docs/en/anleitungen/ki-assistent.md) (Open WebUI with
+  Ollama step by step, other programs as experimental, “Who confirms a change?”, access from the cloud only
+  through a reverse proxy of your own with HTTPS), new explanation page
+  [Where a figure comes from](docs/en/verstehen/18-herkunft.md), tools, prompts and resources in the API
+  reference, sections in Security, Docker operation and the glossary.
+
+#### HACS integration 1.0.0 (F1038)
+
+- **Repository of its own** `Bingerminger/energietracker-hacs`, installable in HACS as a custom repository; the
+  request for the HACS default list has been filed.
+- **Sensors without YAML:** “To do” with the next item and the next appointment, per meter the balance with the
+  expected and the measured balance, consumption this year, forecast 12 months and days since reading; one device
+  per group contract, so a sum counts every contract once.
+- **Repair notice** in Home Assistant when Energietracker is older than 3.9.0; a new key after revocation through
+  re-authentication; texts in seven languages. Needs Home Assistant 2026.3 or later.
+- **Manual:** [Connect Home Assistant](docs/en/anleitungen/home-assistant.md#hacs-integration-v3120) describes
+  installation and sensors; step 5 and the “To do” sensor point to it.
+
+#### Setup guide (F1039)
+
+- **Help → Setup guide** shows six equal ways as diagrams: by hand, with supplier mail, with Home Assistant, with
+  local AI, with cloud AI (experimental) and all together. Every diagram shows the boundary of your home and
+  everything that leaves it; plus who it is for, what you get and need, effort, steps, where your data stays,
+  what it cannot do and “In detail” with ports and addresses. Three questions lead to the matching way, none is
+  required. Phones get their own narrow version.
+- **Setup assistant:** a new step “How do you want to work?” with the same three questions, nothing required and
+  nothing saved; at the end, a link to the matching way. Also in the public demo.
+- **Manual:** new page [Setup guide](docs/en/einstieg/wegweiser.md) with the same diagrams and texts, generated
+  from the same source as the app.
+
+#### Forecast workshop per utility (F1040)
+
+- **Each utility gets its own examples, measures and words:** gas with winter, one degree less and insulation,
+  district heating adds a rising price, household electricity base load and an electric car, the heat pump its
+  performance factor, the wallbox the electric car, water a low-flow shower head, a cistern and leaks.
+- **Suggestions only where they have an effect:** no heating model, no winter and no insulation; no offer, no
+  switch; for water a sentence explains why there is no tariff to choose. **Every figure in an example is shown
+  as an assumed example,** not a guide value and not a promise of savings.
+- **The calculation stays the same, to the cent.** Saved scenarios keep calculating as before; a measure that no
+  longer fits the utility stays visible and is marked. `POST /api/forecast/scenario` and `run_scenario` add the
+  field `profile`.
+- **Heating oil and pellets in the workshop:** winter, one degree less and insulation calculate as for gas, with
+  the heating part from the tank log. Plus the **fuel price ± %**, when the **tank runs empty** and from when to
+  **refill** (without future deliveries). The base case is the forecast on the page; deliveries have no advance
+  payment and no bill.
+- **Replacing the heating as a second calculation:** the same heat from a heat pump or a pellet boiler, optionally
+  with the payback. **Stated assumptions, not guide values:** efficiency of the old boiler 0.9, seasonal
+  performance factor 3 all year round, electricity 30 ct/kWh, pellets 35 ct/kg, efficiency of the pellet boiler
+  0.9; each can be changed.
+- **Solar in the workshop:** a larger system, a battery, more self-consumption, another feed-in tariff, for the
+  whole household. Result: grid import, feed-in, cost, revenue and self-sufficiency, each as a **model value** from
+  the measured year. With a year of quarter-hours one value, otherwise a **range** between two stated bounds
+  (additional sun entirely into the grid, or each day like the monthly average).
+- **Forecast and balance stay unchanged;** a comparison old against new across nine utilities is byte-identical.
+  `POST /api/forecast/scenario` and `run_scenario` additionally accept `price_pct`, `replace`, `pv_size_pct`,
+  `pv_kwp_now`, `battery_kwh`, `self_use_pct`, `feed_in_ct` and return `calc`, `delivery`, `tank`,
+  `replacement`, `pv` and `capabilities.regression`.
+
+#### Letters easier to find, filled from your data
+
+- **“Write a letter” on the contract** (electricity, gas, district heating; water only the request): a request to
+  adjust the advance payment and a new template **“Termination at the next possible date”**, without a note too.
+  The termination names no legal provision; if the date is only assumed (district heating under § 32
+  AVBFernwärmeV, basic supply), it stays a gap and the dialog says why. Special termination, objection and
+  complaint still only come from a note; if there is one, the choice leads to it.
+- **Letters fill in from your data:** enter the sender and the supply address once under Household › Building ›
+  “Details for letters” (optional), the supplier’s address and the customer and contract numbers on the contract.
+  The dialog says for each detail where it comes from. **What you change there only applies to this letter;**
+  “Use in household” or “Save on contract” stores it on purpose. If something is missing, it says where to enter
+  it.
+- **Notes on rights with a filter of their own,** “Rights” under To do, and a jump mark per note; without a note,
+  the page names the way to the letter on the contract.
+- **Showcase and demo:** invented sender, addresses and numbers; the termination letter shows no gaps.
+
+#### API and data (additive)
+
+- **Endpoints:** `POST /api/mcp`; for admins `GET /api/mcp/status`, `GET /api/mcp/journal` (access log without
+  arguments and content, 90 days), `GET /api/mcp/proposals`, `DELETE /api/mcp/proposals/{id}` (a rejected
+  proposal is never applied) and `POST /api/mcp/proposals/{id}/apply`.
+- **Settings:** `mcp_enabled`, `mcp_share_identifiers`, `mcp_share_documents`, `mcp_apply_in_app` (admins only),
+  `letter_sender_name`, `letter_sender_address`, `letter_supply_address`; environment variable `ET_MCP` (`off`,
+  `0`, `false`, `no` lock it for good); API key scopes `mcp` and `mcp_write`.
+- **Fields:** contract `provider_address`; reading `source: mcp`; history `by.via`, `by.confirmed_by`, `changes`;
+  contract list `letters`; `POST /api/letters/render` with `utility` and `contract_id` instead of the finding,
+  template `termination`, model with `place`, `sources` and `defaults`; `POST /api/inbox/{id}/apply` with
+  `activity_id`; `reading-checks` with `skipped`; `/api/utilities` with `glyph` (`icon` stays in API, CSV and Home
+  Assistant); `rest_of.billed`; in “Check bill” `gap_reason` and `totals.decreases`; findings on rights with
+  `maybe_expired`, `soft_until` and `known_basis`; CO₂ split with `days`; switch decision with `monthly_year2`;
+  scenario with `profile`; the notification webhook with `href` for notes on rights.
+
+### Changed
+
+#### Figures that change (examples old → new, invented households)
+
+- **Balance of a meter group ([#58]), wrong in v3.11.0 and earlier too:** if the meters were read at different
+  times, days counted twice and a month without one member looked like lower consumption. The app now takes the
+  rows up to the earliest reading and then estimates from the months in which all meters are read. Two meters, one
+  read a month later: estimated until today back payment €491.45 → €407.60, expected on 31 Dec €655.87 → €586.50,
+  appropriate advance €141 → €149. If the readings are more than 62 days apart, a range replaces the single
+  suggestion. **Reading all meters of a group on the same day is the most accurate.**
+- **Water is calculated by the day like electricity** (so far the contract and price of the first of the month
+  applied): July 12.4 m³, €2.10/m³ up to the 14th, €2.60/m³ from the 15th: drinking water €26.04 → €29.44. A
+  contract switch on 15 Sep splits quantity, standing charge and advance by days: advance of the old contract in
+  September €40.00 → €18.67 (14 of 30 days), the new one counts from the 15th. “Check bill” starts a new row on
+  the price date.
+- **Water prices the quantity the readings give,** not the month row rounded to 0.1 m³; only the display is
+  rounded. Month rows, balance card, contract, billing year, “Check bill” and annual report give **the same cent**
+  for the same readings, also with a garden meter. 11.333 m³ at €1.50 + €2.50: €44.20 → €44.22.
+- **The forecast prices water by the day like electricity,** and so do the forecast workshop and the AI: a price
+  from the 15th of a future month applies from the 15th, a contract switch on the 15th splits quantity, standing
+  charge and advance by days. March with 9.3 m³, drinking water €2.10 → €2.80 from the 15th: €43.20 → €46.77.
+- **Switch decision by the day:** a price step on the 15th applies from the 15th, in year 1 and year 2; a standing
+  charge from the 15th counts pro rata, also for “Switch to offer” in the workshop. Until now the step only took
+  effect the following month.
+- **PV feed-in per billing year:** the balance card counts from the feed-in cut-off date, no longer since
+  commissioning. 150 kWh a month at 8 ct since 04/2024: €360.00 → €108.00 (2026).
+- **Balance card in a started month** (the billing year starts mid-month, the last reading is in the same month):
+  the quantity counts by the measured days, as in the billing year. Cut-off 20 Oct, reading 26 Oct: 116 → 72 kWh,
+  measured balance €17.81 → €4.57.
+- **A bonus after the entered end of a contract that runs on:** end 30 June, the contract runs on, bonus €120 on
+  15 July: the balance card now counts the €120 like the billing year (so far without it), the June row no longer
+  carries the bonus. Forecast and tariff comparison count it on its day as well. A bonus after a contract that
+  really ended counts on the contract’s last day, also in the billing year. **If a bonus actually comes with the
+  annual bill before it, put its day into the period of that bill.**
+- **A contract that ran on without notice until its successor:** its row now bills up to there. End 30 June,
+  successor from 1 Sep: back payment €105.00 → credit €91.00, the sum of its billing years.
+- **Estimated reading:** “Balance on …” only counts up to the last real reading; an estimated reading belongs to
+  “Estimated up to today”. Real reading 1 Oct, estimated 4 Nov: “Balance on 4 Nov” → “Balance on 1 Oct”. The tiles
+  still name the day of the last reading. Card and billing year give the same cent for the same state (so far for
+  instance −€142.68 against −€142.67).
+- **The balance in words follows the sign:** €3.50: “balanced” → “additional payment €3.50” (balance card,
+  Contracts & advances); beginner overview under €1: “balanced” → the amount to the cent; exactly 0: “€0.00” →
+  “balanced”. **Balances are green or red everywhere,** ranges with each end in its colour. The calculation and
+  `verdict` in the API do not change.
+- **Tenancy:** a month with a clock change counts all its days: March at a €120 prepayment €116.13 → €120.00, for
+  the year €1,436.13 → €1,440.00. The result names an amount from 1 cent (so far from 50 cents); the monthly table
+  shows the customer’s view (+ credit, − back payment), so far + stood for back payment.
+- **CO₂ cost split with your own flat heating:** in the year of moving in or out the stage limits are shortened
+  pro rata (§ 5 (3) sentence 4 CO2KostAufG), as for central heating. Moving in on 1 July, 11.1 kg CO₂/m²: stage 1
+  (0 %) → stage 4 (30 %), refund €0.00 → €10.90.
+- **Switch decision “Year 2 on”** means months 13 to 24 at the prices that apply then (without bonus). Offer
+  20 ct, 34 ct from year two, 6,000 kWh: “Year 2 on” ≈ €1,320 → ≈ €2,160, rank 1 → behind the fixed price, “Pays
+  off” – → “up to 600 kWh”. **“Pays off” names the direction:** “from 900 kWh” means cheaper above, “up to
+  600 kWh” cheaper only below; until now every value stood under “Pays off from”, even for an offer that is dearer
+  at the expected consumption (API, additive: `break_even_direction` `above` | `below`).
+- **“Check bill” for gas:** a price change starts its own row as for electricity, and in every row price ×
+  quantity = cost: one row 1,220 kWh · 8.0 ct · €103.60 → 620 kWh · 8.0 ct · €49.60 and 600 kWh · 9.0 ct ·
+  €54.00. The total stays the same.
+- **Remainder billing:** the note names the billed quantity: “238 kWh = 882 − 644” → “488 kWh = 882 − 644 + 250”
+  (field `rest_of.billed`). If the period ends one day after the shared reading day, a false “remainder below
+  zero” is gone: wallbox 128 → 124 kWh.
+- **Metering charge:** exactly 6,000 kWh a year belong to the group up to 6,000 kWh (so far, through a rounding
+  remainder, to “over 6,000 kWh”); every limit belongs to the lower group.
+- **Fee assessment:** an entered “Received on” after the fourth day moves the notification (§ 41(2) sentence 3
+  VwVfG): assessment of 3 Feb, received on 12 Feb: notification 7 Feb → 12 Feb, and the deadline ends later
+  accordingly. Counted from the date of the assessment, the app says “possibly expired” for seven days after the
+  earliest end (so far “expired” at once); letter and “To do” stay that long. **With “Received on”, the day of
+  receipt is the earliest end:** the assessment was posted on that day at the latest, so the notification may lie up
+  to four days later; up to the latest end it says “possibly expired” (so far “expired” from the next day, up to
+  three days early). A receipt before the fourth day changes nothing.
+- **Annual report:** figure, percentage and line of the “Consumption” tile show the same quantity: last point of
+  the line 45,648.4 → 45,709.2 kWh, equal to the tile’s figure; a year without an adjusted quantity stays empty
+  instead of raw.
+- **Price per reading with a comma:** “12,5” ct counted as 12 ct: 100 kWh €12.00 → €12.50. “abc” and negative
+  prices are rejected.
+- **Living area and people:** “120,5” m² counted as 120 m² and as not entered → 120.5 m² (limits 0 to
+  100,000 m² and 0 to 1,000 people; 0 still means “not stated”).
+- **With francs or pounds:** “ct/kWh” → “Rp./kWh” or “p/kWh” in the annual report, notes, the inbox and the
+  forecast workshop (also in the heat pump note and in `run_scenario`).
+
+#### New interface ([#59])
+
+- **A new design language across the app:** graphics of its own instead of emoji (on meters and in what you type
+  yourself, emoji stay possible), one typeface, three radii, one shape for notices in five tones, tabs, filters,
+  years and periods as the same buttons, tiles in a fixed grid without a ragged edge, amounts in tables with
+  digits of equal width. Annual report, print and PDF without symbol characters.
+- **A menu in two areas,** Everyday and Setup, the same at every level. On the iPhone a bar with Overview, To do,
+  ＋, Consumption and More.
+- **To do gathers everything open:** deadlines and dates, recommendations, rights, mail and AI proposals in one
+  list with filters, plus the tabs Dates and History. History is there from Beginner.
+- **Connections:** reading mail and photos, Home Assistant (map meters, notifications, templates), weather, evcc,
+  calendar, AI assistants, keys and home network security, with the status in the row. Connections above your
+  level open with “Show more connections”, without changing the level.
+- **Household:** meters (all in one place, from Beginner, sub-meters indented below the main meter, a filter per
+  utility), people, building with the details for letters, utilities with the metering concept as the second box.
+- **Settings by topic, with search:** For you, Region and language, Display and reminders, Data and backup,
+  Access and security, Calculation (so far “Expert”) and System. Search finds every setting, also above your
+  level, and jumps to the field without changing your level. If the field sits in a part that is hidden right
+  now, for example under “Cloud”, a note on the card says where it is; **“Show” opens that part and saves
+  nothing.** “Region and language” says what applies right now
+  and what overrides what; the appearance (light, dark, like the system) can also be chosen under “For you”. The
+  security check appears once, under Access and security.
+- **The overview answers first:** what needs doing, will I get money back, more or less than last year, at every
+  level. “To do” appears there as an excerpt of four rows (overdue items, then deadlines from “Your rights”, then
+  the rest) with “n more entries under ‘To do’”; the “Enter reading” button is gone, adding goes through ＋.
+- **Tiles show more in less space:** the trend as a graphic of its own with sign, value and a visible basis
+  (“+4 % vs last year” instead of “▲ 4 %”), new “about the same” below 0.5 % and “no comparison” with its reason
+  (so far nothing stood there); in the footer the last reading or the fill level and the number of meters. The
+  sparkline stays, 44 instead of 64 px high. **No detail of the old tile is gone.**
+- **Insights › Key figures:** efficiency, benchmark, tanks, electricity balance and explainers, so far cards on
+  the overview.
+- **Consumption per utility in views:** overview with a short balance, balance and contract, months, readings. One
+  button per task: “+ Reading” at the top, the second button in the notice is gone.
+- **Costs & contracts as rows:** one button per row, “Edit”, “Write a letter”, “History” and “Manage contracts”
+  under “More”; the page is about a fifth shorter on the Mac.
+- **Past contracts** (new): ended and replaced contracts in one place, with term, prices, advance payment,
+  consumed, paid, balance at the end and bill, filtered by utility, meter and year. The amount is the balance at
+  the end of the contract, not a price comparison with the successor.
+- **Tables stack below 900 px,** nothing scrolls sideways any more; settings on the iPhone with full field width
+  and the label above the field. The buttons in the data export carry the colour of their utility again.
+- **Old addresses and bookmarks lead on,** also with `?field=` and `?rec=`.
+- **Footer `Version · Help · Star · Heart`:** the star leads to the project on GitHub, the heart to supporting it,
+  both in a new tab; on the iPhone under “More”. **Logo and name at the top left lead to the overview.** A new logo
+  in the hand of our own graphics: a house with a meter ring in the colours of the utilities.
+- **Help** starts with the link row Demo, Handbook, Roadmap, Discussions; the setup assistant ends by saying where
+  Household and Connections are.
+
+#### Texts, manual and presentation
+
+- **Every image in the manual shows the new interface**, each in German and English: workshop, annual report,
+  contracts, dialogs, setup and sign-in. The workshop guide shows heating oil and PV.
+- **Texts in all seven languages reworked:** key statement first, shorter sentences, no more dashes as sentence
+  glue; key statements in subtitles and in the workshop are bold. French, Italian, Spanish, Portuguese and Dutch
+  are proofread, terms aligned with the glossary and the menu. Long words in narrow tiles and fields are
+  hyphenated instead of sticking out.
+- **Manual on the new navigation:** every path names Household, Connections and the settings topics, and the
+  settings reference is ordered that way. Notes appear as info boxes, the pictures show the new interface.
+- **README** with a link row, five badges and the table “At a glance”; every number in it is tied to a test. The
+  “Tests” badge is gone.
+- **Code of conduct, a pull request template and a form for ideas** under Discussions. Reports go only through
+  GitHub: “Report content” on the post, anything confidential through the private route from SECURITY.md.
+
+#### Rights, letters and inbox
+
+- **Notes on rights come first within their urgency,** in the API too; “To do” leads a rights entry straight to
+  the note, the notification names the page. The guide [Write a letter](docs/en/anleitungen/brief-schreiben.md)
+  starts with the three ways to a letter.
+- **“Remember the sender on this device” is gone.** A sender remembered that way still prefills until the
+  household has one; “Save in household” takes it over.
+- **Questions on a new meter reading** (lower, jump, decimal point forgotten, higher than the next one) follow the
+  same rule in the form and for the AI; “unusually large increase” instead of “consumption”, so it fits feed-in
+  too.
+- **CO₂ price 2027 (docs):** status of the BEHG amendment after the Bundestag vote of 15 Oct 2026, not yet
+  promulgated; the app changes nothing.
+- **README:** “ⓘ next to technical terms” instead of “next to every key figure”.
+
+#### Interfaces and operation
+
+- **Only admins change** (with sign-in) the default language, country, currency and time zone as well as the note
+  about new versions, the location and the weather sync. Members see the values locked and still choose their own
+  language, also during setup. `PATCH /api/settings` with one of these keys and `POST /api/settings/country`
+  answer a member with `403`.
+- **`href`** in the agenda, `/api/todo`, notes on rights and the inbox names the new address, for instance
+  `#/todo/dates` instead of `#/reminders`, `#/todo?art=rec&rec=…` instead of `#/recommendations?rec=…` and
+  `#/household/meters?art=gas` instead of `#/utility/gas/meters`.
+- **Error codes:** wrong type (list or object instead of text) → `400` `errors.common.textExpected` instead of
+  `500`; broken JSON → `400` `errors.http.bodyInvalid`; ingest batch without a list → `errors.ingest.bodyInvalid`
+  instead of `errors.ingest.unknownUtility`; date outside 1900 to 2100 → `400` `errors.common.dateOutOfRange`;
+  deleting an unknown meter or temperature day → `404` instead of `200`. A list of entries given as text, a number
+  or an object → `400` `errors.common.listExpected`; contract amounts out of range →
+  `errors.contract.amountOutOfRange`; a reminder with an unknown recurrence → `errors.common.valueInvalid`; a
+  reading import without a recognised line → `errors.import.noRows` instead of `200`; an ingest value that is not a
+  number (“31002,5”) → `errors.reading.counterInvalid` instead of `errors.ingest.valueMissing`. See the
+  [API reference](docs/en/referenz/api.md).
+- **`/api/health`** reports under `checks.restore` an import that ended halfway, with the snapshot from before
+  (`degraded`). The CSV import of periods names rows of another meter under `other_meter_rows`.
+- **Undo in the history** refuses AI entries without a revert (`409`) instead of crossing them out; the entry
+  names what was changed.
+- **Setup assistant:** one more step (six, seven with electricity and solar, five in the demo).
+- **Backups:** new reasons `concept` (metering concept) and `auto`, `manual` only for your own (`backup_…`).
+- **First start:** a health check without a language (the image’s `HEALTHCHECK`) does not set up an empty
+  installation; only the first real request decides on language and country.
+- **Receipts** come with `private, no-cache` and `ETag` instead of a year from the browser cache; unchanged, the
+  server answers `304`.
+- `GET /api/docs/asset` also serves the setup guide’s diagrams (SVG); the manual understands `<picture>`.
+- The phase per contract in `…/contract-status` is computed by `ContractService::withPhases` (one place for the
+  app and the AI); the response is unchanged. TRADEMARKS.md names the programs of the AI interface and HACS.
+
+### Fixed
+
+- **“Prices valid today” on the day:** when a price changed on the 15th, the contract card showed the old energy
+  and base price until the end of the month (all utilities, for water also waste water and rainwater). The
+  calculation was already day-accurate; only the display took the price of the first of the month.
+- **A reading in the year 0001** (or a typo such as 0202) was accepted and brought down the overview, “To do”,
+  the agenda and the annual report. Dates now lie between 1900 and 2100 (readings, meters, contracts, reminders,
+  deliveries, periods, bills, tenancies), also for a bill’s issue and receipt date, a reminder’s “done on” and in
+  the backup import; a reading already stored outside stays out of the calculation with a notice, and so does a
+  stored meter reading above 10¹² (so far silently trillions of kWh).
+- **Values that brought the app down:** a contract end `[]` or `{}` gave `500` but was stored; `forecast_model: []`,
+  a building type as an object or a heating limit of 10³⁰⁸ were stored. Afterwards the overview, “To do”, the agenda
+  and the annual report answered `500`. Now `400`, nothing stored: **settings only take the type of their default
+  and numbers within sensible limits** (latitude ±90, longitude ±180, heating limit 6 to 22 °C, months and days as
+  whole numbers), **prices, standing charges and advances are never negative**, contract amounts up to 10 million,
+  deliveries, periods and temperatures with an upper limit.
+- **True/false values as text:** “false”, “nein” and “off” became yes in eight places. A running contract with
+  `is_shadow: "false"` dropped out of balance and forecast as a shadow contract, a reading became suspect or
+  “billing only” (and was then missing from the monthly values), a meter, reminder or tenancy statement with
+  “nein” stayed active or booked; the same for switches in the settings (such as the weather sync) and
+  “estimated” on a period. **Now one rule applies on every write route,** nonsense is `400`.
+- **Whole numbers and silent assumptions:** 10³⁰⁸ as months, days, digits, notice period or hour gave `500` under
+  PHP 8.5; a notice period “1.5” silently became 1, “12,5” months stayed 12.5. A bill with “abc” as invoice data,
+  items or CO₂ was stored empty, with an unknown contract ID as well; a reminder with an unknown recurrence silently
+  became “no repetition”, a given “done on” was dropped on creation; a customer number as a list was silently
+  dropped; a reading import with JSON instead of CSV said “0 imported”. Now `400`.
+- **Backup import:** it took what the write routes reject (a contract end `[]`, `forecast_model: []`, a reading of
+  10³⁰⁸, a date in the year 0001) with `problems: []` and then brought the app down. **Now it reports it as a
+  problem and imports nothing.** If the process ends in the middle of an import, the health check reports it with
+  the snapshot from before (so far a household of old and new files without a hint).
+- **A reading on a foreign meter:** through the API a reading, and a contract too, could be attached to an
+  unknown meter or one of another utility and then dropped out of every evaluation.
+- **Server error instead of a message:** a list or an object instead of text caused `500` on more than a dozen
+  write paths, and so did people, API keys and price lists on a contract (also as text or a number); broken JSON
+  counted as an empty request. A response that could not be encoded came as `200` with an empty body, at
+  `/api/summary` even cached for five minutes; now as `500` with an error ID.
+- **CSV round trip of readings:** multi-line notes were cut off, “Estimated” flipped to no, the guard apostrophe
+  before formulas stayed, spaces at the edge of a note were lost. Export and import now give the same readings,
+  including the price. **Periods keep “Estimated”** (so far every one became measured), and an import into another
+  meter names the skipped rows instead of silently importing nothing.
+- **Ingest:** “31002,5” said “value missing”; now the code names the cause (`errors.reading.counterInvalid`).
+- **Double booking:** saving in the contract dialog gave special payments new identifiers; a bill correction then
+  booked twice.
+- **Own backup pushed out:** ten runs of the metering concept assistant deleted a backup you had made yourself;
+  several backups within one second pushed out the newest.
+- **First start in a container:** a health check before the first browser visit (Docker, Home Assistant) fixed
+  the installation to German, Germany and Leipzig, also with `Accept-Language: *` (which every program using
+  Node’s `fetch` sends).
+- **“Check bill”:** a falling meter reading is called “reading falls” with its own note instead of “without an
+  enclosing reading”; the warning “meter swap or rollover not recorded?” appears here too.
+- **Inbox:** a credit equal to the result is flagged and no longer goes into the bill unchecked. **A number only
+  counts as evidence at number boundaries** (“0 m³” used to sit inside “13.580 m³”, “80,00 €” inside “180,00 €”),
+  digits of an identifier are no evidence for a value, locally, in the cloud and through the AI; documents
+  already read keep their marks until they are read again. A damaged PDF says “The file is damaged or not a
+  readable PDF” and is “Failed” instead of staying “New” with a raw English message. The previous standing charge
+  is shown in the same unit as the new one; after applying, the assignment knows new contracts without reloading;
+  “net/gross” without a quote carries no tick. **A number right after “customer number”, “contract account” and
+  similar labels no longer counts as evidence.**
+- **Readings:** an older reading entered afterwards is no longer compared with the later one. A reading above the
+  next one asks back (so far it did not); the consumption calculation still passes over it, and `reading-checks`
+  now names it under `skipped`. **The “Meter readings” page checks a back-filled reading with the same rule**
+  against the previous and the next reading for its date (so far not at all); the question in the “+ Reading”
+  dialog names the date in its title instead of “{date}”.
+- **Overview:** “n more” counts like “To do” and the sidebar (also recommendations, mail, AI proposals). The answer
+  “More or less than last year?” uses the same threshold as the tile (about the same below 0.5 %). If an answer
+  from the server is missing, an error line with the error ID appears instead of “Nothing right now” or “No
+  contract with advance payments yet”, and “To do” then does not say “Nothing is waiting for you right now”.
+  “3 meters are waiting for a reading” names utility and meter (“Gas · Main meter”). Beginner: below €1 the amount
+  without “about”, exactly 0 is “balanced”.
+- **Forecast › Months in detail:** the balance reads as on the balance card, with word and amount to the cent, in
+  green or red; so far €0.38 to pay was “(balanced)” there.
+- **Letters:** if the termination date stays open, the dialog says why (deadline missed, contract runs on, no
+  notice period entered) and where to enter it; in the showcase the district heating has a notice period. Place
+  and source follow the sender that is in the letter.
+- The old bookmark `#/settings/household?field=person_name` leads to Household › People (so far Building).
+- **Meter replacement from the inbox:** Cancel reopened the dialog straight away, and after × or Escape a reload
+  reopened it.
+- **Language:** a new default language also switched the display for someone with a language of their own; with
+  sign-in but without a choice of one’s own, the selector showed “like the installation” although the device’s
+  choice applied.
+- **The public demo hid new features:** whoever had visited it before stayed with the remembered household, level
+  and language after a release and did not see the new examples. Now the demo starts from zero for everyone after
+  every release, and every file carries the build’s mark. New in the demo’s notice bar: “New in vX.Y”.
+- **On iPhone and iPad:** settings fields were 52 px wide, buttons on the meter page ran out of the card, the gas
+  conversion fields were too narrow on the iPad; buttons in a row had different heights, notices in one box
+  different widths; “New date” from the capture sheet lost the dialog’s focus to the page behind it.
+- **Accessibility:** coloured table columns reach 4.5:1; after “Cancel” in a confirmation the focus returns to the
+  button.
+- **A reference date was not passed on in several calculations.** Contract status, billing year, rights checks,
+  tenancy budget (`as_of`), forecast, the workshop, the overview and the annual report always built their monthly
+  rows with today’s date, even when asked for another day. Now they use **what was known on that day**: readings
+  after it do not count. Day to day (reference date today) nothing changes. An annual report for an earlier year
+  now finds the unusual months after 24 months too, and the agenda takes “Reorder” from the tank stock of its day.
+- **The test suite depended on today’s date:** several tests were set relative to “today” and turned red as the
+  calendar moved on (tank empty before the first delivery, new year, 29 February, end of month, clock change). They
+  now use fixed dates.
+- **A tab left open across an update reloads itself once** when it meets an address it does not know, instead of
+  showing “Unknown route” (works from the next update on).
+- **“Your lever” tile:** if last year has no quarter-hour data, the overview shows the year before, named in the
+  title, instead of no tile; the link opens Flexibility for that year.
+- **Forecast workshop:** the “Heating curve (regression model)” field also appeared for water and electricity; it
+  now only appears where a heating model applies. Switching the utility after an example resets the example
+  instead of carrying its values along (such as the low-flow shower head to heating oil).
+- **French** showed “1 …” for 0 meters, groups or days.
+
+### Security
+
+- Hardening: files holding access secrets (`auth.json`, the key for reading in the cloud, the secret of the Home
+  Assistant notifications) are now readable only by the web server user (`0600`); existing installations are
+  converted on the next request.
+- Hardening: receipts no longer stay in the browser cache after signing out; signing out clears it
+  (`Clear-Site-Data`), and every receipt is re-checked before it is shown.
+- Hardening: text recognition, evcc, Home Assistant notifications and reading in the cloud check entered addresses
+  with one shared rule, in every notation.
+- Hardening: **the metadata service `100.100.100.200` is blocked on all of these paths,** in every notation, like
+  `169.254.169.254` and `fd00:ec2::254` already were. It lies in `100.64.0.0/10`; the rest of that network
+  (CGNAT, Tailscale) stays home network.
+- Hardening: the app log and the image’s access log contain no access keys.
+- Hardening: the development server (`php -S` with `router.php`) answers invalid characters in the address with
+  `404`.
+- Hardening: with sign-in, only admins change the settings that cause a connection to the outside (note about new
+  versions, location, weather sync), with any value, `null` included; `null` on a switch means off.
+- Hardening: the AI also gets the title and text of hints and rights findings and the meter name in a proposal with
+  the mask for identifiers and letter details.
+- Hardening: notifications to Home Assistant carry foreign text (document name, titles of reminders and hints) as
+  plain text without links, images, HTML or line breaks, with a maximum length.
+- Hardening: only a key with an AI scope clears the failed attempts before the lock of the AI interface.
+- Hardening: an API key’s “last used” only counts accepted requests.
+- Hardening: the image also sets `X-Content-Type-Options: nosniff` for static files.
+
+### Known limits
+
+- **Checked only with Open WebUI and Ollama:** the templates for Claude Code, VS Code, Cursor and LM Studio follow
+  their descriptions and have not been tried with every program; whether a program asks before applying has not
+  been checked. That is why you confirm in the app by default.
+- **No OAuth, no SSE:** AI services that connect from their provider’s cloud only work if they allow a header of
+  their own with a key, and only through a reverse proxy of your own with HTTPS (a guide, no code). Home
+  Assistant’s “Model Context Protocol” integration (SSE and OAuth only) does not connect.
+- **Texts for the AI** (descriptions, prompts, messages) exist in German and English, in English for other
+  languages of the installation. `read_document` checks quotes against the text the AI supplies itself; the
+  protection against that is your confirmation.
+- **Identifiers:** provider and tariff do not count as identifiers and go to the AI; the app does not recognise a
+  short number without a label that appears nowhere in the household, and what the AI reads from a shared
+  original itself, the app cannot hold back. The mask does not recognise details for letters written differently
+  (“Str.”).
+- **Evidence check:** an ordinary space between digits can separate thousands or two table columns; both readings
+  apply there (“580 m³” in “35 580 m³”). Non-breaking spaces count as thousands separators. A meter number
+  standing on its own can still be read as a reading.
+- **Inbox:** list fields cannot yet be confirmed or corrected one by one (planned for v3.13). “Correct” on a price
+  without a tax rate takes it as a gross price; the calculation behind it is unchanged.
+- **Meter group:** what a member read later has measured after the earliest reading only enters the range; with
+  uneven consumption the point value is an estimate. If the earliest reading and a contract switch fall into the
+  same month, the app splits the monthly row by the share of the quantity.
+- **Contract switch within a month:** the last advance counts by days; if the balance is close to zero, its sign
+  can flip because of this. If the supplier debited the full month, enter the advance with dates or book the
+  special payment. **To be clarified with v3.13.**
+- **A weather-based forecast for heat pump, PV and battery** comes with v3.13; in the workshop the heat pump’s
+  electricity therefore has no examples for winter and room temperature yet, and the seasonal performance factor
+  for replacing the heating is the same all year round.
+- **Workshop:** solar calculates with the last measured year, not with the weather; without a year of quarter-hours
+  only as a range. Deliveries in a meter group have neither a heating part nor a tank. The workshop uses the
+  weather forecast of the daily sync; if you open it before the sync, the figure can be slightly different
+  afterwards.
+- **Reference date:** meters with consumption per period do not know a reference date yet; a running period counts.
+- **Input:** free text (notes, names) has no length limit yet (planned for v3.13). A backup of an older version with values that are
+  rejected today imports only after correcting them. An import that ended halfway is not rolled back by the app
+  itself; the health check names the snapshot from before.
+- **Interface:** there is no one-time “What moved where?” hint for existing users; finding the new places is
+  measured in paths and clicks, not checked with people. A real iPhone and iPad have not been checked (WebKit in
+  the test browser at 390, 820 and 1180 px). Members still see fields under Connections that only admins may
+  change; the server rejects the change. “Check bill” is there from Experienced; beginners find it through search.
+  In French, Italian, Spanish, Portuguese and Dutch the heating limit still has different names in different
+  places (one name planned for v3.13).
+- **Operation:** `Clear-Site-Data` only works over HTTPS or on `localhost`. nginx’s error log can name the query
+  when the upstream fails. For a fee assessment the app still does not know regional public holidays.
+- **HACS:** according to HACS, inclusion in the default list takes months; until then the custom repository is
+  the way. The public demo has no AI interface (it runs without a server).
+- **Check of the public demo** (`tests/demo.test.mjs`): it turns red from mid-January, because the showcase has no
+  measured part yet at the start of its billing year, and green again from early February. The check is affected,
+  not the demo. **Known bug, fixed with v3.13.**
+
+**v3.13.0 is planned for Tuesday, 17 November 2026.** Focus: the forecast for heat pump, PV, battery and electric
+car, consistent terms in the translations and length limits for free text.
+
+### Migration
+
+None. Schema stays 1.8.0, the inbox reading schema stays 7. The new settings and the contract field
+`provider_address` are optional and travel in the backup, no new bucket. New files only appear on use under
+`data/mcp/` (proposals, access log, rate-limit counters) and are not part of the backup. The app sets the `0600`
+permissions on the first request after the update; for rootless Docker with a changed UID see above.
+
+### Tests
+
+- **AI interface:** `McpServerTest`, `McpEndpointTest`, `McpSchemaTest`, `McpProtocolTest`, `McpRateLimiterTest`,
+  `McpJournalTest`, `McpSecurityTest` (secrets in no answer, across every tool), `McpReadToolsTest`,
+  `McpProvenanceTest`, `McpConsistencyTest` (the same figure as the app in an invented, a messy and the sample
+  household), `McpRightsFieldsTest`, `McpWriteTest`, `McpDocumentToolsTest`, `McpApplyInAppTest`,
+  `McpEvidenceBoundaryTest`, `McpLetterDataTest`, `McpPromptsTest`, `McpResourcesTest`, `McpDocsTest`,
+  `McpValueDocsTest`, `McpIntegrationTest`; Node suites `mcp-protocol` against `php -S` and `mcp-snippet`
+  (templates against the formats of the programs and the guide).
+- **Calculation, recalculated by hand:** `GroupReadingsDifferTest` ([#58]), `WaterByTheDayTest`,
+  `FeedInBillingYearTest`, `BalanceStartMidMonthTest`, `BonusAfterTheEnteredEndTest`, `BonusAfterEndTwoViewsTest`,
+  `SwitchBalanceByHandTest`, `TenancyBudgetCalendarDaysTest`, `Co2PartialYearTest`, `TariffSwitchYearTwoTest`,
+  `GasBillPriceChangeTest`, `SubmeterRestNoteTest`, `ReportConsumptionLineTest`.
+- **Input and round trips:** `ReadingInputTest`, `InputErrorsEndpointTest` (year 0001 in every view),
+  `InputHelpersTest`, `HouseholdNumbersTest`, `CsvReadingsRoundtripTest`, `SpecialPaymentIdsTest`,
+  `SnapshotRotationTest`, `FirstStartHealthCheckTest`, `InputDocsTest`.
+- **Hardening:** `SecretFilesTest`, `SecretFilesOnStartTest`, `AttachmentCacheTest`, `IpAddressTest`,
+  `MetadataAddressTest` (every path, entered directly and behind a name), `NullBytePathTest`,
+  `NginxLogAndHeadersTest`, `OutboundSettingsAccessTest`, `ApiKeyLastUsedTest`, Node suite `outbound-admin`;
+  `CodeOfConductTest` (reporting only through GitHub).
+- **Strict input everywhere:** `SettingsTypesTest` (every number setting with a limit), `ContractInputStrictTest`,
+  `RemainingInputsStrictTest`, `WriteRoutesStrictInputTest`, `BoolSettingsAndPeriodsTest`,
+  `BackupImportChecksTest` (19 poisoned backups, our own export stays clean).
+- **Water and switching by the day:** `WaterExactQuantityTest` (card = billing year to the cent),
+  `WaterForecastByDayTest`, `TariffSwitchByDayTest`, `TariffSwitchBreakEvenDirectionTest`.
+- **Workshop:** `ScenarioProfileTest`, `ScenarioDeliveryTest` (tank empty, replacing the heating, price, calculated
+  by hand), `ScenarioPvTest` (range and quarter-hours), `BillingWindowTest`; a comparison old against new keeps
+  forecast and balance byte-identical.
+- **Reference date:** `StichtagReadingsTest`; the whole round runs locally with the clock moved (+3 to +365 days,
+  29 February, New Year’s Eve, clock change) with `zeitreise.sh`. In CI the browser render and views suites run on
+  a fixed day that matches the sample data (libfaketime for server, Node and browser, `RenderClockTest`).
+- **Rights, letters, inbox:** `LetterContractTest`, `LetterDataTest`, `LetterShowcaseTest`,
+  `McpLetterDocumentsTest`, `McpFindingMaskTest`, `HomeAssistantNotifyForeignTextTest`, `RightsBillChecksTest`
+  (receipt, soft zone, limits of the metering charge), `InboxEvidenceBoundaryTest`, `InboxBillRightsTest`,
+  `BillServiceTest`.
+- **Interface and texts:** new Node suites `box-raster` and `sichtung-layout` (grid and sizes in a real browser),
+  `design-rules`, `icons`, `rich`, `redirects` (every old address, in the docs too), `saldo-farbe`, `zaehlerbaum`,
+  `sprache-wahl`, `zutun-verbindungen`, `haushalt-einstellungen`, `settings-search`, `sichten`, `catalog-keys`
+  (every fixed key in the code is in all seven catalogues), `laengen` (long languages on the main routes),
+  `setup-guide` with `build-setup-guide --check`, `demo-start`, `router` (reload after an update);
+  `CatalogStyleTest::testNoDashAsConnector`, `ShellFooterTest`, `ReadmeClaimsTest` (every number in the README tied
+  to a test).
+- 2,667 test methods (+579). Every new rule has a counter-probe that breaks it: 1,416 in 33 files, all red; the 419
+  from v3.11 stay red.
+
+### Lessons learned
+
+- **An AI does not see a greyed-out row.** What the interface says with colour, “≈” and the customer’s view needs
+  a field for an AI: basis per figure, range and the sign as a word.
+- **A request is not a confirmation.** The server cannot know whether an AI program asks before writing; checking
+  the summary only proves that the AI can copy it. That is why by default a person confirms in the app, and
+  without sign-in the app says that even this only protects against the AI interface.
+- **Evidence in a text has to sit at number boundaries.** “Contains” is no check for numbers: an invented zero
+  sits inside almost every meter reading.
+- **The same quantity in two views needs a test that compares both.** Card and billing year, tile and annual
+  report, monthly row and balance each calculated correctly on their own and still disagreed. For the balance of
+  a meter group two errors partly cancelled each other out; only the calculation by hand with meters read at
+  different times showed both.
+- **What the user interface shapes, the API does not check by itself.** A list instead of text, the year 0001,
+  “12,5”: the form never lets it through, the API accepted it. Now one place checks every write path, and the
+  backup import only takes what the write paths would take.
+- **A reference date is a state, and a test suite has to pass on every day.** A test turned red without a code
+  change because it was set relative to today; with the clock moved forward some twenty more turned up, and one
+  cause in the code: the monthly calculation knew no reference date although its callers had one. Pushing a date
+  further out is no fix.
+- **A demo that remembers choices hides new features** from returning visitors; after every release it starts
+  from zero. And a feature that only hangs on a finding does not exist for anyone without one: it needs a way
+  without an occasion.
+
+[#58]: https://github.com/Bingerminger/energietracker/issues/58
+[#59]: https://github.com/Bingerminger/energietracker/issues/59
+
+---
+
+**Marketing line:** Ask your AI how your power and gas are doing: it looks it up in Energietracker, tells you where
+every figure comes from, and changes nothing without you. In Home Assistant it now works through HACS, without a
+single line of YAML, and the new interface shows first what needs doing.
+
+---
+
 ## [3.11.0] — 2026-11-04 — Your rights as a customer
 
 MINOR release without a schema step (stays 1.8.0). The main feature is **Your

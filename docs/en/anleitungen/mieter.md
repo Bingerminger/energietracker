@@ -27,7 +27,7 @@ the deadlines into your calendar.
 
 ## 1. Set how you live
 
-**Settings → Household & building → “Home and hot water” → “I live”: “in a
+**Household → Building → “Home and hot water” → “I live”: “in a
 rented home”.**
 
 After that the **Costs & contracts** area has the page **“Tenancy”**, and the
@@ -47,7 +47,7 @@ In the same group:
 
 ## 2. Switch on Heat
 
-Tick **Settings → Utilities & billing → Active utilities → Heat**.
+Tick **Household → Utilities → Active utilities → Heat**.
 
 Heat is the warmth that arrives in your flat — not the fuel in the basement. It
 has no supplier contracts; it is paid through the tenancy. Background:
@@ -57,7 +57,7 @@ has no supplier contracts; it is paid through the tenancy. Background:
 
 ## 3. Create a meter for the consumption information
 
-**Consumption → Heat → Meters → “+ New meter”:**
+**Household → Meters → Heat → “+ New meter”:**
 
 - **Name:** free, for example “Flat heating”.
 - **Role:** “Home consumption” (default).
@@ -80,7 +80,7 @@ a card of its own there:
 
 Without a network the entry goes into the queue and is sent later.
 
-**Older months at once:** Consumption → Heat → Meters → **CSV import**, one
+**Older months at once:** Household → Meters → Heat → **CSV import**, one
 line each with month and consumption:
 
 ```text
@@ -102,7 +102,7 @@ You edit or delete single periods under Consumption → Heat in the table
 ## 4. Hot and cold water
 
 In most rented flats a cold-water and a hot-water meter sit side by side. Under
-**Consumption → Water → Meters** create one meter for each:
+**Household → Meters → Water** create one meter for each:
 
 | Meter | Role | Parent meter |
 |---|---|---|
@@ -135,7 +135,7 @@ service charges.
 |---|---|
 | Name | free, for example “Flat” — appears in the calendar deadlines |
 | Landlord or managing agent | optional |
-| Floor area per tenancy agreement (m²) | *(v3.1.0)* the area from the tenancy agreement; empty means the living area from Settings → Household & building applies. Basis of the CO₂ stage |
+| Floor area per tenancy agreement (m²) | *(v3.1.0)* the area from the tenancy agreement; empty means the living area from Household → Building applies. Basis of the CO₂ stage |
 | Start / End | moving-in date; leave the end empty while it runs |
 | Billing period starts on (DD.MM.) | first day of the billing period as on the statement, for example `01.01.` for the calendar year or `01.07.` |
 | Prepayments | per row: **From**, “Heating € per month”, “Operating costs € per month”. If the prepayment changes, add a new row with the new date — the old one stays for the past. |

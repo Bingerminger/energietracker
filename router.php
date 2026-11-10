@@ -36,6 +36,9 @@ $notFound = static function (): bool {
     echo "404 Not Found";
     return true;
 };
+// v3.12.0 — Härtung: ein Null-Byte im Pfad ist nie eine Datei und nie eine Route
+// (nginx lehnt es ab). realpath() unten bräche sonst mit einer Fehlerausgabe ab.
+if (str_contains($uri, "\0")) return $notFound();
 if (preg_match('#^/(data|src)(/|$)#', $uri) || preg_match('#(^|/)\.#', $uri)
     || (str_ends_with($uri, '.php') && $uri !== '/api.php' && !str_starts_with($uri, '/api.php/'))) {
     return $notFound();

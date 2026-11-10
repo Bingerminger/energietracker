@@ -54,6 +54,16 @@ Switzerland, "de-AT" German and Austria. If the browser names no region, the
 language decides (English → United Kingdom). The default meters are then named
 in the right language straight away ("Compteur principal").
 
+**The health check does not decide *(v3.12.0)*.** <!-- doc-claim: first-start-health -->
+`/api/health` without a language does not set up an empty data directory;
+`Accept-Language: *` (“any language”, as programs based on Node ask) does not count
+as a language either. This is
+how the Docker image's `HEALTHCHECK` (every 30 seconds) and with it Home Assistant's
+monitoring ask; up to v3.11 it often came before the first browser and fixed the
+installation to German, Germany and Leipzig. The first start is now decided by the
+first other call, normally the browser. A script without `Accept-Language` still gets
+the German defaults as before; the setup assistant asks for language and country anyway.
+
 **Only values that differ from the defaults are written.** A German first
 start therefore writes nothing — if a later update corrects a default, the
 correction applies there as well. After the first start the header changes
@@ -61,7 +71,7 @@ nothing.
 
 **In the settings.** The card "Language & country" holds language, country,
 currency and time zone; all take effect immediately. Since v3.1.0 the
-language appears twice: "Language on this device" (this browser only) and
+language appears twice: "Your language" (this browser only) and
 "Default language of the installation" (devices without a choice of their own,
 PDF, CSV, Home Assistant). Country, currency and time zone apply to the whole
 installation. When the country
@@ -105,7 +115,10 @@ recommendation texts follow the same rules in the backend (catalog keys
 
 Euro, Swiss franc and pound sterling are available. The currency sets symbol
 and minor unit in every text — "ct/kWh" becomes "Rp./kWh" or "p/kWh", column
-headers and axes show CHF or £.
+headers and axes show CHF or £. This also applies to the yearly report, the
+notes and the inbox *(v3.12.0; before, a few fixed “ct” remained there)*. The
+exception are the wholesale prices under flexibility: they come from the
+Germany/Luxembourg power market and stay euro cents.
 
 **Amounts are not converted.** Changing the currency changes only the
 labels; the stored numbers stay. The data fields keep their names

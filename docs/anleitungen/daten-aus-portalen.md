@@ -133,7 +133,7 @@ sie sich auch löschen, ohne die Tageswerte anzutasten. Ein Jahr Viertelstunden 
   allein geht auch (Tageswerte) — dann „den Beginn des Intervalls“ wählen,
   sonst landet jeder Wert am Vortag.
 - **Zeitzone:** Stempel ohne Angabe gelten in der Zeitzone der Installation
-  (Einstellungen → Allgemein → Zeitzone). Stempel mit Angabe rechnet die App in
+  (Einstellungen → Region und Sprache → Zeitzone). Stempel mit Angabe rechnet die App in
   diese Zeitzone um, bevor sie den Tag bestimmt.
 - **Zeitumstellung:** Der Tag der Umstellung hat 23 bzw. 25 Stunden, also 92
   bzw. 100 Viertelstunden. Die App zählt sie alle zu ihrem Tag; nichts fehlt,

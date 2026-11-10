@@ -299,7 +299,9 @@ final class RightsServiceTest extends ServiceTestCase
             'letter' => 'complaint', 'norms' => $f['norms'], 'footer' => $f['footer'], 'help' => $f['help'], 'href' => $f['href']], $rec['evidence']);
 
         $ev = $this->rightsEvents()[0] ?? self::fail('„Zu tun“ fehlt');
-        self::assertSame([$f['id'], $this->today, 'due', true, true, 'rights.check.bonus_missing', $f['href']],
+        // v3.12.0 — „Zu tun“ führt direkt zum Hinweis (Sprungmarke), dort ist der Brief
+        self::assertSame('#/todo?art=rec&rec=' . rawurlencode($f['id']), RecommendationService::jumpHref($f['id']));
+        self::assertSame([$f['id'], $this->today, 'due', true, true, 'rights.check.bonus_missing', RecommendationService::jumpHref($f['id'])],
             [$ev['uid'], $ev['date'], $ev['severity'], $ev['due_now'], $ev['can_mark_done'], $ev['title_key'], $ev['href']]);
         self::assertSame(['check' => 'bonus_missing', 'deadline' => null, 'letter' => 'complaint', 'amount_eur' => 100.0, 'recommendation_id' => $f['id']],
             array_intersect_key($ev['ref'], array_flip(['check', 'deadline', 'letter', 'amount_eur', 'recommendation_id'])));
@@ -340,6 +342,36 @@ final class RightsServiceTest extends ServiceTestCase
         $ev = $this->rightsEvents()[0] ?? self::fail('Termin weg');
         self::assertSame(['upcoming', false], [$ev['severity'], $ev['due_now']]);
         self::assertArrayNotHasKey('recommendation_id', $ev['ref']);
+        // v3.12.0 — ohne Empfehlung keine Sprungmarke: Der Termin führt weiter zum Anlass (Rechnung, Vertrag)
+        // (die Sprungmarke lautet `#/todo?art=rec&rec=…`; „?rec=“ kam darin nie vor, die Prüfung hielt nichts fest)
+        self::assertSame($this->onlyFinding()['href'], (string)$ev['href']);
+        self::assertStringNotContainsString('rec=', (string)$ev['href']);
+        self::assertStringStartsWith('#/', (string)$ev['href']);
+    }
+
+    /**
+     * v3.12.0 — Reihenfolge von Hand: Stufe zuerst, darin die Rechte-Hinweise vor den gewöhnlichen, sonst die
+     * Reihenfolge der Regeln. Ein dringender Hinweis bleibt vor jedem Rechte-Hinweis einer niedrigeren Stufe.
+     */
+    public function testRightsNotesLeadWithinTheirUrgency(): void
+    {
+        $r = fn(string $id, string $sev, string $cat) => ['id' => $id, 'severity' => $sev, 'category' => $cat];
+        $sorted = RecommendationService::ordered([
+            $r('info-vertrag', 'info', 'vertrag'), $r('warn-anomalie', 'warning', 'anomalie'), $r('info-recht', 'info', 'recht'),
+            $r('warn-recht-1', 'warning', 'recht'), $r('dringend', 'urgent', 'vertrag'), $r('warn-vertrag', 'warning', 'vertrag'),
+            $r('warn-recht-2', 'warning', 'recht'), $r('info-effizienz', 'info', 'effizienz'),
+        ]);
+        self::assertSame(['dringend', 'warn-recht-1', 'warn-recht-2', 'warn-anomalie', 'warn-vertrag', 'info-recht', 'info-vertrag', 'info-effizienz'],
+            array_column($sorted, 'id'));
+
+        // am Dienst: Der Befund (Stufe „Achtung“) steht vor dem Vertragsende derselben Stufe, obwohl seine Regel später läuft
+        $this->rights->register('bonus_missing', $this->exampleCheck());
+        $this->contracts->create('gas', [
+            'meter_id' => $this->meters->defaultId('gas'), 'provider' => 'Gaswerk Musterstadt', 'start' => $this->day(-300), 'end' => $this->day(20),
+            'working_prices' => [['from' => $this->day(-300), 'ct_per_kwh' => 10.0]],
+        ]);
+        $warnings = array_values(array_filter($this->recs->all(), fn($x) => $x['severity'] === 'warning'));
+        self::assertSame(['recht', 'vertrag'], array_column($warnings, 'category'), json_encode(array_column($warnings, 'title')));
     }
 
     /**

@@ -226,7 +226,10 @@ final class ScenarioServiceTest extends ServiceTestCase
         self::assertNull($last['band'], 'Band nur zum Prognosemodell');
         foreach ($last['months'] as $m) {
             $ym = sprintf('%04d-%s', (int)substr($m['ym'], 0, 4) - 1, substr($m['ym'], 5, 2));
-            self::assertEqualsWithDelta(self::consumptionOf($ym), $m['base_qty'], 0.2, "Vorjahr $ym");
+            // v3.12.0 — „wie im Vorjahr“ rechnet je Tag: Ein Februar mit 29 Tagen bekommt 29/28 des Vorjahres
+            // (bis v3.11 erwartete der Test den Vorjahreswert selbst und war vor jedem Schaltjahr rot)
+            $days = fn(string $x): int => (int)date('t', (int)strtotime("$x-01"));
+            self::assertEqualsWithDelta(self::consumptionOf($ym) / $days($ym) * $days($m['ym']), $m['base_qty'], 0.2, "Vorjahr $ym");
         }
         $trend = $this->scenario(['model' => 'trend']);
         self::assertSame('trend', $trend['model']);
@@ -410,7 +413,11 @@ final class ScenarioServiceTest extends ServiceTestCase
         }
     }
 
-    public function testUnknownUtilityAndUnsupportedKinds(): void
+    /**
+     * v3.12.0 (F1040, Phase 2) — umbenannt (vorher …AndUnsupportedKinds): Heizöl, Pellets und PV
+     * rechnet die Werkstatt jetzt; ohne Werkstatt bleibt nur die Heizwärme.
+     */
+    public function testUnknownUtilityAndOnlyHeatOutputUnsupported(): void
     {
         try {
             ScenarioService::normalize(['utility' => 'kohle', 'meter_id' => 'm']);
@@ -418,9 +425,11 @@ final class ScenarioServiceTest extends ServiceTestCase
         } catch (LocalizedException $e) {
             self::assertSame('utility', $e->params['param']);
         }
-        foreach (['heizoel', 'pellets', 'pv_einspeisung', 'pv_erzeugung', 'waerme'] as $u) self::assertFalse(ScenarioService::supports($u), $u);
-        foreach (['gas', 'strom', 'wasser', 'fernwaerme'] as $u) self::assertTrue(ScenarioService::supports($u), $u);
-        $r = $this->svc->compute(['utility' => 'heizoel', 'meter_id' => 'x']);
+        self::assertFalse(ScenarioService::supports('waerme'));
+        foreach (['gas', 'strom', 'wasser', 'fernwaerme', 'heizoel', 'pellets', 'pv_einspeisung', 'pv_erzeugung'] as $u) self::assertTrue(ScenarioService::supports($u), $u);
+        self::assertSame(['delivery', 'delivery', 'pv', 'pv', 'consumption'],
+            array_map([ScenarioService::class, 'calcOf'], ['heizoel', 'pellets', 'pv_einspeisung', 'pv_erzeugung', 'gas']));
+        $r = $this->svc->compute(['utility' => 'waerme', 'meter_id' => 'x']);
         self::assertSame([false, 'utility_unsupported'], [$r['supported'], $r['reason_code']]);
         // Normalisieren ist idempotent (der Controller prüft vorab)
         $n = ScenarioService::normalize(['utility' => 'gas', 'meter_id' => 'm', 'measures' => [['id' => 'a', 'heat_pct' => 10]],

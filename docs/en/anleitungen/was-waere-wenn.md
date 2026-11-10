@@ -22,13 +22,15 @@ on an image or a PDF yourself.
 ## 1. What you need
 
 - At least **six months of consumption** of a meter with readings and a
-  contract — gas, electricity, water or district heating. Delivery utilities
-  (heating oil, pellets) and feed-in stay with the
-  [detailed forecast](../referenz/ansichten.md#6-forecast).
+  contract — gas, electricity, water or district heating.
+- Since **v3.12.0** also **heating oil and pellets**: a tank with deliveries
+  from which the app can distribute six months of consumption (§ 6a).
+- Since **v3.12.0** also **solar (PV)**: twelve full months with generation,
+  feed-in and grid import, or a full year of quarter-hours (§ 6b).
 - For **winter, room temperature and insulation** a heating model: gas or
-  district heating with temperatures (weather sync). With a
-  [climate normal](../verstehen/09-glossar.md) the heating degree days are
-  those of 30 years at your location.
+  district heating with temperatures (weather sync), for heating oil and
+  pellets the tank log. With a [climate normal](../verstehen/09-glossar.md) the
+  heating degree days are those of 30 years at your location.
 - For a **tariff switch** offers you entered (Tariff switch → add an offer) or
   your own price.
 
@@ -43,10 +45,16 @@ on an image or a PDF yourself.
 | **Base load** (± %) | hot water, cooking, appliances — the part without weather influence | Experienced |
 | **Measures** | per measure % on the heating part, % on the base load, cost | Experienced |
 | **Forecast model** | weather-adjusted (the forecast), same as last year, trend | Experienced |
-| **Heating curve** | the regression model of the forecast (linear, robust …) | Expert |
+| **Heating curve** | the regression model of the forecast (linear, robust …), only where a heating model applies (gas, district heating) | Expert |
 | **Electric car** | electricity: km per year × kWh/100 km, evenly over the days | Experienced (since v3.7.0, up to v3.6 Expert) |
 | **Heat pump (SPF)** | electricity of a meter with the heat pump role: quantity × SPF today ÷ SPF in the scenario | Experienced (since v3.7.0, up to v3.6 Expert) |
 | **Budget** | finds the best combination of measures (§ 7) | Expert |
+| **Fuel price** (± %) | heating oil, pellets: the price per litre or kg against the average in the tank | Beginner (since v3.12.0) |
+| **Replacing the heating** | heating oil, pellets: the same heat from a heat pump or a pellet boiler (§ 6a) | Experienced (since v3.12.0) |
+| **Larger system** (%) | solar: more generation in every month, in the same proportion | Beginner (since v3.12.0) |
+| **Add a battery** (kWh) | solar: charges from solar power that would otherwise go to the grid | Beginner (since v3.12.0) |
+| **Self-consumption** (± %) | solar: consumption moves into sunny hours, for instance heat pump or wallbox | Beginner (since v3.12.0) |
+| **Feed-in tariff** (ct/kWh) | solar: instead of the rate in your contract | Beginner (since v3.12.0) |
 
 You enter the percentages of a measure yourself, ideally from your energy
 assessment or the tradesperson’s quote. The workshop deliberately offers no
@@ -73,18 +81,66 @@ Below the workshop the **detailed forecast** is still there, collapsible:
 history with range, monthly table with cost, advance payment, balance and
 method.
 
-## 4. Example scenarios
+## 4. Example scenarios and measures per utility
 
-| Example | What it sets | Note |
-|---|---|---|
-| **Cold winter** | heating degree days as high as in roughly one winter in ten (from the spread in the climate normal) | without a climate normal 10% as an assumption |
-| **Roof insulated** | a measure “Insulate roof” with 15% less heating energy | an example, not a guide value — enter yours |
-| **Cheapest offer** | the cheapest of your offers, calculated with your expected consumption | bonus not included |
-| **Save 10%** | ten percent less consumption through behaviour | — |
+Water is not district heating and electricity is not gas. **Each utility gets its
+own examples, measures and words.** The calculation behind them stays the same.
 
-An example only appears if it fits the meter (no heating model, no winter; no
-offer, no switch). In the public demo the baseline and the examples are
-precomputed — one click shows a result straight away.
+| Group | Utilities | Examples | Measures |
+|---|---|---|---|
+| **Heat from fuel** | Gas | Cold winter, Mild winter, One degree less, Roof insulated, Windows replaced, Cheapest offer | Roof, facade, windows, basement ceiling, hydraulic balancing, heating pump, thermostats, save hot water, other |
+| **Heat from the grid** | District heating | Cold winter, Mild winter, One degree less, Roof insulated, Price rises, Cheapest offer | as for gas, without heating pump |
+| **Household electricity** | Electricity, role household | Lower base load, Electric car, Cheapest offer, Save 10% | Replace appliances, avoid standby, replace lighting, save hot water, other |
+| **Heat pump electricity** | Electricity, role heat pump | Better performance factor, Cheapest offer, Save 10% | Hydraulic balancing, roof, facade, windows, other |
+| **Wallbox electricity** | Electricity, role wallbox | Electric car, Cheapest offer, Save 10% | Other |
+| **Water** | Water | Low-flow shower head, Toilet cistern, Save 10% | Low-flow shower head, toilet cistern, washing machine and dishes, garden, fix a leak, other |
+| **Heat from deliveries** (since v3.12.0) | Heating oil, pellets | Cold winter, Mild winter, One degree less, Roof insulated, Price rises, Heat pump instead of boiler | as for gas |
+| **Solar** (since v3.12.0) | PV feed-in, PV generation | Larger system, Add a battery, Use more yourself, Feed-in tariff halved | none |
+
+**All figures in an example are assumed examples, not guide values and not a
+promise of savings.** The workshop says so below the result. Enter your own values,
+ideally from an energy assessment or for your vehicle.
+
+| Example | What it sets |
+|---|---|
+| **Cold winter**, **Mild winter** | heating degree days as in roughly one winter in ten (from the spread in the climate normal), without a climate normal 10% as an assumption |
+| **One degree less** | room temperature −1 °C, calculated with your heating model |
+| **Roof insulated**, **Windows replaced** | a measure with 15% or 10% less heating energy |
+| **Price rises** | your working and base price, 10% higher, as your own price |
+| **Cheapest offer** | the cheapest of your offers, bonus not included |
+| **Lower base load** | base load −5% |
+| **Electric car** | 10,000 km a year at 18 kWh per 100 km, costs more electricity |
+| **Better performance factor** | seasonal performance factor from 3 to 3.5 |
+| **Low-flow shower head**, **Toilet cistern** | a measure with 10% or 5% less water |
+| **Save 10%** | ten percent less consumption through behaviour |
+| **Price rises** (heating oil, pellets) | 10% more per litre or kg |
+| **Heat pump instead of boiler** | performance factor 3, electricity 30 ct/kWh, boiler efficiency 90% |
+| **Larger system** | 50% more capacity |
+| **Add a battery** | 5 kWh usable capacity |
+| **Use more yourself** | 10% more self-consumption |
+| **Feed-in tariff halved** | half of your current feed-in tariff |
+
+**An example only appears if it can have an effect:**
+
+- **No heating model, no winter and no insulation.** For gas and district heating a
+  note says so, “Save 10%” stays.
+- **Electricity has no heating model, not even for a heat pump.** So there is
+  neither winter nor room temperature. The percentages of a measure apply to all
+  electricity on the meter, and base load and saving calculate the same.
+- **No offer entered, no switch.** “Price rises” needs a price.
+- **Water has no tariff to choose:** you do not change supplier there, the workshop
+  calculates with your current contract.
+
+**Saved scenarios keep calculating the same.** A measure that no longer fits the
+utility, such as “roof” on an electricity meter, stays visible with its values and
+is marked. The jump `#/forecast?preset=…` keeps working.
+
+**The workshop calculates heating oil, pellets and solar since v3.12.0** (§ 6a,
+§ 6b). Only heat output has no workshop; the page says so, and the detailed
+forecast is still available there.
+
+In the public demo the baseline and the examples are precomputed, one click shows a
+result straight away.
 
 ## 5. Save, compare, share
 
@@ -155,6 +211,76 @@ payment), the last month pro rata.
 **CO₂.** Consumption × the factor the consumption view used over the last
 twelve months.
 
+## 6a. Heating oil and pellets (since v3.12.0)
+
+**The baseline is the forecast of the tank, unchanged.** The quantity per
+month comes from the forecast, the cost from the moving average price in the
+tank. Deliveries have no advance payment and no bill.
+
+![Workshop for heating oil with the example “Heat pump instead of boiler”: result, tank and heating replacement](../../ui/screenshots/en/werkstatt-heizoel.png)
+
+- **Heating part from the tank log.** The app spreads deliveries over the days
+  with “per heating degree day × HDD + per day × days”. The heating part of a
+  month is the first term over the sum. Winter, room temperature, insulation
+  and hot water calculate with it as for gas.
+- **Fuel price ± %:** cost = quantity × price × (1 + %). The quantity stays.
+- **Tank empty on, refill from:** from today’s stock day by day with the
+  scenario’s quantity. Refill means the tank’s warning level is reached
+  (setting `tank_warn_pct`). The calculation does not know future deliveries.
+- **Replacing the heating: a second calculation for the same heat.** Heat =
+  fuel × efficiency of the old boiler. A heat pump needs heat ÷ seasonal
+  performance factor in electricity, a pellet boiler heat ÷ its efficiency in
+  pellets. The performance factor applies all year; in reality it is lower in
+  winter and higher in summer. Empty fields use stated example values, not
+  guide values. Installation costs are not included; with a cost entered the
+  workshop names the payback.
+
+<!-- doc-claim: werkstatt-heat-pump-example (ScenarioDeliveryTest) -->
+```text
+Heating oil per year   1,000 kWh
+Heat                   1,000 kWh × 0.9 = 900 kWh
+Electricity            900 kWh ÷ 3 = 300 kWh
+Cost                   300 kWh × 30 ct = €90.00
+```
+
+## 6b. Solar (since v3.12.0)
+
+**A model of the whole household over generation, feed-in and grid import.**
+The basis is a measured year, not a weather model. Forecast and balance do not
+change.
+
+![Workshop for solar with the example “Add a battery”: result and the year month by month as a range](../../ui/screenshots/en/werkstatt-pv.png)
+
+- **With quarter-hours one value.** With a full calendar year of quarter-hours
+  for generation, feed-in and grid import, the workshop recalculates every
+  quarter-hour.
+- **Without quarter-hours a range.** It is then open whether sun and
+  consumption fall in the same hour. **Lower bound:** the extra solar power all
+  goes to the grid, the battery stays empty. **Upper bound:** every day is like
+  the monthly average, the battery charges once a day. The figures show the
+  midpoint.
+- **Larger system:** more sun first covers grid import, the rest goes to the
+  grid. Per month at most the extra generation, the grid import and
+  “% × used at home”.
+- **Self-consumption ± %:** consumption moves into the sun within the day.
+  Demand stays the same, at most feed-in and grid import move.
+- **Add a battery:** charges only from solar power that would otherwise go to
+  the grid and never beyond its capacity. Efficiency 90% (a stated
+  assumption), with quarter-hours also a power of half the capacity per hour.
+  An existing battery works as measured.
+- **Cost and revenue:** grid import × unit price of electricity per month,
+  feed-in × tariff. The standing charge does not change and is left out.
+  Self-sufficiency as in the PV overview.
+
+<!-- doc-claim: werkstatt-pv-month-example (ScenarioPvTest) -->
+```text
+One month with 30 days: generation 500 kWh, feed-in 300 kWh, grid import 200 kWh
+System + 50%:     lower bound feed-in 550 kWh, grid import 200 kWh
+                  upper bound feed-in 450 kWh, grid import 100 kWh
+Battery 5 kWh:    upper bound charged 150 kWh, discharged 135 kWh,
+                              feed-in 150 kWh, grid import 65 kWh
+```
+
 ## 7. The best combination within a budget
 
 Enter a **budget** and the **cost** of the measures. The workshop then
@@ -174,7 +300,10 @@ found into the scenario.
 - A scenario is a **model calculation, not a measurement**. The workshop says
   up to when readings exist and how large the heating part is.
 - The workshop calculates for gas, electricity, water and district heating
-  with readings and a contract; not for delivery utilities or feed-in.
+  with readings and a contract, since v3.12.0 also for heating oil, pellets
+  and solar; not for heat output.
+- Solar calculates with a measured year. It does not know a different weather,
+  ageing of the modules or shading.
 - It does not offer dynamic tariffs (wholesale price per month) as an offer —
   [Tariff switch](../referenz/ansichten.md#switching-decision) calculates those.
 - It does not calculate load shifting against quarter-hour prices; what

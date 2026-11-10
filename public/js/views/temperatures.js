@@ -2,6 +2,8 @@
 // Temperature view — CSV import, Open-Meteo sync, monthly min/avg/max chart.
 // =====================================================================
 
+import { jumpToField } from '../lib/field-jump.js';
+import { connectionCrumbHtml } from '../lib/connection-nav.js';
 import { api } from '../api.js';
 import { getSettings, getCountries, saveSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
@@ -11,8 +13,10 @@ import { showFieldError } from '../lib/form.js';
 import { makeChart, tokenColor, chartTableHtml } from '../components/chart.js';
 import { t, tp } from '../lib/i18n.js';
 import { exampleTemperaturesCsv, downloadExample } from '../lib/csv-example.js';
+import { icon } from '../lib/icons.js';
+import { sessionRole } from '../lib/levels.js';
 
-export async function render(container) {
+export async function render(container, _params = [], ctx = {}) {
   container.innerHTML = `<div class="loading">${t('temperatures.loading')}</div>`;
   const [rawTemps, settings, countries] = await Promise.all([
     api.temperatures(), getSettings(), getCountries(),
@@ -24,6 +28,10 @@ export async function render(container) {
   const defaultLocation = profile
     && Number(settings.latitude) === Number(profile.latitude)
     && Number(settings.longitude) === Number(profile.longitude);
+  // v3.12.0 — Härtung: Standort und Wetterabgleich bestimmen, was an Open-Meteo geht;
+  // ändern nur Verwalter (App::ADMIN_SETTINGS), Mitglieder sehen den Stand gesperrt
+  const canEdit = sessionRole() === 'admin';
+  const dis = canEdit ? '' : ' disabled';
 
   // Backend liefert eine Map { "YYYY-MM-DD": {min, avg, max} } — wir
   // brauchen hier eine sortierte Liste {date, min, avg, max} für die UI.
@@ -46,6 +54,7 @@ export async function render(container) {
   }
 
   container.innerHTML = `
+    ${connectionCrumbHtml()}
     <div class="view-header">
       <div>
         <h1 class="view-header__title">${t('temperatures.title')}</h1>
@@ -64,10 +73,11 @@ export async function render(container) {
           <p>${t('temperatures.dropZone')}</p>
           <input type="file" id="csv-input" accept=".csv,text/csv,text/plain" style="display:none">
         </div>
-        <button type="button" class="btn btn--sm btn--ghost" id="dl-example" style="margin-top:10px"><span aria-hidden="true">⬇</span> ${t('temperatures.downloadExample')}</button>
+        <button type="button" class="btn btn--sm btn--ghost" id="dl-example" style="margin-top:10px">${icon('herunter')} ${t('temperatures.downloadExample')}</button>
       </div>
       <div class="card">
         <h2 class="card__title">${t('temperatures.location')}</h2>
+        ${canEdit ? '' : `<p class="settings-field__hint" data-role="location-admin-only">${escapeHtml(t('settings.region.adminOnly'))}</p>`}
         <!-- v2.12.0 (Review UI-30) — Ortssuche statt Koordinaten von Hand; der
              Standort steht nur noch hier (bis v2.11 auch in den Einstellungen)
              und wird beim Verlassen eines Feldes gespeichert, nicht erst beim
@@ -75,8 +85,8 @@ export async function render(container) {
         <div class="field">
           <label for="geo-q">${t('temperatures.geoLabel')}</label>
           <div class="geo-search">
-            <input class="input input--text" id="geo-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="${escapeHtml(t('temperatures.geoPlaceholder'))}">
-            <button type="button" class="btn" id="geo-go">${t('temperatures.geoSearch')}</button>
+            <input class="input input--text" id="geo-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="${escapeHtml(t('temperatures.geoPlaceholder'))}"${dis}>
+            <button type="button" class="btn" id="geo-go"${dis}>${t('temperatures.geoSearch')}</button>
           </div>
           <ul class="geo-results" id="geo-results" aria-live="polite"></ul>
         </div>
@@ -84,21 +94,21 @@ export async function render(container) {
           <!-- v2.5.3 — Text statt type="number": leer ergab 0/0 (Golf von Guinea),
                „51,34" je nach Browser ebenfalls. Kein inputmode="decimal", weil
                die iOS-Zahlentastatur kein Minus hat (westliche Längengrade). -->
-          <div class="field"><label for="lat">${t('temperatures.lat')}</label><input class="input" id="lat" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.latitude ?? 51.3397, 4))}">
+          <div class="field"><label for="lat">${t('temperatures.lat')}</label><input class="input" id="lat" data-field="latitude" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.latitude ?? 51.3397, 4))}"${dis}>
             <div class="field-error" id="lat-msg" role="alert" hidden></div></div>
-          <div class="field"><label for="lng">${t('temperatures.lng')}</label><input class="input" id="lng" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.longitude ?? 12.3731, 4))}">
+          <div class="field"><label for="lng">${t('temperatures.lng')}</label><input class="input" id="lng" data-field="longitude" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.longitude ?? 12.3731, 4))}"${dis}>
             <div class="field-error" id="lng-msg" role="alert" hidden></div></div>
-          <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" value="${escapeHtml(settings.location_name || 'Leipzig')}"></div>
+          <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" data-field="location_name" value="${escapeHtml(settings.location_name || 'Leipzig')}"${dis}></div>
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
         <label class="settings-field__check" style="margin-top:var(--sp-2)">
-          <input type="checkbox" id="auto-fill" ${settings.weather_auto_fill !== false ? 'checked' : ''}> ${t('settings.field.weather_auto_fill.label')}
+          <input type="checkbox" id="auto-fill" data-field="weather_auto_fill" ${settings.weather_auto_fill !== false ? 'checked' : ''}${dis}> ${t('settings.field.weather_auto_fill.label')}
         </label>
         <p class="settings-field__hint">${t('settings.field.weather_auto_fill.hint')}</p>
         <label class="settings-field__check" style="margin-top:var(--sp-2)">
           <input type="checkbox" id="sync-reload"> ${t('temperatures.reload')}
         </label>
-        ${defaultLocation ? `<p class="banner banner--info" style="margin:var(--sp-3) 0 0">${escapeHtml(t('temperatures.locationDefault', { country: t('countries.' + profile.code), name: profile.location_name }))}</p>` : ''}
+        ${defaultLocation ? `<p class="infobox infobox--info" style="margin:var(--sp-3) 0 0">${escapeHtml(t('temperatures.locationDefault', { country: t('countries.' + profile.code), name: profile.location_name }))}</p>` : ''}
       </div>
     </div>
 
@@ -153,6 +163,7 @@ export async function render(container) {
     return ok ? n : null;
   };
   const saveLocation = async ({ quiet = false } = {}) => {
+    if (!canEdit) return true;   // v3.12.0 — Mitglieder: der Abgleich nimmt den gespeicherten Standort
     const latitude  = coord('lat', 90);
     const longitude = latitude === null ? null : coord('lng', 180);
     if (latitude === null || longitude === null) return false;
@@ -195,7 +206,7 @@ export async function render(container) {
         try { await saveLocation(); } catch (e) { toastErr(e.message); }
       }));
     } catch (e) {
-      if (my === geoSeq) geoList.innerHTML = `<li class="danger-text">${escapeHtml(e.message)}</li>`;
+      if (my === geoSeq) geoList.innerHTML = `<li class="ton-fehler">${escapeHtml(e.message)}</li>`;
     }
   };
   container.querySelector('#geo-go')?.addEventListener('click', searchPlaces);
@@ -233,6 +244,7 @@ export async function render(container) {
   const chart = renderMonthlyChart(days, container);
 
   // v2.15.0 — ohne window-Global; die Chart-Schicht räumt beim Seitenwechsel ab
+  jumpToField(container, ctx?.query);   // v3.12.0 (M3) — aus der Suche ans Feld
   return () => { chart?.destroy(); };
 }
 

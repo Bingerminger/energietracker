@@ -80,6 +80,9 @@ jobs:
           # v3.9.0 — Testdaten der Demo liegen in Git: Beispielhaushalte und Schaufenster
           # entsprechen dem Generator (tools/build-personas.mjs), demo.test baut daraus die Demo
           node tools/build-personas.mjs --check
+          # v3.12.0 (Paket wegweiser) — Wege, Bilder und Doku-Seite aus einer Quelle
+          node tests/setup-guide.test.mjs
+          node tools/build-setup-guide.mjs --check
           node tests/nav-threshold.test.mjs
           node tests/report-dialog.test.mjs
           # v3.6.0 — „Was ist neu“ und Hinweis auf neue Versionen
@@ -94,6 +97,26 @@ jobs:
           node tests/rights.test.mjs
           # v3.11.0 (F1036) — Dialog „Brief entwerfen“: Vorbelegung, Pflichtbestätigung, nichts gespeichert, PDF
           node tests/letters.test.mjs
+          # v3.12.0 — die öffentliche Demo beginnt nach jedem Release bei null, jeder Abruf mit der Marke des Baus
+          node tests/demo-start.test.mjs
+          # v3.12.0 (F1037) — Vorlagen für KI-Assistenten: Formate der Programme, Quoting, Schlüssel nur wo nötig
+          node tests/mcp-snippet.test.mjs
+          # v3.12.0 (Designsprache) — Stylesheets nach den Regeln, Grafiken statt Emoji, rich(), Weiterleitungen
+          node tests/design-rules.test.mjs
+          node tests/icons.test.mjs
+          node tests/rich.test.mjs
+          node tests/redirects.test.mjs
+          node tests/settings-search.test.mjs
+          node tests/haushalt-einstellungen.test.mjs
+          node tests/catalog-keys.test.mjs
+          # v3.12.0 (M2) — Zu tun und Verbindungen: Filter, Rollen, Stufen, jede Zeile führt zu einer Seite
+          node tests/zutun-verbindungen.test.mjs
+          # v3.12.0 (Sichtung M1) — Salden in der Farbe ihres Vorzeichens
+          node tests/saldo-farbe.test.mjs
+          node tests/zaehlerbaum.test.mjs
+          node tests/sprache-wahl.test.mjs
+          # v3.12.0 — Härtung: Hinweis auf neue Versionen und Standort für Mitglieder gesperrt
+          node tests/outbound-admin.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
@@ -133,6 +156,22 @@ jobs:
             if(!is_array($gf)||!array_key_exists("from",$gf[0])||$gf[0]["from"]!==null||abs(($gf[0]["kwh_per_m3"]??0)-10.7)>1e-9){fwrite(STDERR,"gas_conversion_factors nach Migration falsch (F1012): ".json_encode($gf)."\n");exit(1);}
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
+      # v3.12.0 — Browser-Render und Sichten prüfen gegen demo-data/ (Stand 31.05.2026). Mit der
+      # echten Uhr würden Stichtage darin (fällige Ablesungen, Vorjahr, Viertelstunden) ab Ende
+      # Dezember 2026 rot, ohne dass sich Code ändert. Server und Suiten dieser beiden Schritte
+      # laufen deshalb an einem festen Tag: libfaketime mit einem Versatz für alle Prozesse
+      # (Server, Node, Chromium), damit sie dieselbe Uhr sehen. Der Tag wandert mit, wenn
+      # demo-data/ neu exportiert wird (ET_RENDER_TODAY, Mittag Ortszeit des Runners).
+      - name: Fester Tag für Browser-Render und Sichten (libfaketime)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq faketime
+          off=$(( $(date -d "$ET_RENDER_TODAY 12:00:00" +%s) - $(date +%s) ))
+          echo "ET_FAKETIME=$(printf '%+d' "$off")" >> "$GITHUB_ENV"
+          NO_FAKE_STAT=1 faketime -f "$(printf '%+d' "$off")" node -e 'const d = new Date().toISOString().slice(0, 10); if (d !== process.env.ET_RENDER_TODAY) { console.error(`Uhr steht auf ${d}`); process.exit(1); } console.log(`Uhr der Render-Suiten: ${d}`)'
+        env:
+          ET_RENDER_TODAY: "2026-11-10"
+
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)
         run: |
           set -euo pipefail
@@ -141,9 +180,12 @@ jobs:
           # GitHub Actions startet pro `run:` eine neue Shell, ein dort
           # gebackgroundeter Prozess überlebt den Step nicht. Daher
           # Start + Tests + Teardown in EINEM Step.
-          php -S 127.0.0.1:8899 router.php >/tmp/server.log 2>&1 &
+          # v3.12.0 — Server und Suiten am festen Tag (Schritt davor)
+          FT="faketime -f $ET_FAKETIME"
+          $FT php -S 127.0.0.1:8899 router.php >/tmp/server.log 2>&1 &
           SRV=$!
-          trap 'kill $SRV 2>/dev/null || true' EXIT
+          # $! ist faketime, php -S läuft als dessen Kind: beide beenden
+          trap 'pkill -P $SRV 2>/dev/null || true; kill $SRV 2>/dev/null || true' EXIT
           # Readiness-Probe (max ~15 s)
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8899/api/settings >/dev/null 2>&1; then break; fi
@@ -154,10 +196,10 @@ jobs:
           curl -sf http://127.0.0.1:8899/public/js/app.js >/dev/null
 
           echo "── Frontend-API-Shape ──"
-          node tests/frontend-api-shape.test.js
+          $FT node tests/frontend-api-shape.test.js
 
           echo "── Browser-Render ──"
-          node \
+          $FT node \
             --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
             tests/browser-render.test.mjs
 
@@ -180,6 +222,8 @@ jobs:
         env:
           ET_TEST_HOST: http://127.0.0.1:8899
           ET_DATA_DIR: /tmp/etdata
+          # wie auf macOS (dort verstellt libfaketime stat() nicht): Dateizeiten bleiben echt
+          NO_FAKE_STAT: "1"
 
       # v3.0.0 — Öffentliche Demo: mit dem echten Server bauen (Demo-Daten bis
       # heute fortgeschrieben) und die echte App in JSDOM durch alle Seiten
@@ -224,6 +268,38 @@ jobs:
       # docs/entwicklung/messung-grosse-daten.md). Eigener Server, freier Port.
       - name: Grenzen mit großen Datenmengen
         run: node tests/large-data.test.mjs
+
+      # v3.12.0 (F1037) — Energietracker für deine KI: /api/mcp mit rohem
+      # fetch in beiden Fassungen (initialize bzw. server/discover mit _meta),
+      # Schlüsselpflicht, Fehlerfälle mit Status und JSON-RPC-Code. Eigener
+      # Server auf einem freien Port (ET_MCP_PORT).
+      - name: MCP-Protokoll (KI-Schnittstelle)
+        run: node tests/mcp-protocol.test.mjs
+
+      # v3.12.0 (Designsprache) — kein Flattersatz der Boxen: die echte App im echten
+      # Browser über Stufe und Breite, kein Querscrollen, gleich breite Ziffern. JSDOM
+      # kennt kein Layout, deshalb als einzige Suite mit Chromium.
+      - name: Chromium für die Layout-Prüfung
+        run: npm install playwright && npx playwright install --with-deps chromium
+
+      - name: Raster ohne Flattersatz (Layout im Browser)
+        run: node tests/box-raster.test.mjs
+
+      # v3.12.0 (Sichtung M1) — Felder am iPhone, Knopfreihen, Unterzähler, Kontrast der Salden
+      - name: Sichtung M1 (Layout im Browser)
+        run: node tests/sichtung-layout.test.mjs
+
+      # v3.12.0 (M5) — alle sieben Sprachen am iPhone, die längeren auch am Mac:
+      # kein Text ragt aus Kachel, Knopf oder Zelle, kein Knopf über zwei Zeilen
+      - name: Lange Sprachen (Layout im Browser)
+        run: node tests/laengen.test.mjs
+
+      # v3.12.0 (M4) — Kacheln, Sichten je Art (Chart.js in verdeckten Sichten), Zeilen, Frühere Verträge
+      # v3.12.0 — am festen Tag wie Browser-Render (Server und Chromium sind Kinder von Node)
+      - name: Übersicht, Sichten und Verträge (im Browser)
+        run: faketime -f "$ET_FAKETIME" node tests/sichten.test.mjs
+        env:
+          NO_FAKE_STAT: "1"
 
   lint-php:
     name: PHP Syntax-Check (PHP ${{ matrix.php }})

@@ -84,7 +84,9 @@ Jedes Feld kommt mit einem Zitat aus dem Dokument. Ein Feld gilt als
   Unterschiede bei Leerraum, Silbentrennung und Groß/klein, auch wenn die
   Textebene Umlaute als zwei Zeichen liefert („Ã¤“ oder „√§“ statt „ä“) *(v3.7.0)*
   oder „Š“, „š“, „Ÿ“ statt „ä“, „ö“, „ü“,
-- der Wert nicht in seinem eigenen Zitat steht,
+- der Wert nicht in seinem eigenen Zitat steht; eine Zahl muss dort als eigene
+  Zahl stehen, **Ziffern einer Kennung zählen nicht** (die „0002“ in der
+  Zählernummer „ABC-K-0002“ belegt keinen Stand 2) *(v3.12.0)*,
 - eine Marktlokations-ID nicht ihre Form hat: 11 Ziffern mit gültiger
   Prüfziffer nach BDEW *(v3.7.0)*,
 - vor einer Zählernummer ein Kürzel mit Sternchen steht („*EMH …“): Was zur
@@ -103,6 +105,10 @@ zusammen, und das Ergebnis muss Gesamtbetrag minus Abschläge sein — geht es
 nicht auf, sind *(v3.7.0)* alle beteiligten Beträge markiert, denn welcher
 falsch gelesen ist, weiß die App nicht. Datum und Titel eines Dokuments sind
 von „jedes Feld“ ausgenommen, solange kein Vorschlag sie braucht.
+**Eine Gutschrift in Höhe des Ergebnisses ist markiert** *(v3.12.0)*: Meist ist
+es das Guthaben selbst, keine eigene Zeile der Rechnung; ungeprüft als Posten
+übernommen, rechnete „Rechnung prüfen“ sie doppelt ab. Der Vorschlag „Rechnung …
+erfassen“ nennt die Gutschriften, die als Posten in die Rechnung gehen.
 
 **Keine Marke, nur ein Hinweis** *(v3.7.0)*:
 
@@ -175,8 +181,8 @@ frühere Rechnung, es hat eine andere Rechnungsnummer als das Dokument der
 erfassten, es ist später ausgestellt, oder Titel bzw. Dateiname sagen
 „Korrektur“. Dann steht „Rechnungskorrektur … übernehmen: … statt …“ vorab
 angehakt da, mit dem Abzeichen „ersetzt“, und gleich die Kernaussage oben sagt
-es: „Rechnungskorrektur … bis …: Sie ersetzt die erfasste Rechnung, das Ergebnis
-wird … statt …“ (war sie gebucht, auch, dass sich die Buchung mitändert). War die erfasste Rechnung
+es: „Rechnungskorrektur … bis …: Das Ergebnis wird … statt …. Sie ersetzt die
+erfasste Rechnung“ (war sie gebucht, auch, dass sich die Buchung mitändert). War die erfasste Rechnung
 schon gebucht, ersetzt „Buchung ersetzen: … statt …“ die alte Sonderzahlung
 durch das neue Ergebnis (bei 0 € entfällt sie). Das frühere Dokument bleibt als
 Beleg an der Rechnung. Ohne eines dieser Zeichen bleibt es ein Widerspruch, den
@@ -208,6 +214,14 @@ Feld bleibt markiert, bis du es bestätigst.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.
+
+- **Listen** (Arbeitspreise, gezahlte Abschläge, Gutschriften) haben diese Knöpfe
+  nicht: Ein markierter Eintrag geht nicht in den Vorschlag, du trägst ihn im
+  Vertrag oder in der Rechnung selbst ein *(Stand v3.12.0)*.
+- **Ein Preis ohne gelesenen Steuersatz** gilt nach „Stimmt“ als Bruttopreis;
+  steht er netto auf der Rechnung, korrigiere ihn auf brutto *(v3.12.0: der
+  Hinweis steht am Feld)*. Eine Angabe „netto/brutto“ ohne Belegstelle trägt
+  kein Häkchen.
 
 ---
 
@@ -281,7 +295,7 @@ der Termin die des Zählers ([Benutzer → Zuständig](benutzer.md)). Ein Termin
 dieses Zählers.
 
 Danach hängt das Dokument als **Beleg** an der Rechnung bzw. am Vertrag, und
-der Verlauf (Hinweise → Erledigt) vermerkt „Aus Dokument übernommen“. Wer
+der Verlauf (Zu tun → Verlauf) vermerkt „Aus Dokument übernommen“. Wer
 dasselbe Dokument noch einmal übernimmt, sieht alles als „schon vorhanden“ —
 nichts kommt doppelt.
 
@@ -416,7 +430,7 @@ rechnen — nichts wird geschätzt, was die App nicht schon weiß.
 
 | Dokument | Satz und Zahl | Knopf |
 |---|---|---|
-| Preisänderung | Mehr- oder Minderkosten **im Jahr**: Unterschied im Arbeitspreis × erwarteter Verbrauch der nächsten zwölf Monate (dieselbe Prognose wie im [Tarifvergleich](../referenz/ansichten.md)) + Unterschied im Grundpreis × 12. Der alte Preis kommt aus dem Brief, sonst aus dem Vertrag am Tag davor. *(v3.11.0)* Dazu die Spanne je nach Wetter und Verbrauch (aus dem Jahresband der Prognose), was ein Jahr zu den neuen Preisen kostet und wie viel das im Monat ist, und sichtbar in der Karte deine Rechte: Frist der Sonderkündigung, Ankündigung, Steueränderung ([Preisänderung: deine Rechte](#preisänderung-deine-rechte-v3110)). Ohne gesetzliche Frist (anderes Land, Fernwärme) die Frist des Sonderkündigungsrechts, wenn der Brief sie nennt. | Spart ein gespeichertes Angebot laut Wechselentscheidung: **„Wechsel spart rund … – Tarife vergleichen“**; sonst „Neue Preise übernehmen“ |
+| Preisänderung | Mehr- oder Minderkosten **im Jahr**: Unterschied im Arbeitspreis × erwarteter Verbrauch der nächsten zwölf Monate (dieselbe Prognose wie im [Tarifvergleich](../referenz/ansichten.md)) + Unterschied im Grundpreis × 12. Der alte Preis kommt aus dem Brief, sonst aus dem Vertrag am Tag davor. *(v3.11.0)* Dazu die Spanne je nach Wetter und Verbrauch (aus dem Jahresband der Prognose), was ein Jahr zu den neuen Preisen kostet und wie viel das im Monat ist, und sichtbar in der Karte deine Rechte: Frist der Sonderkündigung, Ankündigung, Steueränderung ([Preisänderung: deine Rechte](#preisänderung-deine-rechte-v3110)). Ohne gesetzliche Frist (anderes Land, Fernwärme) die Frist des Sonderkündigungsrechts, wenn der Brief sie nennt. | Spart ein gespeichertes Angebot laut Wechselentscheidung: **„Wechsel spart rund …: Tarife vergleichen“**; sonst „Neue Preise übernehmen“ |
 | Rechnung | vor der Übernahme Nachzahlung oder Guthaben laut Rechnung; **nach der Übernahme läuft „Rechnung prüfen“ von selbst**: „passt zu deinen Daten“, „liegt … über/unter deiner eigenen Rechnung“ oder *(v3.7.0)* „im Vertrag fehlen Preise“ mit den Abschnitten ohne Preis, dazu die Gründe (etwa geschätzter Zählerstand an der Grenze) | „Übernehmen und prüfen“, danach bei einer Abweichung „Rechnung prüfen“, ohne Preise „Preise im Vertrag eintragen“ |
 | Abschlagsänderung | neuer Abschlag gegen den Abschlag, mit dem die laufende Abrechnung bei null endet (Abschlag laut Plan + erwarteter Endsaldo ÷ Monate bis zur Abrechnung): **passt**, **zu hoch** oder **zu niedrig** um rund … im Monat. „Passt“ heißt: Der Rest am Ende bliebe unter 50 € bzw. einem Abschlag — dieselbe Schwelle wie im [Jahresbericht](jahresbericht-lesen.md). *(v3.9.0)* Mit Rhythmus zählen die Raten bis zur Abrechnung statt der Monate, und das Urteil gilt je Termin. | „Abschlag übernehmen“ |
 | Kündigung | Lieferende; ohne Anschlussvertrag „ein Anschlussvertrag fehlt noch“ und der Termin aus den Vorschlägen | „Anschlussvertrag finden“ (Tarifvergleich) |
@@ -481,8 +495,8 @@ Ausgelesen wird danach wie gewohnt in der Vorschau oder mit „Alle auslesen“.
 Mit einem Kurzbefehl steht der Energietracker im **Teilen-Menü**: In Mail,
 Dateien oder Safari ein PDF teilen, „Energietracker“ antippen, fertig.
 
-**Welcher Schlüssel?** Ohne Anmeldung (Einstellungen → Zugriff) braucht der
-Kurzbefehl keinen. Mit Anmeldung legst du unter **Einstellungen → Zugriff →
+**Welcher Schlüssel?** Ohne Anmeldung (Einstellungen → Zugang und Sicherheit) braucht der
+Kurzbefehl keinen. Mit Anmeldung legst du unter **Verbindungen → Schlüssel →
 API-Schlüssel für Skripte** einen Schlüssel mit dem Bereich **„nur Posteingang
 (PDF ablegen)“** an. Er darf genau eines: ein PDF in den Posteingang legen —
 weder lesen noch ändern noch löschen. Geht das Telefon verloren, widerrufst du
@@ -657,7 +671,7 @@ nach Name und Text.
 
 ## Auslesen einrichten
 
-**Einstellungen → Experte → 📥 Auslesen** — eine Karte für beide Wege. Der
+**Verbindungen → Post und Fotos auslesen** — eine Karte für beide Wege. Der
 Umschalter **Lokal | Cloud** entscheidet, wer die Post ausliest
 (`inbox_provider`); eine zweite Stelle dafür gibt es nicht, und der Server
 prüft dasselbe. Umstellen dürfen nur Personen, die die Installation verwalten
@@ -865,6 +879,9 @@ Die Einstellungen im Einzelnen:
   „Dieses Dokument geht an …“ (bei der Warteschlange einmal für die Dokumente
   dieses Laufs, mit ihrer Zahl) und schickt nichts ohne deine Zustimmung.
 - Ohne eingetragenen Dienst baut der Posteingang keine Verbindung auf.
+- **Angaben für Briefe** *(v3.12.0)*: Absender, Lieferanschrift und die
+  Anschrift des Anbieters schickt der Posteingang nie mit, weder an den Dienst
+  im Heimnetz noch in die Cloud. Hinaus geht nur, was im Dokument steht.
 
 Mehr: [Sicherheit → Posteingang](../betrieb/sicherheit.md#posteingang-v370).
 
@@ -874,11 +891,12 @@ Mehr: [Sicherheit → Posteingang](../betrieb/sicherheit.md#posteingang-v370).
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| „Für das Auslesen ist kein Dienst eingetragen …“ | Unter Experte → Auslesen → Lokal die Adresse eintragen; „Verbindung prüfen“ zeigt, ob der Dienst antwortet. |
+| „Für das Auslesen ist kein Dienst eingetragen …“ | Unter Verbindungen → Post und Fotos auslesen → Lokal die Adresse eintragen; „Verbindung prüfen“ zeigt, ob der Dienst antwortet. |
 | „Das Modell „qwen3.8“ gibt es auf dem Dienst nicht …“ | `ollama pull qwen3.8` auf dem Rechner des Diensts, oder unter „Textmodell“ ein vorhandenes eintragen (`ollama list`). |
 | „Die Texterkennung hat nicht innerhalb von 300 Sekunden geantwortet.“ | Das erste Auslesen nach einer Pause lädt das Modell erst in den Speicher. Noch einmal versuchen; zu wenig Arbeitsspeicher macht es sehr langsam. |
 | „Der Dienst hat nicht verwertbar geantwortet …“ | Meist ein Modell mit eingeschaltetem Denkmodus oder eines, das kein JSON liefert. Noch einmal versuchen oder qwen3.8 nehmen. |
 | „Das Dokument hat keine Textebene (ein Scan) …“ | Von Hand erfassen; das PDF bleibt als Beleg. |
+| „Die Datei ist beschädigt oder kein lesbares PDF …“ *(v3.12.0)* | Die Datei beginnt wie ein PDF, ist aber abgeschnitten oder kaputt; der Eintrag steht auf „Fehlgeschlagen“. Das Original noch einmal herunterladen und ablegen, sonst von Hand erfassen. |
 | Viele Felder gelb | Belegstellen ansehen: Steht der Wert dort anders, korrigieren; steht er richtig da, „Stimmt“. |
 
 Technisch: [API-Referenz → Posteingang](../referenz/api.md#posteingang-v370),

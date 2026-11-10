@@ -22,7 +22,8 @@ final class EvccController
 
     public function importCsv(Request $req): never
     {
-        $this->respond(fn() => $this->evcc->importCsv((string)$req->param('id'), (string)(((array)$req->body)['csv'] ?? ''), $this->opts($req)));
+        // v3.12.0 — `csv` als Liste ergab 500 (Support\Input)
+        $this->respond(fn() => $this->evcc->importCsv((string)$req->param('id'), (string)\Energietracker\Support\Input::text((array)$req->body, 'csv'), $this->opts($req)));
     }
 
     public function sync(Request $req): never
@@ -55,6 +56,7 @@ final class EvccController
     private function opts(Request $req): array
     {
         $body = (array)$req->body;
+        \Energietracker\Support\Input::assertTexts($body, ['counters', 'loadpoint']);   // v3.12.0 — Liste statt Text: 400
         return ['dry_run' => $req->queryParam('dry_run') === '1', 'counters' => (string)($body['counters'] ?? 'auto'),
             'loadpoint' => isset($body['loadpoint']) ? (string)$body['loadpoint'] : null];
     }

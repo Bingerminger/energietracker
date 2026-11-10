@@ -65,8 +65,8 @@ Stand, fragt die App, ob sie ihn ersetzen soll.
 
 ## 2. Umrechnungsfaktoren (nur Gas)
 
-Der Gaszähler zählt Kubikmeter, abgerechnet wird in kWh. **Einstellungen →
-Verbrauchsarten & Abrechnung → Gas-Umrechnungsfaktoren**: je Zeitraum der
+Der Gaszähler zählt Kubikmeter, abgerechnet wird in kWh. **Haushalt →
+Verbrauchsarten → Gas-Umrechnungsfaktoren**: je Zeitraum der
 Rechnung eine Zeile mit **Gültig ab**, **Zustandszahl** und **Brennwert** —
 im Beispiel
 
@@ -116,8 +116,8 @@ einmal ([Strom](../verstehen/02-strom.md#hoch--und-niedertarif-ein-vertrag-für-
 „Rechnung … prüfen“). Seit v3.1.0 gibt es die Prüfung für **Gas, Strom, Wasser
 und Fernwärme** — oben wählst du die Verbrauchsart, daneben den Zähler, wenn es
 mehrere gibt. Seit v3.4.0 rechnet die Seite sofort, auf beiden Wegen, mit der
-letzten abgeschlossenen Abrechnungsperiode: Stichtag unter Einstellungen →
-Verbrauchsarten & Abrechnung, Standard 1. Januar — im Beispiel also **Von**
+letzten abgeschlossenen Abrechnungsperiode: Stichtag unter Haushalt →
+Verbrauchsarten, Standard 1. Januar — im Beispiel also **Von**
 01.01.2025 und **Bis einschließlich** 31.12.2025, wie auf der Rechnung. Weicht
 der Zeitraum der Rechnung ab, beide Daten ändern und **„Nachrechnen“**. Ein
 Wechsel von Art oder Zähler behält den Zeitraum und rechnet neu.
@@ -167,6 +167,12 @@ Weicht der Betrag ab, ist es fast immer eines davon: ein fehlender Faktor, ein
 anders datierter Preis, ein Abschlag, der nicht in jedem Monat gezahlt wurde,
 oder eine Rück- oder Nachzahlung aus dem Vorjahr, die noch nicht gebucht ist
 (Schritt 6 der letzten Abrechnung).
+
+**Ein Bonus zählt an seinem Tag** in dem Abrechnungsjahr, in dem dieser Tag liegt,
+solange der Vertrag dort noch rechnet. Saldo, Monate, Prognose und Tarifvergleich
+rechnen seit v3.12.0 gleich. Kommt der Bonus tatsächlich mit der Jahresrechnung davor
+(Gutschrift am 15.01., aber auf der Rechnung zum 31.12.), weicht der Saldo dieses Jahrs
+um den Bonus ab: **Leg den Tag des Bonus dann in den Zeitraum der Rechnung.**
 
 ## 6. Guthaben oder Nachzahlung buchen
 
@@ -335,7 +341,7 @@ der ersten Fassung.
 
 - Die **Saldo-Karte** rechnet jetzt bis zum Ende der laufenden
   Abrechnungsperiode, dem Tag vor dem nächsten Stichtag, und schlägt einen
-  Abschlag vor. Der **Stichtag** (Einstellungen → Verbrauchsarten & Abrechnung;
+  Abschlag vor. Der **Stichtag** (Haushalt → Verbrauchsarten;
   Standard 01-01) ist der **erste Tag** der Abrechnungsperiode: 01-09 heißt
   1.9. bis 31.8. Liegt der Vorschlag weit neben dem neuen Abschlag des
   Versorgers, lohnt ein Blick in die Prognose.
@@ -357,7 +363,7 @@ der ersten Fassung.
   Lieferantenwechsel oder den Tag, an dem mehrere Verträge beginnen. Die
   Wahl gilt auf diesem Gerät auch für Übersicht und Analyse; der Jahresbericht
   hat dafür den Anhang „Abrechnungsjahre“, der CSV-Export eine Tabelle je
-  Periode (Einstellungen → Daten).
+  Periode (Einstellungen → Daten und Sicherung).
 - **Versorger gewechselt:** Beginnt mitten in einer Periode der Vertrag eines
   anderen Versorgers und ist noch keine Schlussrechnung erfasst, endet die
   Periode am letzten Tag beim alten Versorger („endet mit dem

@@ -132,7 +132,8 @@ final class SettleSumTest extends ServiceTestCase
     {
         // H1 — der Hinweis „Erwarteter Saldo zum …“ nennt dieselbe Summe wie die Karte (hier ohne Heizmodell: gleiche Grenze)
         $b = $this->rows()[1];
-        $e = $this->consumption->heatLimitEffect('strom', $this->meters->get('strom', $this->meterId), 15.0);
+        // v3.12.0 — am selben Stichtag wie die Karte (bis v3.11 rechnete der Hinweis immer heute)
+        $e = $this->consumption->heatLimitEffect('strom', $this->meters->get('strom', $this->meterId), 15.0, self::TODAY);
         self::assertNotNull($e);
         self::assertSame(round((float)$b['settle_balance'], 2), $e['before']['balance']);
         self::assertSame($e['before']['balance'], $e['after']['balance']);

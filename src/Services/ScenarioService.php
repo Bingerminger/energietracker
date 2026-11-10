@@ -75,13 +75,31 @@ final class ScenarioService
         private SettingsService $settings,
         private TariffSwitchService $tariffSwitch,
         private ?BillingPeriodService $billing = null,
+        // v3.12.0 (F1040, Phase 2) — PV im Haushalt: Monatswerte (PvSummaryService) und, wenn es sie
+        // gibt, Viertelstunden (IntervalService). Ohne die zweite rechnet die PV-Werkstatt als Spanne.
+        private ?PvSummaryService $pvSummary = null,
+        private ?IntervalService $intervals = null,
     ) {}
 
-    /** Arten mit Zählerständen und Verträgen (keine Lieferungen, keine Einspeisung). */
+    /** Arten, für die die Werkstatt rechnet: mit Zählerständen und Verträgen, Lieferungen (v3.12.0) und PV (v3.12.0). */
     public static function supports(string $utility): bool
     {
-        return Utilities::exists($utility) && Utilities::hasContracts($utility)
-            && !Utilities::isDelivery($utility) && !Utilities::isFeedIn($utility);
+        return self::calcOf($utility) !== null;
+    }
+
+    /**
+     * v3.12.0 (F1040, Phase 2) — welche Rechnung eine Art bekommt:
+     *   consumption  Zählerstände und Vertrag (Gas, Strom, Wasser, Fernwärme), wie bisher
+     *   delivery     Lieferungen (Heizöl, Pellets): Prognose, Heizanteil aus dem Tankbuch, Lieferkosten
+     *   pv           Einspeisung und Erzeugung: ein Modell des Haushalts über Bezug und Einspeisung
+     * Null für Arten ohne Werkstatt (Heizwärme).
+     */
+    public static function calcOf(string $utility): ?string
+    {
+        if (!Utilities::exists($utility)) return null;
+        if (Utilities::isDelivery($utility)) return 'delivery';
+        if (Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)) return 'pv';
+        return Utilities::hasContracts($utility) ? 'consumption' : null;
     }
 
     // ══ Eingaben ═══════════════════════════════════════════════════════════
@@ -134,6 +152,14 @@ final class ScenarioService
             'jaz_from'         => $num($in, 'jaz_from', 1, 8, null, 'jaz_from'),
             'jaz_to'           => $num($in, 'jaz_to', 1, 8, null, 'jaz_to'),
             'budget_eur'       => $num($in, 'budget_eur', 0, 10000000, null, 'budget_eur'),
+            // v3.12.0 (F1040, Phase 2) — Lieferungen: Preis je Liter bzw. kg ± %
+            'price_pct'        => $num($in, 'price_pct', -50, 100, 0.0, 'price_pct'),
+            // v3.12.0 (F1040, Phase 2) — PV: Anlage größer, Speicher dazu, Eigenverbrauch, Vergütung
+            'pv_size_pct'      => $num($in, 'pv_size_pct', 0, 300, 0.0, 'pv_size_pct'),
+            'pv_kwp_now'       => $num($in, 'pv_kwp_now', 0.1, 1000, null, 'pv_kwp_now'),
+            'battery_kwh'      => $num($in, 'battery_kwh', 0, 100, 0.0, 'battery_kwh'),
+            'self_use_pct'     => $num($in, 'self_use_pct', -50, 50, 0.0, 'self_use_pct'),
+            'feed_in_ct'       => $num($in, 'feed_in_ct', 0, 100, null, 'feed_in_ct'),
         ];
         if ($out['ev_km'] > 0 && $out['ev_kwh_per_100km'] === null) $bad('ev_kwh_per_100km', '', self::range(5, 60));
         if (($out['jaz_from'] === null) !== ($out['jaz_to'] === null)) $bad($out['jaz_from'] === null ? 'jaz_from' : 'jaz_to', '', self::range(1, 8));
@@ -184,8 +210,30 @@ final class ScenarioService
             $t['base_eur_month'] = $num($tariff, 'base_eur_month', 0, 1000, 0.0, 'tariff.base_eur_month');
         }
         $out['tariff'] = $t;
+
+        // v3.12.0 (F1040, Phase 2) — Heizungstausch bei Lieferungen: Wärmepumpe oder Pellets. Leere
+        // Annahmen füllt die Rechnung mit genannten Beispielwerten (ScenarioDelivery::ASSUMED).
+        $rep = $in['replace'] ?? null;
+        $out['replace'] = null;
+        if ($rep !== null) {
+            if (!is_array($rep)) $bad('replace', $rep, 'object');
+            $to = $rep['to'] ?? null;
+            if (!is_string($to) || !in_array($to, ScenarioDelivery::TARGETS, true)) $bad('replace.to', $to, implode(', ', ScenarioDelivery::TARGETS));
+            $out['replace'] = [
+                'to'             => $to,
+                'efficiency_old' => $num($rep, 'efficiency_old', 0.5, 1.0, null, 'replace.efficiency_old'),
+                'efficiency_new' => $num($rep, 'efficiency_new', 0.5, 1.0, null, 'replace.efficiency_new'),
+                'jaz'            => $num($rep, 'jaz', 1, 8, null, 'replace.jaz'),
+                'power_ct'       => $num($rep, 'power_ct', 0, 200, null, 'replace.power_ct'),
+                'pellet_ct'      => $num($rep, 'pellet_ct', 0, 200, null, 'replace.pellet_ct'),
+                'invest_eur'     => $num($rep, 'invest_eur', 0, 10000000, null, 'replace.invest_eur'),
+            ];
+        }
         return $out;
     }
+
+    /** Neue Eingaben aus Phase 2, die nur Lieferungen und PV kennen (bei den übrigen Arten nicht im Echo). */
+    private const PHASE2_INPUTS = ['price_pct', 'pv_size_pct', 'pv_kwp_now', 'battery_kwh', 'self_use_pct', 'feed_in_ct', 'replace'];
 
     private static function range(float $min, float $max): string
     {
@@ -201,22 +249,38 @@ final class ScenarioService
      */
     public function compute(array $in, ?string $today = null): array
     {
+        // v3.12.0 — mit Stichtag rechnen Prognose, Monatszeilen und Vertragsstatus an ihm (bis v3.11 die
+        // Prognose am echten Datum, der Vertragsstatus am Stichtag)
+        return $this->consumption->atDate($today, fn() => $this->computeOn($in, $today));
+    }
+
+    /** @return array<string,mixed> */
+    private function computeOn(array $in, ?string $today): array
+    {
         $s = self::normalize($in);
         $utility = $s['utility'];
         $u = Utilities::get($utility);
         $unit = (string)($u['consumption_unit'] ?? 'kWh');
-        $head = ['utility' => $utility, 'meter_id' => $s['meter_id'], 'unit' => $unit, 'inputs' => $s];
-        if (!self::supports($utility)) {
-            return $head + ['supported' => false, 'valid' => false, 'reason_code' => 'utility_unsupported'];
+        $calc = self::calcOf($utility);
+        // v3.12.0 (F1040, Phase 2) — die übrigen Arten sehen ihre Eingaben wie bisher (Antwort unverändert)
+        $head = ['utility' => $utility, 'meter_id' => $s['meter_id'], 'unit' => $unit,
+                 'inputs' => $calc === 'consumption' || $calc === null ? array_diff_key($s, array_flip(self::PHASE2_INPUTS)) : $s];
+        if ($calc === null) {
+            return $head + ['supported' => false, 'valid' => false, 'reason_code' => 'utility_unsupported', 'profile' => null];
         }
         $meter = $this->meters->target($utility, $s['meter_id']);
         if (!$meter) throw new NotFoundException('meter not found');   // der Controller meldet es übersetzt
+        if ($calc === 'pv') {
+            $pv = new ScenarioPv($this->pvSummary ?? new PvSummaryService($this->consumption, $this->settings), $this->intervals, $this->meters, $this->settings);
+            return $head + $pv->compute($s, $utility, $meter, $today ?? date('Y-m-d'));
+        }
+        if ($calc === 'delivery') return $this->computeDelivery($s, $head, $meter, $today);
 
         $fc = $this->forecast->forMeter($utility, $meter, array_filter([
             'forecast_months' => 12, 'model' => $s['regression'],
         ], fn($v) => $v !== null));
         if (empty($fc['valid'])) {
-            return $head + ['supported' => true, 'valid' => false, 'reason_code' => 'too_few_months'];
+            return $head + ['supported' => true, 'valid' => false, 'reason_code' => 'too_few_months', 'profile' => ScenarioProfile::build($utility, $meter)];
         }
         $warnings = [];
         // v3.7.0 (#37) — verteilte Monate prägen weder „wie letztes Jahr“ noch das
@@ -489,6 +553,7 @@ final class ScenarioService
             'scen_cost' => $o['prices'] !== null ? round(array_sum(self::costs($months, $scenQty, $o['prices'])), 2) : null,
         ], $offers);
 
+        $winter = $hasHeat ? $this->winterPresets($hddBase) : null;
         return $head + [
             'supported'      => true,
             'valid'          => true,
@@ -505,12 +570,19 @@ final class ScenarioService
             'offers'         => $offerOut,
             'ranking'        => $ranking,
             'optimization'   => $optimization,
-            'winter_presets' => $hasHeat ? $this->winterPresets($hddBase) : null,
+            'winter_presets' => $winter,
+            // v3.12.0 (F1040) — Beispiele, Maßnahmen und Worte dieser Fachgruppe (rechnet nichts)
+            'profile'        => ScenarioProfile::build($utility, $meter, [
+                'computable' => true, 'heat' => $hasHeat, 'room' => $roomOk, 'tariff' => $tariffOk, 'winter' => $winter, 'months' => $months,
+                'has_offers' => array_filter($offers, fn($o) => $o['prices'] !== null) !== [],
+            ]),
             'capabilities'   => [
                 'heat_model' => $hasHeat, 'room_temp' => $roomOk, 'tariff' => $tariffOk,
                 'ev' => $utility === 'strom', 'jaz' => $isHeatPump, 'billing' => $billing !== null,
                 'co2' => $co2f !== null, 'band' => $band !== null,
                 'models' => array_map(fn($v) => $v !== null, $compare),
+                // v3.12.0 (F1040, Phase 2) — die Wahl der Heizkurve wirkt nur mit Heizmodell (additiv)
+                'regression' => $hasHeat,
             ],
             'basis'          => [
                 'history_months' => count($fc['historical'] ?? []),
@@ -522,6 +594,316 @@ final class ScenarioService
                 'co2_kg_per_unit'=> $co2f !== null ? round($co2f, 4) : null,
             ],
             'warnings'       => $warnings,
+        ];
+    }
+
+    /**
+     * v3.12.0 (F1040, Phase 2) — Werkstatt für Heizöl und Pellets.
+     *
+     * Ausgangsfall ist die Prognose der Lieferart (ForecastService, unverändert): Menge je
+     * Monat in kWh, Kosten zum gleitenden Durchschnittspreis des Tanks (`unit_eur`, kein
+     * Vertrag). Den Heizanteil je Monat liefert das Tankbuch, mit dem die App die Lieferungen
+     * auf die Tage verteilt: Entnahme = je Heizgradtag × HGT + je Tag × Tage
+     * (`calibration.per_hdd`, `base_per_day`), also
+     *
+     *   Heizanteil = per_hdd × HGT ÷ (per_hdd × HGT + base_per_day × Tage)
+     *
+     * mit den Heizgradtagen des Prognosemonats. Winter, Raumtemperatur, Dämmung, Warmwasser
+     * und Sparen rechnen damit wie beim Gas (quantities()), die Raumtemperatur mit
+     * a = per_hdd × Heizwert (kWh je Heizgradtag). Dazu:
+     *
+     *   Preis ± %       Kosten = Menge × Preis × (1 + %)
+     *   Tank            Bestand heute, Tag für Tag mit der Menge des Szenarios (tankOutlook)
+     *   Heizungstausch  eine zweite Rechnung über dieselbe Wärme (ScenarioDelivery::replacement):
+     *                   Das Szenario ist dann die neue Heizung, Ausgangsfall bleibt der Brennstoff
+     *
+     * Abschlag und Abrechnung gibt es bei Lieferungen nicht (`advance`, `billing` null).
+     * Prognose und Saldo bleiben unberührt, die Werkstatt liest nur.
+     *
+     * @param array<string,mixed> $s    geprüfte Eingaben (normalize)
+     * @param array<string,mixed> $head Kopf der Antwort
+     * @return array<string,mixed>
+     */
+    private function computeDelivery(array $s, array $head, array $meter, ?string $today): array
+    {
+        $utility = $s['utility'];
+        $fc = $this->forecast->forMeter($utility, $meter, ['forecast_months' => 12]);
+        if (empty($fc['valid'])) {
+            return $head + ['supported' => true, 'valid' => false, 'reason_code' => 'too_few_months', 'calc' => 'delivery',
+                'profile' => ScenarioProfile::build($utility, $meter)];
+        }
+        $warnings = [];
+        $tank = $this->consumption->tankModel($utility, $meter);
+        $perUnit = ScenarioDelivery::kwhPerUnit($this->settings, $utility);
+        $cal = $tank['calibration'] ?? [];
+        $perHdd = (float)($cal['per_hdd'] ?? 0.0);
+        $perDay = (float)($cal['base_per_day'] ?? 0.0);
+        $hasHeat = empty($cal['flat']) && ($cal['source'] ?? 'none') !== 'none' && $perHdd > 0;
+
+        $months = [];
+        foreach ($fc['forecast'] as $r) {
+            $ym = (string)$r['ym'];
+            $days = (int)date('t', (int)strtotime($ym . '-01'));
+            $heat = $perHdd * (float)($r['hdd_estimated'] ?? 0.0);
+            $base = $perDay * $days;
+            $months[] = [
+                'ym' => $ym, 'month' => (int)$r['month'], 'year' => (int)$r['year'], 'days' => $days,
+                'qty' => (float)($r['kwh'] ?? 0.0),
+                'heat_share' => $hasHeat && $heat + $base > 0 ? round($heat / ($heat + $base), 4) : null,
+                'fixed' => (float)$r['fixed_eur'], 'unit' => (float)$r['unit_eur'], 'advance' => null,
+                'band_low' => $r['band_low'], 'band_high' => $r['band_high'], 'hdd_delta' => 0.0, 'deduct' => 0.0,
+            ];
+        }
+        $hasPrice = array_filter($months, fn($m) => $m['unit'] > 0) !== [];
+        if (!$hasPrice) $warnings[] = ['code' => 'no_price'];
+
+        // Raumtemperatur: Heizgradtage bei verschobener Heizgrenze, a aus dem Tankbuch
+        $hddBase = (float)($fc['hdd_base'] ?? $this->consumption->hddBaseFor($meter));
+        $roomOk = $hasHeat && count($this->consumption->hddNormals($hddBase)) === 12;
+        if ($s['room_temp_delta'] != 0.0) {
+            if ($roomOk) {
+                foreach ($months as &$m) {
+                    $now = $this->consumption->hddNormal($m['month'], $hddBase)['mean'] ?? null;
+                    $new = $this->consumption->hddNormal($m['month'], $hddBase + $s['room_temp_delta'])['mean'] ?? null;
+                    $m['hdd_delta'] = ($now !== null && $new !== null) ? (float)$new - (float)$now : 0.0;
+                }
+                unset($m);
+            } else {
+                $warnings[] = ['code' => 'room_temp_unavailable'];
+            }
+        }
+
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+        $models = self::modelQuantities($months, $fc['historical'] ?? [], 'kwh', $minDays);
+        $modelKey = $s['model'];
+        if ($models[$modelKey] === null) {
+            $warnings[] = ['code' => $modelKey . '_unavailable'];
+            $modelKey = 'standard';
+        } elseif (($models['filled'][$modelKey] ?? 0) > 0) {
+            $warnings[] = ['code' => 'model_filled', 'model' => $modelKey, 'months' => $models['filled'][$modelKey]];
+        }
+        $baseQty = $models[$modelKey];
+
+        if ($s['ev_km'] > 0) $warnings[] = ['code' => 'ev_unsupported'];
+        if ($s['jaz_from'] !== null) $warnings[] = ['code' => 'jaz_unsupported'];
+        if ($s['tariff']['kind'] !== 'current') $warnings[] = ['code' => 'tariff_delivery'];
+        $levers = [
+            'winter_pct' => $hasHeat ? $s['winter_pct'] : 0.0, 'saving_pct' => $s['saving_pct'], 'baseload_pct' => $s['baseload_pct'],
+            'heat_a' => $roomOk ? $perHdd * $perUnit : 0.0, 'ev_kwh_year' => 0.0, 'jaz_ratio' => 1.0,
+            'measures' => array_values(array_filter($s['measures'], fn($m) => $m['active'])),
+        ];
+        if (!$hasHeat && ($s['winter_pct'] != 0.0 || array_filter($s['measures'], fn($m) => $m['heat_pct'] > 0))) {
+            $warnings[] = ['code' => 'no_heat_model'];
+        }
+
+        // ── Menge, Preis, Heizungstausch ────────────────────────────────
+        $priceF = 1.0 + $s['price_pct'] / 100.0;
+        $priced = static fn(array $ms, float $f): array => array_map(fn($m) => ['unit' => $m['unit'] * $f, 'fixed' => $m['fixed'] * $f] + $m, $ms);
+        $fuelQty = self::quantities($months, $baseQty, $levers + ['hdd' => true]);
+        $baseCost = self::costs($months, $baseQty, null);
+        $fuelCost = self::costs($priced($months, $priceF), $fuelQty, null);
+        $pelletPerKg = (float)$this->settings->get('pellets_kwh_per_kg', 4.8);
+        $rep = $s['replace'];
+        if ($rep !== null && $rep['to'] === $utility) { $warnings[] = ['code' => 'replace_same']; $rep = null; }
+        $replaced = $rep !== null ? ScenarioDelivery::replacement($fuelQty, $rep, $pelletPerKg) : null;
+        $scenQty = $replaced['energy'] ?? $fuelQty;
+        $scenCost = $replaced['cost'] ?? $fuelCost;
+
+        // CO₂: der Brennstoff wie in der Verbrauchsansicht, die neue Heizung mit ihrem Faktor (g je kWh)
+        $co2f = self::co2Factor($fc['historical'] ?? [], 'kwh');
+        $year = (int)($months[0]['year'] ?? date('Y'));
+        $repF = $replaced === null ? null
+            : $this->settings->co2Factor($replaced['to'] === 'heat_pump' ? 'co2_strom' : 'co2_pellets', $year) / 1000.0;
+        $co2Base = $co2f !== null ? array_sum($baseQty) * $co2f : null;
+        $co2Scen = $replaced !== null ? array_sum($scenQty) * $repF : ($co2f !== null ? array_sum($scenQty) * $co2f : null);
+
+        $bandOk = $modelKey === 'standard' && $replaced === null && array_filter($months, fn($m) => $m['band_low'] !== null) !== [];
+        $out = [];
+        $cb = 0.0; $cs = 0.0;
+        foreach ($months as $i => $m) {
+            $cb += $baseCost[$i]; $cs += $scenCost[$i];
+            $rel = static fn($v) => ($v !== null && $m['qty'] > 0) ? (float)$v / $m['qty'] : null;
+            $lo = $bandOk ? $rel($m['band_low']) : null;
+            $hi = $bandOk ? $rel($m['band_high']) : null;
+            $out[] = [
+                'ym' => $m['ym'], 'base_qty' => round($baseQty[$i], 1), 'scen_qty' => round($scenQty[$i], 1),
+                'base_cost' => round($baseCost[$i], 2), 'scen_cost' => round($scenCost[$i], 2),
+                'base_cum_cost' => round($cb, 2), 'scen_cum_cost' => round($cs, 2), 'advance' => null,
+                'heat_share' => $m['heat_share'],
+                'band_low' => $lo !== null ? round($baseQty[$i] * $lo, 1) : null, 'band_high' => $hi !== null ? round($baseQty[$i] * $hi, 1) : null,
+                'scen_band_low' => $lo !== null ? round($scenQty[$i] * $lo, 1) : null, 'scen_band_high' => $hi !== null ? round($scenQty[$i] * $hi, 1) : null,
+            ];
+        }
+        $tb = ['qty' => round(array_sum($baseQty), 1), 'cost' => round(array_sum($baseCost), 2), 'co2_kg' => $co2Base !== null ? round($co2Base, 1) : null];
+        $ts = ['qty' => round(array_sum($scenQty), 1), 'cost' => round(array_sum($scenCost), 2), 'co2_kg' => $co2Scen !== null ? round($co2Scen, 1) : null];
+        $totals = ['base' => $tb, 'scenario' => $ts, 'delta' => [
+            'qty' => round($ts['qty'] - $tb['qty'], 1), 'cost' => round($ts['cost'] - $tb['cost'], 2),
+            'co2_kg' => $tb['co2_kg'] !== null && $ts['co2_kg'] !== null ? round($ts['co2_kg'] - $tb['co2_kg'], 1) : null,
+            'qty_pct' => $tb['qty'] > 0 ? round(($ts['qty'] - $tb['qty']) / $tb['qty'] * 100, 1) : null,
+            'cost_pct' => $tb['cost'] > 0 ? round(($ts['cost'] - $tb['cost']) / $tb['cost'] * 100, 1) : null,
+        ]];
+        $band = null;
+        if ($bandOk && !empty($fc['annual']) && (float)$fc['annual']['value'] > 0 && $fc['annual']['low'] !== null) {
+            $a = $fc['annual'];
+            $lo = (float)$a['low'] / (float)$a['value']; $hi = (float)$a['high'] / (float)$a['value'];
+            $band = ['level_pct' => $a['level_pct'], 'base_low' => round($tb['qty'] * $lo, 1), 'base_high' => round($tb['qty'] * $hi, 1),
+                     'scen_low' => round($ts['qty'] * $lo, 1), 'scen_high' => round($ts['qty'] * $hi, 1)];
+        }
+
+        $compare = [];
+        foreach (self::MODELS as $key) {
+            if ($models[$key] === null) { $compare[$key] = null; continue; }
+            $q = self::quantities($months, $models[$key], $levers + ['hdd' => true]);
+            $compare[$key] = [
+                'base_qty' => round(array_sum($models[$key]), 1), 'base_cost' => round(array_sum(self::costs($months, $models[$key], null)), 2),
+                'scen_qty' => round(array_sum($q), 1), 'scen_cost' => round(array_sum(self::costs($priced($months, $priceF), $q, null)), 2),
+            ];
+        }
+        if ($compare['trend'] !== null) $compare['trend']['growth_pct'] = round($models['growth'] * 100, 1);
+
+        // ── Rangliste und Optimierung (gegen den Ausgangsfall) ──────────
+        $zero = ['winter_pct' => 0.0, 'saving_pct' => 0.0, 'baseload_pct' => 0.0, 'heat_a' => $levers['heat_a'],
+                 'ev_kwh_year' => 0.0, 'jaz_ratio' => 1.0, 'measures' => [], 'hdd' => false];
+        $evalCost = function (array $lv, float $f = 1.0) use ($months, $baseQty, $priced): array {
+            $q = self::quantities($months, $baseQty, $lv);
+            return [array_sum($q), array_sum(self::costs($priced($months, $f), $q, null))];
+        };
+        [$bq, $bc] = $evalCost($zero);
+        $ranking = [];
+        $add = function (string $kind, array $lv, float $f = 1.0, array $extra = []) use (&$ranking, $evalCost, $bq, $bc): void {
+            [$q, $c] = $evalCost($lv, $f);
+            $saving = $bc - $c;
+            $cost = $extra['cost_eur'] ?? null;
+            $ranking[] = ['kind' => $kind, 'saving_eur' => round($saving, 2), 'saving_qty' => round($bq - $q, 1),
+                'payback_years' => ($cost !== null && $saving > 0.005) ? round($cost / $saving, 1) : null] + $extra;
+        };
+        if ($s['room_temp_delta'] != 0.0 && $roomOk) $add('room_temp', ['hdd' => true] + $zero, 1.0, ['value' => $s['room_temp_delta']]);
+        if ($s['saving_pct'] > 0) $add('saving', ['saving_pct' => $s['saving_pct']] + $zero, 1.0, ['value' => $s['saving_pct']]);
+        if ($s['baseload_pct'] != 0.0) $add('baseload', ['baseload_pct' => $s['baseload_pct']] + $zero, 1.0, ['value' => $s['baseload_pct']]);
+        if ($s['price_pct'] != 0.0) $add('price', $zero, $priceF, ['value' => $s['price_pct']]);
+        $single = [];
+        foreach ($s['measures'] as $m) {
+            if (!$hasHeat && $m['base_pct'] == 0.0) {
+                $ranking[] = ['kind' => 'measure', 'id' => $m['id'], 'saving_eur' => 0.0, 'saving_qty' => 0.0, 'payback_years' => null, 'cost_eur' => $m['cost_eur']];
+                $single[$m['id']] = 0.0;
+                continue;
+            }
+            $add('measure', ['measures' => [$m]] + $zero, 1.0, ['id' => $m['id'], 'cost_eur' => $m['cost_eur']]);
+            $single[$m['id']] = $ranking[count($ranking) - 1]['saving_eur'];
+        }
+        $repOut = null;
+        if ($replaced !== null) {
+            // allein gegen den Ausgangsfall: dieselbe Wärme, die neue Heizung statt des Brennstoffs
+            $alone = ScenarioDelivery::replacement($baseQty, $rep, $pelletPerKg);
+            $saving = $bc - array_sum($alone['cost']);
+            $ranking[] = ['kind' => 'replacement', 'saving_eur' => round($saving, 2), 'saving_qty' => round($bq - array_sum($alone['energy']), 1),
+                'payback_years' => $rep['invest_eur'] !== null && $saving > 0.005 ? round($rep['invest_eur'] / $saving, 1) : null,
+                'cost_eur' => $rep['invest_eur'], 'to' => $replaced['to']];
+            $fuelSum = array_sum($fuelCost);
+            $repSum = array_sum($replaced['cost']);
+            $repOut = [
+                'to'            => $replaced['to'],
+                'assumed'       => array_map(fn($v) => round((float)$v, 4), $replaced['assumed']),
+                'heat_kwh'      => round(array_sum($replaced['heat']), 1),
+                'energy_kwh'    => round(array_sum($replaced['energy']), 1),
+                'energy_units'  => $replaced['units'] !== null ? round(array_sum($replaced['units']), 1) : null,
+                'units_label'   => $replaced['to'] === 'pellets' ? 'kg' : null,
+                'cost'          => round($repSum, 2),
+                'fuel_cost'     => round($fuelSum, 2),
+                'saving_eur'    => round($fuelSum - $repSum, 2),
+                'co2_kg'        => $co2Scen !== null ? round($co2Scen, 1) : null,
+                'fuel_co2_kg'   => $co2f !== null ? round(array_sum($fuelQty) * $co2f, 1) : null,
+                'invest_eur'    => $rep['invest_eur'],
+                'payback_years' => $rep['invest_eur'] !== null && $fuelSum - $repSum > 0.005 ? round($rep['invest_eur'] / ($fuelSum - $repSum), 1) : null,
+            ];
+        }
+        usort($ranking, fn($x, $y) => $y['saving_eur'] <=> $x['saving_eur']);
+        $optimization = null;
+        if ($s['budget_eur'] !== null) {
+            $cands = array_values(array_filter($s['measures'], fn($m) => $m['cost_eur'] !== null));
+            $optimization = self::bestUnderBudget($cands, (float)$s['budget_eur'], $single,
+                fn(array $subset): float => $bc - $evalCost(['measures' => $subset] + $zero)[1]);
+        }
+
+        // ── Tank: Bestand heute, leer am, nachfüllen am ─────────────────
+        $tankOut = null;
+        $days = $tank['days'] ?? [];
+        if ($days !== [] && ($cal['source'] ?? 'none') !== 'none') {
+            $asOf = (string)array_key_last($days);
+            $cur = array_filter($days, fn($d) => str_starts_with((string)$d, substr($asOf, 0, 7)), ARRAY_FILTER_USE_KEY);
+            $rest = $cur !== [] ? array_sum(array_column($cur, 'draw')) / count($cur) : 0.0;
+            $capacity = (float)($meter['capacity'] ?? 0.0);
+            $warnPct = (float)$this->settings->get('tank_warn_pct', 15);
+            $level = $capacity > 0 ? $capacity * $warnPct / 100.0 : null;
+            $stock = (float)$days[$asOf]['stock'];
+            $toUnits = fn(array $q) => array_map(fn($v) => $v / $perUnit, $q);
+            $outlook = fn(array $q, float $ratio) => ScenarioDelivery::tankOutlook($stock, $asOf, $rest * $ratio, $months, $toUnits($q), $level);
+            $ratio0 = ($baseQty[0] ?? 0.0) > 0 ? $fuelQty[0] / $baseQty[0] : 1.0;
+            $tankOut = [
+                'unit' => (string)($meter['capacity_unit'] ?? (Utilities::get($utility)['unit'] ?? '')),
+                'capacity' => $capacity > 0 ? round($capacity, 1) : null, 'stock' => round($stock, 1), 'as_of' => $asOf,
+                'estimated' => !empty($days[$asOf]['estimated']), 'refill_pct' => $warnPct, 'refill_level' => $level !== null ? round($level, 1) : null,
+                'base' => $outlook($baseQty, 1.0),
+                // nach einem Heizungstausch gibt es diesen Tank im Szenario nicht mehr
+                'scenario' => $replaced === null ? $outlook($fuelQty, $ratio0) : null,
+            ];
+        }
+
+        $winter = $hasHeat ? $this->winterPresets($hddBase) : null;
+        $basePrice = $months[0]['unit'] ?? 0.0;
+        $unitLabel = (string)(Utilities::get($utility)['unit'] ?? '');
+        return $head + [
+            'supported'      => true,
+            'valid'          => true,
+            'calc'           => 'delivery',
+            'model'          => $modelKey,
+            'from'           => $months[0]['ym'],
+            'to'             => $months[count($months) - 1]['ym'],
+            'months'         => $out,
+            'totals'         => $totals,
+            'band'           => $band,
+            'models'         => $compare,
+            'advance'        => null,
+            'billing'        => null,
+            'tariff'         => ['kind' => 'current', 'contract_id' => null],
+            'offers'         => [],
+            'ranking'        => $ranking,
+            'optimization'   => $optimization,
+            'winter_presets' => $winter,
+            'profile'        => ScenarioProfile::build($utility, $meter, [
+                'computable' => true, 'heat' => $hasHeat, 'room' => $roomOk, 'tariff' => false, 'winter' => $winter, 'months' => $months,
+                'has_offers' => false, 'price' => $hasPrice,
+                // „Heizungstausch: Wärmepumpe“ nur mit Preis; die Richtung aus Wärmepreis alt gegen neu
+                'heat_pump_less' => $hasPrice ? (ScenarioDelivery::ASSUMED['power_ct'] / ScenarioDelivery::ASSUMED['jaz']
+                    < $basePrice * 100.0 / ScenarioDelivery::ASSUMED['efficiency_old']) : null,
+            ]),
+            'capabilities'   => [
+                'heat_model' => $hasHeat, 'room_temp' => $roomOk, 'tariff' => false, 'ev' => false, 'jaz' => false, 'billing' => false,
+                'co2' => $co2f !== null, 'band' => $band !== null, 'models' => array_map(fn($v) => $v !== null, $compare),
+                'regression' => false, 'price' => $hasPrice, 'replacement' => $hasPrice,
+            ],
+            'basis'          => [
+                'history_months'  => count($fc['historical'] ?? []),
+                'last_measured'   => (string)(end($fc['historical'])['ym'] ?? ''),
+                'hdd_source'      => $fc['hdd_source'] ?? null,
+                'heat_share_year' => $hasHeat && $tb['qty'] > 0
+                    ? round(array_sum(array_map(fn($m, $q) => $q * (float)($m['heat_share'] ?? 0), $months, $baseQty)) / array_sum($baseQty), 3) : null,
+                'co2_kg_per_unit' => $co2f !== null ? round($co2f, 4) : null,
+                'tank_calibration'=> (string)($cal['source'] ?? 'none'),
+            ],
+            'warnings'       => $warnings,
+            // v3.12.0 (F1040, Phase 2) — Lieferungen: Preis je Liter bzw. kg, Mengen in L/kg, Tank, Heizungstausch
+            'delivery'       => [
+                'unit' => $unitLabel, 'kwh_per_unit' => round($perUnit, 4),
+                'base_units' => round(array_sum($baseQty) / $perUnit, 1),
+                'scen_units' => $replaced === null ? round(array_sum($fuelQty) / $perUnit, 1) : null,
+                'base_ct_per_unit' => round($basePrice * 100.0 * $perUnit, 2),
+                'scen_ct_per_unit' => round($basePrice * 100.0 * $perUnit * $priceF, 2),
+                // die genannten Beispielwerte des Heizungstauschs, wenn ein Feld leer bleibt
+                'assumed_replace' => ScenarioDelivery::ASSUMED,
+            ],
+            'tank'           => $tankOut,
+            'replacement'    => $repOut,
         ];
     }
 

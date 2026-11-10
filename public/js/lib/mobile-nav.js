@@ -4,8 +4,8 @@
 // Bis v2.10 stand die komplette Seitenleiste auf schmalen Bildschirmen als
 // 500 px hoher Block über jedem Inhalt — auf dem iPhone SE drei Viertel des
 // Bildschirms, bevor die erste Zahl kam. Jetzt:
-//   • eine Tab-Leiste unten in der Daumenzone: Übersicht · Verbrauch ·
-//     ＋ Erfassen · Kosten · Mehr,
+//   • eine Tab-Leiste unten in der Daumenzone: Übersicht · Zu tun ·
+//     ＋ Erfassen · Verbrauch · Mehr (v3.12.0; Kosten steht unter „Mehr“),
 //   • „Mehr" öffnet die Seitenleiste als Menü (Schublade von links),
 //   • „＋" öffnet das Erfassen-Blatt: Zählerstände, Lieferung und Peilstand
 //     (Heizöl, Pellets), Termin. Am Mac öffnet es der Knopf in der Kopfleiste.
@@ -18,11 +18,12 @@ import { escapeHtml as esc } from './format.js';
 import { tabbarModel, NAV_SIDEBAR_QUERY } from './nav-model.js';
 import { openModal } from '../components/modal.js';
 import { activeUtilities } from '../state.js';
+import { icon, artIcon } from './icons.js';
 
 let lastUtility = null;
 
 function tabHtml(item) {
-  const inner = `<span class="tabbar__icon" aria-hidden="true">${esc(item.icon)}</span>
+  const inner = `<span class="tabbar__icon" aria-hidden="true">${icon(item.icon, { size: 22 })}</span>
       <span class="tabbar__label">${esc(item.label)}</span>${item.badge ? `<span class="tabbar__badge" data-badge="${esc(item.badge)}"></span>` : ''}`;
   if (item.action) {
     return `<button type="button" class="tabbar__item${item.action === 'capture' ? ' tabbar__item--capture' : ''}" data-action="${item.action}"
@@ -121,25 +122,25 @@ window.addEventListener('et:route', (e) => {
 });
 window.addEventListener('et:nav-built', (e) => buildTabbar(e.detail?.utilities || []));
 
-// ── Erfassen-Blatt (＋) ───────────────────────────────────────────────────
+// ── Erfassen-Blatt ───────────────────────────────────────────────────
 export async function openCaptureSheet() {
   let utilities = [];
   try { utilities = await activeUtilities(); } catch { /* nur die festen Einträge */ }
   const deliveryUtils = utilities.filter(u => u.reading_kind === 'delivery');
-  const entry = (href, icon, label, hint = '') => `<li><a class="capture-sheet__item" href="${href}">
-      <span class="capture-sheet__icon" aria-hidden="true">${esc(icon)}</span>
+  const entry = (href, glyph, label, hint = '') => `<li><a class="capture-sheet__item" href="${href}">
+      <span class="capture-sheet__icon" aria-hidden="true">${glyph}</span>
       <span><span class="capture-sheet__label">${esc(label)}</span>${hint ? `<span class="capture-sheet__hint">${esc(hint)}</span>` : ''}</span>
     </a></li>`;
   const items = [
-    entry('#/zaehlerstaende', '📋', t('nav.sheet.readings'), t('nav.sheet.readingsHint')),
+    entry('#/zaehlerstaende', icon('klemmbrett', { size: 22 }), t('nav.sheet.readings'), t('nav.sheet.readingsHint')),
     ...deliveryUtils.flatMap(u => [
-      entry(`#/utility/${u.key}?add=delivery`, u.icon || '🛢️', t('nav.sheet.delivery', { utility: u.label })),
-      entry(`#/utility/${u.key}?add=level`, '📏', t('nav.sheet.tankLevel', { utility: u.label })),
+      entry(`#/utility/${u.key}?add=delivery`, artIcon(u, { size: 22 }), t('nav.sheet.delivery', { utility: u.label })),
+      entry(`#/utility/${u.key}?add=level`, icon('lineal', { size: 22 }), t('nav.sheet.tankLevel', { utility: u.label })),
     ]),
     // v3.9.0 — mit Satz darunter wie die Einträge daneben
-    entry('#/reminders?add=1', '📌', t('nav.sheet.reminder'), t('nav.sheet.reminderHint')),
+    entry('#/todo/dates?add=1', icon('merker', { size: 22 }), t('nav.sheet.reminder'), t('nav.sheet.reminderHint')),
     // v3.7.0 — Versorgerpost ablegen (am iPad aus der Dateien-App)
-    entry('#/inbox', '📥', t('nav.sheet.inbox'), t('nav.sheet.inboxHint')),
+    entry('#/inbox', icon('eingang', { size: 22 }), t('nav.sheet.inbox'), t('nav.sheet.inboxHint')),
   ];
   openModal({
     title: t('nav.sheet.title'),

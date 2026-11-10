@@ -51,7 +51,21 @@ export async function openPdf(url, { signal } = {}) {
   const res = await fetch(url, { credentials: 'same-origin', signal });
   if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
   const data = new Uint8Array(await res.arrayBuffer());
-  return lib.getDocument({ data, isEvalSupported: false, useSystemFonts: true, verbosity: 0 }).promise;
+  // v3.12.0 — eine kaputte Datei (Kopf „%PDF-“, Inhalt unlesbar) trägt `code: 'broken'`: Sie ist nicht der Browser
+  return lib.getDocument({ data, isEvalSupported: false, useSystemFonts: true, verbosity: 0 }).promise
+    .catch((e) => { throw pdfErrorCode(e) === 'broken' ? Object.assign(e, { code: 'broken' }) : e; });
+}
+
+/**
+ * v3.12.0 — Woran ein PDF scheiterte: `broken`, wenn pdf.js die Datei selbst nicht lesen konnte
+ * (InvalidPDFException „Invalid PDF structure.“, FormatError, leere Datei); sonst null (kein pdf.js im
+ * Browser, Netz, HTTP-Fehler). Die Vorschau sagt dann „kaputt“ statt „zeigt dieser Browser nicht“.
+ * @returns {'broken'|null}
+ */
+export function pdfErrorCode(e) {
+  if (!e || e.code === 'unsupported' || e.status) return null;
+  if (e.code === 'broken') return 'broken';
+  return /^(InvalidPDFException|FormatError|MissingPDFException)$/.test(String(e.name || '')) ? 'broken' : null;
 }
 
 /**

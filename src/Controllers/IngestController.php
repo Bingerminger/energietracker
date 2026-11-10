@@ -44,6 +44,11 @@ final class IngestController
         // v3.1.0 (API-34) — Stapel: eine Liste oder {"readings": [...]}. Antwort 200
         // auch bei Teilfehlern (je Eintrag `status`/`code`); das Einzelobjekt
         // bleibt unverändert (201/200 wie bisher).
+        // v3.12.0 — `readings` ohne Liste (Text, Zahl) ist ein kaputter Stapel, kein Einzelstand:
+        // bisher kam „unbekannte Verbrauchsart“ zurück
+        if (is_array($body) && !array_is_list($body) && array_key_exists('readings', $body) && !is_array($body['readings'])) {
+            Response::error($this->i18n->t('errors.ingest.bodyInvalid'), 400, null, 'errors.ingest.bodyInvalid');
+        }
         if (is_array($body) && ((array_is_list($body) && $body !== []) || is_array($body['readings'] ?? null))) {
             $items = array_is_list($body) ? $body : $body['readings'];
             if (!array_is_list($items) || $items === []) {

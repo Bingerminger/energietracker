@@ -72,63 +72,107 @@ noch fünf SVG-Attrappen aus v1.0.2.
    Mit `pngquant --quality=88-100 --strip` lassen sich die Bilder ohne
    sichtbaren Verlust etwa halbieren.
 
-Für den Willkommenszustand braucht es ein leeres Datenverzeichnis
-(`ET_DATA_DIR` auf einen leeren Ordner); den Einrichtungsassistenten mit
-Escape schließen. „Hinweise → Erledigt“ ist erst nach ein paar erledigten
-Hinweisen gefüllt (✓ auf der Übersicht, Empfehlung ausblenden) — also nach
-Übersicht und Terminen aufnehmen. Anmeldebildschirm und „Anmeldung & Zugriff“
-entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
+„Zu tun → Verlauf“ ist erst nach ein paar erledigten Hinweisen gefüllt (✓ auf der Übersicht, Empfehlung
+ausblenden) — also nach Übersicht und Terminen aufnehmen. Willkommen, Einrichtungsassistent und Anmeldung
+brauchen eine eigene Instanz (siehe unten).
 
 ## Die Bilder
 
-| Datei | Ansicht | Adresse | Fenster | Englisch |
-|---|---|---|---|---|
-| `dashboard.png` | Übersicht | `#/dashboard` | 1440 × 1500 | ✓ |
-| `willkommen.png` | Übersicht ohne Daten | `#/dashboard`, leeres Verzeichnis | 1440 × 900 | ✓ |
-| `zaehlerstaende.png` | Zählerstand-Erfassung | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
-| `pruefung-zaehlerstand.png` | Rückfrage bei einem Sprung | Erfassung mit auffälligem Wert → „Alle speichern“ | 1440 × 900 | — |
-| `gas-view.png` | Verbrauch Gas, Saldo-Karte gemessen und bis heute (v3.10.0) | `#/utility/gas`, Kalenderjahr | 1440 × 1500 | ✓ |
-| `uebersicht-abrechnungsjahr.png` | Übersicht im Abrechnungsjahr mit Trendpfeilen (v3.10.0) | `#/dashboard`, `localStorage['et-period-mode'] = 'billing'`; Umschalter bis zur zweiten Karte | Ausschnitt | ✓ |
-| `strom-view.png` | Verbrauch Strom mit Rest-Abrechnung am Hauptzähler (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
-| `heizoel-view.png` | Verbrauch Heizöl | `#/utility/heizoel` | 1440 × 1500 | ✓ |
-| `pv.png` | PV-Einspeisung mit Energiefluss | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
-| `zaehler-vertraege.png` | Vertragsliste einer Art (v3.4.0) | `#/utility/gas/contracts`, „Beendet“ aufgeklappt | 1440 × 1500 | ✓ |
-| `vertragsdialog.png` | Vertragsdialog im Formularraster (v3.4.0) | Vertragsliste → „Bearbeiten“ | 1440 × 1500 | ✓ |
-| `import-vorschau.png` | Vorschau des CSV-Imports | Zähler → CSV-Import | 1440 × 1500 | — |
-| `navigation-mac.png` | Verträge & Abschläge | `#/contracts` | 1440 × 900 | ✓ |
-| `navigation-iphone.png` | Übersicht am iPhone | `#/dashboard` | 375 × 812 | ✓ |
-| `erfassen-iphone.png` | Erfassen-Blatt am iPhone | ＋ Erfassen | 375 × 812 | ✓ |
-| `analyse.png` | Analyse | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Prognose-Werkstatt (v3.6.0), Ausgangsfall „Wie die Saldo-Karte (kalibriert)“ (v3.10.0) | `#/forecast`, Beispiel „Kalter Winter“ angeklickt | 1440 × 1500 | ✓ |
-| `jahresbericht.png` | Druckansicht des Jahresberichts (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
-| `tarifvergleich.png` | Wechsel prüfen | `#/tariffs` | 1440 × 1522 | ✓ |
-| `empfehlungen.png` | Empfehlungen | `#/recommendations` | 1440 × 1500 | ✓ |
-| `termine.png` | Termine & Wartung | `#/reminders` | 1440 × 1500 | ✓ |
-| `erledigt.png` | Hinweise → Erledigt (v3.4.0) | `#/activity` | 1440 × 900 | ✓ |
-| `temperaturen.png` | Wetterdaten | `#/temperatures` | 1440 × 1500 | ✓ |
-| `einstellungen.png` | Einstellungen | `#/settings` | 1440 × 1500 | ✓ |
-| `laenderprofil.png` | Länderprofil übernehmen | Einstellungen → Land wechseln | 1440 × 900 | — |
-| `einstellungen-sicherheit.png` | Zugriff: Sicherheits-Check, Anmeldung, Hostnamen, API-Schlüssel | `#/settings/access` | Ausschnitt | — |
-| `anmeldung.png` | Anmeldebildschirm | mit eingeschalteter Anmeldung | 1440 × 900 | — |
-| `hilfe.png` | Hilfe | `#/help` | 1440 × 900 | ✓ |
-| `handbuch.png` | Handbuch in der App (v3.4.0) | `#/help/doc/anleitungen/anwendungsfaelle.md` bzw. `#/help/doc/en/anleitungen/anwendungsfaelle.md` | 1440 × 900 | ✓ |
-| `erklaerung-mac.png` | ⓘ-Erklärung am Mac | Gas → Monatstabelle → ⓘ an HGT | Ausschnitt | ✓ |
-| `erklaerung-iphone.png` | ⓘ-Erklärung als Blatt | wie oben | 375 × 812 | ✓ |
-| `einrichtung.png` | Einrichtungsassistent, Schritt „Wer bist du?“ (v3.9.0) | leeres Verzeichnis, im Schritt „Sprache und Land“ „Weiter“ | 1440 × 900 | ✓ |
-| `einrichtung-zaehler.png` | Einrichtungsassistent, Schritt „Wie hängen deine Zähler?“ (v3.9.0) | leeres Verzeichnis: „Weiter“, „Eigenheim mit Wärmepumpe und PV“, zweimal „Weiter“ | 1440 × 900 | ✓ |
-| `personen.png` | Karte „Personen im Haushalt“ (v3.9.0) | `#/settings/household` | Ausschnitt | ✓ |
-| `ha-benachrichtigungen.png` | Karte „Benachrichtigungen an Home Assistant“ (v3.9.0) | `#/settings/integrations`, Ziel Webhook mit Adresse aus `192.168.178.x`, ausgeschaltet | Ausschnitt (Fenster 1440 × 2600, ganze Seite, damit die feste Kopfleiste den Titel nicht verdeckt) | ✓ |
-| `messkonzept.png` | Assistent „Messkonzept einrichten“, Schritt „Wie hängen die Zähler?“ (v3.9.0) | `#/utility/strom/meters?concept=1`: Wärmepumpe, HT/NT an jedem Bezugszähler, PV, dann „Kaskade“ | 1440 × 900 | ✓ |
-| `ablesung-pruefen.png` | „Zu tun“ mit „Ablesung vom … prüfen“ (v3.9.0) | Beispieldaten, ein Winterstand des Hauptzählers Gas um 100 m³ abgesenkt (nur in der Aufnahme-Instanz) | Ausschnitt | ✓ |
-| `einstellungen-heimnetz.png` | Karte „Verbindungen im Heimnetz“ (v3.10.0) | `#/settings/expert` | Ausschnitt (Fenster 1440 × 2600) | ✓ |
+<!-- doc-claim: screenshots-de-en (ScreenshotsDocTest) -->
+**Seit v3.12.0 nimmt ein Skript alle Bilder der Tabelle auf:** `tools/build-screenshots.mjs` lädt den
+Beispielhaushalt, stellt die Stufe Experte ein und nimmt jede Ansicht hell auf, am Mac und am iPhone. Dazu
+die Bilder für das README (hell und dunkel) unter `docs/assets/promo/screens/`. Danach
+`pngquant --quality=88-100 --strip`, **kein Bild über 150 KB**. **Jedes Bild zeigt die Oberfläche von v3.12.0,
+jedes auf Deutsch und Englisch.**
+
+**Drei Läufe je Sprache**, jeder gegen einen eigenen Server mit leerem Datenverzeichnis:
+
+| Lauf | Bilder | Was er tut |
+|---|---|---|
+| ohne Schalter | alle übrigen | lädt den Beispielhaushalt |
+| `--leer` | `willkommen`, `einrichtung`, `einrichtung-zaehler` | lädt nichts; der Assistent öffnet von selbst, für das Willkommen schließt Escape ihn |
+| `--anmeldung` | `anmeldung`, `einstellungen-sicherheit` | lädt den Beispielhaushalt und schaltet die Anmeldung mit einem Beispielpasswort ein; **danach ist die Instanz gesperrt** |
+
+```bash
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8910 de /tmp/shots-de
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8912 de /tmp/shots-de '' --leer
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8913 de /tmp/shots-de '' --anmeldung
+NODE_PATH=… node tools/build-screenshots.mjs http://127.0.0.1:8911 en /tmp/shots-en   # usw. für Englisch
+```
+
+Ein vierter Wert nimmt nur einzelne Bilder auf (`prognose,werkstatt-pv`). **Was das Skript dazu tut:**
+
+- **Dialoge und Ausschnitte öffnet es selbst:** Brief, Vertrag, Messkonzept, CSV-Vorschau, Rückfrage,
+  Länderprofil, ⓘ-Erklärung.
+- **Die CSV-Vorschau** baut ihre Zeilen von der letzten Ablesung des Hauptzählers Gas aus, damit jede Art
+  Hinweis vorkommt (unverändert, Rückgang, Tippfehler, Datum doppelt, Zukunft). Importiert wird nichts.
+- **„Ablesung prüfen“** senkt dafür einen Stand der Beispieldaten und stellt ihn danach wieder her. Die
+  Rückfrage bei einem Sprung speichert nichts.
+- **Datumsfelder:** Englisch mit der Headless-Shell und `--lang=en-GB` („dd/mm/yyyy“), Deutsch mit dem
+  vollen Chromium, das am Mac der Systemsprache folgt („tt.mm.jjjj“ am deutschen Mac).
+
+| Datei | Ansicht | Adresse | Fenster |
+|---|---|---|---|
+| `dashboard.png` | Übersicht: Antworten, Kachel je Art | `#/dashboard` | 1440 × 1500 |
+| `zu-tun.png` | Zu tun: Offen mit Fristen, Empfehlungen, Post | `#/todo` | 1440 × 900 |
+| `empfehlungen.png` | Zu tun, Filter Empfehlungen | `#/todo?art=rec` | 1440 × 1500 |
+| `termine.png` | Zu tun → Termine | `#/todo/dates` | 1440 × 1500 |
+| `erledigt.png` | Zu tun → Verlauf | `#/todo/history` | 1440 × 900 |
+| `zaehlerstaende.png` | Zählerstand-Erfassung | `#/zaehlerstaende` | 1440 × 1500 |
+| `gas-view.png` | Verbrauch Gas, Sicht Überblick | `#/utility/gas` | 1440 × 1500 |
+| `strom-view.png` | Verbrauch Strom | `#/utility/strom` | 1440 × 1500 |
+| `heizoel-view.png` | Verbrauch Heizöl | `#/utility/heizoel` | 1440 × 1500 |
+| `pv.png` | PV-Einspeisung | `#/utility/pv_einspeisung` | 1440 × 1280 |
+| `navigation-mac.png` | Kosten & Verträge | `#/contracts` | 1440 × 900 |
+| `fruehere-vertraege.png` | Kosten → Frühere Verträge | `#/contracts/past` | 1440 × 900 |
+| `tarifvergleich.png` | Wechsel prüfen | `#/tariffs` | 1440 × 1500 |
+| `kennzahlen.png` | Auswertungen → Kennzahlen | `#/figures` | 1440 × 1500 |
+| `analyse.png` | Analyse | `#/analysis` | 1440 × 1500 |
+| `haushalt.png` | Haushalt → Zähler | `#/household/meters` | 1440 × 900 |
+| `personen.png` | Haushalt → Personen | `#/household/people` | 1440 × 900 |
+| `verbindungen.png` | Verbindungen | `#/connections` | 1440 × 900 |
+| `ki-assistenten.png` | Verbindungen → KI-Assistenten | `#/connections/ai` | 1440 × 900 |
+| `ha-benachrichtigungen.png` | Verbindungen → Benachrichtigungen | `#/connections/homeassistant/notifications` | 1440 × 900 |
+| `einstellungen-heimnetz.png` | Verbindungen → Sicherheit im Heimnetz | `#/connections/homenet` | 1440 × 900 |
+| `temperaturen.png` | Verbindungen → Wetterdaten | `#/connections/weather` | 1440 × 1500 |
+| `einstellungen.png` | Einstellungen mit Suche und „Für dich“ | `#/settings` | 1440 × 1500 |
+| `hilfe.png` | Hilfe mit Linkreihe und Wegweiser | `#/help` | 1440 × 900 |
+| `handbuch.png` | Handbuch in der App | `#/help/doc/anleitungen/anwendungsfaelle.md` bzw. `…/en/…` | 1440 × 900 |
+| `navigation-iphone.png` | Übersicht am iPhone | `#/dashboard` | 390 × 844 |
+| `mehr-iphone.png` | „Mehr“ am iPhone, unten die Fußzeile | `#/dashboard`, „Mehr“ | 390 × 844 |
+| `erfassen-iphone.png` | Erfassen-Blatt am iPhone | `#/dashboard`, ＋ | 390 × 844 |
+| `prognose.png` | Prognose-Werkstatt, Beispiel „Kalter Winter“ | `#/forecast` | 1440 × 1500 |
+| `werkstatt-heizoel.png` | Werkstatt beim Heizöl, Beispiel „Wärmepumpe statt Kessel“ | `#/forecast`, Art Heizöl | 1440 × 1440 |
+| `werkstatt-pv.png` | Werkstatt bei der PV, Beispiel „Speicher dazu“ | `#/forecast`, Art PV-Einspeisung | 1440 × 1440 |
+| `jahresbericht.png` | Jahresbericht 2025 | `#/report/print?year=2025` | 1440 × 1500 |
+| `uebersicht-abrechnungsjahr.png` | Übersicht im Abrechnungsjahr, erste Reihe der Kacheln | `#/dashboard`, „Abrechnungsjahr“ | Ausschnitt |
+| `zaehler-vertraege.png` | Verträge einer Art, beendete aufgeklappt | `#/utility/gas/contracts` | 1440 × 1500 |
+| `vertragsdialog.png` | Vertragsdialog | Vertragsliste → „Bearbeiten“ | 1440 × 1500 |
+| `vertragskonflikt.png` | Hinweis bei widersprüchlichen Verträgen | `#/utility/wasser/contracts` | 1440 × 900 |
+| `rechte-hinweis.png` | Zu tun, Filter Rechte | `#/todo?art=rights` | 1440 × 900 |
+| `brief-dialog.png` | Brief entwerfen | Rechte → „Brief entwerfen“ | 1440 × 900 |
+| `ablesung-pruefen.png` | „Heizgrenze anpassen“ und „Ablesung prüfen“ | `#/todo`, ein Stand gesenkt | Ausschnitt |
+| `messkonzept.png` | Assistent „Messkonzept einrichten“, Schritt 2 | `#/household/meters?art=strom&concept=1` | 1440 × 900 |
+| `willkommen.png` | Übersicht ohne Daten | `#/dashboard`, `--leer` | 1440 × 900 |
+| `einrichtung.png` | Einrichtungsassistent, „Wer bist du?“ | `--leer` | 1440 × 900 |
+| `einrichtung-zaehler.png` | Einrichtungsassistent, Zähler | `--leer`, „Eigenheim mit Wärmepumpe und PV“ | 1440 × 900 |
+| `erklaerung-mac.png` | ⓘ-Erklärung am Mac | `#/utility/gas?view=months`, ⓘ am Abrechnungsjahr | Ausschnitt |
+| `erklaerung-iphone.png` | ⓘ-Erklärung als Blatt | wie oben | 375 × 812 |
+| `import-vorschau.png` | Vorschau des CSV-Imports | `#/household/meters?art=gas` → „CSV-Import“ | 1440 × 1500 |
+| `pruefung-zaehlerstand.png` | Rückfrage bei einem Sprung | `#/zaehlerstaende` | 1440 × 900 |
+| `laenderprofil.png` | Länderprofil übernehmen | `#/settings/region`, Land Schweiz | 1440 × 900 |
+| `einstellungen-sicherheit.png` | Zugang und Sicherheit | `#/settings/access`, `--anmeldung` | Ausschnitt |
+| `anmeldung.png` | Anmeldebildschirm | `--anmeldung` | 1440 × 900 |
 
 Ein Test prüft, dass jedes verlinkte Bild existiert
 ([Tests](tests.md)).
 
 ## Werbebilder
 
-Die Bilder oben im README und auf der GitHub-Projektseite entstehen aus zwei
-eigenständigen HTML-Seiten unter `docs/assets/promo/`. Sie binden die
+**Seit v3.12.0 zeigt das README Logo, Symbole und Bilder aus `docs/assets/promo/`:** `logo.svg` und
+`icons/*.svg` erzeugt `tools/build-logo.mjs` (dieselben Grafiken wie in der App, dazu alle
+`public/img/icon-*.png` und `favicon.ico`), die Bilder unter `screens/` das Aufnahmeskript oben. Das
+Banner und die Social Preview entstehen aus zwei eigenständigen HTML-Seiten unter `docs/assets/promo/`. Sie binden die
 Screenshots dieses Verzeichnisses ein — erst die Screenshots erneuern, dann
 die Werbebilder. Das Verzeichnis gehört nicht ins Docker-Image
 (`.dockerignore`, ein Test prüft das).

@@ -32,9 +32,22 @@ Wasser hat ein eigenes Vertragsmodell mit drei Bestandteilen:
 Dieses Modell wurde mit Schema 1.0.3 eingeführt; ein Auto-Migrator
 übernimmt alte einfache Wassertarife in die Trinkwasser-Komponente.
 
+<!-- doc-claim: water-by-the-day -->
 Jede Sparte führt ihre Preise als **Abschnitte ab einem Tag**: Ändert der
 Versorger die Preise zum 01.10., stehen zwei Zeilen da, und jeder Tag rechnet
-mit dem Preis, der an ihm gilt. Die App führt **Bruttopreise**. Weist die
+mit dem Preis, der an ihm gilt. *(v3.12.0)* Das gilt auch mitten im Monat
+und **genau wie bei Strom**: Ein Preis ab dem 15. zählt ab dem 15., ein
+Vertragswechsel am 15. teilt Menge, Grundpreis und Abschlag nach denselben
+Tagen, und „Rechnung prüfen“ beginnt am Preisstichtag eine neue Zeile.
+Beispiel (erfunden): Juli mit 12,4 m³, Trinkwasser 2,10 € bis zum 14. und
+2,60 € ab dem 15.: **29,44 €** statt 26,04 €. Bis v3.11 galten bei Wasser
+Vertrag und Preis des Monatsersten.
+<!-- doc-claim: water-forecast-by-the-day -->
+**Auch die Prognose rechnet so**, und mit ihr die Prognose-Werkstatt und die KI.
+Beispiel (erfunden): März mit 9,3 m³, Trinkwasser 2,10 € bis zum 14. und 2,80 €
+ab dem 15., Schmutzwasser 1,90 €, Grundpreis 6 €: **46,77 €** statt 43,20 €.
+Gerechnet wird mit der Menge, die die Stände ergeben; **gerundet wird nur die
+Anzeige** (0,1 m³ in der Monatszeile). Die App führt **Bruttopreise**. Weist die
 Rechnung netto aus, gilt je Sparte ihr eigener Steuersatz (bei Trinkwasser oft
 7 %, bei Schmutz- und Niederschlagswasser oft 19 %). Den Satz liest die App aus
 der Rechnung, sie vermutet ihn nicht. Basis- und Bereitstellungspreis derselben
@@ -158,7 +171,7 @@ Q [kWh] = 2,5 × V [m³] × (t_w − 10)
 ```
 
 `t_w` ist die Warmwassertemperatur, Einstellung `warmwasser_temp_c`
-(Einstellungen → Haushalt & Gebäude → „Wohnen und Warmwasser“; Standard 60 °C,
+(Haushalt → Gebäude → „Wohnen und Warmwasser“; Standard 60 °C,
 erlaubt 30–90). Beispiele:
 
 ```text

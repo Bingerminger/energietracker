@@ -228,4 +228,27 @@ final class BillingWindowTest extends ServiceTestCase
         self::assertNull(ScenarioService::restOfMonth($running, [['ym' => '2026-10', 'days' => 31, 'advance' => 60.0]], $history));
         self::assertNull(ScenarioService::restOfMonth(['as_of' => '2026-10-31'] + $running, $months, $history));
     }
+
+    /**
+     * v3.12.0 — Ohne Vertrag in der Periode rechnet die Werkstatt den Endsaldo selbst (billingBalance).
+     * Prognosemonate nach dem Periodenende zählen nicht mit, der letzte Monat nur anteilig. Seit v3.9.0
+     * geht der Weg mit Vertrag über billingFromStatus; dieser Weg hatte danach keinen eigenen Test.
+     */
+    public function testFallbackEndBalanceStopsAtThePeriodEnd(): void
+    {
+        // Periode bis 15.11.2026, Stand Monatsende Oktober, bisher 20 € Guthaben (−20)
+        $running = ['from' => '2026-01-01', 'until' => '2026-11-15', 'as_of' => '2026-10-31', 'balance' => -20.0];
+        $months = [['ym' => '2026-11', 'days' => 30, 'advance' => 60.0], ['ym' => '2026-12', 'days' => 31, 'advance' => 60.0],
+                   ['ym' => '2027-01', 'days' => 31, 'advance' => 60.0]];
+        $b = ScenarioService::billingBalance($running, $months, [90.0, 80.0, 70.0], [90.0, 80.0, 70.0]);
+        // −20 + (90 − 60) × 15/30 = −5; Dezember und Januar liegen nach dem Periodenende
+        self::assertEqualsWithDelta(-5.0, $b['base_end_balance'], 0.001);
+        self::assertEqualsWithDelta(-5.0, $b['scen_end_balance'], 0.001);
+        self::assertSame(1, $b['months_left']);
+        self::assertFalse($b['beyond_horizon']);
+        // Periode bis 31.12.: November und Dezember ganz, Januar nicht: −20 + 30 + 20 = 30
+        $b = ScenarioService::billingBalance(['until' => '2026-12-31'] + $running, $months, [90.0, 80.0, 70.0], [90.0, 80.0, 70.0]);
+        self::assertEqualsWithDelta(30.0, $b['base_end_balance'], 0.001);
+        self::assertSame(2, $b['months_left']);
+    }
 }

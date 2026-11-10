@@ -7,13 +7,14 @@
 // Prüfliste und Test (tests/inbox.test.mjs).
 // =====================================================================
 
-import { t, tp, getCurrency } from './i18n.js';
+import { t, tp, getCurrency, getCurrencyMinor } from './i18n.js';
 import { fmt, intlLocale } from './format.js';
 import { advanceRhythm } from './advance-rhythm.js';   // v3.9.0 (F1034)
 
 /** Was noch Arbeit macht (Badge in der Navigation). */
 export const OPEN_STATUSES = ['new', 'queued', 'read', 'failed'];
-export const openCount = (entries) => (entries || []).filter(e => OPEN_STATUSES.includes(e?.status)).length;
+export const openEntries = (entries) => (entries || []).filter(e => OPEN_STATUSES.includes(e?.status));
+export const openCount = (entries) => openEntries(entries).length;
 
 /** Die Arten, wie der Server sie kennt (InboxSchema::TYPES). */
 export const TYPES = ['invoice', 'contract_confirmation', 'price_change', 'cancellation', 'supply_start',
@@ -30,7 +31,7 @@ export function valueText(kind, v) {
   switch (kind) {
     case 'date': return fmt.date(v);
     case 'money': return fmt.money(v);
-    case 'price_ct': return `${fmt.dec(v, 4)} ct/kWh`;
+    case 'price_ct': return `${fmt.dec(v, 4)} ${getCurrencyMinor()}/kWh`;
     case 'number': return fmt.dec(v, 4);
     case 'enum': return t(`inbox.option.${v}`);
     case 'bool': return t(v ? 'common.yes' : 'common.no');   // v3.7.0 (treffsicher, Nachbesserung 4) — Ablese-Art
@@ -50,8 +51,8 @@ export function itemText(field, item, entry = null) {
     case 'advances_paid': return v.date ? `${fmt.money(v.amount)} (${fmt.date(v.date)})` : fmt.money(v.amount);
     case 'gas_factors': return t('inbox.item.gasFactor', { from: fmt.date(v.from), to: fmt.date(v.to), z: fmt.dec(v.z, 4), hs: fmt.dec(v.hs, 3) });
     case 'working_prices': return entry?.net
-      ? t('inbox.item.priceNet', { from: fmt.date(v.from), value: `${fmt.dec(v.ct, 4)} ct/kWh`, vat: fmt.dec(entry.net.vat_pct, 2), gross: `${fmt.dec(entry.net.gross, 4)} ct/kWh` })
-      : t('inbox.item.price', { from: fmt.date(v.from), value: `${fmt.dec(v.ct, 4)} ct/kWh` });
+      ? t('inbox.item.priceNet', { from: fmt.date(v.from), value: `${fmt.dec(v.ct, 4)} ${getCurrencyMinor()}/kWh`, vat: fmt.dec(entry.net.vat_pct, 2), gross: `${fmt.dec(entry.net.gross, 4)} ${getCurrencyMinor()}/kWh` })
+      : t('inbox.item.price', { from: fmt.date(v.from), value: `${fmt.dec(v.ct, 4)} ${getCurrencyMinor()}/kWh` });
     // v3.7.0 (treffsicher, Nachbesserung 4) — Stände je Zähler
     case 'meter_readings': {
       const st = (n, d) => (n === null || n === undefined ? '–' : `${fmt.dec(n, 3)}${d ? ` (${fmt.date(d)})` : ''}`);
@@ -68,6 +69,8 @@ export function itemText(field, item, entry = null) {
         : t('inbox.item.waterPrice', p);
     }
     case 'advance_new_dates': return fmt.date(v.date);
+    // v3.12.0 — Gutschriften wie die Abschläge: Betrag als Geld, Art übersetzt (vorher roh „Guthaben · 34.56 · credit_other“)
+    case 'credits': return `${v.label || '–'}: ${fmt.money(v.amount)}${v.kind ? ` (${t(`inbox.option.${v.kind}`)})` : ''}`;
     default: return Object.values(v).filter(x => x !== null && x !== undefined).join(' · ');
   }
 }
@@ -99,14 +102,14 @@ export function resultText(result) {
 /** Wert einer Preiszeile je Art des Vorschlags (v3.9.0: Wasser je m³ in ct). */
 function rowValue(kind, v, key = '') {
   if (v === null || v === undefined || v === '') return '–';
-  if (kind === 'contract_price') return `${fmt.dec(v, 4)} ct/kWh`;
-  if (kind === 'contract_water_price') return key === 'ct_per_m3' ? `${fmt.dec(v, 4)} ct/m³` : priceMoney(v);
+  if (kind === 'contract_price') return `${fmt.dec(v, 4)} ${getCurrencyMinor()}/kWh`;
+  if (kind === 'contract_water_price') return key === 'ct_per_m3' ? `${fmt.dec(v, 4)} ${getCurrencyMinor()}/m³` : priceMoney(v);
   return fmt.money(v);
 }
 
 /** v3.9.0 (F1034) — ein Bestandteil eines Preises: „Basispreis 50,00 € je Jahr netto + 7 % USt“. */
 function partText(part) {
-  const price = part.unit === 'kwh' ? `${fmt.dec(part.price, 4)} ct/kWh` : waterPrice(part.price, part.unit);
+  const price = part.unit === 'kwh' ? `${fmt.dec(part.price, 4)} ${getCurrencyMinor()}/kWh` : waterPrice(part.price, part.unit);
   const text = part.label ? `${part.label} ${price}` : price;
   return part.net && part.vat_pct !== null && part.vat_pct !== undefined ? t('inbox.line.net', { value: text, vat: fmt.dec(part.vat_pct, 2) }) : text;
 }
@@ -130,7 +133,7 @@ export function proposalLines(p) {
       const what = l.section ? sectionName(l.section) : t('inbox.line.energy');
       const base = { what, from: fmt.date(l.from) };
       let text;
-      if (l.kind === 'working') text = t('inbox.line.working', { ...base, value: l.section ? `${fmt.dec(l.value, 4)} ct/m³` : `${fmt.dec(l.value, 4)} ct/kWh` });
+      if (l.kind === 'working') text = t('inbox.line.working', { ...base, value: l.section ? `${fmt.dec(l.value, 4)} ${getCurrencyMinor()}/m³` : `${fmt.dec(l.value, 4)} ${getCurrencyMinor()}/kWh` });
       else if (l.kind === 'base') text = t(l.section ? 'inbox.line.base' : 'inbox.line.baseOnly', { ...base, value: priceMoney(l.value) });
       else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: priceMoney(l.value), area: fmt.dec(l.area, 2) });
       // v3.9.0 (Skeptiker H2) — die laut Rechnung im Zeitraum gezahlten Abschläge
@@ -144,6 +147,11 @@ export function proposalLines(p) {
       const how = from(l.parts);
       return how ? `${text} (${how})` : text;
     }).filter(Boolean);
+  }
+  // v3.12.0 — „Rechnung erfassen“ nennt die Gutschriften, die als Posten in die Rechnung gehen
+  if (p.kind === 'bill') {
+    return (p.data?.items || []).filter(i => i.kind === 'credit')
+      .map(i => t('inbox.line.credit', { label: i.label || t('inbox.option.credit_other'), value: fmt.money(Math.abs(Number(i.amount_eur))) }));
   }
   if ((p.kind === 'contract_price' || p.kind === 'contract_water_price') && (p.params?.parts || []).length > 1) return [from(p.params.parts)];
   if (p.kind === 'contract_water_price' && (p.params?.parts || []).some(x => x.net)) return [from(p.params.parts)];
@@ -233,7 +241,7 @@ export function orderedFields(fields, schema) {
 
 // ── v3.7.0 (Paket betrieb) — Kernaussage und nächster Schritt ─────────────
 
-const ct = (v) => (v === null || v === undefined ? '–' : `${fmt.dec(v, 2)} ct/kWh`);
+const ct = (v) => (v === null || v === undefined ? '–' : `${fmt.dec(v, 2)} ${getCurrencyMinor()}/kWh`);
 
 /**
  * Parameter einer Kernaussage in Text: Tage, Beträge, Preise, Zählerstände.
@@ -338,8 +346,8 @@ export function manualTargets(type, { utility = '', meterId = '', from = '', unt
     bill: `#/bill-check?${q}`,
     contract: `#/utility/${u}/contracts`,
     reading: `#/zaehlerstaende${meterId ? `?meter=${encodeURIComponent(meterId)}` : ''}`,
-    meter: `#/utility/${u}/meters`,
-    reminder: '#/reminders?add=1',
+    meter: `#/household/meters?art=${u}`,
+    reminder: '#/todo/dates?add=1',
   };
   const first = {
     invoice: 'bill', contract_confirmation: 'contract', price_change: 'contract', cancellation: 'contract', advance_change: 'contract',

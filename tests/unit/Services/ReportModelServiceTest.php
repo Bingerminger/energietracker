@@ -172,7 +172,9 @@ final class ReportModelServiceTest extends ServiceTestCase
     /** Heizöl und Pellets (Haupt-Demo): Bestand heute und wie lange er reicht. */
     public function testTanksShowStockAndRange(): void
     {
-        $m = $this->model('demo');
+        // v3.12.0 — fester Stichtag kurz nach dem Stand der Beispieldaten (31.05.2026): Am echten Datum lief
+        // der Tank ohne neue Lieferung irgendwann leer (Bestand 0, keine Reichweite)
+        $m = $this->model('demo', ['today' => '2026-06-15']);
         $pages = array_column($m['pages'], null, 'utility');
         foreach (['heizoel', 'pellets'] as $u) {
             $tank = $pages[$u]['tank'] ?? null;
@@ -278,7 +280,7 @@ final class ReportModelServiceTest extends ServiceTestCase
     /** Mangel 5 — Empfehlungen nur zum Berichtsjahr. */
     public function testAnomaliesOnlyFromTheReportYear(): void
     {
-        $m = $this->model('eigenheim-modern');
+        $m = $this->model('eigenheim-modern', ['today' => '2026-06-15']);   // v3.12.0 — fester Stichtag
         $anomalies = array_filter($m['tasks'], fn($t) => $t['rule'] === 'anomaly');
         self::assertNotEmpty($anomalies, 'die Persona hat einen auffälligen Dezember');
         foreach ($anomalies as $a) {
@@ -397,9 +399,11 @@ final class ReportModelServiceTest extends ServiceTestCase
         self::assertStringContainsString('[4 3] 0 d', $all, 'Prognose bzw. Referenz gestrichelt');
         self::assertStringContainsString(" re W n\n", $all, 'Beschneiden (Saldo um null, Schraffur)');
         foreach ($streams as $i => $s) self::assertSame(substr_count($s, "q\n"), substr_count($s, "Q\n"), "Seite $i: q/Q paarweise");
-        self::assertStringContainsString('/F3 ', $all, 'Symbole aus ZapfDingbats (Ampeln, Prioritäten)');
-        // Seite 1: vier Ampeln mit Symbol plus je ein Prioritätssymbol der drei Aufgaben
-        self::assertGreaterThanOrEqual(7, substr_count($streams[0], '/F3 '), 'Ampeln immer mit Symbol, nie nur Farbe');
+        // v3.12.0 (Sichtung S7) — keine Symbole aus ZapfDingbats mehr: Der Emoji-Test sah sie nicht, weil sie als Name und Zeichencode im PHP stehen
+        self::assertStringNotContainsString('/F3 ', $all, 'keine Symbolschrift im Jahresbericht');
+        self::assertStringNotContainsString('ENERGIETRACKER', $all, 'keine Großschrift');
+        // Seite 1: vier Ampeln mit gezeichneter Grafik (Kreis aus Bézier-Kurven oder Dreieck), nie nur Farbe
+        self::assertGreaterThanOrEqual(4, substr_count($streams[0], " c\n"), 'Ampeln immer mit Grafik');
     }
 
     /** Druckfarben: Farbton der Verbrauchsart, ≥ 3:1 auf Weiß; Ampeln und Vorjahr lesbar. */
@@ -416,7 +420,7 @@ final class ReportModelServiceTest extends ServiceTestCase
         self::assertLessThan(3.0, Chart::contrast(Chart::hexToRgb('#22d3ee'), Chart::PAPER), 'Ausgangslage: Strom ist im Original zu hell');
         foreach (Chart::LEVELS as $name => $lv) {
             self::assertGreaterThanOrEqual(4.5, Chart::contrast($lv['rgb'], Chart::PAPER), "Ampel $name");
-            self::assertArrayHasKey('symbol', $lv, 'Ampel immer mit Symbol');
+            self::assertContains($lv['icon'], \Energietracker\Services\Pdf\Icons::NAMES, 'Ampel immer mit Grafik');
         }
         self::assertGreaterThanOrEqual(3.0, Chart::contrast(Chart::PREV, Chart::PAPER), 'Vorjahr grau, aber erkennbar');
         self::assertGreaterThanOrEqual(4.5, Chart::contrast(Chart::MUTE, Chart::PAPER), 'Achsentexte');

@@ -30,6 +30,7 @@ import {
   findingText, missingText, docStateText, initialSelection, needsConfirm, applyPayload, resultLines, billCheckHref,
   blockedBy, dependentsOf, pickItem, dropBlocked,
 } from '../lib/inbox-draft.js';
+import { icon, artIcon } from '../lib/icons.js';
 
 const BADGE = { new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning', update: 'badge--info' };
 
@@ -62,7 +63,7 @@ export async function render(container) {
   try {
     await load();
   } catch (e) {
-    container.innerHTML = `${header()}<div class="banner banner--error">${esc(t('inbox.loadError', { msg: e.message || e }))}</div>`;
+    container.innerHTML = `${header()}<div class="infobox infobox--fehler">${esc(t('inbox.loadError', { msg: e.message || e }))}</div>`;
     return;
   }
 
@@ -71,7 +72,7 @@ export async function render(container) {
     const byU = draft.utilities.map(k => ({ u: util(k), items: draft.items.filter(i => i.utility === k) }));
     container.innerHTML = `
       ${header()}
-      ${DEMO ? `<div class="banner banner--info">${esc(t('inbox.demo.note'))}</div>` : ''}
+      ${DEMO ? `<div class="infobox infobox--info">${esc(t('inbox.demo.note'))}</div>` : ''}
       <div id="draft-queue">${queueHtml(draft)}</div>
       <div id="draft-result" role="status" aria-live="polite">${result ? resultHtml(result, util) : ''}</div>
       <section class="card draft-summary" id="draft-summary" aria-labelledby="draft-summary-title">
@@ -190,20 +191,20 @@ function header() {
 /** Fortschritt des Auslesens: der Entwurf wächst mit. */
 function queueHtml(draft, run = queueProgress()) {
   if (run.running) {
-    return `<div class="banner banner--info draft-queue" role="status" aria-live="polite">
+    return `<div class="infobox infobox--info draft-queue" role="status" aria-live="polite">
       ${esc(t('inboxDraft.queue.running', { done: run.done + run.failed, total: run.total }))}</div>`;
   }
   const waiting = draft?.queue?.queued || 0;
   if (!waiting) return '';
-  return `<div class="banner banner--info draft-queue">${esc(tp('inbox.queue.waiting', waiting))}
+  return `<div class="infobox infobox--info draft-queue">${esc(tp('inbox.queue.waiting', waiting))}
     <a href="#/inbox">${esc(t('inboxDraft.queue.resume'))}</a></div>`;
 }
 
 function utilityHtml(u, items, draft, sel) {
   const findings = (draft.findings || []).filter(f => f.utility === u.key);
   return `<section class="card draft-utility" data-utility="${esc(u.key)}" aria-labelledby="draft-u-${esc(u.key)}">
-    <h2 class="card__title" id="draft-u-${esc(u.key)}"><span aria-hidden="true">${esc(u.icon || '')}</span> ${esc(u.label)}</h2>
-    ${findings.length ? `<ul class="draft-findings" aria-label="${esc(t('inboxDraft.findings.title'))}">${findings.map(f => `<li>⚠ ${esc(findingText(f))}</li>`).join('')}</ul>` : ''}
+    <h2 class="card__title" id="draft-u-${esc(u.key)}">${artIcon(u)} ${esc(u.label)}</h2>
+    ${findings.length ? `<ul class="draft-findings" aria-label="${esc(t('inboxDraft.findings.title'))}">${findings.map(f => `<li>${icon('achtung', { size: 16 })} ${esc(findingText(f))}</li>`).join('')}</ul>` : ''}
     <ul class="draft-items">${items.map(i => itemHtml(i, u, sel, draft)).join('')}</ul>
   </section>`;
 }
@@ -309,7 +310,7 @@ function resultHtml(res, util) {
   return `<section class="card draft-result" aria-labelledby="draft-result-title">
     <h2 class="card__title" id="draft-result-title">${esc(t('inboxDraft.result.title'))}</h2>
     ${lines.length ? `<ul>${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : `<p>${esc(t('inboxDraft.result.nothing'))}</p>`}
-    ${res.failed?.length ? `<div class="banner banner--warning"><p>${esc(tp('inboxDraft.toast.partly', res.failed.length))}</p>
+    ${res.failed?.length ? `<div class="infobox infobox--achtung"><p>${esc(tp('inboxDraft.toast.partly', res.failed.length))}</p>
       <ul>${res.failed.map(f => `<li>${esc(f.error || '')}</li>`).join('')}</ul></div>` : ''}
     ${res.bills?.length ? `<p>${res.bills.map(b => `<a class="btn btn--ghost btn--sm" href="${esc(billCheckHref(b))}">${esc(t('inboxDraft.result.billCheck', { utility: util(b.utility).label,
       from: fmtDate(b.period_from), to: fmtDate(b.period_to) }))}</a>`).join(' ')}</p>` : ''}

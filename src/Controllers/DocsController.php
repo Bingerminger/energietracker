@@ -44,6 +44,8 @@ final class DocsController
             header('Content-Type: ' . $asset['type']);
             header('Content-Length: ' . (string)filesize($asset['file']));
             header('X-Content-Type-Options: nosniff');
+            // v3.12.0 — SVG ist auch ein Dokument: direkt geöffnet darf es nichts tun außer sich zeichnen
+            if ($asset['type'] === 'image/svg+xml') header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox");
             header('Cache-Control: ' . ($current ? 'private, max-age=31536000, immutable' : 'private, no-cache'));
         }
         readfile($asset['file']);

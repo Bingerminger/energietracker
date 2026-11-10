@@ -67,7 +67,8 @@ Container heraus auf deinen Host „spiegeln"** — das nennt man ein *Volume*.
 `$PWD/data` ist der Unterordner `data` im aktuellen Verzeichnis. Liegt deine
 Energietracker-Daten also immer dort, egal wie oft du den Container neu baust.
 
-> ⚠️ **Ohne `-v`-Volume sind deine Daten weg, sobald der Container gelöscht
+> [!WARNING]
+> **Ohne `-v`-Volume sind deine Daten weg, sobald der Container gelöscht
 > wird.** Immer ein Volume mounten.
 
 ### Ordner oder Named Volume?
@@ -76,7 +77,7 @@ Energietracker-Daten also immer dort, egal wie oft du den Container neu baust.
   JSON-Dateien liegen sichtbar auf dem Host — praktisch auf einem NAS.
 - **Named Volume** (`-v energietracker-data:/data`): Docker verwaltet den
   Speicher selbst. Die Daten überleben Updates genauso; gesichert wird über die
-  App (Einstellungen → Daten → JSON-Backup herunterladen).
+  App (Einstellungen → Daten und Sicherung → JSON-Backup herunterladen).
 
 > **Docker Desktop (Mac, Windows):** Ein Ordner unter dem Benutzerverzeichnis
 > lässt sich nur einbinden, wenn er unter Settings → Resources → File sharing
@@ -144,7 +145,8 @@ Zeile für Zeile:
 | `-v "$PWD/data:/data"` | Daten-Volume (siehe oben) |
 | `…/energietracker:3` | das Image samt Tag: `:3` bleibt bei der neuesten 3.x und springt nicht ungefragt auf eine neue Hauptversion; `:latest` immer das Neueste, `:3.5.1` eine feste Version |
 
-> ⚠️ **Lässt du `--name energietracker` weg, vergibt Docker einen zufälligen
+> [!WARNING]
+> **Lässt du `--name energietracker` weg, vergibt Docker einen zufälligen
 > Namen** wie `thirsty_archimedes`. Mit `--name` heißt der Container immer
 > `energietracker` — übersichtlicher bei `docker ps`, `docker logs` usw.
 
@@ -253,7 +255,7 @@ Dort ist Energietracker noch nicht gelistet.
   meldet sich bei Umbrel an.
 - Ausnahme ist der Home-Assistant-Push: `/api/ingest` und `/api.php/api/ingest`
   stehen in `PROXY_AUTH_WHITELIST` und sind ohne Umbrel-Cookie erreichbar.
-  Erzeuge deshalb in der App einen Ingest-Token (Einstellungen → Integrationen),
+  Erzeuge deshalb in der App einen Ingest-Token (Verbindungen → Home Assistant),
   sonst kann jeder im Netz Zählerstände schicken.
 - Alle anderen Pfade verlangen die Umbrel-Anmeldung, auch `/api/summary`
   (Werte zurück nach Home Assistant) und das Kalender-Abo. Wer sie von außen
@@ -318,11 +320,11 @@ Beim allerersten Start mit leerem `data`-Volume legt Energietracker ein
 frisches, leeres Datenverzeichnis an. Möchtest du zum Ausprobieren die
 **Demo-Daten** sehen, gibt es zwei Wege:
 
-1. **Komfortabel (ab v1.7.4) in der UI:** *Einstellungen → Daten → Backup &
+1. **Komfortabel (ab v1.7.4) in der UI:** *Einstellungen → Daten und Sicherung → Backup &
    Wiederherstellung → „Demo-Daten laden"*.
 2. **Manuell jetzt schon:** das mitgelieferte
    [`demo-data/energietracker-demo-backup.json`](../../demo-data/energietracker-demo-backup.json)
-   über *Einstellungen → Daten → Backup & Wiederherstellung → Backup importieren*
+   über *Einstellungen → Daten und Sicherung → Backup & Wiederherstellung → Backup importieren*
    hochladen. Vorher wird automatisch ein Sicherungs-Snapshot deiner aktuellen
    Daten angelegt (N1004).
 
@@ -364,6 +366,7 @@ docker run -e ET_LOG_LEVEL=debug …   # bzw. in docker-compose.yml unter enviro
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* wie lange eine schreibende Anfrage auf die Schreibsperre wartet (1–120 s), danach `503` mit `Retry-After` |
 | `ET_INBOX_DIR` | *(leer = `<dataDir>/posteingang`)* | *(v3.9.0)* eigener [überwachter Ordner](../anleitungen/posteingang.md#überwachter-ordner) für den Posteingang, absoluter Pfad, auch außerhalb des Datenverzeichnisses (die App für Home Assistant setzt `/share/energietracker/posteingang`). Das Image legt ihn beim Start an und gibt ihn `www-data`; ohne root (Variante `rootless`) muss er für den Benutzer des Containers beschreibbar sein |
 | `ET_CA_FILE` | *(leer)* | *(v3.10.0)* eigenes Stammzertifikat (PEM-Datei im Container, auch mehrere Zertifikate) für Verbindungen ins Heimnetz: Home Assistant, Texterkennung, Auslesen im Heimnetz, evcc. Gilt **zusätzlich** zu den Stammzertifikaten des Images, die Prüfung bleibt an; die Datei nur lesend einhängen. Dasselbe geht in den Einstellungen (`home_ca_pem`), siehe [Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100) |
+| `ET_MCP` | *(leer)* | *(v3.12.0)* `off` (auch `0`, `false`, `no`) sperrt die [KI-Schnittstelle](../anleitungen/ki-assistent.md) fest, auch wenn der Schalter in den Einstellungen an ist; leer = der Schalter entscheidet (ab Werk aus) |
 | `ET_FRAME_ANCESTORS` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (z. B. das Home-Assistant-Dashboard) |
 | `ET_DEBUG` | *(leer)* | *(v2.6.0)* `1` = Datei/Zeile in Fehlerantworten — nur kurz zur Fehlersuche |
 
@@ -421,7 +424,7 @@ Container dann als *unhealthy*.
 
 ## Updates durchführen
 
-1. **Backup ziehen:** *Einstellungen → Daten → Backup & Wiederherstellung →
+1. **Backup ziehen:** *Einstellungen → Daten und Sicherung → Backup & Wiederherstellung →
    JSON-Backup herunterladen*. Das ist dein Rückweg — eine Schema-Migration
    lässt sich nicht umkehren.
 2. **CHANGELOG lesen:** Was unter „Migration" steht, betrifft dich.
@@ -455,13 +458,13 @@ bis v2.5.3 still auf das alte Schema zurückzustempeln.
 
 ## Daten sichern & wiederherstellen
 
-- **Sichern:** *Einstellungen → Daten → Backup & Wiederherstellung → JSON-Backup
+- **Sichern:** *Einstellungen → Daten und Sicherung → Backup & Wiederherstellung → JSON-Backup
   herunterladen* lädt eine JSON-Datei mit all deinen Daten herunter.
 - **Wiederherstellen:** dieselbe Stelle → *Backup importieren*. Seit v2.6.0
   prüft die App das Backup zuerst vollständig und zeigt eine Vorschau; ein
   fehlerhaftes Backup ändert nichts. Vor dem Überschreiben legt Energietracker
   automatisch einen Snapshot an.
-- **Snapshots** (seit v2.6.0): *Einstellungen → Daten → Backup &
+- **Snapshots** (seit v2.6.0): *Einstellungen → Daten und Sicherung → Backup &
   Wiederherstellung → Gespeicherte Snapshots* listet sie mit Zeitpunkt und
   Anlass; von dort herunterladen, einspielen oder löschen. Automatische
   Snapshots räumt die App nach 30 Tagen auf (mindestens drei je Anlass
@@ -472,7 +475,7 @@ bis v2.5.3 still auf das alte Schema zurückzustempeln.
   `data/attachments/` und stehen in jedem Backup und jedem Snapshot. Das
   Volume wächst deshalb mit jedem Foto — einmal für die Datei, einmal je
   Snapshot in `data/backups/`. Wie viel die Belege belegen, zeigt
-  Einstellungen → Daten über den Backup-Knöpfen; die Obergrenze setzt
+  Einstellungen → Daten und Sicherung über den Backup-Knöpfen; die Obergrenze setzt
   `attachments_max_mb` (Standard 500 MB).
 
 ---
@@ -649,10 +652,14 @@ Prozess mit UID 0 läuft.
   deine UID und Gruppe) — dann muss der Ordner dieser UID gehören. Mit
   Gruppe `0` (`user: "1234:0"`, wie OpenShift es vergibt) schreibt jede UID
   auch in ein frisches Named Volume.
+- **UID wechseln:** Dateien mit Geheimnissen (`auth.json` und zwei weitere)
+  liest seit v3.12.0 nur ihr Besitzer (Rechte `0600`, [Sicherheit § 10](sicherheit.md#10-protokoll-und-fehlersuche)).
+  Wer einem bestehenden Volume eine andere UID gibt, übergibt den Ordner
+  vorher mit `chown -R <uid>:0`, wie beim Wechsel vom Standard-Image (unten).
 
 **Vom Standard-Image wechseln:**
 
-1. Backup ziehen (*Einstellungen → Daten → JSON-Backup herunterladen*).
+1. Backup ziehen (*Einstellungen → Daten und Sicherung → JSON-Backup herunterladen*).
 2. Container stoppen: `docker compose down`.
 3. Den vorhandenen Datenordner übergeben — bisher gehört er `www-data`
    (UID 82):

@@ -42,6 +42,19 @@ export function presetLocale(lang) {
   if (/^[a-z]{2}$/.test(loc)) locale = loc;
 }
 
+/**
+ * v3.12.0 (Sichtung S10) — welche Sprache gilt und warum. Die eine Reihenfolge für den Start der App und die Anzeige unter
+ * Einstellungen: zuerst die eigene Wahl der angemeldeten Person (auf allen ihren Geräten), dann die Wahl auf diesem Gerät,
+ * dann die Vorgabe der Installation.
+ * @param {{person?: ?string, device?: ?string, installation?: ?string}} sources
+ * @returns {{lang: ?string, source: 'person'|'device'|'installation'}}
+ */
+export function resolveLanguage({ person = null, device = null, installation = null } = {}) {
+  if (person) return { lang: person, source: 'person' };
+  if (device) return { lang: device, source: 'device' };
+  return { lang: installation, source: 'installation' };
+}
+
 /** @param {string|null} lang  null = der Installation folgen */
 export function setDeviceLanguage(lang) {
   try {

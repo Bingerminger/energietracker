@@ -53,10 +53,10 @@ dann auf Fernwärme ([§5](#5-co₂--eine-näherung)). Die Verbrauchsart
 [Fernwärme](04-fernwaerme.md) ist für den eigenen Liefervertrag. Alle drei Fälle
 als Beispielhaushalt: [Anwendungsfall F](../anleitungen/anwendungsfaelle.md#f--fernwärme-oder-heizwärme).
 
-**Einschalten:** Einstellungen → Verbrauchsarten & Abrechnung → Aktive
+**Einschalten:** Haushalt → Verbrauchsarten → Aktive
 Verbrauchsarten → **Heizwärme**. Die Datentöpfe (`data/waerme/`) legt die
 Schema-Stufe 1.7.0 leer an, auch in bestehenden Installationen. Einen
-Standardzähler gibt es nicht: Lege ihn unter Verbrauch → Heizwärme → Zähler
+Standardzähler gibt es nicht: Lege ihn unter Haushalt → Zähler → Heizwärme
 an.
 
 Die App rechnet Heizwärme in kWh und rechnet keine anderen Einheiten um.
@@ -140,7 +140,7 @@ CSV-Monatsübersicht, Jahresbericht.
   Arten gibt es nur eine Einheit.
 - **Ablesung fällig:** Die Erinnerung „Zählerstand ablesen“ (Zu tun, Kalender)
   richtet sich nach dem **Ende des letzten Zeitraums**, mit derselben Frist
-  wie bei Ständen (Einstellungen → Allgemein → „Warnung nach“, Standard 45
+  wie bei Ständen (Einstellungen → Anzeige und Erinnerungen → „Warnung nach“, Standard 45
   Tage).
 
 ---
@@ -156,7 +156,7 @@ beim Strom die frühere Checkbox „Heizstrom (Wärmepumpe)“.
 |---|---|---|
 | Strom | Haushalt · **Wärmepumpe (Heizstrom)** · **Wallbox** | Wärmepumpe zählt in der Effizienzkennzahl als Heizenergie; Wallbox bekommt den [Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md); beide stehen nicht im Haushaltsstrom der Einordnung |
 | Wasser | Kaltwasser · **Warmwasser** · Garten | Warmwasser: Wärme dafür als Rechenwert ([Wasser](03-wasser.md#wärme-für-das-warmwasser-v310)) |
-| PV-Erzeugung | Erzeugung · **Speicher – Ladung** · **Speicher – Entladung** | Speicher zählen nicht zur Erzeugung und nicht in Summen, sondern nur in der Karte „Speicher“ ([PV §7](12-pv.md#7-speicher-v310)) |
+| PV-Erzeugung | Erzeugung · **Speicher (Ladung)** · **Speicher (Entladung)** | Speicher zählen nicht zur Erzeugung und nicht in Summen, sondern nur in der Karte „Speicher“ ([PV §7](12-pv.md#7-speicher-v310)) |
 | Heizwärme | **Verbrauch der Wohnung** · **Wärmemenge der Wärmepumpe** | Verbrauch der Wohnung zählt als Heizenergie; die Wärmemenge der Wärmepumpe zählt weder in Summen noch in der Effizienzkennzahl, sondern ergibt mit dem Strom die Jahresarbeitszahl ([§7](#7-jahresarbeitszahl-der-wärmepumpe-v310)) |
 
 - Ohne Angabe gilt die **erste Rolle** der Art; sie wird nicht eigens
@@ -184,7 +184,7 @@ Die **Wärmemenge der Wärmepumpe** zählt nicht: Die Wärmepumpe steht schon mi
 ihrem Strom (Rolle „Wärmepumpe“ am Stromzähler) in der Kennzahl. Zählte ihre
 Wärme dazu, stünde dieselbe Heizung doppelt da.
 
-Die Fläche kommt aus Einstellungen → Haushalt & Gebäude → Wohnfläche. Die
+Die Fläche kommt aus Haushalt → Gebäude → Wohnfläche. Die
 Effizienzklassen sind für Gebäude gedacht; für eine einzelne Wohnung in einem
 größeren Haus ist die Kennzahl ein Anhaltspunkt — Lage im Haus und Nachbarn
 spielen mit.
@@ -194,7 +194,7 @@ spielen mit.
 ## 5. CO₂ — eine Näherung
 
 Heizwärme hat keinen eigenen CO₂-Faktor. Der Wert kommt vom **Energieträger
-der Heizung**: Einstellung `waerme_energietraeger` (Einstellungen → Haushalt &
+der Heizung**: Einstellung `waerme_energietraeger` (Haushalt →
 Gebäude → „Wohnen und Warmwasser“ → „Heizwärme kommt aus“) — Gas, Heizöl,
 Holzpellets, Fernwärme oder Strom. Die App nimmt dessen Faktor, beim Strom den
 des jeweiligen Jahres.

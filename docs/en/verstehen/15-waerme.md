@@ -50,10 +50,10 @@ then set to district heating ([§5](#5-co₂--an-approximation)). The utility
 [District heating](04-fernwaerme.md) is for a supply contract of your own. All
 three cases as sample households: [use case F](../anleitungen/anwendungsfaelle.md#f--district-heating-or-heat).
 
-**Switching it on:** Settings → Utilities & billing → Active utilities →
+**Switching it on:** Household → Utilities → Active utilities →
 **Heat**. Schema step 1.7.0 creates the data pots (`data/waerme/`) empty, also
 in existing installations. There is no default meter: create it under
-Consumption → Heat → Meters.
+Household → Meters → Heat.
 
 The app keeps heat in kWh and does not convert other units.
 
@@ -135,7 +135,7 @@ contracts), CSV monthly overview, annual report.
   for the bill check and the CSV. All other utilities have only one unit.
 - **Reading due:** the reminder “take a meter reading” (To do, calendar) follows
   the **end of the last period**, with the same limit as for readings
-  (Settings → General → “Warn after”, default 45 days).
+  (Settings → Display and reminders → “Warn after”, default 45 days).
 
 ---
 
@@ -150,7 +150,7 @@ checkbox “Heating electricity (heat pump)”.
 |---|---|---|
 | Electricity | Household · **Heat pump (heating electricity)** · **Wallbox (EV charger)** | Heat pump counts as heating energy in the efficiency figure; the wall box gets the [charging record](../anleitungen/ladestrom-nachweis.md); neither is part of household electricity in the benchmark |
 | Water | Cold water · **Hot water** · Garden | Hot water: the heat for it as a calculated value ([Water](03-wasser.md#heat-for-the-hot-water-v310)) |
-| PV generation | Generation · **Battery – charging** · **Battery – discharging** | batteries count neither as generation nor in sums, only in the card “Battery” ([PV §7](12-pv.md#7-battery-v310)) |
+| PV generation | Generation · **Battery (charging)** · **Battery (discharging)** | batteries count neither as generation nor in sums, only in the card “Battery” ([PV §7](12-pv.md#7-battery-v310)) |
 | Heat | **Home consumption** · **Heat pump output** | home consumption counts as heating energy; heat pump output counts neither in sums nor in the efficiency figure, but gives the seasonal performance factor together with the electricity ([§7](#7-seasonal-performance-factor-of-the-heat-pump-v310)) |
 
 - Without a role the **first role** of the utility applies; it is not stored
@@ -177,7 +177,7 @@ The **heat pump output** does not count: the heat pump is already in the figure
 with its electricity (role “Heat pump” on the electricity meter). If its heat
 counted as well, the same heating would appear twice.
 
-The area comes from Settings → Household & building → Living area. The
+The area comes from Household → Building → Living area. The
 efficiency classes are meant for buildings; for a single flat in a larger
 building the figure is a rough guide — position in the building and neighbours
 play a part.
@@ -187,7 +187,7 @@ play a part.
 ## 5. CO₂ — an approximation
 
 Heat has no CO₂ factor of its own. The value comes from the **energy source of
-the heating**: setting `waerme_energietraeger` (Settings → Household & building
+the heating**: setting `waerme_energietraeger` (Household → Building
 → “Home and hot water” → “Heat comes from”) — gas, heating oil, wood pellets,
 district heating or electricity. The app takes that source’s factor, for
 electricity the one of the respective year.

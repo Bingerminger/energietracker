@@ -18,6 +18,9 @@
 //     in `concepts-<lang>.json` (je Haushalt und Sprache, die Namen sind
 //     übersetzt); ein anderer Aufbau → „nur für den Aufbau des Haushalts“,
 //     „Anlegen“ → „nichts gespeichert“
+//   • v3.12.0 — nach jedem Release beginnt die Demo für jeden bei null
+//     (demoFreshStart), und jede Datei unter demo-api/ trägt die Marke des Baus
+//     (`?b=<built_at>`), damit ein neuer Bau nie aus dem Browser-Cache kommt
 //
 // Eine normale Installation führt diesen Code nie aus: Er greift nur, wenn
 // die Seite `data-demo` trägt (das setzt index.php allein mit ET_DEMO_BUILD).
@@ -34,6 +37,15 @@ const LANG_KEY = 'et-demo-lang';
 // v3.2.0 (F1018) — gewählter Beispielhaushalt (Einrichtungsassistent)
 const PERSONA_KEY = 'et-demo-persona';
 const PERSONAS = ['mieterin', 'etw-fernwaerme', 'eigenheim-klassisch', 'eigenheim-modern', 'showcase'];
+// v3.12.0 — die Version, mit der dieser Browser die Demo zuletzt gesehen hat
+const VERSION_KEY = 'et-demo-version';
+/**
+ * v3.12.0 — So beginnt jeder Schlüssel, den die Oberfläche im Browser ablegt (tests/demo-start.test.mjs
+ * prüft alle Fundstellen). Kein `clear()`: Der Ursprung auf GitHub Pages gehört allen Seiten des Kontos.
+ */
+export const STORAGE_PREFIXES = ['et-', 'et.'];
+/** v3.12.0 — wie lange der Start auf meta.json wartet; danach läuft die Demo mit dem, was im Browser steht. */
+export const META_TIMEOUT_MS = 3000;
 
 /**
  * Beispielhaushalt der Demo: `?persona=` vor gespeicherter Wahl, sonst
@@ -68,11 +80,18 @@ if (DEMO && typeof window !== 'undefined') window.__etDemoMisses = demoMisses;
 const indexes = new Map();
 let metaPromise = null;
 
-function loadJson(url) {
-  return fetch(url).then(r => {
-    if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-    return r.json();
-  });
+// v3.12.0 — Marke des Baus aus meta.json (`built_at`); leer, solange sie fehlt
+let buildMark = '';
+/** Adresse einer Datei unter demo-api/ mit der Marke des Baus. `demoKey` und die Indexe kennen sie nicht. */
+function marked(url) {
+  return buildMark ? `${url}${url.includes('?') ? '&' : '?'}b=${buildMark}` : url;
+}
+
+async function loadJson(url) {
+  await demoMeta();   // erst die Marke, damit auch die allererste Antwort vom neuen Bau kommt
+  const r = await fetch(marked(url));
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  return r.json();
 }
 
 // v3.4.0 (N1019) — Handbuch: Seiten und Bilder sind in allen Haushalten und
@@ -86,7 +105,7 @@ function loadDocsIndex() {
 
 /** Bild der Doku in der Demo: fertige Datei statt /api/docs/asset. */
 export function demoDocAssetUrl(path) {
-  return `${ROOT}/docs/${String(path).split('/').map(encodeURIComponent).join('/')}`;
+  return marked(`${ROOT}/docs/${String(path).split('/').map(encodeURIComponent).join('/')}`);
 }
 
 function loadIndex(lang) {
@@ -129,10 +148,75 @@ function loadScenarioIndex() {
   return scenarioIndexes.get(p);
 }
 
-/** Bautag und Version der Demo: `{ built_at, today, version, languages }`. */
+/**
+ * Bautag und Version der Demo: `{ built_at, today, version, languages }`.
+ * v3.12.0 — am Cache vorbei (GitHub Pages schickt `max-age=600`), mit Zeitgrenze;
+ * nicht erreichbar: `{}`, die Demo läuft trotzdem.
+ */
 export function demoMeta() {
-  metaPromise ??= loadJson(`${ROOT}/meta.json`).catch(() => ({}));
+  metaPromise ??= (async () => {
+    const stop = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = setTimeout(() => stop?.abort(), META_TIMEOUT_MS);
+    try {
+      const r = await fetch(`${ROOT}/meta.json`, { cache: 'no-cache', signal: stop?.signal });
+      if (!r.ok) throw new Error(`meta.json: HTTP ${r.status}`);
+      const meta = await r.json();
+      buildMark = encodeURIComponent(String(meta?.built_at ?? ''));
+      return meta ?? {};
+    } catch {
+      return {};
+    } finally {
+      clearTimeout(timer);
+    }
+  })();
   return metaPromise;
+}
+
+/** Alle Schlüssel der Oberfläche aus einem Speicher (fremde bleiben). */
+function clearStored(storage) {
+  const mine = [];
+  for (let i = 0; i < storage.length; i++) {
+    const k = storage.key(i);
+    if (k !== null && STORAGE_PREFIXES.some(p => k.startsWith(p))) mine.push(k);
+  }
+  mine.forEach(k => storage.removeItem(k));
+}
+
+/**
+ * v3.12.0 — Die Demo beginnt nach jedem Release bei null. Sie merkt sich Haushalt, Stufe, Sprache,
+ * ausgeblendete Hinweise und mehr im Browser. Wer sie einmal besucht hat, sah neue Funktionen sonst
+ * nie: Die Beispiele für die Hauptfunktion stehen im Schaufenster, der gemerkte Haushalt blieb.
+ *
+ * Läuft vor dem ersten Lesen dieser Wahlen (app.js). Weicht die Version in meta.json von der
+ * gemerkten ab, ist alles weg, der Einrichtungsassistent startet wie beim ersten Besuch; `?persona=` und
+ * `?lang=` in der Adresse gelten danach wie immer. Speicher gesperrt oder meta.json nicht erreichbar:
+ * Es bleibt, wie es ist. Eine Installation läuft nie hierdurch (`DEMO`, app.js).
+ * @returns {Promise<boolean>} zurückgesetzt?
+ */
+export async function demoFreshStart() {
+  const version = (await demoMeta())?.version;
+  if (!version) return false;
+  try {
+    if (localStorage.getItem(VERSION_KEY) === version) return false;
+    clearStored(localStorage);
+    localStorage.setItem(VERSION_KEY, version);
+  } catch {
+    return false;   // Speicher gesperrt: dann merkt sich die Demo ohnehin nichts
+  }
+  try { clearStored(sessionStorage); } catch { /* gesperrt: dort liegt nur eine Meldung von vor einem Neustart */ }
+  return true;
+}
+
+/**
+ * v3.12.0 — Hauptfunktion des laufenden Release für die Hinweisleiste (Text `demo.news`).
+ * Beim Release mitziehen. Passt die Version nicht mehr, schweigt die Zeile, statt Altes als neu zu nennen.
+ */
+export const DEMO_NEWS = { version: '3.12', href: '#/connections/ai?mcp=value' };
+
+/** Zeile „Neu in vX.Y“ für diese Version oder null. */
+export function demoNews(version, news = DEMO_NEWS) {
+  const v = String(version ?? '');
+  return v === news.version || v.startsWith(`${news.version}.`) ? news : null;
 }
 
 function demoError(code, status = 0) {
@@ -197,7 +281,7 @@ export async function demoRequest(method, path, lang, body = null) {
 
 /** Datei-Downloads (CSV, PDF) als fertige Datei je Sprache, s. demoFileName(). */
 export function demoFileUrl(path, lang) {
-  return `${personaRoot()}/files/${lang}/${demoFileName(path)}`;
+  return marked(`${personaRoot()}/files/${lang}/${demoFileName(path)}`);
 }
 
 /** Sprache der Demo: `?lang=` vor gespeicherter Wahl vor Browser. */
@@ -270,6 +354,17 @@ export async function mountDemoUi({ languages, locale, formatDate }) {
   const text = document.createElement('p');
   text.className = 'demo-bar__text';
   text.textContent = t('demo.text', { date: meta.today ? formatDate(meta.today) : '' });
+  // v3.12.0 — „Neu in vX.Y“: führt von der Leiste zur Hauptfunktion des Release
+  const fresh = demoNews(meta.version);
+  const news = fresh ? document.createElement('p') : null;
+  if (news) {
+    news.className = 'demo-bar__news';
+    news.dataset.role = 'demo-news';
+    const a = document.createElement('a');
+    a.href = fresh.href;
+    a.textContent = t('demo.news', { version: fresh.version });
+    news.append(a);
+  }
   const select = document.createElement('select');
   select.className = 'demo-bar__lang';
   select.setAttribute('aria-label', t('demo.language'));
@@ -297,6 +392,7 @@ export async function mountDemoUi({ languages, locale, formatDate }) {
   close.setAttribute('aria-label', t('demo.close'));
   close.textContent = '×';
   bar.append(text, select, link, close);
+  if (news) bar.prepend(news);
   document.body.append(bar);
 
   const chip = document.createElement('button');

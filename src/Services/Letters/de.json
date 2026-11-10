@@ -47,6 +47,13 @@
       { "opt": "{reasons}" },
       "Ich bitte Sie, den Abschlag ab dem {next_due} auf {amount_eur} festzusetzen und mir den neuen Abschlagsplan zu senden."
     ],
+    "body_contract": [
+      "ich bitte Sie, den Abschlag für meinen Vertrag ab dem {next_due} auf {amount_eur} je {rhythm} festzusetzen und mir den neuen Abschlagsplan zu senden.",
+      { "opt": "Bisher zahle ich {rate_eur} je {rhythm}." },
+      { "opt": "Mein Verbrauch im Abrechnungszeitraum vom {period_from} bis {period_to} betrug {quantity} {unit}." },
+      { "opt": "Nach {norms} richtet sich der Abschlag nach dem Verbrauch im zuletzt abgerechneten Zeitraum." },
+      { "opt": "{reasons}" }
+    ],
     "prices_now": "den aktuellen Preisen",
     "prices_from": "den Preisen ab dem {next_due}",
     "prices": " ({working_price}, {base_price})",
@@ -109,5 +116,16 @@
     "file": " ({file_label} {file_number})",
     "reason": "Zur Begründung: {reason}",
     "suspend": "Zugleich beantrage ich, die Vollziehung des Bescheids bis zur Entscheidung über den Widerspruch auszusetzen."
+  },
+  "termination": {
+    "subject": "Kündigung zum nächstmöglichen Termin",
+    "body": [
+      "hiermit kündige ich meinen Vertrag{tariff} über die Lieferung von {supply} ordentlich zum nächstmöglichen Termin.",
+      "Nach meinen Unterlagen ist das der {term_date}.",
+      { "opt": "Mein Zählerstand am {reading_date}: {reading_value} {unit}. Bitte legen Sie ihn der Schlussrechnung zugrunde." },
+      "Bitte bestätigen Sie mir die Kündigung und das Vertragsende in Textform."
+    ],
+    "tariff": " „{tariff}“",
+    "supply": { "strom": "Strom", "gas": "Gas", "fernwaerme": "Fernwärme" }
   }
 }

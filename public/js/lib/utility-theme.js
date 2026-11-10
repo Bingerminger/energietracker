@@ -92,19 +92,10 @@ export function applyUtilityTheme(utilities) {
 
     rules.push(
       // Bindung für alles, was innerhalb eines [data-utility]-Containers
-      // schlicht var(--util) nutzt (Subzähler-Rand, .btn--util, Tags …).
+      // schlicht var(--util) nutzt (Abzeichen, Schaubilder).
       `[data-utility="${key}"] { --util: var(--util-${key}); --util-soft: var(--util-${key}-soft); --util-fg: var(--util-${key}-fg); }`,
-      // Buttons in Utility-Tönung
-      `.btn-${key} { background: var(--util-${key}-soft); border-color: color-mix(in srgb, var(--util-${key}) 32%, transparent); color: var(--util-${key}); }`,
-      `.btn-${key}:hover { background: var(--util-${key}); color: var(--util-${key}-fg); }`,
-      // KPI-Kachel-Akzent
-      `.kpi.c-${key} { --kpi-c: var(--util-${key}); }`,
-      // Karte mit farbigem linken Rand
-      `.card--${key} { border-left: 3px solid var(--util-${key}); }`,
-      // Aktive Jahres-Pille
-      `.year-pills .pill.active.${key} { background: var(--util-${key}); border-color: var(--util-${key}); color: var(--util-${key}-fg); }`,
-      // Aktiv-Marker in der Seitenleiste
-      `.sidebar__item[data-utility="${key}"].active::before { background: var(--util-${key}); }`
+      // v3.12.0 — die Grafik der Verbrauchsart trägt ihre Farbe (lib/icons.js: artIcon)
+      `.art-${key} { --c: var(--util-${key}); }`
     );
   }
 

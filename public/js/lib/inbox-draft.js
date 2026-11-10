@@ -7,7 +7,7 @@
 // (tests/inbox-draft.test.mjs).
 // =====================================================================
 
-import { t, tp } from './i18n.js';
+import { t, tp, getCurrencyMinor } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
 import { resultText } from './inbox.js';
 import { proposalNotes } from './inbox-marks.js';
@@ -55,7 +55,7 @@ export function valueText(f, v = f.value, { unit = '' } = {}) {
       const rhythm = f.row ? advanceRhythm(f.row.every_months, f.row.due_dates) : '';
       return rhythm ? `${fmt.money(v)}, ${rhythm}` : fmt.money(v);
     }
-    case 'price_ct': return `${fmt.dec(v, 4)} ct/kWh`;
+    case 'price_ct': return `${fmt.dec(v, 4)} ${getCurrencyMinor()}/kWh`;
     case 'factor': return t('inboxDraft.value.factor', { z: fmt.dec(v.z, 4), hs: fmt.dec(v.hs, 3), factor: fmt.dec(v.z * v.hs, 4) });
     case 'enum': return t(`inbox.option.${v}`);
     case 'number': {

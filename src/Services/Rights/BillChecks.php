@@ -356,7 +356,9 @@ final class BillChecks
         $standKey = in_array($u, ['gas', 'wasser'], true) ? 'm3' : 'kwh';
         $perUnit = null; $kwhPerM3 = null;
         try {
-            $bd = $this->consumption->billBreakdown($u, $m, (string)$b['period_from'], self::dayAfter($to));
+            // v3.12.0 — am Stichtag der Prüfung (bis v3.11 am echten Datum)
+            $bd = $this->consumption->atDate($this->today ?: null,
+                fn() => $this->consumption->billBreakdown($u, $m, (string)$b['period_from'], self::dayAfter($to)));
             $qty = (float)($bd['totals'][$standKey] ?? 0);
             if ($qty > 0 && is_numeric($bd['totals']['energy_cost'] ?? null) && (float)$bd['totals']['energy_cost'] > 0) $perUnit = (float)$bd['totals']['energy_cost'] / $qty;
             if ($u === 'gas' && $qty > 0 && (float)($bd['totals']['kwh'] ?? 0) > 0) $kwhPerM3 = (float)$bd['totals']['kwh'] / $qty;
@@ -417,11 +419,12 @@ final class BillChecks
         // Prüfbericht 47); eine formlose Rückfrage wahrt dessen Frist nicht, also kein Rückfrage-Brief
         $n = (array)($b['notice'] ?? []);
         if ($u === 'wasser' && !empty($n['public_law']) && Dates::isIsoDate($n['dated_on'] ?? null)) {
-            $fd = Rights::feeNoticeDeadline($country, (string)$n['dated_on'], Dates::isIsoDate($n['served_on'] ?? null) ? (string)$n['served_on'] : null);
+            // v3.12.0 — dieselbe Frist wie A7: mit „Erhalten am“, „abgelaufen“ erst nach der Weichzone
+            $fd = self::noticeDeadline($country, $b);
             $rules = ['de.vwgo.70.1', 'de.vwvfg.41.2'];
             $params['deadline'] = $fd['deadline'] ?? null;
             $facts['fee_notice_deadline'] = $fd['deadline'] ?? null;
-            $textKey = $fd !== null && $fd['deadline'] < $this->today ? 'rights.estimate.textNoticeExpired' : 'rights.estimate.textNotice';
+            $textKey = $fd !== null && $fd['soft_until'] < $this->today ? 'rights.estimate.textNoticeExpired' : 'rights.estimate.textNotice';
             $letter = null;
         }
         return [
@@ -487,7 +490,7 @@ final class BillChecks
             $device = (string)$dm['metering_device'];
             $contract = $this->contractOfBill($u, $b);
             $para14a = $contract !== null && !empty($contract['grid_reduction']);
-            [$kwhYear, $kwhBasis] = $device === 'imsys' ? $this->annualKwh($meters, $b) : [null, null];
+            [$kwhYear, $kwhBasis] = $device === 'imsys' ? $this->annualKwh($meters, $b, $today) : [null, null];
             if ($device === 'imsys' && $kwhYear === null) continue;
             // Tage je Tabelle (Fassung), nur ab dem Beginn der hinterlegten Tabellen
             $starts = array_values(array_unique(array_filter(array_column(Rights::METERING_CAPS[$country], 'from'), fn($d) => $d > $from && $d <= $to)));
@@ -549,11 +552,11 @@ final class BillChecks
      * @param list<array<string,mixed>> $meters
      * @return array{0: ?float, 1: ?string} [kWh, Grundlage years|bill]
      */
-    private function annualKwh(array $meters, array $b): array
+    private function annualKwh(array $meters, array $b, string $today): array
     {
         $byYear = [];
         foreach ($meters as $m) {
-            foreach ($this->consumption->forMeter('strom', $m) as $row) {
+            foreach ($this->consumption->forMeter('strom', $m, null, $today) as $row) {   // v3.12.0 — am Stichtag der Prüfung
                 $ym = (string)($row['ym'] ?? '');
                 if (strlen($ym) !== 7 || !is_numeric($row['kwh'] ?? null)) continue;
                 $byYear[substr($ym, 0, 4)][(string)$m['id']][$ym] = (float)$row['kwh'];
@@ -570,7 +573,8 @@ final class BillChecks
         if ($last !== []) return [array_sum($last) / count($last), 'years'];
         $kwh = $b['invoice']['energy_kwh'] ?? null;
         $days = Rights::daysBetween((string)$b['period_from'], (string)$b['period_to']) + 1;
-        return is_numeric($kwh) && (float)$kwh > 0 && $days > 0 ? [(float)$kwh / $days * 365, 'bill'] : [null, null];
+        // v3.12.0 — erst malnehmen, dann teilen: 6000 ÷ 365 × 365 ist im Gleitkomma 6000,000000000001
+        return is_numeric($kwh) && (float)$kwh > 0 && $days > 0 ? [(float)$kwh * 365 / $days, 'bill'] : [null, null];
     }
 
     // ── A7 Widerspruchsfrist beim Gebührenbescheid (Wasser/Abwasser) ─────
@@ -595,8 +599,9 @@ final class BillChecks
                 $n = $b['notice'] ?? null;
                 if (!is_array($n) || empty($n['public_law']) || !Dates::isIsoDate($n['dated_on'] ?? null)) continue;
                 $served = Dates::isIsoDate($n['served_on'] ?? null) ? (string)$n['served_on'] : null;
-                $fd = Rights::feeNoticeDeadline($country, (string)$n['dated_on'], $served);
+                $fd = self::noticeDeadline($country, $b);
                 if ($fd === null) continue;
+                $received = $fd['basis'] === 'received' ? $fd['known_on'] : null;
                 $remedy = in_array($n['remedy'] ?? null, BillService::NOTICE_REMEDIES, true) ? (string)$n['remedy'] : null;
                 $contract = $this->contractOfBill($u, $b);
                 // Namen wie im Brief „Widerspruch“ (Paket briefe): dated_on, file_number; die Abgabe (`levy`) trägt
@@ -612,22 +617,39 @@ final class BillChecks
                 // Prüfbericht 48, solange auch das noch laufen kann), kein Brief, kein Termin
                 // v3.11.0 (Nachprüfung NP1) — `deadline` ist schon auf den nächsten Werktag verschoben (Samstag,
                 // Sonntag, bundesweiter Feiertag; Prüfbericht 60, 61): „abgelaufen“ erst am Tag danach
-                $expired = $fd['deadline'] < $today;
+                // v3.12.0 — vom Bescheiddatum gerechnet ist das Ende nur das früheste (Aufgabe zur Post unbekannt):
+                // bis `soft_until` (+ NOTICE_SOFT_DAYS) „möglicherweise abgelaufen“, Brief und „Zu tun“ bleiben;
+                // mit eingetragenem Zugang bis zum spätesten Ende (zur Post spätestens am Tag des Zugangs, bekannt
+                // spätestens am vierten Tag danach), nur mit Zustellung ist `soft_until` das Ende selbst
+                $maybe = $fd['deadline'] < $today && $today <= $fd['soft_until'];
+                $expired = $fd['soft_until'] < $today;
                 $yearOpen = $expired && $today <= self::addMonths($fd['known_on'], 12);
                 $facts['expired'] = $expired;
+                $facts += ['maybe_expired' => $maybe, 'soft_until' => $fd['soft_until'], 'known_basis' => $fd['basis']];
+                // der spätere Zugang (§ 41 Abs. 2 Satz 3 VwVfG) trägt den Text bei eingetragenem Zugang und in der Weichzone
+                $late = $received !== null || $maybe ? ['de.vwvfg.41.2.3', 'de.ao.122.2.zugang'] : [];
                 $out[] = [
                     'severity' => $expired ? 'info' : 'warning', 'utility' => $u, 'meter_id' => (string)$b['meter_id'],
                     'contract_id' => $contract !== null ? (string)$contract['id'] : null, 'bill_id' => (string)$b['id'],
-                    'date' => (string)$n['dated_on'], 'deadline' => $fd['deadline'], 'facts' => $facts,
-                    'params' => ['dated_on' => (string)$n['dated_on'], 'served_on' => $served, 'deadline' => $fd['deadline']],
+                    'date' => (string)$n['dated_on'], 'deadline' => $fd['deadline'], 'todo_until' => $fd['soft_until'], 'facts' => $facts,
+                    'params' => ['dated_on' => (string)$n['dated_on'], 'served_on' => $served, 'received_on' => $received, 'deadline' => $fd['deadline'],
+                                 'soft_until' => $fd['soft_until']],   // v3.12.0 — spätestes Ende (Texte mit Zugang)
                     'rules' => Rights::applicable($country, $expired
                         ? ['de.vwgo.70.1', 'de.vwgo.58.2', 'de.vwvfg.41.2', 'de.ao.122.2', 'de.bgb.188', 'de.vwgo.57.2', 'de.vwvfg.31.3', 'de.ao.108.3']
-                        : ['de.vwgo.70.1', 'de.vwgo.68.1', 'de.vwvfg.41.2', 'de.ao.122.2', 'de.bgb.188', 'de.vwgo.57.2', 'de.vwvfg.31.3', 'de.ao.108.3', 'de.vwgo.80'], $u),
-                    'title_key' => $expired ? 'rights.feeNotice.titleExpired' : 'rights.feeNotice.title',
+                        : ['de.vwgo.70.1', 'de.vwgo.68.1', 'de.vwvfg.41.2', 'de.ao.122.2', ...$late, 'de.bgb.188', 'de.vwgo.57.2', 'de.vwvfg.31.3', 'de.ao.108.3', 'de.vwgo.80'], $u),
+                    'title_key' => match (true) {
+                        $expired => 'rights.feeNotice.titleExpired',
+                        $maybe   => 'rights.feeNotice.titleMaybeExpired',
+                        default  => 'rights.feeNotice.title',
+                    },
                     'text_key' => match (true) {
                         $yearOpen => 'rights.feeNotice.textExpired',
                         $expired  => 'rights.feeNotice.textExpiredLong',
-                        default   => $served !== null ? 'rights.feeNotice.textServed' : 'rights.feeNotice.text',
+                        $maybe && $received !== null => 'rights.feeNotice.textMaybeExpiredReceived',
+                        $maybe    => 'rights.feeNotice.textMaybeExpired',
+                        $served !== null   => 'rights.feeNotice.textServed',
+                        $received !== null => 'rights.feeNotice.textReceived',
+                        default   => 'rights.feeNotice.text',
                     },
                     'letter' => !$expired && $remedy === 'objection' ? 'objection' : null,
                 ];
@@ -650,6 +672,21 @@ final class BillChecks
         return ['period_from' => (string)($b['period_from'] ?? ''), 'period_to' => (string)($b['period_to'] ?? ''),
                 'issued_on' => $d('issued_on'), 'received_on' => $d('received_on'),
                 'invoice_number' => is_string($b['invoice_number'] ?? null) && $b['invoice_number'] !== '' ? $b['invoice_number'] : null];
+    }
+
+    /**
+     * v3.12.0 — Frist eines Gebührenbescheids aus der Rechnung (A7 und die Schätzung an einem Bescheid):
+     * Bescheiddatum und Zustellung am Bescheid, der Zugang „Erhalten am“ an der Rechnung.
+     *
+     * @return array{known_on:string, nominal_end:string, deadline:string, basis:string, soft_until:string}|null
+     */
+    private static function noticeDeadline(string $country, array $b): ?array
+    {
+        $n = (array)($b['notice'] ?? []);
+        if (!Dates::isIsoDate($n['dated_on'] ?? null)) return null;
+        return Rights::feeNoticeDeadline($country, (string)$n['dated_on'],
+            Dates::isIsoDate($n['served_on'] ?? null) ? (string)$n['served_on'] : null,
+            Dates::isIsoDate($b['received_on'] ?? null) ? (string)$b['received_on'] : null);
     }
 
     /** Tag, an dem die Rechnung vorlag: Zugang, sonst Rechnungsdatum, sonst null. */

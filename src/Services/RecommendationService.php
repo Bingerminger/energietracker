@@ -78,6 +78,13 @@ final class RecommendationService
     /** @return array<int,array<string,mixed>> */
     public function all(bool $includeDismissed = false): array
     {
+        // v3.12.0 — mit Stichtag (atDate) rechnen auch die Monatszeilen an ihm (bis v3.11 am echten Datum)
+        return $this->consumption->atDate($this->today, fn() => $this->allOn($includeDismissed));
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    private function allOn(bool $includeDismissed): array
+    {
         $recs = [];
         $activeUtilities = $this->activeUtilities();
 
@@ -132,12 +139,29 @@ final class RecommendationService
             }));
         }
 
-        // Sortierung: severity-Rang, dann Kategorie
+        return self::ordered($recs);
+    }
+
+    /**
+     * Sortierung: severity-Rang; v3.12.0 — innerhalb derselben Stufe die Rechte-Hinweise zuerst, sonst
+     * stehen sie (und der Knopf „Brief entwerfen“) unter den Vertragshinweisen. Innerhalb gleicher Reihenfolge
+     * bleibt die der Regeln (usort ist stabil). Die Oberfläche sortiert genauso (recommendations.js `sortRecs`).
+     *
+     * @param array<int,array<string,mixed>> $recs
+     * @return array<int,array<string,mixed>>
+     */
+    public static function ordered(array $recs): array
+    {
         $rank = ['urgent' => 0, 'warning' => 1, 'info' => 2];
-        usort($recs, fn($a, $b) =>
-            ($rank[$a['severity']] ?? 3) <=> ($rank[$b['severity']] ?? 3)
-        );
+        $key = fn(array $r) => [$rank[$r['severity'] ?? ''] ?? 3, ($r['category'] ?? '') === 'recht' ? 0 : 1];
+        usort($recs, fn($a, $b) => $key($a) <=> $key($b));
         return $recs;
+    }
+
+    /** v3.12.0 — Sprungmarke auf einen Hinweis: die Empfehlungen scrollen zur Karte und heben sie hervor. */
+    public static function jumpHref(string $id): string
+    {
+        return '#/todo?art=rec&rec=' . rawurlencode($id);
     }
 
     /**
@@ -245,6 +269,24 @@ final class RecommendationService
     {
         $this->today = $today;
         return $this;
+    }
+
+    /**
+     * v3.12.0 — all() am Stichtag eines Aufrufers (Jahresbericht, Agenda), ohne den Stichtag dieses
+     * Dienstes für spätere Aufrufe zu verstellen. Bis v3.11 lasen beide die Empfehlungen am echten Tag:
+     * Ein Bericht für ein früheres Jahr fand die auffälligen Monate nach 24 Monaten nicht mehr.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function allAt(?string $today, bool $includeDismissed = false): array
+    {
+        $outer = $this->today;
+        $this->today = $today ?? $outer;
+        try {
+            return $this->all($includeDismissed);
+        } finally {
+            $this->today = $outer;
+        }
     }
 
     private function recent(string $ym): bool

@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 import { escapeHtml } from './format.js';
 import { t } from './i18n.js';
+import { icon } from './icons.js';
 
 /** Die Beleg-IDs eines Datensatzes (Vertrag, Rechnung), leere entfernt. */
 export const attachmentIdsOf = (record) => (Array.isArray(record?.attachment_ids) ? record.attachment_ids : [])
@@ -42,7 +43,7 @@ export function attachmentLinksHtml(record, names = new Map(), { icons = false }
     const href = escapeHtml(api.attachmentUrl(id));
     const label = escapeHtml(t('attachments.open', { name }));
     return icons
-      ? `<a class="icon-btn" href="${href}" target="_blank" rel="noopener" data-attachment="${escapeHtml(id)}" aria-label="${label}" title="${label}"><span aria-hidden="true">📄</span></a>`
-      : `<a href="${href}" target="_blank" rel="noopener" data-attachment="${escapeHtml(id)}" title="${label}"><span aria-hidden="true">📄</span> ${escapeHtml(name)}</a>`;
+      ? `<a class="icon-btn" href="${href}" target="_blank" rel="noopener" data-attachment="${escapeHtml(id)}" aria-label="${label}" title="${label}">${icon('dokument')}</a>`
+      : `<a href="${href}" target="_blank" rel="noopener" data-attachment="${escapeHtml(id)}" title="${label}">${icon('dokument')} ${escapeHtml(name)}</a>`;
   }).join(icons ? '' : ' · ');
 }

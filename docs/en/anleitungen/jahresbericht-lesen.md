@@ -157,6 +157,13 @@ balance estimate is uncertain, the status light “Bill” shows no tick but
 “estimate uncertain” with the range, and “Where does my money go?” gives cost and
 result as a range.
 
+*(v3.12.0)* **Figure, percentage and line of the “Consumption” tile show the same
+quantity.** A heating utility is weather-adjusted only if both compared years
+are; then the line uses it too. If an earlier year has no adjusted figure, for
+example before a baseline date, its point stays empty instead of sitting there
+raw. So the line ends at the big figure. Up to v3.11 it took the adjusted
+figure year by year wherever there was one.
+
 A legal note appears only where the app already gives it: for a price
 increase, the same note as on the balance card (Germany only): the special right
 to terminate under § 41(5) EnWG or § 5(3) StromGVV/GasGVV by type of supply, for
@@ -199,7 +206,7 @@ Details in the [API reference](../referenz/api.md#get-apireportsyearlypdfyearyyy
 Energietracker does not send anything itself. To receive the report
 automatically every year, let Home Assistant fetch and pass it on.
 
-**1. API key** (only with sign-in enabled): Settings → Access → “API keys for
+**1. API key** (only with sign-in enabled): Connections → Keys → “API keys for
 scripts”, scope **“Read”**. Without sign-in, leave out the `Authorization`
 header.
 

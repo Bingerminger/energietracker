@@ -84,7 +84,10 @@ final class Co2SplitService
         if ($area <= 0) return $base + ['case' => 'self_supplied', 'emissions_kg' => round($em, 1), 'co2_cost_eur' => round($cost, 2),
             'checks' => ['area_missing']];
         $kg = round($em / $area, 1);
-        [$stage, $share] = Co2CostService::stage($kg);
+        // v3.12.0 — Teiljahr (Einzug oder Auszug im Jahr): Grenzen anteilig gekürzt, § 5 Abs. 3 Satz 4 mit Abs. 1
+        // CO2KostAufG. Bis v3.11 rechnete die Etagenheizung immer mit den Grenzen eines ganzen Jahres.
+        $days = Co2CostService::periodDays($t, $year);
+        [$stage, $share] = Co2CostService::stage($kg, $days);
         $factor = 1.0;
         $reductions = [];
         if (!empty($t['co2_own_appliances'])) { $factor *= 0.95; $reductions[] = 'own_appliances'; }
@@ -92,7 +95,7 @@ final class Co2SplitService
         if ($restriction === 'one') { $factor *= 0.5; $reductions[] = 'restriction_one'; }
         if ($restriction === 'both') { $factor = 0.0; $reductions[] = 'restriction_both'; }
         return array_merge($base, [
-            'case' => 'self_supplied', 'source' => implode(',', array_unique(array_column($rows, 'source'))),
+            'case' => 'self_supplied', 'source' => implode(',', array_unique(array_column($rows, 'source'))), 'days' => $days,
             'emissions_kg' => round($em, 1), 'kg_per_m2' => $kg, 'stage' => $stage, 'landlord_share_pct' => $share,
             'co2_cost_eur' => round($cost, 2), 'landlord_amount_eur' => round($cost * $share / 100 * $factor, 2),
             'reductions' => $reductions, 'price' => $costs['price'] ?? null,

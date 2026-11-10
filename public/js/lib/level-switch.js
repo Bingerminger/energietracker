@@ -11,11 +11,12 @@ import { t, hasTranslation } from './i18n.js';
 import { escapeHtml } from './format.js';
 import { LEVELS, LEVEL_ICONS, currentLevel, saveLevel } from './levels.js';
 import { toastErr } from '../components/toast.js';
+import { icon } from './icons.js';
 
 let select = null;
 
 function optionsHtml() {
-  return LEVELS.map(l => `<option value="${l}"${l === currentLevel() ? ' selected' : ''}>${LEVEL_ICONS[l]} ${escapeHtml(t('level.' + l))}</option>`).join('');
+  return LEVELS.map(l => `<option value="${l}"${l === currentLevel() ? ' selected' : ''}>${escapeHtml(t('level.' + l))}</option>`).join('');
 }
 
 /** Beschriftung nach dem Laden der Sprache. */
@@ -29,12 +30,21 @@ export function refreshLevelSwitch() {
 /** Setzt die Auswahl vor den Tag/Nacht-Knopf. */
 export function mountLevelSwitch(actions) {
   if (!actions || document.getElementById('level-switch')) return;
+  // v3.12.0 — In einer Auswahlliste kann keine Grafik stehen. Am Telefon, wo der Platz nur für
+  // das Zeichen reicht, liegt die Liste deshalb unsichtbar über der Grafik der Stufe.
+  const wrap = document.createElement('span');
+  wrap.className = 'topbar__level';
+  const glyph = document.createElement('span');
+  glyph.className = 'topbar__level-ico';
+  glyph.setAttribute('aria-hidden', 'true');
+  glyph.innerHTML = icon(LEVEL_ICONS[currentLevel()]);
   select = document.createElement('select');
   select.id = 'level-switch';
   select.className = 'topbar__select';
   select.innerHTML = optionsHtml();
+  wrap.append(glyph, select);
   const theme = document.getElementById('theme-toggle');
-  actions.insertBefore(select, theme || null);
+  actions.insertBefore(wrap, theme || null);
   refreshLevelSwitch();
   select.addEventListener('change', async () => {
     const before = currentLevel();
@@ -45,5 +55,8 @@ export function mountLevelSwitch(actions) {
       toastErr(e.message);
     }
   });
-  window.addEventListener('et:levelchange', () => { if (select.value !== currentLevel()) select.value = currentLevel(); });
+  window.addEventListener('et:levelchange', () => {
+    if (select.value !== currentLevel()) select.value = currentLevel();
+    glyph.innerHTML = icon(LEVEL_ICONS[currentLevel()]);
+  });
 }

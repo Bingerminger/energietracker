@@ -63,12 +63,16 @@ final class AgendaController
         $utility = $req->queryParam('utility');
         $meter = $req->queryParam('meter');
         $data = $this->summary->build($utility !== '' ? $utility : null, $meter !== '' ? $meter : null);
+        // v3.12.0 — wie Response::json: eine Zahl, die JSON nicht kennt (INF, NaN), ergab hier bisher 200 mit
+        // leerem Körper und fünf Minuten Zwischenspeicher. Jetzt 500 mit Fehler-ID, ohne Cache-Kopfzeile.
+        $body = json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($body === false) throw new \RuntimeException('summary not encodable: ' . json_last_error_msg());
         while (ob_get_level() > 0) ob_end_clean();
         // Home Assistant fragt periodisch; fünf Minuten genügen und schonen die Rechnung
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: private, max-age=300');
         header('Vary: X-ET-Language, Accept-Language');
-        echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        echo $body;
         exit;
     }
 }

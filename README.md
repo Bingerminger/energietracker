@@ -1,79 +1,49 @@
-<p align="center"><img src="public/img/icon-light-180.png" alt="Energietracker" width="96"></p>
+<p align="center"><img src="docs/assets/promo/logo.svg" alt="Energietracker" width="88"></p>
+<h1 align="center">Energietracker</h1>
 <p align="center"><b>English</b> · <a href="README.de.md">Deutsch</a></p>
 
-# Energietracker
+<p align="center"><b>Home Assistant measures, Energietracker settles the bill.</b><br>
+Meter readings in, answers out: Will I get money back? Is the bill right? Is switching worth it?<br>
+Self-hosted, no account and no database. And, if you like, with your own AI in your home network.</p>
 
-<p align="center"><img src="docs/assets/promo/banner.png" alt="Energietracker – know your energy costs, save real money: costs and advance payments, usage, supplier mail, solar, battery, heat pump and EV, metering concepts and notifications to Home Assistant in one self-hosted app" width="860"></p>
+<p align="center">
+  <a href="https://bingerminger.github.io/energietracker/"><b>Demo</b></a> ·
+  <a href="docs/en/README.md"><b>Help</b></a> ·
+  <a href="roadmap.en.md"><b>Roadmap</b></a> ·
+  <a href="https://github.com/Bingerminger/energietracker/discussions"><b>Discussions</b></a>
+</p>
 
-**Home Assistant measures — the Energietracker does the billing.** Meter
-readings in, answers out: Will I get money back? Is my gas bill right? Is
-switching worth it? Did I use more, or was it just colder?
+<p align="center">
+  <a href="CHANGELOG.en.md"><img src="https://img.shields.io/badge/version-3.12.0-blue.svg" alt="Version 3.12.0"></a>
+  <a href="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml"><img src="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg" alt="License: AGPL-3.0-or-later"></a>
+  <a href="docs/en/betrieb/docker.md"><img src="https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg" alt="Docker: amd64 and arm64"></a>
+  <a href="https://bingerminger.github.io/energietracker/"><img src="https://img.shields.io/badge/Demo-try%20it-7c5cff.svg" alt="Try the demo"></a>
+</p>
 
-**[▶ Try the live demo](https://bingerminger.github.io/energietracker/)** — a
-sample household carried forward to today, in seven languages, nothing to install.
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/uebersicht-dunkel.en.png"><img src="docs/assets/promo/screens/uebersicht.en.png" alt="Overview of the sample household: What needs doing? Will I get money back? More or less than last year? Below, one tile per utility with its trend" width="860"></picture></p>
 
-[![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
-[![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.11.0-blue.svg)](CHANGELOG.md)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
-[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
-[![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-2088-success.svg)](tests/)
-[![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
-[![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
-[![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
-[![Home Assistant App](https://img.shields.io/badge/Home%20Assistant-App-41BDF5.svg?logo=homeassistant&logoColor=white)](https://github.com/Bingerminger/energietracker-ha)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00.svg)](https://buymeacoffee.com/bingerminger)
+## At a glance
 
-<p align="center"><img src="docs/ui/screenshots/en/dashboard.png" alt="Overview with to-dos, key figures per utility and history" width="860"></p>
+<!-- doc-claim: readme-auf-einen-blick (ReadmeClaimsTest) -->
+| | What you get |
+|:---:|---|
+| <img src="docs/assets/promo/icons/ki.svg" width="32" alt=""> | **Ask your AI how electricity and gas are doing.** Over MCP it looks up balance, consumption, contracts and deadlines with 20 tools and says where every figure comes from. It changes nothing without you: by default you confirm every proposal in the app. Off by default, tested with Open WebUI and a local model through Ollama, other programs and cloud AI experimental. [Guide](docs/en/anleitungen/ki-assistent.md) |
+| <img src="docs/assets/promo/icons/waage.svg" width="32" alt=""> | **Your rights as a customer, with a source.** Seven checks under German law: late bill, advance payment too high, special termination after a price increase, missing bonus and more. The matching letter comes as text and PDF, in German. A note, not legal advice. [Rights](docs/en/verstehen/17-rechte.md) |
+| <img src="docs/assets/promo/icons/eingang.svg" width="32" alt=""> | **File supplier mail instead of typing it.** Drop the PDF into the inbox, an AI in your home network reads it, every figure shows its place in the document. One click takes it over, even a whole household from a stack of letters. [Inbox](docs/en/anleitungen/posteingang.md) |
+| <img src="docs/assets/promo/icons/geld.svg" width="32" alt=""> | **Will I get money back?** Balance per contract: measured up to the last reading, estimated up to today, expected at the bill, with an honest range. As on the bill: “credit” or “additional payment”. [Balance](docs/en/verstehen/00-overview.md#balance-in-one-piece-since-v3100) |
+| <img src="docs/assets/promo/icons/kolben.svg" width="32" alt=""> | **What does a cold winter cost?** The forecast workshop runs winter, insulation, room temperature and tariff through your own data, with a ranking and the result as a PDF. [What if](docs/en/anleitungen/was-waere-wenn.md) |
+| <img src="docs/assets/promo/icons/beleg.svg" width="32" alt=""> | **Save where it can be shown.** Set the advance payment right, check a switch with notice period and break-even point, recalculate the annual bill section by section. No made-up savings: you see your own figures. [Annual bill](docs/en/anleitungen/jahresabrechnung.md) |
+| <img src="docs/assets/promo/icons/stecker.svg" width="32" alt=""> | **Home Assistant measures, Energietracker settles the bill.** Readings come from Home Assistant, deadlines and new mail go back as notifications. As an app for Home Assistant OS, sensors through the HACS integration without YAML. [Home Assistant](docs/en/anleitungen/home-assistant.md) |
+| <img src="docs/assets/promo/icons/schloss.svg" width="32" alt=""> | **Your data stays with you.** No accounts, no ads, no telemetry, no database, just files on your server. By default only the weather sync goes out, and it can be switched off; everything else you switch on yourself. [Your data](#your-data) |
 
-## What it answers
+**Nine utilities:** gas, electricity, water, district heating, heating oil, pellets, PV feed-in, PV generation
+and heat. **In seven languages:** German, English, French, Italian, Spanish, Portuguese and Dutch. Plus meter
+swaps, sub-meters, metering concepts with heat pump and peak/off-peak, weather adjustment with degree days,
+tenancy and in-app help with a glossary and an ⓘ next to technical terms.
+→ [All features](docs/en/einstieg/funktionen.md) · [All views with pictures](docs/en/referenz/ansichten.md)
 
-| Question | Answer in the app |
-|---|---|
-| What if …? | **Forecast workshop** *(new in v3.6.0)*: sliders for winter, insulation, room temperature and tariff — see at once what a cold winter costs or insulation brings; ranking, best combination within a budget, result as an image or PDF |
-| Will I get money back? | **Balance** per contract by calendar, the expected bill and a suggested advance — "credit" or "additional payment", as on the bill; *new in v3.10.0* **balance in one piece**: measured up to the last reading, estimated up to today and expected at settlement kept apart, with an honest range, also across two contracts of one bill |
-| Is my annual bill right? | **Bill check** for gas, electricity, water and district heating: recalculated per section, held against the bill, the result booked as a special payment |
-| Should I switch? | **Switch decision** with notice period, cost from year two and break-even |
-| Used more, or just colder? | **Weather adjustment** with heating degree days from your own location and a heating model |
-| What lies ahead? | **Forecast** with an uncertainty band and the cost per month from the valid tariff |
-| How efficient is the house? | **Efficiency** in kWh/m²·yr and a certificate-style figure; with a heat pump the seasonal performance factor |
-| Does my rent prepayment cover it? | **Tenancy**: heating and water against the service charge prepayment, deadlines in the calendar, CO₂ costs shared with the landlord |
-| What does my supplier’s mail say? | **Inbox**: drop a PDF, have it read, check every figure against its quote and take it over; *new in v3.9.0* an annual bill also creates the contract, with prices per section and advance payments every two or three months |
-| Heat pump on its own tariff, peak/off-peak, solar? | **Metering concept** *(new in v3.9.0)*: an assistant asks about the layout in the meter cabinet, draws the diagram and creates meters, registers and contracts; if a sub-meter has its own contract, the parent meter only bills the remainder, since v3.10.0 per register and with the solar power per branch |
-| Do I have to open the app not to miss anything? | **Notifications to Home Assistant** *(new in v3.9.0)*: deadlines, reminders, warnings and new mail show up in Home Assistant, each only once; plus a “To do” sensor, since v3.10.0 with the next appointment and also over HTTPS with your own root certificate |
-| Is this meter reading right? | **Check a reading** *(new in v3.9.0)*: a mistyped reading between two correct ones would otherwise silently skew the months. The app asks and never corrects on its own |
-
-Nine utilities: gas, electricity, water, district heating, heating oil and
-pellets (with a tank book), PV feed-in and PV generation (self-consumption,
-self-sufficiency, storage) and heat (heat meter or monthly consumption
-information). Plus meter swaps, sub-meters and groups — also with one contract
-for peak and off-peak —, registers with OBIS code, people in the household
-without sign-in, receipts and meter photos, reminders as a calendar
-feed, recommendations, a PDF annual report and a summary for Home Assistant —
-and help inside the app with a glossary and an ⓘ next to every key figure.
-→ [All features](docs/en/einstieg/funktionen.md) ·
-[All views with screenshots](docs/en/referenz/ansichten.md)
-
-<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance card, contracts and monthly table" width="420"> <img src="docs/ui/screenshots/en/tarifvergleich.png" alt="Switch decision with offers" width="420"></p>
-
-## Who it is for
-
-- **Households** that want to understand and foresee their annual bill — in a
-  rented flat or their own house.
-- **Home Assistant users**: Home Assistant pushes the readings, the
-  Energietracker works out contracts, advances and forecasts —
-  [guide](docs/en/anleitungen/home-assistant.md). Since 3.9.0 it reports
-  deadlines, warnings and new mail back to Home Assistant by itself.
-- **Tinkerers**: open REST API, CSV and JSON backup, no database.
-
-| | Home Assistant (Energy) | Energietracker |
-|---|---|---|
-| Readings | automatic, real time | by hand, by CSV or from Home Assistant |
-| Cost | one price per unit | a contract with unit price and standing charge, bonuses, advances, price changes to the day |
-| Billing | — | balance, expected bill, bill check, notice deadlines |
-| Weather | — | heating degree days from your location, weather adjustment |
-| Looking ahead | — | cost forecast for the year, switch decision |
+<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance, consumption and cost with trend and monthly chart" width="560"> <img src="docs/assets/promo/screens/iphone.en.png" alt="Overview on the iPhone" width="200"></p>
 
 ## Quick start
 
@@ -83,153 +53,125 @@ docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   ghcr.io/bingerminger/energietracker:3
 ```
 
-Then open <http://localhost:8080>. **"Try with sample data"** shows right away
-what everything looks like; your own data is not lost.
+Then open <http://localhost:8080>. **“Try with sample data”** shows right away what everything looks like;
+your own data is not lost.
 
-With **Home Assistant OS**, no Docker host of your own is needed: install it as
-an app with an entry in the sidebar and sign-in via Home Assistant (new since
-3.5.0, repository [energietracker-ha](https://github.com/Bingerminger/energietracker-ha)):
+- **Home Assistant OS:** install it as an app, with an entry in the sidebar and sign-in through Home
+  Assistant ([step by step](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os)).
 
-[![Add the Energietracker app repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
+  [![Add the Energietracker app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
+- **Sensors in Home Assistant without YAML:** the integration through HACS,
+  [energietracker-hacs](https://github.com/Bingerminger/energietracker-hacs).
+- **Without Docker,** PHP 8.2 or later is enough: `git clone`, then `php -S 127.0.0.1:8080 router.php`.
+- **For permanent use:** [Installation](docs/en/betrieb/installation.md) ·
+  [Docker, also on Synology](docs/en/betrieb/docker.md) · [Apache and nginx](docs/en/betrieb/webserver.md) ·
+  [Use on your phone](docs/en/einstieg/handy.md).
 
-Step by step: [As an app in Home Assistant OS](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os).
+> [!WARNING]
+> **Without sign-in, anyone who can reach the app can read and change everything.** On your own home network
+> that is fine. Before allowing access from outside, switch sign-in on:
+> [Security & network operation](docs/en/betrieb/sicherheit.md).
 
-Without Docker, PHP 8.2 or later is enough: `git clone`, then
-`php -S 127.0.0.1:8080 router.php`. For permanent use:
-[Installation](docs/en/betrieb/installation.md) ·
-[Docker, also on Synology](docs/en/betrieb/docker.md) ·
-[Apache and nginx](docs/en/betrieb/webserver.md) ·
-[Use on your phone](docs/en/einstieg/handy.md).
+## Who it is for
 
-> 🔐 Without sign-in, anyone who can reach the app can read and change
-> everything — fine on your own home network. Before allowing access from
-> outside, switch sign-in on: [Security & network operation](docs/en/betrieb/sicherheit.md).
+| | Home Assistant (Energy) | Energietracker |
+|---|---|---|
+| Meter readings | automatic, real time | by hand, by CSV, from supplier mail or from Home Assistant |
+| Costs | one price per unit | contract with energy and standing charge, bonuses, advance payments, price changes to the day |
+| Billing | — | balance, expected bill, bill check, notice periods, your rights as a customer |
+| Weather | — | degree days from your location, weather adjustment |
+| Outlook | — | cost forecast for the year, switching decision, what if |
+
+- **Households,** rented or owned, who want to understand and foresee their annual bill.
+- **Home Assistant users:** Home Assistant measures, Energietracker works out contracts, advance payments and
+  forecasts.
+- **AI users:** an AI in your home network that looks things up instead of guessing, and changes nothing
+  without you.
+- **Tinkerers:** open REST API, CSV and JSON backup, no database.
 
 ## Your data
 
-Everything stays on your server: no accounts, no ads, no telemetry, no
-database — just JSON files. The app talks only to Open-Meteo: for the daily
-weather sync (it sends your location rounded to about 1 km, and can be switched
-off) and the place search, if you use it. More paths are yours to switch
-on: your own text recognition service in your home network, if you set one up
-(for meter photos and for reading supplier mail in the inbox),
-your evcc in your home network, when you fetch its charging sessions,
-your Home Assistant, when you switch on notifications to it,
-wholesale electricity prices for the dynamic tariff check, when you tap
-“Load from SMARD” (Federal Network Agency; nothing of yours is sent), and the
-note about new versions (once a day GitHub is asked for the newest version
-number; only your server’s address is visible). Reading in the inbox through a
-cloud service is off until someone who manages the installation switches it on;
-then documents go to the chosen service — Claude (Anthropic) at
-`api.anthropic.com`, OpenAI (`api.openai.com`), Mistral (`api.mistral.ai`),
-OpenRouter (`openrouter.ai`), Google Gemini (`generativelanguage.googleapis.com`)
-or your own OpenAI-compatible address, which is only contacted with this opt-in.
-The app contacts each of these hosts only with the opt-in: for the list of
-models once the key is saved, and for reading once it is switched on. All cloud
-paths are experimental. Fonts, Chart.js and PDF.js ship with the repository.
+**Everything stays on your server:** no accounts, no ads, no telemetry, no database, just JSON files. The app
+talks only to Open-Meteo: for the daily weather sync (it sends your location rounded to about 1 km, and can be
+switched off) and the place search, if you use it.
 
-## Help and documentation
+**Paths you switch on yourself:**
 
-- In the app: **Help** at the bottom of the sidebar (on the iPhone under
-  "More") with first steps and a glossary, plus an ⓘ next to every key figure.
-- [Getting started](docs/en/einstieg/erste-schritte.md) ·
+- your own text recognition service in your home network, if you set one up (for meter photos and for reading
+  supplier mail in the inbox);
+- your evcc in your home network, when you fetch its charging sessions;
+- your Home Assistant, when you switch on notifications to it;
+- wholesale electricity prices for the dynamic tariff check, when you tap “Load from SMARD” (Federal Network
+  Agency; nothing of yours is sent);
+- the note about new versions (once a day GitHub is asked for the newest version number; only your server’s
+  address is visible).
+
+**Reading in the cloud is off** until someone who manages the installation switches it on. Then documents go to
+the chosen service: Claude (Anthropic) at `api.anthropic.com`, OpenAI (`api.openai.com`),
+Mistral (`api.mistral.ai`), OpenRouter (`openrouter.ai`), Google Gemini (`generativelanguage.googleapis.com`) or your
+own OpenAI-compatible address, which is only contacted with this opt-in. The app contacts each of these hosts
+only with the opt-in: for the list of models once the key is saved, and for reading once it is switched on.
+All cloud paths are experimental. The AI interface (MCP) is off by default and only accepts requests with a key
+of its own. Fonts, Chart.js and PDF.js ship with the repository.
+
+## Help and community
+
+- **In the app:** Help at the bottom of the sidebar (on the iPhone under “More”) with the guide, first steps
+  and a glossary, plus an ⓘ next to technical terms.
+- **Handbook:** [Getting started](docs/en/einstieg/erste-schritte.md) ·
   [Questions and answers](docs/en/einstieg/faq.md) ·
   [Enter and check the annual bill](docs/en/anleitungen/jahresabrechnung.md) ·
-  [Troubleshooting](docs/en/betrieb/fehlersuche.md)
-- The full [compendium](docs/en/README.md): getting started · guides ·
-  concepts · reference · operation · development — in English and
+  [Troubleshooting](docs/en/betrieb/fehlersuche.md) · the full [compendium](docs/en/README.md), also in
   [German](docs/README.md).
-- Questions, wishes and bugs:
-  [GitHub issues](https://github.com/Bingerminger/energietracker/issues).
+- **Questions and ideas:** [Discussions](https://github.com/Bingerminger/energietracker/discussions), ideas
+  with voting under [Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas).
+- **Bugs:** [Issues](https://github.com/Bingerminger/energietracker/issues).
+  Please report security issues confidentially, as described in [SECURITY.md](SECURITY.md).
+- **What comes next:** [Roadmap](roadmap.en.md).
 
 ## Countries and assumptions
 
-The interface is available in German, English, French, Italian, Spanish,
-Portuguese and Dutch; country profiles for Germany, Austria, Switzerland,
-France, Italy, Spain, Portugal, the Netherlands and the United Kingdom set
-currency, formats, time zone, weather location, heating limit, CO₂ factor and
-gas units. In substance the Energietracker is at home in Germany: efficiency
-classes per the GModG (formerly GEG), CO₂ factors from BAFA and the German
-Environment Agency,
-the special right to cancel under the EnWG. Elsewhere it calculates without
-classes and says why; it does not convert currencies —
-[Country profiles](docs/en/verstehen/14-laenderprofile.md).
+Country profiles for Germany, Austria, Switzerland, France, Italy, Spain, Portugal, the Netherlands and the
+United Kingdom set currency, formats, time zone, weather location, heating limit, CO₂ factor and gas units.
+**In substance Energietracker is at home in Germany:** efficiency classes per the GModG (formerly GEG), CO₂
+factors from BAFA and the German Environment Agency, the special right to cancel under the EnWG, the rights
+checks under German law. Elsewhere it calculates without classes and says why; it does not convert currencies.
+[Country profiles](docs/en/verstehen/14-laenderprofile.md)
 
-## Status and outlook
+## Status
 
-**v3.11.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
-version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
-change only additively; anything is removed only with a new major version and
-after notice. 3.11.0 knows your rights as a customer: seven checks with a
-source (late bill, advance too high, special termination after a price
-increase, missing bonus, estimate despite your own reading, metering charge
-above the cap, deadline of a fee assessment), five letters as text and PDF,
-price change letters in the inbox with a date, and a note when contracts
-contradict each other. 3.10.0 calculates the balance in one piece: measured up to the
-last reading, estimated up to today and expected at the bill, each with an
-honest range and the same everywhere; plus Home Assistant over HTTPS with your
-own root certificate, the remainder per register in the cascade and a slimmer,
-signed image. 3.9.0 contains what was announced as 3.7.1 and 3.8.0: metering
-concepts with heat pump, peak/off-peak and solar, where every contract pays only
-for what it really measures; notifications to Home Assistant; the contract from
-the annual bill, for water with advance payments every two months too; checks of
-intermediate readings; one calculation for balance card, workshop and annual
-report; the heating limit where it matters; people in the household without
-sign-in. 3.7.0 reads your supplier mail: drop a PDF into the inbox, an AI
-in your own home network (or, as an experimental opt-in, a cloud service) reads
-it, backs every figure with its quote in the document, and one click takes it
-over — a whole household from a stack of letters, too. Monthly values now say
-whether they are measured or spread between two readings. 3.6.0 added the
-billing year next to the calendar year — periods as on your recorded bills —
-and the note about new versions. 3.5.0 was about who, when and where to: reminders get someone
-responsible, missing supplier bills stand out, and the energy flow plays a day
-in quarter hours. Home Assistant OS users can install it as an app, there is
-an image without root, and the setup asks for language and country first.
-Since 3.4.0 the handbook comes from your own server, with a yearly report for
-everyone and a history of who did what. Since 3.3.0 the app values flexibility with
-quarter-hour data, since 3.2.0 there is a setup assistant, experience levels,
-several people per household and evcc. What comes
-next is in the [roadmap](roadmap.en.md). Coming from a
-private v0.9.0: since 3.4.0 no version reads its backups any more — install
-3.3.0, migrate there, then update.
+**v3.12.0** is the current version; what changed is in the [CHANGELOG](CHANGELOG.en.md) (German version:
+[CHANGELOG.md](CHANGELOG.md)). **APIs, CSV formats and the backup format change only additively;** anything is
+removed only with a new major version and after notice. What comes next is in the [roadmap](roadmap.en.md).
+Coming from a private v0.9.0: since 3.4.0 no version reads its backups any more; install 3.3.0, migrate there,
+then update.
 
 ## Contributing
 
-Pull requests are welcome — setup, tests and the documentation rules are in
-[CONTRIBUTING.md](CONTRIBUTING.md). A new language is mostly translation — a
-catalogue, an entry in `languages.json` and its notation under `format.*` — plus
-a few lines of code for the plural rule and the country assignment; the
-checklist is in [Translating and languages](docs/en/entwicklung/uebersetzen.md).
-Please do not report security issues publicly, but as described in
-[SECURITY.md](SECURITY.md).
+**Pull requests are welcome.** Setup, tests and the documentation rules are in [CONTRIBUTING.md](CONTRIBUTING.md),
+and the [code of conduct](CODE_OF_CONDUCT.md) applies to everyone. A new language is mostly translation: a
+catalogue, an entry in `languages.json` and its notation under `format.*`, plus a few lines of code for the
+plural rule and the country assignment ([Translating and languages](docs/en/entwicklung/uebersetzen.md)).
 
 ## Support
 
-The Energietracker is independent: no company behind it, no advertising, no
-cloud account, no data collection. If it saves you money or time and you want
-to give something back, you can
-[buy me a coffee](https://buymeacoffee.com/bingerminger) — entirely voluntary.
-Stars, bug reports and telling others about it help just as much.
+Energietracker is independent: no company behind it, no advertising, no cloud account, no data collection. If
+it saves you money or time and you want to give something back, you can
+[buy me a coffee](https://buymeacoffee.com/bingerminger), entirely voluntary. **A star on GitHub, bug reports
+and telling others about it help just as much.** You reach both from the app too, at the bottom of the sidebar.
 
 ## Licence
 
-Since version 3.0.0 the Energietracker is under the
-[GNU AGPL v3.0 or later](LICENSE). In plain words:
+Since version 3.0.0 Energietracker is under the [GNU AGPL v3.0 or later](LICENSE). In plain words:
 
-- **At home it is yours:** use it for free, change it, pass it on — no
-  conditions, no account, no fee.
-- **Only one rule:** whoever offers a *modified* version to others as a web
-  service also gives them its source code. That keeps the app free and open
-  for everyone.
-- **Nothing hidden:** under Settings → System a link leads to the source code
-  of exactly the running version.
+- **At home it is yours:** use it for free, change it, pass it on, with no conditions, no account, no fee.
+- **Only one rule:** whoever offers a *modified* version to others as a web service also gives them its source
+  code. That keeps the app free and open for everyone.
+- **Nothing hidden:** under Settings → System a link leads to the source code of exactly the running version.
 
-Versions up to 2.16.0 remain available under the MIT licence they were
-published with.
+Versions up to 2.16.0 remain available under the MIT licence they were published with.
 
-It ships [Chart.js](https://www.chartjs.org/) (MIT), [PDF.js](https://mozilla.github.io/pdf.js/)
-(Apache-2.0) and the fonts DM Sans and DM Mono (SIL Open Font License 1.1);
-weather data comes from
-[Open-Meteo.com](https://open-meteo.com/) under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — details in
-[CREDITS.md](CREDITS.md), product names in [TRADEMARKS.md](TRADEMARKS.md).
+It ships [Chart.js](https://www.chartjs.org/) (MIT), [PDF.js](https://mozilla.github.io/pdf.js/) (Apache-2.0)
+and the fonts DM Sans and DM Mono (SIL Open Font License 1.1); weather data comes from
+[Open-Meteo.com](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Details in [CREDITS.md](CREDITS.md), product names in [TRADEMARKS.md](TRADEMARKS.md).

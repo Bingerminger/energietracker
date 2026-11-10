@@ -16,9 +16,6 @@ export const MAX_MEASURES = 10;
 export const STORE_KEY = 'et-scenarios';
 export const CURRENT_KEY = 'et-scenario-current';
 
-/** Maßnahmenarten mit eigener Bezeichnung im Katalog (`scenario.measure.kind.<art>`). Prozente trägt der Nutzer ein. */
-export const MEASURE_KINDS = ['roof', 'facade', 'windows', 'basement', 'hydraulic', 'pump', 'thermostat', 'shower', 'other'];
-
 /** Ausgangszustand: keine Änderung. */
 export function defaultState(utility = '', meterId = '') {
   return {
@@ -26,49 +23,65 @@ export function defaultState(utility = '', meterId = '') {
     winter_pct: 0, room_temp_delta: 0, saving_pct: 0, baseload_pct: 0,
     ev_km: 0, ev_kwh_per_100km: null, jaz_from: null, jaz_to: null,
     measures: [], tariff: { kind: 'current' }, budget_eur: null,
+    // v3.12.0 (F1040, Phase 2) — Lieferungen und PV
+    price_pct: 0, replace: null, pv_size_pct: 0, pv_kwp_now: null, battery_kwh: 0, self_use_pct: 0, feed_in_ct: null,
   };
 }
 
-/**
- * Beispielszenarien. `needs` sagt, wann eines passt (Antwort des
- * Ausgangsfalls: capabilities, offers); `apply` setzt die Stellschrauben.
- * Die Zahlen sind Beispiele zum Ausprobieren, keine Richtwerte — die
- * Werkstatt sagt das dazu (scenario.preset.*.note).
- */
-export const PRESETS = [
-  {
-    id: 'cold_winter',
-    needs: (r) => !!r?.capabilities?.heat_model,
-    // jeder zehnte Winter ist kälter (Klimanormal); ohne Klimanormal 10 % als Annahme
-    apply: (s, r) => ({ ...s, winter_pct: r?.winter_presets?.cold_pct ?? 10 }),
-  },
-  {
-    id: 'roof',
-    needs: (r) => !!r?.capabilities?.heat_model,
-    apply: (s) => ({ ...s, measures: [{ id: 'roof', kind: 'roof', label: '', heat_pct: 15, base_pct: 0, cost_eur: null, active: true }] }),
-  },
-  {
-    id: 'cheapest',
-    needs: (r) => !!r?.capabilities?.tariff && (r?.offers || []).some(o => o.computable),
-    apply: (s) => ({ ...s, tariff: { kind: 'cheapest' } }),
-  },
-  {
-    id: 'save10',
-    needs: () => true,
-    apply: (s) => ({ ...s, saving_pct: 10 }),
-  },
-];
+// ── v3.12.0 (F1040) — Profil der Fachgruppe ───────────────────────────
+// Beispiele, Maßnahmen und Worte kommen aus der Antwort des Servers
+// (ScenarioProfile.php). Hier steht kein eigenes Wissen darüber.
+
+const profilePresets = (r) => (r?.valid ? r?.profile?.presets : null) || [];
+
+/** Ein Beispiel aus dem Profil, null wenn es hier nicht angeboten wird. */
+export function presetOf(baselineResult, id) {
+  return profilePresets(baselineResult).find(p => p.id === id) || null;
+}
 
 /** Beispielszenario auf einen frischen Zustand anwenden (gleicher Zähler). */
 export function presetState(id, base, baselineResult) {
-  const p = PRESETS.find(x => x.id === id);
   const fresh = defaultState(base.utility, base.meter_id);
-  return p ? p.apply(fresh, baselineResult) : fresh;
+  const p = presetOf(baselineResult, id);
+  return p ? { ...fresh, ...JSON.parse(JSON.stringify(p.apply)) } : fresh;
 }
 
 /** Beispielszenarien, die zu diesem Zähler passen. */
 export function presetsFor(baselineResult) {
-  return PRESETS.filter(p => p.needs(baselineResult)).map(p => p.id);
+  return profilePresets(baselineResult).map(p => p.id);
+}
+
+/** Sprung `?preset=`: die Kennung selbst oder ihre Weiterleitung, sonst null. */
+export function resolvePreset(id, baselineResult) {
+  if (presetOf(baselineResult, id)) return id;
+  const to = baselineResult?.profile?.preset_redirects?.[id];
+  return to && presetOf(baselineResult, to) ? to : null;
+}
+
+/** Das Wort für den Teil ohne Wetterbezug (`scenario.base.<wort>.*`). */
+export function baseWord(result) {
+  return result?.profile?.base_word || 'baseload';
+}
+
+/**
+ * Wie eine Maßnahme in dieser Art erscheint: wählbare Arten, ob sie passt,
+ * welche Prozentfelder sichtbar sind. Eine gespeicherte Maßnahme, die nicht
+ * mehr passt, bleibt mit ihren Werten sichtbar und rechnet gleich; die Art
+ * selbst fließt nicht in die Rechnung ein.
+ */
+export function measureView(result, m) {
+  const list = result?.profile?.measures;
+  const raw = m.kind || 'other';
+  if (!list) return { kinds: [raw], kind: raw, fits: true, heat: true, base: true };
+  const kind = result.profile.kind_aliases?.[raw] || raw;
+  const def = list.find(x => x.kind === kind);
+  const kinds = list.map(x => x.kind);
+  if (!def) kinds.push(kind);
+  return {
+    kinds, kind, fits: !!def,
+    heat: !!def?.levers.includes('heat') || !!m.heat_pct,
+    base: !!def?.levers.includes('base') || !!m.base_pct,
+  };
 }
 
 const num = (v) => {
@@ -114,6 +127,14 @@ export function scenarioBody(s) {
   if (num(s.ev_kwh_per_100km) != null) body.ev_kwh_per_100km = num(s.ev_kwh_per_100km);
   if (num(s.jaz_from) != null && num(s.jaz_to) != null) { body.jaz_from = num(s.jaz_from); body.jaz_to = num(s.jaz_to); }
   if (num(s.budget_eur) != null) body.budget_eur = num(s.budget_eur);
+  // v3.12.0 (F1040, Phase 2) — nur, wenn gesetzt: Anfragen der übrigen Arten bleiben, wie sie waren
+  for (const k of ['price_pct', 'pv_size_pct', 'battery_kwh', 'self_use_pct']) if (num(s[k])) body[k] = num(s[k]);
+  for (const k of ['pv_kwp_now', 'feed_in_ct']) if (num(s[k]) != null) body[k] = num(s[k]);
+  if (s.replace?.to) {
+    const r = { to: String(s.replace.to) };
+    for (const k of ['efficiency_old', 'efficiency_new', 'jaz', 'power_ct', 'pellet_ct', 'invest_eur']) if (num(s.replace[k]) != null) r[k] = num(s.replace[k]);
+    body.replace = r;
+  }
   return body;
 }
 
@@ -122,7 +143,8 @@ export function isBaseline(s) {
   const b = scenarioBody(s);
   return b.winter_pct === 0 && b.room_temp_delta === 0 && b.saving_pct === 0 && b.baseload_pct === 0
     && b.ev_km === 0 && b.tariff.kind === 'current' && !b.measures.some(m => m.active && (m.heat_pct || m.base_pct))
-    && b.jaz_from == null;
+    && b.jaz_from == null
+    && !b.price_pct && !b.replace && !b.pv_size_pct && !b.battery_kwh && !b.self_use_pct && b.feed_in_ct == null;
 }
 
 // ── Gespeicherte Szenarien (je Gerät) ─────────────────────────────────

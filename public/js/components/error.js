@@ -14,7 +14,7 @@ import { t } from '../lib/i18n.js';
  */
 export function renderError(el, err, retry) {
   const msg = err instanceof Error ? err.message : String(err);
-  el.innerHTML = `<div class="banner banner--error" role="alert">
+  el.innerHTML = `<div class="infobox infobox--fehler" role="alert">
       <p>${escapeHtml(t('errors.view.loadFailed', { msg }))}</p>
       <button type="button" class="btn btn--sm" data-act="retry">${escapeHtml(t('app.retry'))}</button>
     </div>`;

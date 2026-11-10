@@ -118,6 +118,9 @@ final class DeployTemplatesTest extends TestCase
             'ET_DATA_DIR'  => 'den Datenpfad legt die Vorlage über /data fest',
             'ET_LOG_FILE'  => 'nur mit ET_LOG_DEST=file; Vorgabe liegt im Datenordner',
             'ET_DEBUG'     => 'nur kurz zur Fehlersuche, nie dauerhaft in einer Vorlage',
+            // v3.12.0 (doku-vorlagen) — feste Sperre für Betreiber, die die KI-Schnittstelle nie wollen;
+            // ab Werk ist sie ohnehin aus, die Vorlage bietet kein leeres Feld dafür an
+            'ET_MCP'       => 'feste Sperre der KI-Schnittstelle, ab Werk ohnehin aus',
         ];
         preg_match_all('/^\| `(ET_[A-Z_]+)` \|/m', self::file('docs/betrieb/docker.md'), $doc);
         self::assertGreaterThanOrEqual(10, count($doc[1]));

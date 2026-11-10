@@ -272,10 +272,14 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
         self::assertSame($booked['special_payment_id'], $this->bills()->list('wasser')[0]['special_payment_id']);
     }
 
-    public function testBookedGasBillStaysBookedAfterTheContractIsSavedAgain(): void
+    /**
+     * v3.12.0 — umbenannt und umgedreht (vorher …StaysBookedAfterTheContractIsSavedAgain): Der Test
+     * hielt fest, dass Sonderzahlungen ohne ID beim Speichern neue IDs bekommen („Vorbedingung: neue
+     * ID“). Genau das ließ eine Rechnungskorrektur doppelt buchen. Jetzt bekommt die unveränderte
+     * Zeile ihre Kennung zurück, und die Rechnung findet ihre Buchung.
+     */
+    public function testBookedGasBillKeepsItsPaymentIdWhenTheContractIsSavedWithoutIds(): void
     {
-        // Der Vertragsdialog schickt die Sonderzahlungen ohne ID; sie bekommen
-        // beim Speichern neue. Die Rechnung darf dadurch nicht „ungebucht“ wirken.
         $gasMeter = $this->meters->defaultId('gas');
         $c = $this->contracts->create('gas', ['meter_id' => $gasMeter, 'provider' => 'Werk', 'start' => '2025-01-01', 'end' => '2025-12-31',
             'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 10.0]]]);
@@ -284,7 +288,7 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
         $id = $this->bills()->book('gas', $b['id'])['special_payment_id'];
         $sp = $this->contracts->get('gas', $c['id'])['special_payments'];
         $this->contracts->update('gas', $c['id'], ['special_payments' => array_map(fn($x) => array_diff_key($x, ['id' => true]), $sp)]);
-        self::assertNotSame($id, $this->contracts->get('gas', $c['id'])['special_payments'][0]['id'], 'Vorbedingung: neue ID');
+        self::assertSame([$id], array_column($this->contracts->get('gas', $c['id'])['special_payments'], 'id'), 'die Kennung bleibt');
         self::assertSame($id, $this->bills()->list('gas')[0]['special_payment_id'], 'bleibt gebucht');
     }
 

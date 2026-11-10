@@ -256,9 +256,14 @@ globalThis.fetch = async (url, init) => {
   if (up.data?.id) {
     const dl = await fetch(`${BASE}/api/attachments/${up.data.id}`);
     const bytes = Buffer.from(await dl.arrayBuffer());
-    check('GET /api/attachments/{id} → image/jpeg, immutable, gleiche Bytes',
+    // v3.12.0 — Härtung: nachfragen statt ein Jahr behalten (private, no-cache + ETag; bis v3.11 immutable)
+    const cc = dl.headers.get('cache-control') || '';
+    check('GET /api/attachments/{id} → image/jpeg, no-cache mit ETag, gleiche Bytes',
       dl.status === 200 && dl.headers.get('content-type') === 'image/jpeg'
-        && /immutable/.test(dl.headers.get('cache-control') || '') && bytes.equals(jpeg));
+        && /private/.test(cc) && /no-cache/.test(cc) && !/immutable/.test(cc)
+        && /^"[0-9a-f]{16,}"$/.test(dl.headers.get('etag') || '') && bytes.equals(jpeg));
+    const again = await fetch(`${BASE}/api/attachments/${up.data.id}`, { headers: { 'If-None-Match': dl.headers.get('etag') || '' } });
+    check('GET /api/attachments/{id} mit ETag → 304 ohne Inhalt', again.status === 304 && (await again.arrayBuffer()).byteLength === 0);
     const list = await j('/api/attachments');
     check('GET /api/attachments → attachments[], usage{count,bytes,max_bytes}',
       Array.isArray(list.attachments) && list.attachments.some(a => a.id === up.data.id)

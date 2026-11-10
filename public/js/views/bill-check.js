@@ -24,6 +24,7 @@ import { attachmentNames, attachmentLinksHtml } from '../lib/attachments.js';   
 import { restNoteHtml } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40) — Menge = Rest
 import { offerThanks, compareThanks } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
 import { letterButton, bindLetterButtons, rightsFooterHtml } from '../lib/letter.js';   // v3.11.0 (F1035) — Rechte als Kunde
+import { icon } from '../lib/icons.js';
 
 /** v3.11.0 (Paket rechnung) — Arten eines Postens (BillService::ITEM_KINDS), „Sonstiges“ zuerst wie bisher. */
 const ITEM_KINDS = ['other', 'levy', 'fee', 'credit', 'metering'];
@@ -43,7 +44,7 @@ export function billRightsHtml(findings) {
   if (!findings.length) return '';
   return `<div class="bill-rights" data-role="bill-rights">
     <h4 class="settings-subhead">${escapeHtml(t('rights.title'))}</h4>
-    ${findings.map(f => `<div class="banner banner--${f.severity === 'warning' ? 'warning' : 'info'}" data-role="bill-right" data-check="${escapeHtml(f.check)}">
+    ${findings.map(f => `<div class="infobox infobox--${f.severity === 'warning' ? 'achtung' : 'info'}" data-role="bill-right" data-check="${escapeHtml(f.check)}">
       <p><strong>${escapeHtml(f.title)}</strong></p>
       <p>${escapeHtml(f.text)}</p>
       ${f.deadline ? `<p class="small">${escapeHtml(t('rights.deadline', { date: fmt.date(f.deadline) }))}</p>` : ''}
@@ -121,7 +122,7 @@ async function draw(container, sel) {
     container.innerHTML = `${header}
       <div class="empty">
         <p>${escapeHtml(t('billCheck.noMeter'))}</p>
-        <a class="btn btn--primary" href="#/utility/${escapeHtml(u?.key || 'gas')}/meters">${escapeHtml(t('billCheck.addMeter'))}</a>
+        <a class="btn btn--primary" href="#/household/meters?art=${escapeHtml(u?.key || 'gas')}">${escapeHtml(t('billCheck.addMeter'))}</a>
       </div>`;
     return;
   }
@@ -139,7 +140,7 @@ async function draw(container, sel) {
         <div class="field">
           <label for="bc-utility">${escapeHtml(t('billCheck.pickUtility'))}</label>
           <select class="select" id="bc-utility">
-            ${utils.map(x => `<option value="${escapeHtml(x.key)}"${x.key === u.key ? ' selected' : ''}>${escapeHtml(x.icon || '')} ${escapeHtml(x.label)}</option>`).join('')}
+            ${utils.map(x => `<option value="${escapeHtml(x.key)}"${x.key === u.key ? ' selected' : ''}>${escapeHtml(x.label)}</option>`).join('')}
           </select>
         </div>` : ''}
         ${meters.length > 1 ? `
@@ -201,7 +202,7 @@ export function billCheckForm(from, until) {
           <input class="input" id="bc-until" type="date" value="${escapeHtml(until)}">
         </div>
         <div class="field field--s">
-          <button type="button" class="btn btn--util" id="bc-run">${t('utility.billCheck.run')}</button>
+          <button type="button" class="btn btn--primary" id="bc-run">${t('utility.billCheck.run')}</button>
         </div>
       </div>`;
 }
@@ -230,6 +231,8 @@ function counterCell(value, kind) {
 }
 
 const eur = (v) => v == null ? '–' : fmt.eur(v);
+// v3.12.0 — ohne Menge: Rückgang des Stands (beide Enden abgelesen) oder keine Ablesung
+const gapLabel = (r) => t(r.gap_reason === 'decrease' ? 'utility.billCheck.decrease' : 'utility.billCheck.noReading');
 
 export function renderBillCheck(bill, u = { key: 'gas' }) {
   const rows = bill.rows || [];
@@ -272,11 +275,11 @@ export function renderBillCheck(bill, u = { key: 'gas' }) {
             <td class="num">${r.days}</td>
             <td>${reasonLabel(r.reason)}</td>
             ${gas ? `
-            <td class="num">${r.m3 != null ? fmt.num(r.m3, 1) : `<em>${t('utility.billCheck.noReading')}</em>`}</td>
+            <td class="num">${r.m3 != null ? fmt.num(r.m3, 1) : `<em>${gapLabel(r)}</em>`}</td>
             <td class="num">${r.zustandszahl != null ? fmt.num(r.zustandszahl, 4) : '–'}</td>
             <td class="num">${r.brennwert != null ? fmt.num(r.brennwert, 3) : '–'}</td>
             <td class="num">${fmt.num(r.kwh_per_m3, 3)}</td>` : ''}
-            <td class="num"><strong>${r[qty] != null ? fmt.num(r[qty], water ? 2 : 0) : (gas ? '–' : `<em>${t('utility.billCheck.noReading')}</em>`)}</strong></td>
+            <td class="num"><strong>${r[qty] != null ? fmt.num(r[qty], water ? 2 : 0) : (gas ? '–' : `<em>${gapLabel(r)}</em>`)}</strong></td>
             ${costCells(r)}
           </tr>`).join('')}
       </tbody>
@@ -295,7 +298,8 @@ export function renderBillCheck(bill, u = { key: 'gas' }) {
     <p class="bill-check-total"><strong>${escapeHtml(tot.bonus ? t('billCheck.ownTotal', { total: eur(tot.total), rebate: eur(tot.bonus) }) : t('billCheck.ownTotalOnly', { total: eur(tot.total) }))}</strong></p>
     ${restNoteHtml(tot.rest_of, qtyUnit)}
     <p class="muted bill-check-legend" style="margin-top:8px">${t('utility.billCheck.legend', { est: t('utility.billCheck.mark.estimated'), int: t('utility.billCheck.mark.interpolated') })}</p>
-    ${tot.gaps ? `<p class="muted" style="margin-top:8px">${tp('utility.billCheck.gapsN', tot.gaps)}</p>` : ''}
+    ${tot.gaps - (tot.decreases || 0) > 0 ? `<p class="muted" style="margin-top:8px" data-role="bill-gaps">${tp('utility.billCheck.gapsN', tot.gaps - (tot.decreases || 0))}</p>` : ''}
+    ${tot.decreases ? `<p class="muted" data-role="bill-decreases">${tp('utility.billCheck.decreasesN', tot.decreases)}</p>` : ''}
     ${tot.price_missing ? `<p class="muted">${escapeHtml(t('billCheck.reason.price_missing'))}</p>` : ''}
     ${gas ? `<p class="muted" style="margin-top:8px">${t('utility.billCheck.formula')}</p>` : ''}`;
 }
@@ -409,7 +413,7 @@ async function drawBills(container, u, meter, readPeriod) {
       </fieldset>` : ''}
       <div class="fgrid">
         <div class="field field--full">
-          <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('billCheck.invoice.attach')}
+          <label class="btn btn--ghost btn--sm">${icon('dokument')} ${t('billCheck.invoice.attach')}
             <input type="file" accept="application/pdf,image/*" data-role="bill-pdf" class="sr-only"></label>
           <span class="muted small" data-role="bill-pdf-n"></span>
         </div>
@@ -584,7 +588,7 @@ function billList(bills, water, docNames = new Map(), rights = []) {
       <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>${bills.map(b => `<tr>
-      <td>${fmt.date(b.period_from)} – ${fmt.date(b.period_to)}${nRights(b) ? ` <span class="tag tag--warning" data-role="bill-rights-count">⚖️ ${escapeHtml(tp('billCheck.rightsCount', nRights(b)))}</span>` : ''}</td>
+      <td>${fmt.date(b.period_from)} – ${fmt.date(b.period_to)}${nRights(b) ? ` <span class="tag tag--warning" data-role="bill-rights-count">${icon('waage', { size: 16 })} ${escapeHtml(tp('billCheck.rightsCount', nRights(b)))}</span>` : ''}</td>
       <td class="num">${fmt.num(water ? b.invoice?.volume_m3 : b.invoice?.energy_kwh, water ? 2 : 0)}</td>
       <td class="num">${eur(b.invoice?.amount_eur)}</td>
       <td class="num">${eur(b.invoice?.result_eur)}</td>
@@ -593,8 +597,8 @@ function billList(bills, water, docNames = new Map(), rights = []) {
         <button type="button" class="btn btn--ghost btn--sm" data-bill-check="${escapeHtml(b.id)}">${t('billCheck.compare')}</button>
         ${b.special_payment_id ? `<span class="tag">${t('billCheck.bookedTag')}</span>`
           : (b.invoice?.result_eur ? `<button type="button" class="btn btn--ghost btn--sm" data-bill-book="${escapeHtml(b.id)}">${t('billCheck.book')}</button>` : '')}
-        <button type="button" class="icon-btn" data-bill-edit="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.edit'))}"><span aria-hidden="true">✏️</span></button>
-        <button type="button" class="icon-btn" data-bill-del="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.delete'))}"><span aria-hidden="true">🗑️</span></button>
+        <button type="button" class="icon-btn" data-bill-edit="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.edit'))}">${icon('stift')}</button>
+        <button type="button" class="icon-btn" data-bill-del="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.delete'))}">${icon('eimer')}</button>
       </td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -647,16 +651,16 @@ export function compareNotesHtml(c, u = { key: 'gas' }) {
     const at = (c.price_missing_at || []).map(x => `<li>${escapeHtml(x.contract_id
       ? t('billCheck.noPrices.at', { from: fmt.date(x.from), to: fmt.date(x.to), provider: x.provider || '–' })
       : t('billCheck.noPrices.noContract', { from: fmt.date(x.from), to: fmt.date(x.to) }))}</li>`).join('');
-    parts.push(`<div class="banner banner--info" data-role="no-prices"><p>${escapeHtml(t('billCheck.noPrices.hint'))}</p>
+    parts.push(`<div class="infobox infobox--info" data-role="no-prices"><p>${escapeHtml(t('billCheck.noPrices.hint'))}</p>
       ${at ? `<ul class="small">${at}</ul>` : ''}
       <p><a href="#/utility/${escapeHtml(encodeURIComponent(u.key))}/contracts">${escapeHtml(t('billCheck.noPrices.link'))}</a></p></div>`);
   }
   const fm = c.factor_mismatches || [];
   if (fm.length) {
-    parts.push(`<div class="banner banner--warning" data-role="factor-mismatch"><ul class="small">${fm.map(x => `<li>${escapeHtml(t('billCheck.factorMismatch.line', {
+    parts.push(`<div class="infobox infobox--achtung" data-role="factor-mismatch"><ul class="small">${fm.map(x => `<li>${escapeHtml(t('billCheck.factorMismatch.line', {
       from: fmt.date(x.from), invoice: fmt.num(x.invoice?.kwh_per_m3, 3), z: fmt.num(x.invoice?.zustandszahl, 4),
       hs: fmt.num(x.invoice?.brennwert, 3), list: fmt.num(x.list?.kwh_per_m3, 3) }))}</li>`).join('')}</ul>
-      <p><a href="#/settings/utilities">${escapeHtml(t('contracts.gasFactor.link'))}</a></p></div>`);
+      <p><a href="#/household/utilities">${escapeHtml(t('contracts.gasFactor.link'))}</a></p></div>`);
   }
   return parts.join('');
 }

@@ -21,6 +21,7 @@ import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semanti
 import { periodMode, billingApplies, periodName, periodsWithData, periodRows, refMonth, slotLabels } from '../lib/billing-period.js';   // v3.6.0 (F1030)
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { heatLimitFacts, applyHeatLimit } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+import { artIcon } from '../lib/icons.js';
 
 // Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen. v2.2.0: aus der
 // gemeinsamen Intl-Quelle in lib/format.js statt einer zweiten, nur auf de/en
@@ -37,7 +38,7 @@ export async function render(container, _params = [], ctx = {}) {
   // v2.2.0 — wie Dashboard und Seitenleiste nur die aktiven Verbrauchsarten.
   const utilities = await activeUtilities();
   if (!utilities.length) {
-    container.innerHTML = `<div class="banner banner--info">${escapeHtml(t('analysis.noUtilities'))}</div>`;
+    container.innerHTML = `<div class="infobox infobox--info">${escapeHtml(t('analysis.noUtilities'))}</div>`;
     return;
   }
 
@@ -46,7 +47,7 @@ export async function render(container, _params = [], ctx = {}) {
       <h1>${t('analysis.title')}</h1>
       <div class="section-actions">
         <select class="select" id="util-select" aria-label="${t('analysis.selectUtility')}">
-          ${utilities.map(u => `<option value="${u.key}">${u.icon} ${escapeHtml(u.label)}</option>`).join('')}
+          ${utilities.map(u => `<option value="${u.key}">${escapeHtml(u.label)}</option>`).join('')}
         </select>
         <select class="select" id="meter-select" aria-label="${t('analysis.selectMeter')}"></select>
       </div>
@@ -95,7 +96,7 @@ function destroyCharts() {
 async function renderForMeter(u, meterId, body) {
   let meterData;
   try { meterData = await api.meterConsumption(u.key, meterId, null, { heatLimit: !!u.hgt_relevant }); }
-  catch (e) { toastErr(e.message); body.innerHTML = `<div class="banner banner--error">${escapeHtml(e.message)}</div>`; return; }
+  catch (e) { toastErr(e.message); body.innerHTML = `<div class="infobox infobox--fehler">${escapeHtml(e.message)}</div>`; return; }
   // Contract status drives the F-05 contract-end reminder. It is optional —
   // a meter without contracts simply yields no reminder banner.
   let contractStatus = null;
@@ -128,7 +129,7 @@ async function renderForMeter(u, meterId, body) {
   body.innerHTML = `
     ${modeBar}
     ${renderContractReminders(contractStatus)}
-    ${interpText ? `<p class="banner banner--info" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
+    ${interpText ? `<p class="infobox infobox--info" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
     <div data-min-level="expert">${renderBaselineBlock(baseline, comparison, u)}</div>
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
@@ -191,7 +192,7 @@ async function renderForMeter(u, meterId, body) {
               const dev = a.deviation ?? 0;
               const pct = a.percent ?? 0;
               // v2.13.0 (Review FE-06) — mehr Einspeisung ist gut
-              const cls = changeTone(z, u) || 'success-text';
+              const cls = changeTone(z, u) || 'ton-ok';
               const unit = u.consumption_unit;
               return `
                 <tr>
@@ -261,7 +262,7 @@ function heatLimitHtml(h, unit = 'kWh') {
   const action = advanced
     ? `<button type="button" class="btn btn--sm" data-role="heat-limit-apply" data-value="${h.best}">${escapeHtml(t('analysis.heatLimit.apply', { value: fmt.num(h.best, 1) }))}</button>`
     : levelNote;
-  return `<p class="banner banner--info" data-role="heat-limit">${escapeHtml([text, ...facts, t('analysis.heatLimit.scope')].join(' '))}<br>${action}</p>${own}`;
+  return `<p class="infobox infobox--info" data-role="heat-limit">${escapeHtml([text, ...facts, t('analysis.heatLimit.scope')].join(' '))}<br>${action}</p>${own}`;
 }
 
 // ── v3.9.0 (#38): Muster statt Meldung ──────────────────────────────
@@ -288,7 +289,7 @@ function patternsHtml(patterns, u) {
     return `<li>${escapeHtml(t(p.kind === 'high' ? 'analysis.pattern.high' : 'analysis.pattern.low', {
       month, years: rows.map(a => a.ym.slice(0, 4)).join(', '), pcts }))}</li>`;
   }).join('');
-  return `<div class="banner banner--info" data-role="anomaly-patterns">
+  return `<div class="infobox infobox--info" data-role="anomaly-patterns">
       <p>${escapeHtml(t(u.hgt_relevant ? 'analysis.pattern.whyHeat' : 'analysis.pattern.why'))}</p>
       <ul>${items}</ul>
     </div>`;
@@ -315,12 +316,12 @@ function qualityHtml(q, rows = 0, suggested = false) {
   const text = parts.join(' ');
   // v3.9.0 (#38, Skeptiker L5) — steht der konkrete Vorschlag mit Knopf darunter, entfällt der
   // allgemeine Satz mit dem Weg in die Einstellungen (vorher zwei Hinweise zur Heizgrenze untereinander)
-  if (suggested) return `<p class="banner banner--warning" data-role="anomaly-quality">${escapeHtml(text)}</p>`;
-  const path = [t('nav.settings'), t('settings.page.utilities.title'), t('settings.group.physical.title'), t('settings.field.hdd_base_temp.label')].join(' › ');
+  if (suggested) return `<p class="infobox infobox--achtung" data-role="anomaly-quality">${escapeHtml(text)}</p>`;
+  const path = [t('nav.household'), t('household.utilities.title'), t('settings.group.physical.title'), t('settings.field.hdd_base_temp.label')].join(' › ');
   const where = atLeast('advanced')
-    ? `<a href="#/settings/utilities?field=hdd_base_temp" data-role="quality-link">${escapeHtml(path)}</a>`
+    ? `<a href="#/household/utilities?field=hdd_base_temp" data-role="quality-link">${escapeHtml(path)}</a>`
     : `${escapeHtml(path)} ${escapeHtml(t('analysis.quality.levelNote', { level: t('level.advanced') }))}`;
-  return `<p class="banner banner--warning" data-role="anomaly-quality">${escapeHtml(text)}
+  return `<p class="infobox infobox--achtung" data-role="anomaly-quality">${escapeHtml(text)}
       <br>${escapeHtml(t('analysis.quality.hint'))} ${where}</p>`;
 }
 
@@ -348,7 +349,7 @@ function renderBaselineBlock(baseline, comparison, u) {
       : t('analysis.baseline.activeSinceNoLabel', { date: fmt.date(baseline.active_from) });
     const excluded = baseline.months_total - baseline.months_after;
     parts.push(`
-      <div class="banner banner--info">
+      <div class="infobox infobox--info">
         <strong>${since}</strong>
         ${excluded > 0 ? `<br><span class="muted">${tp('analysis.baseline.excluded', excluded)}</span>` : ''}
       </div>`);
@@ -357,7 +358,7 @@ function renderBaselineBlock(baseline, comparison, u) {
   const missing = (baseline.limits || []).filter(l => !l.ok);
   if (missing.length) {
     parts.push(`
-      <div class="banner banner--warning">
+      <div class="infobox infobox--achtung">
         <strong>${t('analysis.baseline.limitsTitle')}</strong>
         <ul style="margin:6px 0 0 18px">
           ${missing.map(l => `<li>${t('analysis.baseline.limit.' + l.key, { need: l.need, have: l.have })}</li>`).join('')}
@@ -379,7 +380,7 @@ function renderBaselineBlock(baseline, comparison, u) {
           <div class="kpi"><div class="kpi__label">${t('analysis.baseline.after')}</div>
             <div class="kpi__value">${fmt.int(comparison.after.per_year)}</div><div class="kpi__sub">${perYear}</div></div>
           <div class="kpi"><div class="kpi__label">${t('analysis.baseline.effect')}</div>
-            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'success-text' : 'danger-text')}">${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %</div>
+            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'ton-ok' : 'ton-fehler')}">${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %</div>
             <div class="kpi__sub">${comparison.delta_per_year > 0 ? '+' : ''}${fmt.int(comparison.delta_per_year)} ${perYear}</div></div>
         </div>
         <p class="muted" style="margin-top:10px">${t(comparison.significant ? 'analysis.baseline.significant' : 'analysis.baseline.notSignificant', {
@@ -405,7 +406,7 @@ function renderBaselineBlock(baseline, comparison, u) {
           </div>
           <div class="kpi">
             <div class="kpi__label">${t('analysis.baseline.effect')}</div>
-            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'success-text' : 'danger-text')}">
+            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'ton-ok' : 'ton-fehler')}">
               ${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %
             </div>
             <div class="kpi__sub">${t('analysis.baseline.weatherCorrected')}</div>
@@ -753,10 +754,10 @@ function renderYearComparison(series, u, root = document) {
       })]),
     });
     if (years.some(y => partialByYear[y].some(Boolean))) {
-      box.insertAdjacentHTML('beforeend', `<p class="chart-note">${escapeHtml(t('analysis.partialStar'))}</p>`);
+      box.insertAdjacentHTML('beforeend', `<p class="fussnote">${escapeHtml(t('analysis.partialStar'))}</p>`);
     }
     if (years.some(y => (series.rows[y] || []).some(isInterpolated))) {
-      box.insertAdjacentHTML('beforeend', `<p class="chart-note">${escapeHtml(t('interpolation.legend'))}</p>`);
+      box.insertAdjacentHTML('beforeend', `<p class="fussnote">${escapeHtml(t('interpolation.legend'))}</p>`);
     }
   }
 }
@@ -770,7 +771,7 @@ function renderContractReminders(contractStatus) {
   const due = contracts.filter(c => c.should_remind);
   if (!due.length) return '';
 
-  const stageClass = { 1: 'banner--info', 2: 'banner--warning', 3: 'banner--error' };
+  const stageClass = { 1: 'infobox--info', 2: 'infobox--achtung', 3: 'infobox--fehler' };
 
   return due.map(c => {
     const stage = Math.min(3, Math.max(1, Number(c.remind_stage) || 1));
@@ -785,7 +786,7 @@ function renderContractReminders(contractStatus) {
       ? tp('analysis.contractEnd.cancelBy', days, { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.end) })
       : `${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })} ${c.end ? `(${fmt.date(c.end)})` : ''}.`;
     return `
-      <div class="banner ${stageClass[stage] || 'banner--info'}" style="margin-bottom: var(--sp-3)">
+      <div class="infobox ${stageClass[stage] || 'infobox--info'}" style="margin-bottom: var(--sp-3)">
         <strong>${t(`analysis.contractEnd.heading.stage${stage}`)}</strong>
         ${text}
         <span class="muted"> ${t('analysis.contractEnd.checkNote')}</span>
@@ -905,7 +906,7 @@ async function renderWaterSparindex(monthly) {
   if (!recent.length) {
     return `
       <div class="card">
-        <h3 class="card__title">${t('analysis.spar.title')}</h3>
+        <h3 class="card__title">${artIcon('wasser')} ${t('analysis.spar.title')}</h3>
         <p class="muted">${t('analysis.spar.noData')}</p>
       </div>
     `;
@@ -934,7 +935,7 @@ async function renderWaterSparindex(monthly) {
 
   return `
     <div class="card">
-      <h3 class="card__title">${t('analysis.spar.title')}</h3>
+      <h3 class="card__title">${artIcon('wasser')} ${t('analysis.spar.title')}</h3>
       <div class="sparindex">
         <div class="sparindex__main">
           <div class="sparindex__value ${bandMeta.cls}-text">${fmt.num(index, 0)}</div>

@@ -116,7 +116,7 @@ final class InboxBillCorrectionTest extends ServiceTestCase
         // erfasste und gebuchte Rechnung 2025, Ergebnis Guthaben 30 € statt Nachzahlung 30 €
         self::assertSame(['inbox.gist.invoice.correctionBooked', '2025-01-01', '2025-12-31', 30.0, -30.0],
             [$pv['gist']['key'], $pv['gist']['params']['from'], $pv['gist']['params']['to'], (float)$pv['gist']['params']['balance'], (float)$pv['gist']['params']['result']]);
-        self::assertSame(1, preg_match('/^Rechnungskorrektur .+: Sie ersetzt die erfasste und gebuchte Rechnung/u',
+        self::assertSame(1, preg_match('/^Rechnungskorrektur .+: Das Ergebnis wird .+\. Sie ersetzt die erfasste und gebuchte Rechnung/u',
             $this->i18n->t($pv['gist']['key'], ['from' => 'x', 'to' => 'y', 'balance' => 'b', 'result' => 'r'])));
 
         $res = $this->inbox->apply($id, array_column(array_filter($pv['proposals'], fn($p) => $p['checked']), 'id'));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services\Inbox;
 
 use Energietracker\Http\HttpStatusException;
+use Energietracker\Support\IpAddress;
 use Energietracker\Support\LocalizedException;
 use Energietracker\Support\Outbound;
 
@@ -92,27 +93,28 @@ final class CloudHttp
      * fällt alles heraus, was OcrService::isLocalIp() als Heimnetz gelten lässt
      * (Loopback, RFC 1918, 100.64.0.0/10, ULA) — das Gegenstück; der Test
      * CloudExtractionTest hält diese Beziehung fest.
+     *
+     * v3.12.0 — Härtung: Zerlegt wird über Support\IpAddress, gemeinsam mit
+     * Texterkennung und Home Assistant. Mit der eingebetteten IPv4 zählen
+     * `::ffff:…` (jede Schreibweise), NAT64 (64:ff9b::/96, auch für Netze nur
+     * mit IPv6) und 6to4; die veralteten Formen `::a.b.c.d` und
+     * `::ffff:0:a.b.c.d` und das lokale NAT64-Präfix sind nie öffentlich.
+     * Die Metadatendienste (IpAddress::METADATA) liegen alle in Netzen, die
+     * RFC 6890 nicht global nennt (Link-local, ULA, 100.64.0.0/10), und sind
+     * damit nie öffentlich; MetadataAddressTest hält das fest.
      */
     public static function isPublicIp(string $ip): bool
     {
-        $v4 = self::embeddedIpv4($ip);
-        if ($v4 !== null) $ip = $v4;
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) === false) return false;
+        $a = IpAddress::parse($ip);
+        $ip = match ($a['form']) {
+            'ipv4', 'mapped', 'nat64', '6to4' => (string)$a['ipv4'],
+            'ipv6'                            => $ip,
+            default                           => null,
+        };
+        if ($ip === null || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) === false) return false;
         $bin = (string)inet_pton($ip);
         // Multicast gilt in PHP als global, ist aber kein Dienst: 224.0.0.0/4, ff00::/8
         return strlen($bin) === 4 ? (ord($bin[0]) & 0xF0) !== 0xE0 : ord($bin[0]) !== 0xFF;
-    }
-
-    /** IPv4 in IPv6: ::ffff:a.b.c.d, NAT64 64:ff9b::/96, 6to4 2002::/16 — sonst null. */
-    private static function embeddedIpv4(string $ip): ?string
-    {
-        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) return null;
-        $b = inet_pton($ip);
-        if ($b === false || strlen($b) !== 16) return null;
-        if (substr($b, 0, 12) === str_repeat("\0", 10) . "\xff\xff") return (string)inet_ntop(substr($b, 12));
-        if (substr($b, 0, 12) === "\x00\x64\xff\x9b" . str_repeat("\0", 8)) return (string)inet_ntop(substr($b, 12));
-        if (substr($b, 0, 2) === "\x20\x02") return (string)inet_ntop(substr($b, 2, 4));
-        return null;
     }
 
     /** @return list<string> */

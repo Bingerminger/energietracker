@@ -25,12 +25,26 @@ dem **Brennstoffemissionshandelsgesetz (BEHG)**. Sie geben ihn über den
 Arbeitspreis an ihre Kunden weiter. Bis 2025 war der Preis je Jahr fest, für
 2026 gilt ein Korridor von 55 bis 65 € je Tonne (§ 10 Abs. 2 BEHG).
 
-**2027 (Stand 13.10.2026).** Der Entwurf eines Dritten Gesetzes zur Änderung
-des BEHG (BT-Drucksache 21/7869, Art. 1 Nr. 4) verlängert den Korridor von 55
-bis 65 € auf 2027. Ohne diese Änderung ergäbe sich der Preis für 2027 nach dem
-geltenden BEHG aus den Versteigerungspreisen des europäischen Emissionshandels
-für Industrie und Energie (EU-ETS 1). Beschlossen ist der Entwurf noch nicht;
-die 2./3. Lesung im Bundestag ist für den 15.10.2026 angesetzt.
+**2027 (Stand 09.11.2026).**
+
+- **Der Bundestag hat das Dritte Gesetz zur Änderung des BEHG am 15.10.2026
+  beschlossen** (102. Sitzung, in der Fassung der Beschlussempfehlung,
+  BT-Drucksache 21/8626; Entwurf 21/7869). Danach gilt der Korridor von 55 bis
+  65 € je Tonne auch 2027: „Für die Jahre 2026 und 2027 wird ein Preiskorridor
+  mit einem Mindestpreis von 55 Euro pro Emissionszertifikat und einem
+  Höchstpreis von 65 Euro pro Emissionszertifikat festgelegt.“ (§ 10 Abs. 2
+  Satz 4 BEHG in der beschlossenen Fassung, Art. 1 Nr. 4 Buchst. a).
+- **Noch nicht in Kraft.** Der Bundesrat berät das Gesetz im zweiten Durchgang
+  (BR-Drucksache 624/26 vom 30.10.2026, Fristablauf 20.11.2026); verkündet ist es
+  noch nicht. Bis dahin ergäbe sich der Preis für 2027 nach dem geltenden BEHG
+  aus den Versteigerungspreisen des europäischen Emissionshandels für Industrie
+  und Energie (EU-ETS 1).
+- **Die App ändert deshalb noch nichts:** Für 2027 rechnet sie weiter mit dem
+  zuletzt bekannten Wert als Annahme ([§ 4](#4-preis-je-jahr)).
+
+Quellen: [Textarchiv des Bundestags, 15.10.2026](https://www.bundestag.de/dokumente/textarchiv/2026/kw42-de-brennstoffemissionshandelsgesetz-1223608),
+[Gesetzesbeschluss, BR-Drucksache 624/26](https://dserver.bundestag.de/brd/2026/0624-26.pdf)
+(abgerufen 09.11.2026).
 
 Der **europäische Emissionshandel für Gebäude und Straßenverkehr (ETS2)**
 startet 2028: Art. 2 der Verordnung (EU) 2026/667 verschiebt ihn um ein Jahr.
@@ -140,7 +154,7 @@ kann vom Wert nach CO2KostAufG abweichen. Die App führt einen Wert je Jahr für
 beides; steht auf deiner Rechnung ein anderer CO₂-Betrag, trag die Rechnung
 ein (sie geht vor) oder den Preis unter „CO₂-Preis je Jahr“.
 
-Eigene Werte trägst du unter **Einstellungen → Experte → Rechenparameter →
+Eigene Werte trägst du unter **Einstellungen → Rechnen →
 „CO₂-Preis“ → „CO₂-Preis je Jahr“** ein (Jahr und € je Tonne). Sie gehen dem
 Länderprofil vor und ersetzen die Annahme — etwa, sobald das Umweltbundesamt den
 Preis für 2027 veröffentlicht hat oder wenn dein Lieferant einen anderen Wert
@@ -174,7 +188,7 @@ im Jahr 2023 (30 €/t, Umsatzsteuer 7 %): 54,42 € netto × 1,07 = 58,23 €.
 **Je m² Wohnfläche.** Die API rechnet zusätzlich die Emissionen aller Zeilen
 je m² Wohnfläche und die **Stufe nach dem CO2KostAufG** aus (zehn Stufen, auf
 eine Nachkommastelle gerundet). Die Fläche kommt bei „zur Miete“ aus dem
-Mietverhältnis, sonst aus Einstellungen → Haushalt & Gebäude. Wofür die Stufe
+Mietverhältnis, sonst aus Haushalt → Gebäude. Wofür die Stufe
 gebraucht wird: [CO₂-Kosten mit dem Vermieter teilen](../anleitungen/co2-aufteilung.md).
 
 ## 6. Wo du ihn siehst
@@ -187,7 +201,7 @@ Heizöl, Fernwärme und Heizwärme, für das dort gewählte Jahr:
 - **Emissionen (BEHG)** in kg,
 - **CO₂-Preis** in € je Tonne.
 
-Darunter eine Zeile: „Steckt schon im Arbeitspreis – kein Aufschlag. Netto …,
+Darunter eine Zeile: „Steckt schon im Arbeitspreis, ist also kein Aufschlag. Netto …,
 oben mit Umsatzsteuer.“, dazu die Quelle (Standardfaktor, Versorgerrechnung
 oder Emissionsfaktor des Wärmenetzes), bei Heizwärme der Hinweis auf die
 Näherung und bei einem angenommenen Preis der Hinweis darauf. Ohne Verbrauch
@@ -208,7 +222,7 @@ Beispiel Gas:           (150 − 60) × 0,18139 / 10 × 1,19 = 1,94 ct/kWh
 
 - Das Szenario ist **nur ein Ausweis neben der Prognose**; deren Kosten ändert
   es nicht.
-- Es gilt ab dem Jahr unter **Einstellungen → Experte → Rechenparameter →
+- Es gilt ab dem Jahr unter **Einstellungen → Rechnen →
   „CO₂-Preis“ → „Szenario ab Jahr“** (Standard 2028), für jeden Prognosemonat
   ab diesem Jahr. Den Betrag „in den nächsten 12 Monaten“ zählt die App nur
   über die Monate ab diesem Jahr: Reicht die Prognose nicht bis dorthin,

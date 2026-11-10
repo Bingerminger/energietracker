@@ -373,7 +373,8 @@ a drawing per step and per sample household (decoration), the empty overview
 one in the welcome card. Empty states of lists come from `lib/empty.js` (icon
 in a circle, title, one sentence, at most one action).
 
-> ⚠️ **Architecture-critical:** since all modules are loaded via a single ES module
+> [!WARNING]
+> **Architecture-critical:** since all modules are loaded via a single ES module
 > graph, **a single faulty relative import** (404) breaks the *entire* app — the
 > interface stays at "Loading…". That was exactly bug v1.4.1 (`sidebar.js` imported
 > `./state.js` instead of `../state.js`). The browser render test
@@ -405,6 +406,19 @@ chosen period) with "not precomputed". The build script and the browser compute
 a request's key (path + sorted query) with the same function
 (`lib/demo-key.js`). In the demo the language follows the browser; a notice at
 the bottom offers a language choice and the way to your own installation.
+
+**Back to zero after every release (v3.12.0).** A demo that remembers choices hides
+new features from returning visitors. At the start, before household, level and
+language are first read, `demoFreshStart()` fetches `meta.json` past the cache and
+compares `version` with `et-demo-version`. If it differs, it deletes all keys with
+the prefixes `et-` and `et.` (no `clear()`: the origin on GitHub Pages belongs to
+all pages of the account), remembers the version, and the assistant starts. The
+weekly rebuild does not change `version` and resets nothing. Every other request
+under `demo-api/` carries `?b=<built_at>`, so a new build never comes from the
+browser cache (`max-age=600`); the request keys do not know the mark.
+`tests/demo-start.test.mjs` checks this and every use of `localStorage` in
+`public/js`. A line “New in vX.Y” leads to the main feature (keep `DEMO_NEWS` up to
+date at a release); if the version no longer fits, it stays silent.
 
 Publishing runs through `.github/workflows/pages.yml` — on a GitHub release (the
 demo shows what is released) and on Mondays, so the data reach up to today

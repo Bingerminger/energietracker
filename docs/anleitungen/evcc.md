@@ -25,7 +25,7 @@ immer — oder der **Abruf** direkt bei evcc im Heimnetz.
 - Im Energietracker einen **Strom-Zähler mit der Rolle „Wallbox“** (§ 2).
 - Die Stufe **„Erfahren“** oder höher: Erst dann zeigt die Ansicht der
   Wallbox die Karte „Ladevorgänge aus evcc“. Die Adresse für den Abruf steht
-  unter Einstellungen → Experte (Stufe „Experte“).
+  unter Verbindungen → evcc (Stufe „Experte“).
 - Mit [Benutzern im Haushalt](benutzer.md): Die Adresse von evcc trägt nur
   ein, wer die Installation verwaltet. Übernehmen dürfen alle.
 
@@ -80,7 +80,7 @@ Sonnenanteil und Preis nimmt er mit, wenn sie da sind.
 Statt einer Datei holt der Energietracker die Ladevorgänge auf Knopfdruck
 selbst bei evcc ab.
 
-1. **Einstellungen → Experte → „evcc im Heimnetz“ → „Adresse von evcc“**:
+1. **Verbindungen → evcc → „Adresse von evcc“**:
    die Adresse, unter der du evcc im Browser öffnest, etwa
    `http://192.168.178.30:7070`. Port 7070 ist der Standard von evcc für
    Oberfläche und Schnittstelle.
@@ -127,7 +127,7 @@ Die Auswahl „Zählerstände“ in der Karte gilt für CSV und Abruf gleicherma
 |---|---|---|
 | **„vom Zähler der Wallbox (sonst aufsummiert)“** — Standard | Der Anfangsstand am Tag, an dem geladen wird, der Endstand am Tag danach — so, wie die App einen Stand liest: als Stand zu Beginn des Tages. Damit zählt jede Ladung zu ihrem Tag und Monat. Meldet die Wallbox keine Zählerstände, summiert die App wie in der nächsten Zeile. | der Zähler im Energietracker der Zähler in der Wallbox ist, den evcc ausliest (etwa ein MID-Zähler in der Wallbox). Meist die richtige Wahl. |
 | **„aus der geladenen Energie aufsummieren“** | Ausgehend vom letzten Stand bis zum Tag des ersten Ladevorgangs — ohne Stand vom Anfangsstand des Geräts — zählt die App die geladene Energie auf und legt je Ladetag einen Stand am Tag danach an. | dein Zähler im Energietracker ein anderer ist als der, den die Wallbox meldet (etwa ein eigener Zwischenzähler), oder die Stände der Wallbox nicht zu deinen Ablesungen passen. Was die Wallbox im Stand-by verbraucht, steht in keinem Ladevorgang; der aufsummierte Stand läuft dem echten deshalb etwas hinterher. Ab und zu echt ablesen. |
-| **„keine – nur die Ladevorgänge“** | Nur die Ladevorgänge; die Zählerstände bleiben unverändert. | die Stände schon anders kommen — von Hand, aus [Home Assistant](home-assistant.md) oder aus dem [Portal](daten-aus-portalen.md) — und du nur Sonnenanteil und Preis willst. Ebenso, wenn alle Ladepunkte einer Datei an einem Zähler landen sollen (§ 7). |
+| **„keine (nur die Ladevorgänge)“** | Nur die Ladevorgänge; die Zählerstände bleiben unverändert. | die Stände schon anders kommen — von Hand, aus [Home Assistant](home-assistant.md) oder aus dem [Portal](daten-aus-portalen.md) — und du nur Sonnenanteil und Preis willst. Ebenso, wenn alle Ladepunkte einer Datei an einem Zähler landen sollen (§ 7). |
 
 Stände aus evcc tragen die Notiz „evcc“. Ein vorhandener Stand am selben Tag
 wird ersetzt; die Vorschau sagt, wie viele. Der Endstand eines Ladevorgangs von
@@ -219,12 +219,12 @@ den Ladetagen im Stand-by verbraucht, verteilt die App nach Tagen.
 | Meldung | Ursache und Lösung |
 |---|---|
 | „evcc ist nicht erreichbar.“ | evcc läuft nicht, der Port stimmt nicht, eine Firewall sperrt, der Name lässt sich nicht auflösen (`evcc.local` im Docker-Container, [§ 4](#name-oder-ip-adresse)), oder die Adresse beginnt mit `https://` und evcc hat ein selbst signiertes Zertifikat. Erste Probe: die Adresse mit `/api/sessions` dahinter im Browser öffnen — kommt dort eine Liste, liegt es am Weg vom Server zu evcc (Name, Docker, Firewall). Ohne die PHP-Erweiterung curl geht der Abruf ebenfalls nicht; im Docker-Image ist sie enthalten. |
-| „evcc muss im eigenen Netz laufen – „…“ ist keine Adresse im Heimnetz.“ | Die Adresse — oder eine, auf die der Name zeigt — liegt nicht im eigenen Netz. Die IP-Adresse von evcc im Heimnetz eintragen. |
+| „evcc muss im eigenen Netz laufen. „…“ ist keine Adresse im Heimnetz.“ | Die Adresse — oder eine, auf die der Name zeigt — liegt nicht im eigenen Netz. Die IP-Adresse von evcc im Heimnetz eintragen. |
 | „evcc hat keine Liste von Ladevorgängen geliefert.“ | Unter der Adresse antwortet etwas anderes als evcc, etwa auf einem falschen Port. |
 | „Keine abgeschlossenen Ladevorgänge gefunden.“ | Die Datei ist leer, alle Ladevorgänge laufen noch, oder kein Ladevorgang passt zum gewählten Ladepunkt (`loadpoint`). |
 | „Mehrere Ladepunkte (…): Zählerstände gehören zu einer Wallbox – …“ | Über die Schnittstelle ohne `loadpoint`, aber mit Zählerständen. Den Ladepunkt angeben oder `counters: "none"` (§ 7). |
 | „Das sieht nicht nach dem CSV-Export aus evcc aus: Es fehlen die Spalten für Beginn und Energie.“ | Eine andere Datei, oder in evcc wurde XLSX statt CSV heruntergeladen (§ 3). |
-| „Keine Adresse von evcc eingetragen (Einstellungen → Experte).“ | Abruf über die Schnittstelle ohne eingetragene Adresse. |
+| „Keine Adresse von evcc eingetragen (Verbindungen → evcc).“ | Abruf über die Schnittstelle ohne eingetragene Adresse. |
 | „Dieser Zähler erfasst Verbrauch je Zeitraum – …“ | Der gewählte Zähler erfasst Zeiträume statt Stände. Einen Zähler mit Zählerständen nehmen. |
 | „Das darf nur, wer die Installation verwaltet.“ | Ein Mitglied wollte die Adresse von evcc ändern ([Benutzer](benutzer.md)). |
 | Die Karte fehlt | Der Zähler hat nicht die Rolle „Wallbox“, oder die Stufe ist „Einsteiger“. |

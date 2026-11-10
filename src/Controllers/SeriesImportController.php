@@ -15,7 +15,9 @@ final class SeriesImportController
     public function import(Request $req): never
     {
         $body = (array)$req->body;
+        // v3.12.0 — `csv` als Liste ergab 500, `mapping` als Text eine Liste mit einem Eintrag (Support\Input)
+        if (isset($body['mapping']) && !is_array($body['mapping'])) throw \Energietracker\Support\Input::objectExpected('mapping');
         Response::json($this->series->import((string)$req->param('utility'), (string)$req->param('id'),
-            (string)($body['csv'] ?? ''), (array)($body['mapping'] ?? []), $req->queryParam('dry_run') === '1'));
+            (string)\Energietracker\Support\Input::text($body, 'csv'), (array)($body['mapping'] ?? []), $req->queryParam('dry_run') === '1'));
     }
 }

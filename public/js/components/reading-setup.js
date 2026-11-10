@@ -34,11 +34,11 @@ export function readingSetupButtonHtml(provider) {
  * nach dem Speichern der Stand („liest jetzt aus mit …“), dann die Karte.
  */
 export function readingSetupBodyHtml(status, settings, isAdmin, provider = null) {
-  const head = isAdmin ? '' : `<p class="banner banner--info" data-role="reading-setup-member">${escapeHtml(t('inboxDraft.setup.memberHint'))}</p>`;
+  const head = isAdmin ? '' : `<p class="infobox infobox--info" data-role="reading-setup-member">${escapeHtml(t('inboxDraft.setup.memberHint'))}</p>`;
   const ready = provider?.available
-    ? `<p class="banner banner--success" data-role="reading-setup-ready" role="status">${escapeHtml(t('inboxDraft.setup.ready', { service: provider.label || provider.id, model: provider.model || '–' }))}</p>` : '';
+    ? `<p class="infobox infobox--erfolg" data-role="reading-setup-ready" role="status">${escapeHtml(t('inboxDraft.setup.ready', { service: provider.label || provider.id, model: provider.model || '–' }))}</p>` : '';
   const card = renderReadingCard(status, settings, isAdmin);
-  return `${head}${ready}${card || `<p class="banner banner--warning">${escapeHtml(t('inboxDraft.setup.unavailable'))}</p>`}`;
+  return `${head}${ready}${card || `<p class="infobox infobox--achtung">${escapeHtml(t('inboxDraft.setup.unavailable'))}</p>`}`;
 }
 
 /**

@@ -21,6 +21,7 @@
 import { t, tp } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
 import { sessionUser } from './levels.js';
+import { icon } from './icons.js';
 
 const FILTER_KEY = 'et-assignee-filter';
 const ME_KEY = 'et-assignee-me';
@@ -136,7 +137,7 @@ export function chipHtml(x) {
   if (!a) return '';
   const via = a.via ? t(VIA_KEY[a.via]) : '';
   return ` <span class="chip chip--assignee${a.former || a.deleted ? ' chip--former' : ''}${via ? ' chip--via' : ''}" title="${esc(t('assignee.label') + (via ? ` (${via})` : ''))}">`
-    + `<span aria-hidden="true">👤</span> <span class="sr-only">${esc(t('assignee.label'))}: </span>${esc(displayName(a))}`
+    + `${icon('person')} <span class="sr-only">${esc(t('assignee.label'))}: </span>${esc(displayName(a))}`
     + `${via ? ` <span class="chip__via">${esc(via)}</span>` : ''}</span>`;
 }
 

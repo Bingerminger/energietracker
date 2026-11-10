@@ -24,7 +24,7 @@ Assistant ist eine Möglichkeit, die Stände automatisch zu liefern
 Einmal im Monat genügt, seltener geht auch. Der Verbrauch entsteht aus der
 Differenz zweier Stände und wird tagesgenau auf die Monate verteilt; je dichter
 die Stände, desto genauer die Monate. Nach 45 Tagen ohne Ablesung erinnert die
-Übersicht unter „Zu tun“ (einstellbar unter Einstellungen → Allgemein).
+Übersicht unter „Zu tun“ (einstellbar unter Einstellungen → Anzeige und Erinnerungen).
 
 ### Geht das Erfassen auch ohne WLAN im Keller?
 
@@ -47,8 +47,8 @@ App bewusst nicht — [Texterkennung im Heimnetz](../anleitungen/texterkennung.m
 ### Kann ich erst einmal ausprobieren, ohne etwas einzutragen?
 
 Ja: Auf der leeren Übersicht **„Mit Beispieldaten ausprobieren“**, später unter
-Einstellungen → Daten → „Demo-Daten laden“. Vorher sichert die App den jetzigen
-Stand; zurück geht es über Einstellungen → Daten → Gespeicherte Snapshots (↩️).
+Einstellungen → Daten und Sicherung → „Demo-Daten laden“. Vorher sichert die App den jetzigen
+Stand; zurück geht es über Einstellungen → Daten und Sicherung → Gespeicherte Snapshots (↩️).
 
 ### Ich wohne zur Miete — hilft mir die App?
 
@@ -56,7 +56,7 @@ Ja. Den Strom mit eigenem Vertrag rechnet sie wie bei jedem anderen. Für
 Heizung und Wasser, die du über die Nebenkosten zahlst, gibt es seit v3.1.0
 eigene Bausteine: die Verbrauchsart **Heizwärme** für die monatliche
 Verbrauchsinfo des Messdienstes (HeizkostenV § 6a), Warm- und
-Kaltwasserzähler mit Rollen und — nach **Einstellungen → Haushalt & Gebäude →
+Kaltwasserzähler mit Rollen und — nach **Haushalt → Gebäude →
 „Ich wohne“: „zur Miete“** — die Seite **Mietverhältnis** unter Kosten &
 Verträge. Sie stellt die Vorauszahlung den erwarteten Kosten des laufenden
 Abrechnungszeitraums gegenüber, hebt die Nebenkostenabrechnungen mit PDF auf
@@ -75,7 +75,7 @@ Spaltennamen dürfen in jeder Sprache der App stehen. Eine Vorschau zeigt jede
 Zeile, bevor etwas geschrieben wird, und ein Beispiel lässt sich dort
 herunterladen. Ein amerikanisches Datum mit dem Monat vorn (`01/15/2026`)
 deutet die App nicht um, sondern meldet die Zeile. Temperaturen kommen unter
-Einstellungen → Wetterdaten als `TT.MM.JJJJ;Mittel;Min;Max`. Monatswerte für
+Verbindungen → Wetterdaten als `TT.MM.JJJJ;Mittel;Min;Max`. Monatswerte für
 einen Zähler mit Verbrauch je Zeitraum (seit v3.1.0) liest derselbe Knopf als
 `Monat;Verbrauch`, etwa `01.2026;1180`.
 
@@ -98,8 +98,8 @@ Netzbetreiber.
 
 Meist aus einem dieser Gründe:
 
-- Der **Abrechnungsstichtag** ist ein anderer (Einstellungen → Verbrauchsarten
-  & Abrechnung).
+- Der **Abrechnungsstichtag** ist ein anderer (Haushalt →
+  Verbrauchsarten).
 - Eine **Rückzahlung oder Nachzahlung** der Vorjahresabrechnung fehlt — sie
   gehört als Sonderzahlung an den Vertrag.
 - Bei Gas fehlen die **Umrechnungsfaktoren** der Rechnung (Zustandszahl ×
@@ -213,8 +213,8 @@ nichts über die Wärme
 
 ### Wie vergleiche ich mich mit anderen?
 
-Mit eigenen **Vergleichswerten** (seit v3.1.0): unter Einstellungen → Haushalt
-& Gebäude → „Eigene Vergleichswerte“ etwa die kWh, die der Stromspiegel für
+Mit eigenen **Vergleichswerten** (seit v3.1.0): unter Haushalt →
+Gebäude → „Eigene Vergleichswerte“ etwa die kWh, die der Stromspiegel für
 deinen Haushalt nennt, und die kWh je m² aus dem Heizspiegel, dazu die Quelle.
 Die Übersicht zeigt dann die Karte „Einordnung“ für das letzte volle Jahr als
 Ampel mit einem Satz („Darüber — Haushaltsstrom: …, 7 % über deinem
@@ -240,16 +240,16 @@ Portalen baut sie nicht auf
 Der Gaszähler zählt Kubikmeter; kWh entstehen erst über Zustandszahl ×
 Brennwert, und beide ändern sich von Jahr zu Jahr. Solange nur der
 Standardfaktor 11,5 eingetragen ist, weicht das Ergebnis ab. Die Faktoren der
-Rechnung gehören mit ihrem Stichtag in die Liste unter Einstellungen →
-Verbrauchsarten & Abrechnung.
+Rechnung gehören mit ihrem Stichtag in die Liste unter Haushalt →
+Verbrauchsarten.
 
 ### Warum sind Analyse oder Prognose leer?
 
 Weil noch zu wenig Daten da sind. Die Wetterbereinigung braucht 12 Monate mit
 mindestens 8 verwertbaren Punkten, Anomalien 5 Monate, eine Effizienzklasse ein
 ganzes Jahr (360 abgedeckte Tage) und die Wohnfläche. Außerdem braucht jede
-Auswertung mit Heizgradtagen Temperaturen für den eigenen Standort (Einstellungen
-→ Wetterdaten).
+Auswertung mit Heizgradtagen Temperaturen für den eigenen Standort (Verbindungen →
+Wetterdaten).
 
 ### Warum fehlt die Effizienzklasse?
 
@@ -271,7 +271,7 @@ Vorher-nachher-Kennzahl zeigt die Wirkung ([Szenario Eigenheim](../verstehen/08-
 
 ### Ich wohne nicht in Deutschland — geht das?
 
-Ja. Das Land unter Einstellungen → Allgemein → Sprache & Land setzt Währung,
+Ja. Das Land unter Einstellungen → Region und Sprache setzt Währung,
 Formate, Zeitzone, Wetterstandort, Heizgrenze, CO₂-Faktor und Gaseinheiten.
 Deutsch geprägt bleiben Effizienzklassen und Sonderkündigungsrecht
 ([Länderprofile](../verstehen/14-laenderprofile.md)). Die ⓘ-Erklärungen nennen
@@ -280,10 +280,9 @@ Tarifwechsel verlinkt den amtlichen Tarifvergleich, wo es einen gibt.
 
 ### Zwei Sprachen im Haushalt — geht das?
 
-Ja, seit v3.1.0. Unter Einstellungen → Allgemein → Sprache & Land wählt jedes
-Gerät seine **Sprache auf diesem Gerät**; der Browser merkt sie sich, am
-Server ändert sich nichts. Daneben steht die **Standardsprache der
-Installation**: Sie gilt für Geräte ohne eigene Wahl und für alles, was ohne
+Ja, seit v3.1.0. Unter Einstellungen → Region und Sprache wählt jedes
+Gerät seine **Deine Sprache**; der Browser merkt sie sich, am
+Server ändert sich nichts. Daneben steht die **Sprache, Vorgabe für alle**: Sie gilt für Geräte ohne eigene Wahl und für alles, was ohne
 Gerät entsteht — PDF-Jahresbericht, CSV-Dateien, Meldungen an Home Assistant.
 Die Druckansicht des Jahresberichts folgt der Sprache des Geräts.
 
@@ -292,13 +291,13 @@ Die Druckansicht des Jahresberichts folgt der Sprache des Geräts.
 ### Wo liegen meine Daten, und wie sichere ich sie?
 
 Als JSON-Dateien im Datenverzeichnis (`data/`, im Docker-Container `/data`).
-Ein vollständiges Backup lädt Einstellungen → Daten → **JSON-Backup
+Ein vollständiges Backup lädt Einstellungen → Daten und Sicherung → **JSON-Backup
 herunterladen**; vor jedem Import legt die App selbst einen Snapshot an.
 
 ### Welche Daten verlassen meinen Server?
 
 Nur die Anfragen an Open-Meteo: der tägliche Wetterabgleich mit dem auf rund
-1 km gerundeten Standort (abschaltbar unter Einstellungen → Wetterdaten) und
+1 km gerundeten Standort (abschaltbar unter Verbindungen → Wetterdaten) und
 die Ortssuche, wenn du sie benutzt. Dazu, nur wenn du ihn einträgst, die Fotos
 an deinen eigenen Texterkennungsdienst — und der muss im Heimnetz stehen
 ([Texterkennung](../anleitungen/texterkennung.md)) — und, seit v3.1.0 nur auf
@@ -326,15 +325,15 @@ Ja, im Browser im Heimnetz; als App auf dem Home-Bildschirm mit HTTPS. Siehe
 
 ### Kann mir die App Fristen nach Home Assistant melden?
 
-Ja, seit v3.9.0: Einstellungen → Integrationen → „Benachrichtigungen an Home
-Assistant“. In der App für Home Assistant genügt der Schalter, sonst ein
+Ja, seit v3.9.0: Verbindungen →
+Benachrichtigungen. In der App für Home Assistant genügt der Schalter, sonst ein
 Webhook oder Adresse und Token. Fällige Termine, Fristen, Warnungen und neue
 Post kommen je einmal an, in der Sprache der Installation
 ([Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390)).
 
 ### Kann ich Fristen in meinem Kalender sehen?
 
-Ja, seit v3.1.0 als Kalender-Abo: unter **Hinweise → Termine & Wartung → Im
+Ja, seit v3.1.0 als Kalender-Abo: unter **Zu tun → Termine → Im
 Kalender abonnieren**. Darin stehen Termine, Kündigungsstichtage,
 Vertragsenden, Preisgarantien, Preiserhöhungen und fällige Ablesungen, zur
 Miete auch die Fristen der Nebenkostenabrechnung; der Kalender holt sie alle
@@ -354,7 +353,7 @@ PDF-Datei in der Standardsprache der Installation.
 ### Welches CSV-Format soll ich exportieren?
 
 Für Excel, LibreOffice oder Numbers die **Tabelle in der Standardsprache**
-(Einstellungen → Daten → Datenexport, empfohlen): Spaltennamen, Dezimalzeichen
+(Einstellungen → Daten und Sicherung → Datenexport, empfohlen): Spaltennamen, Dezimalzeichen
 und Datum passen zur Sprache, die Datei öffnet sich mit einem Doppelklick
 richtig. Für Skripte **CSV-Format 1** — es bleibt Byte für Byte, wie es ist.
 Beide lassen sich wieder importieren ([CSV-Formate](../referenz/api.md#csv-formate-v310)).
@@ -368,7 +367,7 @@ die App beim Start selbst an; ein Backup vorher schadet nie
 
 ### Kann ich die App aus dem Internet erreichbar machen?
 
-Ja, aber nur mit Anmeldung (Einstellungen → Zugriff) und hinter HTTPS. Die
+Ja, aber nur mit Anmeldung (Einstellungen → Zugang und Sicherheit) und hinter HTTPS. Die
 Checkliste steht unter [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
 
 ### Was kostet der Energietracker?

@@ -17,8 +17,8 @@ Rechte“ sagt das seit v3.6.0 auch in der App und springt mit „Anmeldung
 einschalten“ zur Karte „Anmeldung & Zugriff“. Seit **v3.6.0** führt die App
 alle Personen zusätzlich in einem **Personenverzeichnis** mit fortlaufender
 Nummer, das zum Backup gehört (§ 7). Seit **v3.9.0** legst du Personen auch
-**ohne Anmeldung** an, unter Einstellungen → Haushalt & Gebäude → „Personen im
-Haushalt“ ([Personen im Haushalt](#personen-im-haushalt-v390)): Sie stehen
+**ohne Anmeldung** an, unter Haushalt →
+Personen ([Personen im Haushalt](#personen-im-haushalt-v390)): Sie stehen
 unter „Zuständig“ an Terminen, Zählern und Verträgen zur Wahl, in jeder Stufe.
 Wann sich die Anmeldung lohnt, steht in
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md#1-das-betriebsmodell-in-einem-satz).
@@ -29,15 +29,15 @@ Wann sich die Anmeldung lohnt, steht in
 
 | Modus | Wer meldet an | Personen entstehen |
 |---|---|---|
-| **Anmeldung mit Passwort** | der Energietracker selbst: Name und Passwort | Wer die Installation verwaltet, legt sie unter Einstellungen → Zugriff an |
+| **Anmeldung mit Passwort** | der Energietracker selbst: Name und Passwort | Wer die Installation verwaltet, legt sie unter Einstellungen → Zugang und Sicherheit an |
 | **Anmeldung über vorgeschalteten Proxy** | ein Anmeldedienst davor, etwa Authelia, Authentik oder Home Assistant unter Ingress | beim ersten Besuch von selbst, unter dem Namen, den der Proxy meldet |
 
-Einschalten: Passwort unter Einstellungen → Zugriff → „Anmeldung & Zugriff“
+Einschalten: Passwort unter Einstellungen → Zugang und Sicherheit → „Anmeldung & Zugriff“
 ([Sicherheit § 3](../betrieb/sicherheit.md#3-anmeldung-einschalten)), Proxy
 über `ET_AUTH=proxy` und `ET_TRUSTED_PROXIES`
 ([Sicherheit § 6](../betrieb/sicherheit.md#6-anmeldung-über-einen-vorgeschalteten-proxy)).
 
-Die Seite **Einstellungen → Zugriff** gehört zur Stufe „Experte“. In einer
+Die Seite **Einstellungen → Zugang und Sicherheit** gehört zur Stufe „Experte“. In einer
 niedrigeren Stufe fehlt sie in der Leiste; über die Adresse
 `#/settings/access` öffnet sie trotzdem — mit einem Hinweis und dem Knopf zum
 Umstellen ([Nutzungsstufen](../einstieg/einrichtung.md#3-nutzungsstufen)).
@@ -65,7 +65,7 @@ es ebenfalls „admin“. Die App kann es dann nicht ändern, und „admin“ l�
 sich nicht löschen.
 
 **Mit Proxy.** Wer als Erstes über den Proxy kommt, verwaltet; alle weiteren
-sind Mitglieder. Die Rollen lassen sich danach unter Einstellungen → Zugriff
+sind Mitglieder. Die Rollen lassen sich danach unter Einstellungen → Zugang und Sicherheit
 ändern. Eine Person „admin“ aus einem früheren Passwort-Betrieb bleibt in der
 Liste, zählt im Proxy-Betrieb aber nicht als Verwaltung.
 
@@ -75,7 +75,7 @@ Liste, zählt im Proxy-Betrieb aber nicht als Verwaltung.
 
 Nur im Modus Passwort und nur, wer die Installation verwaltet:
 
-1. **Einstellungen → Zugriff → „Benutzer und Rechte“**.
+1. **Einstellungen → Zugang und Sicherheit → „Benutzer und Rechte“**.
 2. Unter **„Person hinzufügen“**:
    - **Name** — bis 40 Zeichen. Beim Anmelden zählt Groß- und
      Kleinschreibung nicht; zwei Personen mit demselben Namen gibt es nicht —
@@ -100,7 +100,7 @@ Browser bleibt danach 30 Tage angemeldet; „Abmelden“ steht in der Kopfleiste
 ### Personen löschen
 
 **Nur wer verwaltet**, sieht „Person löschen“ in der Zeile; Mitglieder sehen
-unter Einstellungen → Zugriff nur den Hinweis, dass das die Verwaltung
+unter Einstellungen → Zugang und Sicherheit nur den Hinweis, dass das die Verwaltung
 erledigt. Über die API antwortet die App einem Mitglied mit **403**
 (`errors.auth.adminOnly`). Die eigene Person löscht eine andere Person, die
 verwaltet.
@@ -137,8 +137,8 @@ und Verträge bleiben dann mit „(gelöscht)“ stehen, bis jemand sie neu zuwe
 ### Personen im Haushalt *(v3.9.0)*
 
 Wer Termine, Zähler oder Verträge einer Person zuweisen will, braucht dafür
-keine Anmeldung. Die Karte **Einstellungen → Haushalt & Gebäude → „Personen im
-Haushalt“** steht in jeder Stufe:
+keine Anmeldung. Die Karte **Haushalt →
+Personen** steht in jeder Stufe:
 
 1. Unter **„Neue Person“** den Namen eintragen (bis 40 Zeichen, nicht doppelt,
    wie bei einem Zugang).
@@ -149,7 +149,7 @@ Die Liste zeigt alle Personen mit Nummer. **„Umbenennen“** und **„Person
 löschen“** gelten für Personen ohne Zugang, mit denselben Regeln und demselben
 Dialog wie unter Zugriff (unten). Personen mit Zugang stehen mit dem Vermerk
 **„mit Zugang“** in der Liste; ihr Name, ihre Rolle und ihr Passwort bleiben
-unter Einstellungen → Zugriff. Anlegen, umbenennen und löschen darf, wer
+unter Einstellungen → Zugang und Sicherheit. Anlegen, umbenennen und löschen darf, wer
 verwaltet; ohne Anmeldung jede Person, die die Adresse erreicht. Mitglieder
 sehen nur die Namen.
 
@@ -203,11 +203,13 @@ stehen, bis jemand sie neu zuweist; der Dialog sagt es vorher.
 | Anmeldung ein- und ausschalten, API-Schlüssel, Home-Assistant-Token | ✓ | — |
 | Backup einspielen, Snapshot einspielen, Beispielhaushalt laden | ✓ | — |
 | Adressen im Netz: Einbetten, Texterkennung, evcc | ✓ | — |
+| Vorgabe für alle: Sprache, Land, Währung, Zeitzone *(v3.12.0)* | ✓ | — |
+| Hinweis auf neue Versionen, Standort und Wetterabgleich *(v3.12.0)* | ✓ | — |
 
 Einspielen und Laden ersetzen alle Daten; die Adressen lassen den Server mit
 anderen Rechnern sprechen. Darum bleiben sie der Verwaltung vorbehalten.
 Versucht ein Mitglied es trotzdem, antwortet die App mit „Das darf nur, wer
-die Installation verwaltet.“ Unter Einstellungen → Zugriff sehen Mitglieder
+die Installation verwaltet.“ Unter Einstellungen → Zugang und Sicherheit sehen Mitglieder
 nur den Hinweis, wer den Zugriff verwaltet.
 
 **Mindestens eine Person verwaltet.** Die letzte Person mit der Rolle
@@ -221,7 +223,7 @@ abrufen ([Sicherheit § 5](../betrieb/sicherheit.md#5-api-schlüssel-für-skript
 
 ## 5. Passwort vergessen
 
-**Eine Person, die verwaltet, setzt es neu:** Einstellungen → Zugriff →
+**Eine Person, die verwaltet, setzt es neu:** Einstellungen → Zugang und Sicherheit →
 „Benutzer und Rechte“ → „Passwort neu setzen“ in der Zeile → neues Passwort
 (mindestens 8 Zeichen) → „Speichern“. Bei „admin“ ändert das das Passwort der
 Anmeldung ohne Namen. Personen aus dem Proxy-Betrieb haben hier kein
@@ -252,7 +254,7 @@ Server:
 
 ## 6. Eigenes Konto: Passwort, Stufe, Sprache
 
-Jede Person stellt unter **Einstellungen → Allgemein** selbst ein:
+Jede Person stellt unter **Einstellungen → Für dich** selbst ein:
 
 - **Passwort** — Karte „Mein Konto: …“ mit der eigenen Rolle: „Bisheriges
   Passwort“ und „Neues Passwort“ eintragen → „Passwort ändern“. Dieser
@@ -262,9 +264,9 @@ Jede Person stellt unter **Einstellungen → Allgemein** selbst ein:
   in der Kopfleiste. Mit Anmeldung ist es deine Stufe auf allen deinen
   Geräten („Gilt für dich (…) auf allen Geräten.“); die Stufe der
   Installation bleibt, wie sie ist.
-- **Sprache** — „Sprache auf diesem Gerät“ in der Karte „Sprache & Land“. Mit
+- **Sprache** — „Deine Sprache“ in der Karte „Sprache & Land“. Mit
   Anmeldung wird daraus deine Sprache auf allen deinen Geräten. Die
-  „Standardsprache der Installation“ gilt weiter für Jahresbericht,
+  „Sprache, Vorgabe für alle“ gilt weiter für Jahresbericht,
   CSV-Dateien, Home Assistant und alle, die keine eigene gewählt haben.
 
 Wer keine eigene Stufe oder Sprache gewählt hat, sieht die der Installation.
@@ -314,10 +316,10 @@ ihr ([Personen ohne Zugang](#personen-ohne-zugang)).
 | „Die Rolle muss „Verwaltung“ oder „Mitglied“ sein (API: admin, member).“ | Über die API eine andere Rolle geschickt. |
 | „Diese Person gibt es nicht mehr.“ | Jemand hat sie inzwischen gelöscht. Seite neu laden. |
 | „Passwort falsch.“ | Name oder Passwort stimmen nicht — die App sagt bewusst nicht, welches. |
-| „Zu viele Fehlversuche – bitte 5 Minuten warten.“ | Fünf Fehlversuche in 15 Minuten sperren die Anmeldung für 5 Minuten — für die ganze Installation, nicht je Person. |
+| „Zu viele Fehlversuche. Bitte 5 Minuten warten.“ | Fünf Fehlversuche in 15 Minuten sperren die Anmeldung für 5 Minuten — für die ganze Installation, nicht je Person. |
 | „Bei Anmeldung über den vorgeschalteten Dienst wird das Passwort dort geändert.“ | Im Proxy-Betrieb kennt die App kein Passwort. |
 | „Das Passwort ist über die Umgebung (ET_ADMIN_PASSWORD_HASH) festgelegt und lässt sich hier nicht ändern.“ | Das Passwort von „admin“ steht in der Umgebung; dort ändern. „admin“ lässt sich dann auch nicht löschen. |
-| „Ohne Anmeldung gibt es keine eigenen Einstellungen — die Stufe gilt dann für die ganze Installation.“ | Eigene Einstellungen über die API ohne Anmeldung (etwa mit einem API-Schlüssel). |
+| „Ohne Anmeldung gibt es keine eigenen Einstellungen. Die Stufe gilt dann für die ganze Installation.“ | Eigene Einstellungen über die API ohne Anmeldung (etwa mit einem API-Schlüssel). |
 
 ---
 

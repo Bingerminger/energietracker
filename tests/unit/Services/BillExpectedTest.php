@@ -282,8 +282,10 @@ final class BillExpectedTest extends ServiceTestCase
         $far = $this->bills->create('strom', ['meter_id' => $m, 'period_from' => $this->day(-405, $until), 'period_to' => $this->day(-40, $until),
             'invoice' => ['amount_eur' => 900]]);
         self::assertCount(1, $this->billEvents(), 'Rechnungsende 40 Tage vor dem Periodenende zählt nicht');
-        // Rechnung eines anderen Vertrags am selben Zähler zählt nicht
-        $this->bills->update('strom', $far['id'], ['period_to' => $this->day(-10, $until), 'contract_id' => 'c_anderer']);
+        // Rechnung eines anderen Vertrags am selben Zähler zählt nicht (v3.12.0: ein Vertrag, den es gibt;
+        // eine unbekannte Vertrags-ID ist seitdem ein Fehler)
+        $other = $this->contract('strom', $m, ['is_shadow' => true, 'provider' => 'Angebot']);
+        $this->bills->update('strom', $far['id'], ['period_to' => $this->day(-10, $until), 'contract_id' => $other['id']]);
         self::assertCount(1, $this->billEvents(), 'anderer Vertrag');
         self::assertSame([], $this->activity->all());
 

@@ -122,13 +122,19 @@ back-filled readings are legitimate.
 | **Decrease** | lower than the last reading — unless a new device was installed in between | with a link to the meter swap |
 | **Future** | date after today | typo in the year? |
 | **Same day** | there is already a reading for that day | button "Replace": the existing reading is updated instead of a second one being created |
+| **Above the next one** *(v3.12.0)* | a back-filled reading is above the next reading | the consumption calculation would otherwise leave it out |
+
+**Back-filled reading** *(v3.12.0)*: If the date is on or before the last reading, the card and the dialog check
+against the **previous and the next reading for that date**, with the same rule. Up to v3.11 the card on the
+“Meter readings” page only knew the last reading; a reading back-filled between two readings went through there
+without a question.
 
 The **typical daily consumption** is the median of the last up to ten reading
 intervals of the same device (at least two) — robust against a single outlier.
 The backend delivers it in `readings-overview` as `typical_per_day`; the utility
 view calculates it by the same rule. The notes appear while typing; the question
 on save names the meter in its title. Whoever declines in the batch capture keeps
-the input; the card shows "Not saved – please check", and a message counts the
+the input; the card shows "Not saved: please check", and a message counts the
 held cards.
 
 ### After saving: outliers, suspicion, rollover

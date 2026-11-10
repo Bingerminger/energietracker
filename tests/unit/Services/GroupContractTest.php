@@ -92,7 +92,9 @@ final class GroupContractTest extends ServiceTestCase
         // v3.9.0 (V1) — Stand Ende 2025: der Saldo rechnet über die laufende Abrechnungsperiode (2025)
         $row = $this->consumption->contractStatus('strom', $group, '2025-12-15')['contracts'][0];
         self::assertSame($c['id'], $row['contract_id']);
-        self::assertEqualsWithDelta(3000, $row['actual_kwh'], 0.5);
+        // v3.12.0 — am 15.12. gemessen bis zur Ablesung vom 01.12.: Januar bis November, (2.000 + 1.000) / 12 × 11
+        // = 2.750 kWh. Den Stand vom 01.01.2026 gibt es am 15.12. noch nicht (bis v3.11: 3.000 mit ihm).
+        self::assertEqualsWithDelta(2750, $row['actual_kwh'], 0.5);
         // Mischpreis für Hochrechnungen: 2/3 × 30 + 1/3 × 22 = 27,33 ct
         $view = $this->consumption->contractView('strom', $group, $c);
         self::assertEqualsWithDelta(27.333, $view['working_prices'][0]['ct_per_kwh'], 0.01);

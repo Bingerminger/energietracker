@@ -16,6 +16,7 @@ import { DEMO } from './demo-mode.js';
 import { SUPPORT_URL } from './release-notice.js';
 import { getSettings, saveSettings } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
+import { icon } from './icons.js';
 
 export const THANKS_KEY = 'et-thanks-shown';
 /** Ein Quartal hat höchstens 92 Tage: Zwei Hinweise liegen so nie im selben Quartal. */
@@ -58,12 +59,12 @@ export function compareThanks(c) {
 
 /** Die Zeile selbst (ohne Verhalten); `apart`: mit Abstand zum Ergebnis darüber. */
 export function thanksHtml(moment, apart = false) {
-  return `<div class="thanks-note${apart ? ' thanks-note--apart' : ''} no-print" role="status" data-thanks="${esc(moment)}">
-    <p class="thanks-note__text"><span aria-hidden="true">☕</span> ${esc(t('settings.support.text'))}
+  return `<div class="infobox infobox--neutral infobox--zeile thanks-note${apart ? ' thanks-note--apart' : ''} no-print" role="status" data-thanks="${esc(moment)}">
+    <p class="infobox__text">${icon('tasse')} ${esc(t('settings.support.text'))}
       <a href="${SUPPORT_URL}" target="_blank" rel="noopener noreferrer" data-support-link>${esc(t('settings.support.link'))}</a></p>
-    <div class="thanks-note__actions">
+    <div class="infobox__aktion">
       <button type="button" class="btn btn--ghost btn--sm" data-thanks-off>${esc(t('thanks.off'))}</button>
-      <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('notice.dismiss'))}">✕</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-act="close" aria-label="${esc(t('notice.dismiss'))}">${icon('kreuz', { size: 16 })}</button>
     </div>
   </div>`;
 }

@@ -23,6 +23,42 @@ final class HouseholdAccessTest extends HttpServerTestCase
         return $this->request('POST', $path, array_merge(['Content-Type: application/json'], $headers), json_encode($payload));
     }
 
+    /**
+     * v3.12.0 (M3) — die Vorgabe für Sprache, Land, Währung und Zeitzone ändern nur Verwalter. Ein Mitglied wird
+     * abgewiesen und nichts ist gespeichert; ohne Anmeldung gibt es keinen Unterschied, die eigene Sprache bleibt frei.
+     */
+    public function testOnlyAdminsChangeTheDefaultsForEveryone(): void
+    {
+        $this->startServer();
+        // Ohne Anmeldung: kein Rollenunterschied
+        self::assertSame('en', $this->json('PATCH', '/api/settings', ['language' => 'en'])['language']);
+        self::assertSame('AT', $this->json('POST', '/api/settings/country', ['country' => 'AT', 'profile' => false])['country']);
+
+        // Verwalter: alle vier
+        $admin = $this->cookieFrom($this->post('/api/session/password', ['password' => 'geheim-123']));
+        foreach (['language' => 'fr', 'currency' => 'CHF', 'timezone' => 'Europe/Vienna'] as $k => $v) {
+            self::assertSame($v, $this->json('PATCH', '/api/settings', [$k => $v], $admin)[$k], $k);
+        }
+        self::assertSame('CH', $this->json('POST', '/api/settings/country', ['country' => 'CH', 'profile' => false], $admin)['country']);
+
+        // Mitglied: abgewiesen, nichts gespeichert, auch nicht das erlaubte Feld daneben
+        $this->json('POST', '/api/users', ['name' => 'Anna', 'password' => 'annas-passwort', 'role' => 'member'], $admin);
+        $member = $this->cookieFrom($this->post('/api/session', ['name' => 'Anna', 'password' => 'annas-passwort']));
+        $before = $this->json('GET', '/api/settings', null, $admin);
+        foreach ([['language' => 'it'], ['country' => 'DE'], ['currency' => 'EUR'], ['timezone' => 'Europe/Berlin'],
+                  ['wohnflaeche_m2' => 81, 'language' => 'it']] as $patch) {
+            $r = $this->request('PATCH', '/api/settings', array_merge(['Content-Type: application/json'], $member), json_encode($patch));
+            self::assertSame(403, $r['status'], json_encode($patch));
+        }
+        self::assertSame(403, $this->post('/api/settings/country', ['country' => 'DE', 'profile' => true], $member)['status']);
+        self::assertSame($before, $this->json('GET', '/api/settings', null, $admin), 'nichts gespeichert');
+
+        // Mitglied: unverändert mitgeschickt ist keine Änderung, die eigene Sprache bleibt frei und die Vorgabe unberührt
+        self::assertSame(200, $this->request('PATCH', '/api/settings', array_merge(['Content-Type: application/json'], $member), json_encode(['language' => 'fr', 'wohnflaeche_m2' => 82]))['status']);
+        self::assertSame('it', $this->json('PATCH', '/api/session/me', ['language' => 'it'], $member)['prefs']['language']);
+        self::assertSame('fr', $this->json('GET', '/api/settings', null, $admin)['language']);
+    }
+
     public function testMembersRecordAndAdminsManageAccess(): void
     {
         $this->startServer();

@@ -18,7 +18,7 @@ The examples use `192.168.178.10:8080` as the address — put in yours.
 
 **Preparation in Energietracker** (as for Home Assistant, steps 1 and 2):
 
-- Under **Settings → Integrations → 🏠 Home Assistant integration**, generate a
+- Under **Connections → Home Assistant**, generate a
   **token** (`et_…`). Without sign-in it is optional, with sign-in switched on
   mandatory. It only works for the push — an API key (`etk_…`) is something
   else.

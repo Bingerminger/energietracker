@@ -41,6 +41,10 @@ import { docUrl } from '../lib/docs.js';   // v3.7.0 (Paket reifegrad) — Funkt
 import { setupArt, personaArt } from '../lib/illustrations.js';
 // v3.9.0 (F1032) — Schritt „Wie hängen deine Zähler?“ mit den Schaltbildern des Assistenten „Messkonzept“
 import { schematic } from '../lib/metering-concepts.js';
+// v3.12.0 (Paket wegweiser) — „Wie willst du arbeiten?“: die Kurzauswahl des Wegweisers
+import { SETUPS, questionsHtml, readAnswers, setupsFor } from '../lib/setup-scenes.js';
+import { icon, artIcon } from '../lib/icons.js';
+import { rich } from '../lib/rich.js';   // v3.12.0 (M6) — „Später ergänzen“ mit fetter Kernaussage
 
 /**
  * v3.9.0 — Bild neben die Frage eines Schritts: das erste `.setup__question`
@@ -57,11 +61,11 @@ export function withArt(step, html, lead = '') {
 
 /** Persona → Katalogname, Symbol und vorgeschlagene Verbrauchsarten. */
 export const PERSONAS = [
-  { id: 'mieterin',            key: 'tenant',       icon: '🏢', utilities: ['strom', 'waerme', 'wasser'], level: 'beginner' },
-  { id: 'etw-fernwaerme',      key: 'flat',         icon: '🏙️', utilities: ['strom', 'fernwaerme'], level: 'beginner' },
-  { id: 'eigenheim-klassisch', key: 'houseClassic', icon: '🏡', utilities: ['gas', 'strom', 'wasser'], level: 'advanced' },
-  { id: 'eigenheim-modern',    key: 'houseModern',  icon: '☀️', utilities: ['strom', 'waerme', 'wasser', 'pv_erzeugung', 'pv_einspeisung'], level: 'advanced' },
-  { id: 'showcase',            key: 'showcase',     icon: '🔍', utilities: null, level: 'expert' },
+  { id: 'mieterin',            key: 'tenant',       icon: 'block', utilities: ['strom', 'waerme', 'wasser'], level: 'beginner' },
+  { id: 'etw-fernwaerme',      key: 'flat',         icon: 'stadt', utilities: ['strom', 'fernwaerme'], level: 'beginner' },
+  { id: 'eigenheim-klassisch', key: 'houseClassic', icon: 'haushalt', utilities: ['gas', 'strom', 'wasser'], level: 'advanced' },
+  { id: 'eigenheim-modern',    key: 'houseModern',  icon: 'sonne', utilities: ['strom', 'waerme', 'wasser', 'pv_erzeugung', 'pv_einspeisung'], level: 'advanced' },
+  { id: 'showcase',            key: 'showcase',     icon: 'suche', utilities: null, level: 'expert' },
 ];
 
 const persona = (id) => PERSONAS.find(p => p.id === id) || PERSONAS[PERSONAS.length - 1];
@@ -96,15 +100,16 @@ export function conceptStepFor(utilities = [], persona = null) {
  * der Demo ohne Verbrauchsarten (die bringt der Beispielhaushalt mit).
  * v3.9.0 (F1032) — nach den Energieträgern „Wie hängen deine Zähler?“, wenn
  * der Haushalt mehr als einen Zähler je Art braucht (conceptStepFor).
+ * v3.12.0 (Paket wegweiser) — vor dem Schluss „Wie willst du arbeiten?“, in der Demo genauso.
  * @param {boolean} [demo]
  * @param {string[]|null} [utilities]  gewählte Energieträger
  * @param {string|null} [persona]
  */
 export function setupSteps(demo = DEMO, utilities = null, persona = null) {
-  if (demo) return ['region', 'persona', 'level', 'finish'];
+  if (demo) return ['region', 'persona', 'level', 'ways', 'finish'];
   return conceptStepFor(utilities || [], persona)
-    ? ['region', 'persona', 'utilities', 'concept', 'level', 'finish']
-    : ['region', 'persona', 'utilities', 'level', 'finish'];
+    ? ['region', 'persona', 'utilities', 'concept', 'level', 'ways', 'finish']
+    : ['region', 'persona', 'utilities', 'level', 'ways', 'finish'];
 }
 
 /**
@@ -138,6 +143,9 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     updateCheck: firstRun ? true : !!settings.update_check,
     // v3.9.0 (F1032) — „Wie hängen deine Zähler?“: simple (ein Zähler je Art) oder concept (Assistent)
     meterSetup: 'simple',
+    // v3.12.0 (Paket wegweiser) — Antworten der Kurzauswahl: nur hier im Assistenten, nie im Haushalt
+    ways: {},
+    way: null,
   };
   const canLoadDemo = sessionRole() === 'admin';
   // v3.9.0 (F1032) — die Schritte folgen den gewählten Energieträgern (Schritt „Wie hängen deine Zähler?“)
@@ -173,9 +181,10 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         <p class="setup-country-fixed" id="setup-country" data-country="${esc(state.country)}"><strong>${esc(t('countries.' + state.country))}</strong></p>
         <p class="settings-field__hint" id="setup-country-demo">${esc(t('setup.region.demoCountry'))}</p>`
           : `<label for="setup-country">${esc(t('settings.region.country'))}</label>
-        <select class="select" id="setup-country" name="setup-country">
+        <select class="select" id="setup-country" name="setup-country"${canAdmin() ? '' : ' disabled aria-describedby="setup-country-admin"'}>
           ${codes.map(c => `<option value="${esc(c)}"${c === state.country ? ' selected' : ''}>${esc(t('countries.' + c))}</option>`).join('')}
-        </select>`}
+        </select>
+        ${canAdmin() ? '' : `<p class="settings-field__hint" id="setup-country-admin" data-role="region-admin-only">${esc(t('settings.region.adminOnly'))}</p>`}`}
       </div>
     </div>
     <div class="setup-profile" data-role="region-facts" aria-live="polite">${factsHtml()}</div>`;
@@ -187,7 +196,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       ${PERSONAS.map(p => `
         <label class="setup-choice${state.persona === p.id ? ' setup-choice--on' : ''}">
           <input type="radio" name="setup-persona" value="${p.id}" ${state.persona === p.id ? 'checked' : ''}>
-          ${personaArt(p.id) ? `<span class="setup-choice__art">${personaArt(p.id)}</span>` : `<span class="setup-choice__icon" aria-hidden="true">${p.icon}</span>`}
+          ${personaArt(p.id) ? `<span class="setup-choice__art">${personaArt(p.id)}</span>` : `<span class="setup-choice__icon" aria-hidden="true">${icon(p.icon, { size: 24 })}</span>`}
           <span class="setup-choice__body"><strong>${esc(t(`setup.persona.${p.key}.title`))}</strong>
             <span class="muted small">${esc(t(`setup.persona.${p.key}.text`))}</span></span>
         </label>`).join('')}
@@ -199,9 +208,9 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     <div class="setup-utilities">
       ${utilities.map(u => `<label class="settings-field__check">
         <input type="checkbox" name="setup-util" value="${esc(u.key)}" ${state.utilities.includes(u.key) ? 'checked' : ''}>
-        <span aria-hidden="true">${esc(u.icon || '')}</span> ${esc(u.label)}</label>`).join('')}
+        ${artIcon(u, { size: 16 })} ${esc(u.label)}</label>`).join('')}
     </div>
-    <p class="banner banner--info small">${esc(t('setup.utilities.heatNote'))}</p>`;
+    <p class="infobox infobox--info small">${esc(t('setup.utilities.heatNote'))}</p>`;
 
   const levelStep = () => `
     <h3 class="setup__question">${esc(t('setup.level.title'))}</h3>
@@ -209,7 +218,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       ${LEVELS.map(l => `
         <label class="setup-choice${state.level === l ? ' setup-choice--on' : ''}">
           <input type="radio" name="setup-level" value="${l}" ${state.level === l ? 'checked' : ''}>
-          <span class="setup-choice__icon" aria-hidden="true">${LEVEL_ICONS[l]}</span>
+          <span class="setup-choice__icon" aria-hidden="true">${icon(LEVEL_ICONS[l], { size: 24 })}</span>
           <span class="setup-choice__body"><strong>${esc(t('level.' + l))}</strong>
             <span class="muted small">${esc(t('settings.level.describe.' + l))}</span></span>
         </label>`).join('')}
@@ -217,20 +226,49 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     <p class="muted small">${esc(t('setup.level.later'))}
       <a href="${esc(docUrl('levels'))}" target="_blank" rel="noopener" data-role="level-table">${esc(t('level.table'))}</a></p>`;
 
+  /** v3.12.0 (Paket wegweiser) — Name eines Wegs (Katalog). */
+  const wayName = (id) => t(`setups.scene.${SETUPS[id].key}.title`);
+
+  /**
+   * v3.12.0 (Paket wegweiser) — „Wie willst du arbeiten?“: die drei Fragen der Kurzauswahl.
+   * Keine Pflichtfelder, nichts wird eingerichtet und nichts gespeichert; „Weiter“ geht immer.
+   */
+  const waysStep = () => {
+    const ids = setupsFor(state.ways);
+    return `
+    <h3 class="setup__question">${esc(t('setups.quick.wizardTitle'))}</h3>
+    <p class="muted small">${esc(t('setups.quick.hint'))}</p>
+    <div class="guide-quick__form" data-role="setup-ways">${questionsHtml(state.ways)}</div>
+    <div aria-live="polite" data-role="setup-ways-result">${ids.length ? `<p class="small"><strong>${esc(t('setups.quick.result'))}</strong> ${esc(ids.map(wayName).join(' · '))}</p>
+      ${ids.join() === 'by-hand' ? `<p class="muted small">${esc(t('setups.quick.nothing'))}</p>` : ''}` : ''}</div>`;
+  };
+
+  /** Der Schluss nennt den passenden Weg; der Link schließt den Assistenten wie „Los geht’s“. */
+  const wayLinks = () => {
+    const ids = setupsFor(state.ways);
+    const link = (href, label) => `<a class="guide-link" href="${esc(href)}" data-act="way">${esc(label)}</a>`;
+    return `<p class="small" data-role="setup-way">${ids.length
+      ? `<strong>${esc(t('setups.quick.yourWay'))}</strong> ${ids.map(id => link(`#/help/setups/${id}`, wayName(id))).join('')}`
+      : link('#/help/setups', t('setups.open'))}</p>`;
+  };
+
   const finishStep = () => {
     const p = persona(state.persona);
     const name = t(`setup.persona.${p.key}.title`);
     // v3.10.0 (Hauptfunktion „Saldo aus einem Guss“) — früh gesagt, was der Saldo jeder Art zeigt
     const saldo = `<p class="muted small" data-role="setup-saldo">${esc(t(DEMO ? 'setup.finish.saldoDemo' : 'setup.finish.saldo'))}</p>`;
+    // v3.12.0 (M6) — wo es nach der Einrichtung weitergeht: die beiden Bereiche der Einrichtung im Menü.
+    // Bewusst ohne Link: ein Sprung schlösse den Assistenten, bevor er speichert.
+    const later = `<p class="muted small" data-role="setup-later">${rich('setup.finish.later', { household: t('nav.household'), connections: t('nav.connections') })}</p>`;
     if (DEMO) {
       return `<h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
-        <p>${esc(t('setup.finish.demoPublic', { persona: name }))}</p>${saldo}`;
+        <p>${esc(t('setup.finish.demoPublic', { persona: name }))}</p>${saldo}${later}${wayLinks()}`;
     }
     // v3.7.0 — drei Wege: aus Dokumenten (empfohlen), von Hand, Beispielhaushalt (nur Verwalter)
-    const choice = (value, icon, title, hint, extra = '') => `
+    const choice = (value, glyph, title, hint, extra = '') => `
         <label class="setup-choice${state.start === value ? ' setup-choice--on' : ''}">
           <input type="radio" name="setup-start" value="${value}" ${state.start === value ? 'checked' : ''}>
-          <span class="setup-choice__icon" aria-hidden="true">${icon}</span>
+          <span class="setup-choice__icon" aria-hidden="true">${icon(glyph, { size: 24 })}</span>
           <span class="setup-choice__body"><strong>${esc(title)}</strong>${extra}
             <span class="muted small">${esc(hint)}</span></span>
         </label>`;
@@ -238,7 +276,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       <div class="setup-docs" data-role="setup-docs">
         <p class="setup-docs__title">${esc(t('setup.finish.docsHelpTitle'))}</p>
         <ul>${docsHelp(p.id, state.utilities).map(k => `<li>${esc(t(k))}</li>`).join('')}</ul>
-        ${reader?.available ? '' : `<div class="banner banner--info small" data-role="setup-reader"><p>${esc(canLoadDemo
+        ${reader?.available ? '' : `<div class="infobox infobox--info small" data-role="setup-reader"><p>${esc(canLoadDemo
           ? t('setup.finish.docsReader') : t('setup.finish.docsReaderMember'))}</p>
           ${canLoadDemo ? `<p><button type="button" class="btn btn--primary btn--sm" data-act="reading-setup">${esc(t('inboxDraft.setup.button'))}</button></p>` : ''}</div>`}
       </div>`;
@@ -246,13 +284,15 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       <h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
       <p class="muted">${esc(t('setup.finish.summary', { persona: name, level: t('level.' + state.level) }))}</p>
       <div class="setup-choices" role="radiogroup" aria-label="${esc(t('setup.finish.title'))}">
-        ${choice('docs', '📥', t('setup.finish.docs'), t('setup.finish.docsHint'), ` <span class="badge badge--info">${esc(t('setup.finish.recommended'))}</span>`)}
-        ${choice('own', '📋', t('setup.finish.own'), t('setup.finish.ownHint'))}
-        ${state.utilities.includes('strom') ? choice('concept', '🔌', t('concept.title'), t('concept.setupChoice.hint')) : ''}
-        ${canLoadDemo ? choice('demo', '🧪', t('setup.finish.demo'), t('setup.finish.demoHint', { persona: name })) : ''}
+        ${choice('docs', 'eingang', t('setup.finish.docs'), t('setup.finish.docsHint'), ` <span class="badge badge--info">${esc(t('setup.finish.recommended'))}</span>`)}
+        ${choice('own', 'klemmbrett', t('setup.finish.own'), t('setup.finish.ownHint'))}
+        ${state.utilities.includes('strom') ? choice('concept', 'stecker', t('concept.title'), t('concept.setupChoice.hint')) : ''}
+        ${canLoadDemo ? choice('demo', 'kolben', t('setup.finish.demo'), t('setup.finish.demoHint', { persona: name })) : ''}
       </div>
       ${docsBox}
       ${saldo}
+      ${wayLinks()}
+      ${later}
       ${canLoadDemo ? `<label class="settings-field__check setup-update-check">
         <input type="checkbox" name="setup-update-check" ${state.updateCheck ? 'checked' : ''}>
         ${esc(t('setup.finish.updateCheck'))}</label>` : ''}`;
@@ -280,7 +320,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       </div>`;
   };
 
-  const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, concept: conceptStep, level: levelStep, finish: finishStep };
+  const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, concept: conceptStep, level: levelStep, ways: waysStep, finish: finishStep };
 
   const ctrl = openModal({
     title: t('setup.title'),
@@ -356,6 +396,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
           else if (state.start === 'concept') state.start = 'docs';
         }
         if (el.name === 'setup-update-check') state.updateCheck = el.checked;
+        if (el.name?.startsWith('guide-')) state.ways = readAnswers(body);
         // v3.5.1 — der Fokus bleibt am gewählten Feld. Bisher setzte draw() ihn
         // aufs erste Feld; dessen Karte trug den Fokusrahmen und sah am iPad wie
         // eine zweite Auswahl aus. Werte stammen aus festen Listen (a–z, _ , -).
@@ -364,6 +405,14 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       back.addEventListener('click', () => { state.step = Math.max(0, state.step - 1); draw(); });
       // v3.7.0 — „Auslesen einrichten“ über dem Assistenten; danach zeigt der Schritt den neuen Stand
       body.addEventListener('click', async (e) => {
+        // v3.12.0 (Paket wegweiser) — der Weg aus dem Schluss: speichern wie „Los geht’s“, dann dorthin
+        const way = e.target.closest?.('[data-act="way"]');
+        if (way) {
+          e.preventDefault();
+          state.way = way.getAttribute('href');
+          next.click();
+          return;
+        }
         if (!e.target.closest?.('[data-act="reading-setup"]')) return;
         reader = await openReadingSetup().catch(() => reader) ?? reader;
         if (body.isConnected) draw('input[name="setup-start"][value="docs"]');
@@ -383,6 +432,8 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
           // „Zählerstände“ wieder zurück
           close(true, go ? 'navigation' : 'ui');
           if (go) location.hash = go;
+          // v3.12.0 — die Demo lädt mit dem gewählten Haushalt neu; der Weg bleibt in der Adresse
+          if (DEMO) location.reload();
         } catch (e) {
           toastErr(e.message);
           next.disabled = false;
@@ -403,7 +454,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
  */
 function syncOwnLanguage(lang, session) {
   if (session?.user && session.mode !== 'off') {
-    if (session.user.prefs?.language) api.updateMe({ language: lang }).catch(() => {});
+    if (session.user.prefs?.language || !canAdmin()) api.updateMe({ language: lang }).catch(() => {});
   } else if (deviceLanguage()) {
     setDeviceLanguage(lang);
   }
@@ -425,11 +476,10 @@ async function finish(state, { start, settings, countries, session }) {
     if (langChanged) setDemoLanguage(state.language);
     setDemoPersona(p.id);
     await saveLevel(state.level);
-    location.reload();
-    return null;
+    return state.way;   // v3.12.0 — neu lädt der Aufrufer, erst nach dem Sprung zum Weg
   }
   // Land über denselben Weg wie die Einstellungen (nur bei einem Wechsel)
-  if (state.country !== start.country) await saveRegion({ country: state.country, profile: true }, countries);
+  if (canAdmin() && state.country !== start.country) await saveRegion({ country: state.country, profile: true }, countries);
   await saveSettings({
     active_utilities: state.utilities,
     wohnverhaeltnis: p.id === 'mieterin' ? 'miete' : 'eigentum',
@@ -437,7 +487,7 @@ async function finish(state, { start, settings, countries, session }) {
     setup_pending: false,
     ...(canAdmin(session) ? { update_check: !!state.updateCheck } : {}),
     // Standardsprache der Installation (Jahresbericht, CSV, neue Geräte)
-    ...(langChanged && state.language !== settings.language ? { language: state.language } : {}),
+    ...(canAdmin() && langChanged && state.language !== settings.language ? { language: state.language } : {}),
   });
   if (langChanged) syncOwnLanguage(state.language, session);
   await saveLevel(state.level);
@@ -445,11 +495,13 @@ async function finish(state, { start, settings, countries, session }) {
     await loadDemo({ persona: p.id });
     return null;
   }
+  // v3.12.0 (Paket wegweiser) — der Weg aus dem Schluss geht vor
+  if (state.way) return state.way;
   // v3.7.0 — aus Dokumenten: in den Posteingang zum Ablegen (ohne eingerichtetes
   // Auslesen bietet er dort „Auslesen einrichten“ als Dialog an)
   if (state.start === 'docs') return '#/inbox';
   // v3.9.0 (F1032) — Messkonzept einrichten: die Zähler „Strom“ öffnen den Assistenten
-  if (state.start === 'concept' && state.utilities.includes('strom')) return '#/utility/strom/meters?concept=1';
+  if (state.start === 'concept' && state.utilities.includes('strom')) return '#/household/meters?art=strom&concept=1';
   return '#/zaehlerstaende';
 }
 

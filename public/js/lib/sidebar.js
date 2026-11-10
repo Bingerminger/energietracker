@@ -15,11 +15,12 @@ import { t, tp } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
 import { sidebarModel } from './nav-model.js';
 import { openCount } from './inbox.js';   // v3.7.0
+import { icon, artIcon } from './icons.js';
 
 let lastRoute = null;
 // v3.1.0 (H2) — outbox: offline erfasste Stände, die noch nicht beim Server sind
 // v3.7.0 — inbox: Dokumente im Posteingang, die noch Arbeit machen
-const badgeCounts = { reminders: 0, remindersAlert: false, recommendations: 0, outbox: 0, inbox: 0 };
+const badgeCounts = { reminders: 0, remindersAlert: false, open: 0, outbox: 0, inbox: 0 };
 
 function itemHtml(item, cls = 'sidebar__item') {
   const attrs = [
@@ -28,7 +29,7 @@ function itemHtml(item, cls = 'sidebar__item') {
     item.utility ? `data-utility="${esc(item.utility)}"` : '',
   ].filter(Boolean).join(' ');
   return `<a ${attrs}>
-      <span class="sidebar__icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="sidebar__label">${esc(item.label)}</span>${item.badge ? `<span data-badge="${esc(item.badge)}"></span>` : ''}
+      <span class="sidebar__icon" aria-hidden="true">${item.utility ? artIcon({ key: item.utility, glyph: item.glyph }) : icon(item.icon)}</span><span class="sidebar__label">${esc(item.label)}</span>${item.badge ? `<span data-badge="${esc(item.badge)}"></span>` : ''}
     </a>`;
 }
 
@@ -48,14 +49,16 @@ export async function buildSidebar() {
     return;
   }
 
-  nav.innerHTML = sidebarModel(utilities).map(item => {
+  // v3.12.0 — Alltag und Einrichtung; Verbrauch ist darin eine Untergruppe
+  const groupHtml = (item) => {
     if (!item.children) return itemHtml(item);
     const id = `nav-group-${item.key}`;
     return `<div class="sidebar__group" role="group" aria-labelledby="${id}">
         <div class="sidebar__group-label" id="${id}">${esc(item.group)}</div>
-        ${item.children.map(c => itemHtml(c)).join('')}
+        ${item.children.map(groupHtml).join('')}
       </div>`;
-  }).join('');
+  };
+  nav.innerHTML = sidebarModel(utilities).map(groupHtml).join('');
   applyBadges();
   if (lastRoute) markActive(lastRoute);
   window.dispatchEvent(new CustomEvent('et:nav-built', { detail: { utilities } }));
@@ -93,11 +96,9 @@ window.addEventListener('et:settingschange', (e) => {
 
 /** Zahlen in alle Platzhalter schreiben — Seitenleiste, Tab-Leiste, Bereichs-Tabs. */
 function applyBadges() {
-  const hints = badgeCounts.reminders + badgeCounts.recommendations;
   const values = {
     reminders: [badgeCounts.reminders, badgeCounts.remindersAlert],
-    recommendations: [badgeCounts.recommendations, false],
-    hints: [hints, badgeCounts.remindersAlert],
+    hints: [badgeCounts.open, badgeCounts.remindersAlert],
     outbox: [badgeCounts.outbox, true],
     inbox: [badgeCounts.inbox, false],
   };
@@ -114,22 +115,24 @@ window.addEventListener('et:badges-slots', applyBadges);
 window.addEventListener('et:outbox', (e) => { badgeCounts.outbox = Number(e.detail) || 0; applyBadges(); });
 
 /**
- * v2.2.0 — Zähler an „Hinweise" (Termine + Empfehlungen) nachreichen.
+ * v2.2.0 — Zähler an „Zu tun“ nachreichen.
  *
  * Die Zahlen kosten je einen API-Aufruf und dürfen den ersten Inhalt nicht
  * aufhalten. v2.11.0: ein Badge am Bereich, je eins an den Tabs; Ansichten
- * melden Änderungen über `et:badges-refresh`.
+ * melden Änderungen über `et:badges-refresh`. v3.12.0 (M2): dieselbe Zahl wie der
+ * Filter „Alle“ der Seite, also auch Post und KI-Vorschläge (nur für Verwalter).
  */
 export async function refreshSidebarBadges() {
-  const [recs, rem, inbox] = await appScope(() => Promise.all([
-    api.recommendations().catch(() => null),
+  const { loadOffen, offenCount } = await import('../views/todo.js');
+  const [offen, rem, inbox] = await appScope(() => Promise.all([
+    loadOffen(),
     api.reminders().catch(() => null),
     api.inbox().catch(() => null),   // v3.7.0
   ]));
   const due = Array.isArray(rem) ? rem.filter(r => ['due', 'overdue'].includes(r.status)) : [];
   badgeCounts.reminders = due.length;
   badgeCounts.remindersAlert = due.length > 0;
-  badgeCounts.recommendations = Array.isArray(recs) ? recs.length : 0;
+  badgeCounts.open = offenCount(offen);
   badgeCounts.inbox = openCount(inbox?.entries);
   applyBadges();
 }

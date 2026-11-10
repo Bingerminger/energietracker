@@ -7,7 +7,7 @@
 Energietracker ist bewusst **abhängigkeitsfrei**: kein Composer, kein
 npm-Build, keine Datenbank, kein externer Dienst zur Laufzeit — außer
 Open-Meteo für den Temperaturabgleich (seit v2.8.0 einmal am Tag automatisch,
-abschaltbar unter *Einstellungen → Wetterdaten → Wetter automatisch füllen*)
+abschaltbar unter *Verbindungen → Wetterdaten → Wetter automatisch füllen*)
 und, nur auf Knopfdruck, die Ortssuche (seit v2.12.0) — dazu, nur wenn du ihn
 einträgst, ein eigener Texterkennungsdienst im Heimnetz, und, nur auf
 Knopfdruck, der Abruf der Börsenstrompreise von SMARD (beides seit v3.1.0). Es
@@ -64,7 +64,7 @@ Das Repository enthält unter `demo-data/` einen vollständigen
 Beispieldatensatz für **alle acht** Verbrauchsarten (Gas, Strom,
 Wasser, Fernwärme, Heizöl, Pellets, PV-Einspeisung, PV-Erzeugung),
 inklusive realistischer Tankgrößen und Lieferkadenz. Am bequemsten lädst
-du ihn direkt in der App über **Einstellungen → Daten → Backup &
+du ihn direkt in der App über **Einstellungen → Daten und Sicherung → Backup &
 Wiederherstellung → Demo-Daten laden** (F1007). Alternativ per Dateisystem:
 
 ```bash
@@ -99,7 +99,10 @@ Der Webserver-Benutzer braucht **Schreibrecht** auf `data/` (inklusive
 `data/backups/`). Schreibende Anfragen laufen nacheinander (Sperre auf
 `data/.write.lock`, seit v2.5.3), jede Datei wird atomar geschrieben
 (temporäre Datei, dann Umbenennen; seit v2.6.0 vorher `fsync`); ein
-Abbruch mitten im Schreiben hinterlässt keine halbe Datei. Die System-Diagnose
+Abbruch mitten im Schreiben hinterlässt keine halbe Datei. Ein Backup schreibt
+viele Dateien: Endet der Prozess mittendrin, meldet `/api/health` seit v3.12.0
+`checks.restore` mit der Sicherung von vorher (`pre-restore-…`), die du unter
+Daten und Sicherung wiederherstellst. Die System-Diagnose
 (`Einstellungen → System → System-Diagnose`, bzw. `GET /api/diagnostics`)
 zeigt an, ob die Schreibrechte korrekt gesetzt sind.
 
@@ -127,7 +130,7 @@ greift unabhängig vom gewählten Verzeichnis.
 
 Es gibt drei sich ergänzende Mechanismen:
 
-1. **JSON-Vollbackup** (`Einstellungen → Daten → Backup & Wiederherstellung`):
+1. **JSON-Vollbackup** (`Einstellungen → Daten und Sicherung → Backup & Wiederherstellung`):
    eine einzelne JSON-Datei im Format `3.0`, die *alle* Verbrauchsarten,
    Zähler, Verträge, Lieferungen, Temperaturen und Einstellungen enthält und
    wieder importierbar ist. Das ist das maßgebliche Sicherungsformat.
@@ -149,7 +152,7 @@ ein vollständiges Backup.
 
 ## 5. Update auf eine neue Version
 
-1. **Backup ziehen** (*Einstellungen → Daten → Backup & Wiederherstellung →
+1. **Backup ziehen** (*Einstellungen → Daten und Sicherung → Backup & Wiederherstellung →
    JSON-Backup herunterladen*) oder das `data/`-Verzeichnis kopieren. Das ist
    der einzige Rückweg: Eine Schema-Migration lässt sich nicht umkehren.
 2. **CHANGELOG lesen** — was unter „Migration" steht, betrifft dich.
@@ -178,7 +181,7 @@ Aufbau von v0.9.0 wandelt die App beim ersten Start weiterhin um.
 
 Alte Zählerstände kommen am besten als **CSV** in die App: je Zähler über
 ⚙️ Zähler → **CSV-Import** (Datum und Stand, Semikolon oder Komma, mit
-Vorschau vor dem Schreiben); Temperaturen unter Einstellungen → Wetterdaten.
+Vorschau vor dem Schreiben); Temperaturen unter Verbindungen → Wetterdaten.
 Aus Excel: Blatt als CSV speichern.
 
 > Den alten Excel-Import aus v1.0.0 (ein Python-Skript, seit v2.14.0 als

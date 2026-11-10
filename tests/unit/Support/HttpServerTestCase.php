@@ -17,12 +17,19 @@ abstract class HttpServerTestCase extends TestCase
     private $proc = null;
     protected string $base = '';
     protected string $dataDir = '';
+    /** @var array<string,string> v3.12.0 — zusätzliche `-d`-Werte des Testservers (etwa display_errors=1 wie `php -S` von Hand) */
+    protected array $serverIni = [];
 
     /**
      * @param array<string,mixed> $settings Inhalt von settings.json
      * @param array<string,string> $env      zusätzliche Umgebungsvariablen (ET_AUTH …)
      */
-    protected function startServer(array $settings = ['language' => 'de'], array $env = []): void
+    /**
+     * @param bool $firstCall v3.12.0 — nach der Bereitschaftsprobe einmal die Einstellungen abrufen wie
+     *        der erste Aufruf der Oberfläche: Der Gesundheitscheck allein legt ein leeres
+     *        Datenverzeichnis nicht mehr an. false lässt es leer (Tests des Erststarts).
+     */
+    protected function startServer(array $settings = ['language' => 'de'], array $env = [], bool $firstCall = true): void
     {
         $root = dirname(__DIR__, 3);
         $this->dataDir = sys_get_temp_dir() . '/et-http-' . bin2hex(random_bytes(4));
@@ -34,19 +41,24 @@ abstract class HttpServerTestCase extends TestCase
         $this->base = "http://127.0.0.1:$port";
         $all = array_merge(getenv(), ['ET_DATA_DIR' => $this->dataDir, 'ET_LOG_DEST' => 'null'], $env);
         foreach (['ET_AUTH', 'ET_ADMIN_PASSWORD_HASH', 'ET_ALLOWED_HOSTS', 'ET_DEBUG', 'ET_TRUSTED_PROXIES',
-                  'ET_PROXY_USER_HEADER', 'ET_LOCK_WAIT_S', 'ET_CA_FILE'] as $k) {
+                  'ET_PROXY_USER_HEADER', 'ET_LOCK_WAIT_S', 'ET_CA_FILE', 'ET_MCP'] as $k) {
             if (!array_key_exists($k, $env)) unset($all[$k]);
         }
         // v3.4.0 — Größengrenzen wie im Docker-Image (docker/php.ini), damit die
         // Grenzen der App greifen und nicht die des Entwicklungs-PHP (8 MB)
+        $ini = [];
+        foreach ($this->serverIni as $k => $v) array_push($ini, '-d', "$k=$v");
         $this->proc = proc_open(
             [PHP_BINARY, '-d', 'post_max_size=256M', '-d', 'display_errors=0', '-d', 'display_startup_errors=0',
-             '-S', "127.0.0.1:$port", 'router.php'],
+             ...$ini, '-S', "127.0.0.1:$port", 'router.php'],
             [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
             $pipes, $root, $all
         );
         for ($i = 0; $i < 100; $i++) {
-            if (@file_get_contents($this->base . '/api/health') !== false) return;
+            if (@file_get_contents($this->base . '/api/health') !== false) {
+                if ($firstCall) @file_get_contents($this->base . '/api/settings', false, stream_context_create(['http' => ['ignore_errors' => true]]));
+                return;
+            }
             usleep(50_000);
         }
         self::fail('Testserver startet nicht');

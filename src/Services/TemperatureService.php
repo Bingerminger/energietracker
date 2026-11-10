@@ -106,11 +106,17 @@ final class TemperatureService
         return $count;
     }
 
-    public function delete(string $date): void
+    /**
+     * @return bool ob es den Tag gab. v3.12.0 — ohne Wert (oder kein Datum) wird nichts geschrieben,
+     *              der Aufruf meldet 404; bisher 200 `deleted: true` und die Datei neu geschrieben
+     */
+    public function delete(string $date): bool
     {
         $all = $this->all();
+        if (!array_key_exists($date, $all)) return false;
         unset($all[$date]);
         $this->store->write('temperatures.json', $all);
+        return true;
     }
 
     /**

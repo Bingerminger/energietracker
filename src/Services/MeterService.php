@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Support\Input;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Support\LocalizedException;
 
@@ -28,6 +29,13 @@ final class MeterService
 {
     /** v3.4.0 (N1020) — Zeichensatz für Kennungen, die der Client wählt (Geräte beim Anlegen). */
     public const ID = '/^[A-Za-z0-9_-]{1,64}$/';
+
+    /**
+     * v3.12.0 — Felder eines Zählers, die Text oder eine Zahl sein müssen: Eine Liste oder ein
+     * Objekt ergab bisher 500 („Array to string conversion“), s. Support\Input.
+     */
+    private const TEXT_FIELDS = ['name', 'icon', 'notes', 'installed_on', 'device_serial', 'capacity_unit', 'capture', 'role',
+        'external_id', 'parent_meter_id', 'meter_group_id', 'malo_id', 'melo_id', 'obis', 'hdd_base_temp'];
 
     public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
@@ -121,6 +129,13 @@ final class MeterService
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.multipleMeters', ['utility' => $this->i18n->utilityLabel($utility)]));
         }
         $isDelivery = Utilities::isDelivery($utility);
+        // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
+        Input::assertTexts($input, self::TEXT_FIELDS);
+        foreach (is_array($input['devices'] ?? null) ? $input['devices'] : [] as $d) {
+            if (!is_array($d)) continue;
+            Input::assertTexts($d, ['id', 'installed_on', 'removed_on', 'reason']);
+            foreach (['installed_on', 'removed_on'] as $f) if (($d[$f] ?? '') !== '') $this->assertDate((string)$d[$f]);
+        }
 
         // v2.6.0 — docs/API.md beschrieb bis v2.5.3 ein Objekt `device`
         // {serial, installed_on, initial_counter}, das der Code nie las: Wer
@@ -272,12 +287,17 @@ final class MeterService
         $all = $this->list($utility);
         $found = false;
         $isDelivery = Utilities::isDelivery($utility);
+        Input::assertTexts($input, self::TEXT_FIELDS);   // v3.12.0
+        // v3.12.0 — „aktiv“ als Wahrheitswert (Support\Input::bool); bisher war „nein“ aktiv
+        if (array_key_exists('active', $input)) {
+            $input['active'] = Input::bool($input['active']) ?? throw new LocalizedException('errors.common.boolExpected', ['field' => 'active'], 'meter active: bool expected');
+        }
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
             $found = true;
             foreach (['name', 'icon', 'notes', 'active'] as $f) {
                 if (array_key_exists($f, $input)) {
-                    $m[$f] = $f === 'active' ? (bool)$input[$f] : (string)$input[$f];
+                    $m[$f] = $f === 'active' ? $input[$f] : (string)$input[$f];
                 }
             }
             // v2.10.0 (CALC-07) — Stromzähler einer Wärmepumpe: zählt in der
@@ -380,6 +400,9 @@ final class MeterService
 
     public function delete(string $utility, string $meterId): void
     {
+        // v3.12.0 — unbekannter Zähler: 404 wie bei GET und PATCH (bisher 200 `deleted: true`,
+        // und meters.json wurde trotzdem neu geschrieben)
+        if ($this->get($utility, $meterId) === null) throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
         $readings = $this->store->read("$utility/readings.json", []);
         foreach ($readings as $r) {
             if (($r['meter_id'] ?? null) === $meterId) {
@@ -431,6 +454,8 @@ final class MeterService
         // (removed_on, final_counter, new_device{…}) als Aliase; bisher
         // endeten sie in „old_final_counter fehlt" (Review API-18).
         $new = is_array($input['new_device'] ?? null) ? $input['new_device'] : [];
+        Input::assertTexts($input, ['date', 'removed_on', 'serial', 'reason']);   // v3.12.0
+        Input::assertTexts($new, ['installed_on', 'serial']);
         $input += array_filter([
             'date'                => $input['removed_on'] ?? ($new['installed_on'] ?? null),
             'old_final_counter'   => $input['final_counter'] ?? null,
@@ -532,7 +557,8 @@ final class MeterService
      */
     public function backdateFirstDevice(string $utility, string $meterId, string $date): ?array
     {
-        if (!Dates::isIsoDate($date)) return null;
+        // v3.12.0 — nie vor den Eingabebereich: Eine Ablesung im Jahr 0001 verlegte den Einbau dauerhaft
+        if (!Dates::isInputDate($date)) return null;
         $all = $this->list($utility);
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
@@ -844,9 +870,9 @@ final class MeterService
                 $meter[$f] = round($n, 2);
             }
             if (array_key_exists('commissioned_on', $input)) {
-                $v = (string)($input['commissioned_on'] ?? '');
+                $v = (string)Input::text($input, 'commissioned_on');
                 if ($v === '') unset($meter['commissioned_on']);
-                elseif (!Dates::isIsoDate($v)) throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'commissioned_on', 'value' => $v], 'commissioned_on');
+                elseif (!Dates::isInputDate($v)) throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'commissioned_on', 'value' => $v], 'commissioned_on');
                 else $meter['commissioned_on'] = $v;
             }
         }
@@ -1076,10 +1102,13 @@ final class MeterService
         return round((float)$v, 4);
     }
 
-    /** Echtes Kalenderdatum im Format YYYY-MM-DD? (seit v2.5.3 eine Stelle: Support\Dates) */
+    /**
+     * Echtes Kalenderdatum im Format YYYY-MM-DD? (seit v2.5.3 eine Stelle: Support\Dates)
+     * v3.12.0 — nur für Eingaben (Zäsuren, Peilstände): auch im Jahresbereich.
+     */
     private static function isIsoDate(string $d): bool
     {
-        return Dates::isIsoDate($d);
+        return Dates::isInputDate($d);
     }
 
     private function assertDate(string $date): void
@@ -1087,6 +1116,7 @@ final class MeterService
         if (!Dates::isIsoDate($date)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.common.dateInvalid', ['date' => $date]));
         }
+        Input::assertDateInRange($date);   // v3.12.0 — Einbau, Zählertausch: 1900 bis 2100
     }
 
     /**
@@ -1099,7 +1129,8 @@ final class MeterService
     private function digitsField(mixed $raw): array
     {
         if ($raw === null || $raw === '') return [];
-        if (is_bool($raw) || !is_numeric($raw) || (int)$raw != $raw || (int)$raw < 3 || (int)$raw > 12) {
+        // v3.12.0 — erst der Bereich, dann die Ganzzahl: (int)1e308 ist unter PHP 8.5 ein Fehler (500)
+        if (is_bool($raw) || !is_numeric($raw) || (float)$raw < 3 || (float)$raw > 12 || floor((float)$raw) != (float)$raw) {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.digitsInvalid', ['value' => is_scalar($raw) ? (string)$raw : gettype($raw)]));
         }
         return ['digits' => (int)$raw];
@@ -1305,7 +1336,7 @@ final class MeterService
     public function createGroup(string $utility, array $input): array
     {
         $this->assertUtility($utility);
-        $name = trim((string)($input['name'] ?? ''));
+        $name = trim((string)Input::text($input, 'name'));   // v3.12.0 — Liste statt Text: 400
         if ($name === '') {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNameEmpty'));
         }
@@ -1328,7 +1359,7 @@ final class MeterService
             if (($g['id'] ?? null) !== $groupId) continue;
             $found = true;
             if (array_key_exists('name', $input)) {
-                $name = trim((string)$input['name']);
+                $name = trim((string)Input::text($input, 'name'));
                 if ($name === '') {
                     throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNameEmpty'));
                 }

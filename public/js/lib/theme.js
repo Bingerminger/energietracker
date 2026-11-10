@@ -21,10 +21,11 @@
 
 import { t, hasTranslation } from './i18n.js';
 import { toast } from '../components/toast.js';
+import { icon } from './icons.js';
 
 const STORAGE_KEY = 'et-theme';
 const MODES = ['system', 'light', 'dark'];
-const ICONS = { light: '☀️', dark: '🌙' };
+const ICONS = { light: 'sonne', dark: 'mond' };
 // Hintergrund der Kopfleiste (--bg-1) je Theme — Farbe der Statusleiste
 const BAR_COLOR = { light: '#ffffff', dark: '#111827' };
 
@@ -60,6 +61,9 @@ function applyTheme(mode) {
   document.dispatchEvent(new CustomEvent('et:themechange', { detail: { theme, mode: m } }));
 }
 
+/** v3.12.0 — Die Demo hat beim Neustart den gemerkten Modus gelöscht; das Skript in index.php lief davor. */
+export function reapplyStoredTheme() { applyTheme(storedMode()); }
+
 function toggleTheme() {
   const next = MODES[(MODES.indexOf(storedMode()) + 1) % MODES.length];
   applyTheme(next);
@@ -89,7 +93,7 @@ export function mountThemeToggle(btn) {
   }
   updateButton = () => {
     const mode = storedMode();
-    iconEl.textContent = ICONS[currentTheme()];
+    iconEl.innerHTML = icon(ICONS[currentTheme()]);
     badge.hidden = mode !== 'system';
     badge.textContent = hasTranslation('app.theme.autoBadge') ? t('app.theme.autoBadge') : 'A';
     btn.dataset.themeMode = mode;

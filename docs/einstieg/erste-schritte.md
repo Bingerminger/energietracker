@@ -108,11 +108,11 @@ Ab jetzt rechnet die App nicht nur Verbrauch, sondern auch **Kosten** und den
 ## 5. Temperaturen holen (für Heizanalyse & Prognose)
 
 Damit „mehr verbraucht oder nur kälter?" beantwortet werden kann, braucht Gas
-(und Fernwärme) Außentemperaturen. Sidebar → **Einstellungen → Wetterdaten**:
+(und Fernwärme) Außentemperaturen. Sidebar → **Verbindungen → Wetterdaten**:
 
 - **Open-Meteo** für den in den Einstellungen hinterlegten Standort
   (Default: Leipzig — auf deinen Ort ändern!). Seit v2.8.0 holt die App die
-  Temperaturen beim Öffnen einmal am Tag selbst (*Einstellungen → Wetterdaten →
+  Temperaturen beim Öffnen einmal am Tag selbst (*Verbindungen → Wetterdaten →
   Wetter automatisch füllen*); übermittelt wird nur der auf rund 1 km gerundete
   Standort. Der Knopf **Open-Meteo synchronisieren** stößt den Abgleich
   sofort an. **Oder**
@@ -146,7 +146,7 @@ Jetzt zahlt sich die Eingabe aus:
 
 ## 7. Sichern
 
-Sidebar → **Einstellungen → Daten → Backup & Wiederherstellung →
+Sidebar → **Einstellungen → Daten und Sicherung → Backup & Wiederherstellung →
 JSON-Backup herunterladen**. Das ist ein vollständiger, portabler Snapshot
 (Format 3.0) für Umzug oder Sicherung. Im Docker-Betrieb liegen deine Daten
 ohnehin im gemounteten `data/`-Volume.
@@ -155,6 +155,7 @@ ohnehin im gemounteten `data/`-Volume.
 
 ## Wie geht es weiter?
 
+- **Welcher Weg passt zu dir, mit oder ohne Home Assistant und KI?** → [Wegweiser](wegweiser.md)
 - **Haupt- und Unterzähler, Zähler bündeln?** →
   [Meter-Topologie](../verstehen/13-meter-topologie.md)
 - **Werte automatisch aus Home Assistant?** → [Home Assistant](../anleitungen/home-assistant.md)
@@ -169,7 +170,7 @@ ohnehin im gemounteten `data/`-Volume.
 
 ## Abkürzung: Demo-Daten
 
-Zum reinen Ausprobieren musst du nichts eintippen: **Einstellungen → Daten →
+Zum reinen Ausprobieren musst du nichts eintippen: **Einstellungen → Daten und Sicherung →
 Backup & Wiederherstellung → Demo-Daten laden** spielt einen vollständigen
 Beispieldatensatz über acht Verbrauchsarten ein — alle außer Heizwärme (mit
 Warnung + Auto-Snapshot, falls schon Daten vorhanden sind). Danach kannst du sofort bei
@@ -177,7 +178,7 @@ Warnung + Auto-Snapshot, falls schon Daten vorhanden sind). Danach kannst du sof
 
 Seit v3.2.0 gibt es dazu vier kleinere Beispielhaushalte — Mietwohnung,
 Eigentumswohnung mit Fernwärme, Eigenheim klassisch und modern. Du lädst sie
-über den Einrichtungsassistenten (Einstellungen → Allgemein →
+über den Einrichtungsassistenten (Einstellungen → Für dich →
 „Einrichtungsassistent starten“), siehe
 [Die Beispielhaushalte](einrichtung.md#2-die-beispielhaushalte).
 

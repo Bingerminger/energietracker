@@ -17,6 +17,7 @@ import { escapeHtml } from '../lib/format.js';
 import { api } from '../api.js';
 import { renderMarkdown, ID_PREFIX } from '../lib/markdown.js';
 import { docLinks, docRoute, docsInOtherLanguage } from '../lib/docs.js';
+import { icon } from '../lib/icons.js';
 
 // Zuletzt gelesene Seiten: Ein Sprung von Seite zu Seite und zurück lädt nicht neu.
 const CACHE = new Map();
@@ -61,7 +62,7 @@ function barHtml(page, anchor) {
   return `<nav class="doc-bar" aria-label="${escapeHtml(t('help.doc.handbook'))}">
     <span class="doc-bar__path">
       <a href="#/help">${escapeHtml(t('help.title'))}</a>
-      <span aria-hidden="true">›</span>
+      ${icon('rechts')}
       <a href="${escapeHtml(docRoute(indexKey(page.lang)))}">${escapeHtml(t('help.doc.handbook'))}</a>
     </span>
     ${langs}
@@ -82,7 +83,7 @@ function tocHtml(page, headings) {
 
 function notFoundHtml(message) {
   return `<div class="view-header"><div><h1 class="view-header__title">${escapeHtml(t('help.doc.handbook'))}</h1></div></div>
-    <div class="banner banner--warning" role="status">${escapeHtml(message)}</div>
+    <div class="infobox infobox--achtung" role="status">${escapeHtml(message)}</div>
     <p class="help-actions">
       <a class="btn btn--ghost btn--sm" href="${escapeHtml(docRoute(indexKey('')))}">${escapeHtml(t('help.doc.handbook'))}</a>
       <a class="btn btn--ghost btn--sm" href="#/help">${escapeHtml(t('help.title'))}</a>
@@ -118,7 +119,7 @@ export async function render(container, params = [], ctx = {}) {
   container.innerHTML = `
     <div class="help-doc">
       ${barHtml(page, anchor)}
-      ${docsInOtherLanguage() && page.lang === 'en' ? `<p class="banner banner--info doc-hint" role="note">${escapeHtml(t('help.docs.englishOnly'))}</p>` : ''}
+      ${docsInOtherLanguage() && page.lang === 'en' ? `<p class="infobox infobox--info doc-hint" role="note">${escapeHtml(t('help.docs.englishOnly'))}</p>` : ''}
       <article class="doc-body"${lang}>${head}${tocHtml(page, doc.headings)}${doc.html.slice(head.length)}</article>
     </div>`;
 

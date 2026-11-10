@@ -384,7 +384,8 @@ Schritt und je Beispielhaushalt eine Zeichnung (Zier), die leere Übersicht
 eine im Willkommen. Leerzustände von Listen baut `lib/empty.js` (Symbol im
 Kreis, Titel, ein Satz, höchstens eine Aktion).
 
-> ⚠️ **Architektur-kritisch:** Da alle Module über einen einzigen
+> [!WARNING]
+> **Architektur-kritisch:** Da alle Module über einen einzigen
 > ES-Modulgraphen geladen werden, bricht **ein einziger fehlerhafter
 > relativer Import** (404) die *gesamte* App — die Oberfläche bleibt bei
 > „Lade…" stehen. Genau das war Bug v1.4.1 (`sidebar.js` importierte
@@ -419,6 +420,20 @@ Schlüssel einer Anfrage (Pfad + sortierte Query) berechnen Bauskript und
 Browser mit derselben Funktion (`lib/demo-key.js`). Die Sprache folgt in der
 Demo dem Browser; ein Hinweis unten bietet Sprachwahl und den Weg zur eigenen
 Installation.
+
+**Nach jedem Release bei null (v3.12.0).** Eine Demo, die sich Wahlen merkt,
+versteckt neue Funktionen vor wiederkehrenden Besuchern. `demoFreshStart()` holt
+beim Start, vor dem ersten Lesen von Haushalt, Stufe und Sprache, `meta.json` am
+Cache vorbei und vergleicht `version` mit `et-demo-version`. Weicht sie ab, löscht
+es alle Schlüssel mit den Präfixen `et-` und `et.` (kein `clear()`: Der Ursprung
+auf GitHub Pages gehört allen Seiten des Kontos), merkt die Version, und der
+Assistent startet. Der wöchentliche Neubau ändert `version` nicht und setzt nichts
+zurück. Jeder andere Abruf unter `demo-api/` trägt `?b=<built_at>`, damit ein neuer
+Bau nie aus dem Browser-Cache kommt (`max-age=600`); die Schlüssel der Anfragen
+kennen die Marke nicht. `tests/demo-start.test.mjs` prüft das und jede Fundstelle
+von `localStorage` in `public/js`. Eine Hinweiszeile „Neu in vX.Y“ führt zur
+Hauptfunktion (`DEMO_NEWS` beim Release mitziehen); passt die Version nicht mehr,
+schweigt sie.
 
 Veröffentlicht wird über `.github/workflows/pages.yml` — beim GitHub-Release
 (die Demo zeigt, was veröffentlicht ist) und montags, damit die Daten wieder

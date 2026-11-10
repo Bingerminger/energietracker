@@ -70,6 +70,8 @@ final class ActivityService
     public const LIMIT_MAX = 5000;
     /** Personen-, Schlüssel- und Integrationsnamen im Eintrag (wie AuthService). */
     private const NAME_MAX = 60;
+    /** v3.12.0 (Skeptiker M9) — Länge der Liste der Änderungen einer Übernahme (WriteTools::SUMMARY_MAX) */
+    private const CHANGES_MAX = 6000;
 
     /** @var (callable(): ?array)|null Person bzw. Schlüssel dieser Anfrage (App::actor) */
     private $actor;
@@ -115,6 +117,34 @@ final class ActivityService
     public function actAs(string $integration): void
     {
         $this->actAs = ['type' => 'integration', 'name' => mb_substr($integration, 0, self::NAME_MAX)];
+    }
+
+    /**
+     * v3.12.0 (F1037) — Für die Dauer von `$fn` handelt `$by` (eine KI über ihren
+     * Schlüssel: `{type: key, name, via: mcp}`), danach wieder wie vorher. Die
+     * MCP-Anfrage meldet sich nicht über die App an (eigene Schlüsselprüfung),
+     * also kennt App::actor() sie nicht.
+     *
+     * @template T
+     * @param array{type:string, name:string, via?:string} $by
+     * @param callable(): T $fn
+     * @return T
+     */
+    public function withActor(array $by, callable $fn): mixed
+    {
+        $prev = $this->actAs;
+        $this->actAs = array_filter([
+            'type' => (string)$by['type'],
+            'name' => mb_substr((string)$by['name'], 0, self::NAME_MAX),
+            'via'  => isset($by['via']) ? (string)$by['via'] : null,
+            // v3.12.0 (Skeptiker M1) — in der App bestätigt: `{type: person, id, name}` bzw. ohne Anmeldung `{type: app}`
+            'confirmed_by' => is_array($by['confirmed_by'] ?? null) ? $by['confirmed_by'] : null,
+        ], fn($v) => $v !== null);
+        try {
+            return $fn();
+        } finally {
+            $this->actAs = $prev;
+        }
     }
 
     /** Wer handelt: Integration, Person, API-Schlüssel — ohne Anmeldung null. */
@@ -283,6 +313,8 @@ final class ActivityService
             if ($entry['assignee'] === []) unset($entry['assignee']);
         }
         if (!empty($e['revert']) && is_array($e['revert'])) $entry['revert'] = $e['revert'];
+        // v3.12.0 (Skeptiker M9) — was eine Übernahme der KI geändert hat, Wortlaut wie bestätigt (Momentaufnahme)
+        if (is_string($e['changes'] ?? null) && $e['changes'] !== '') $entry['changes'] = mb_substr($e['changes'], 0, self::CHANGES_MAX);
 
         $all = $this->all();
         $all[] = $entry;
@@ -306,6 +338,11 @@ final class ActivityService
         $all = $this->all();
         $i = $this->indexOf($all, $id);
         if (!empty($all[$i]['undone'])) return $all[$i] + ['reverted' => false];
+        // v3.12.0 (Skeptiker M9) — eine Übernahme der KI hat Daten geschrieben, die das Durchstreichen nicht
+        // zurückholt: Der Eintrag bliebe durchgestrichen stehen, die Daten auch. Löschen geht einzeln in der App.
+        if (($all[$i]['by']['via'] ?? null) === 'mcp' && empty($all[$i]['revert'])) {
+            throw new HttpStatusException(409, 'errors.activity.undoNotPossible', [], [], 'activity: mcp entry without revert');
+        }
         $all[$i]['undone'] = ['at' => date('c'), 'by' => $this->actor()];
         $this->store->write('activity.json', $all);
         return $all[$i] + ['reverted' => $this->revert($all[$i]['revert'] ?? null)];
@@ -354,6 +391,8 @@ final class ActivityService
         $n = 0;
         foreach ($all as $i => $e) {
             $all[$i]['by'] = $strip($e['by'] ?? null);
+            // v3.12.0 (Skeptiker M1) — wer die Übernahme einer KI in der App bestätigt hat
+            if (is_array($e['by']['confirmed_by'] ?? null)) $all[$i]['by']['confirmed_by'] = $strip($e['by']['confirmed_by']);
             if (is_array($e['undone'] ?? null)) $all[$i]['undone']['by'] = $strip($e['undone']['by'] ?? null);
             if (is_array($e['assignee'] ?? null) && ($e['assignee']['id'] ?? null) === $personId) $all[$i]['assignee'] = ['former' => true];
             if ($all[$i] !== $e) $n++;
@@ -375,6 +414,7 @@ final class ActivityService
         $n = 0;
         foreach ($all as $i => $e) {
             $all[$i]['by'] = is_array($e['by'] ?? null) && ($e['by']['type'] ?? null) === 'person' ? $mark($e['by']) : ($e['by'] ?? null);
+            if (is_array($e['by']['confirmed_by'] ?? null)) $all[$i]['by']['confirmed_by'] = $mark($e['by']['confirmed_by']);
             if (is_array($e['undone'] ?? null) && is_array($e['undone']['by'] ?? null) && ($e['undone']['by']['type'] ?? null) === 'person') {
                 $all[$i]['undone']['by'] = $mark($e['undone']['by']);
             }
@@ -391,6 +431,7 @@ final class ActivityService
         $n = 0;
         foreach ($this->all() as $e) {
             if (self::isPerson($e['by'] ?? null, $personId) || self::isPerson($e['undone']['by'] ?? null, $personId)
+                || self::isPerson($e['by']['confirmed_by'] ?? null, $personId)
                 || self::isPerson($e['assignee'] ?? null, $personId)) $n++;
         }
         return $n;
@@ -726,6 +767,24 @@ final class ActivityService
     private const INTEGRATIONS = ['home_assistant' => 'Home Assistant', 'evcc' => 'evcc'];
 
     /**
+     * v3.12.0 (Skeptiker M1) — „KI (Schlüssel „…“)“, in der App bestätigt mit dem Namen der Person
+     * (gelöscht: wie sonst im Verlauf), ohne Anmeldung nur „in der App bestätigt“. Wie byText() in lib/activity.js.
+     *
+     * @param array<string,mixed> $by
+     */
+    private function keyActorText(array $by): string
+    {
+        $name = ['name' => (string)($by['name'] ?? '')];
+        if (($by['via'] ?? null) !== 'mcp') return $this->i18n->t('activity.by.key', $name);
+        $c = is_array($by['confirmed_by'] ?? null) ? $by['confirmed_by'] : null;
+        if ($c === null) return $this->i18n->t('activity.by.mcp', $name);
+        if (($c['type'] ?? null) !== 'person') return $this->i18n->t('activity.by.mcpConfirmedApp', $name);
+        $person = !empty($c['former']) ? $this->i18n->t('activity.by.former')
+            : (!empty($c['deleted']) ? $this->i18n->t('people.deletedName', ['name' => (string)($c['name'] ?? '')]) : (string)($c['name'] ?? ''));
+        return $this->i18n->t('activity.by.mcpConfirmed', $name + ['person' => $person]);
+    }
+
+    /**
      * v3.5.0 (Nachtrag F1024) — ein Eintrag in Worten, in der Sprache der
      * Anfrage bzw. des Exports: Aktion, Titel (aus `title_key`, sonst die
      * Momentaufnahme), wer, Grund. Für den Verlauf als CSV.
@@ -745,7 +804,8 @@ final class ActivityService
             'person'      => !empty($by['former']) ? $this->i18n->t('activity.by.former')
                 // v3.6.0 — gelöschte Person: der Name vom Erledigen mit „(gelöscht)“
                 : (!empty($by['deleted']) ? $this->i18n->t('people.deletedName', ['name' => (string)($by['name'] ?? '')]) : (string)($by['name'] ?? '')),
-            'key'         => $this->i18n->t('activity.by.key', ['name' => (string)($by['name'] ?? '')]),
+            // v3.12.0 (F1037) — eine KI über ihren Schlüssel (`via: mcp`); (Skeptiker M1) in der App bestätigt: beides
+            'key'         => $this->keyActorText($by),
             'integration' => self::INTEGRATIONS[(string)($by['name'] ?? '')] ?? (string)($by['name'] ?? ''),
             'auto'        => $this->i18n->t('activity.by.auto'),
             default       => '',

@@ -21,8 +21,8 @@ doubtful and take it over with one click.
    ([Setup](../einstieg/einrichtung.md)). “From documents” takes you to the
    inbox. If no service for reading is set up yet, **“Set up reading”** opens
    the “Reading documents” card (Local | Cloud) right away as a dialog — in the
-   assistant and above the inbox list, later on too; the same card stays under
-   Settings → Expert. Whoever manages the installation sets it up
+   assistant and above the inbox list, later on too; the same card is under
+   Connections → Reading mail and photos. Whoever manages the installation sets it up
    ([Inbox](posteingang.md)).
 2. **File** — all PDFs at once, with the file picker (on the iPad from the
    Files app) or by dragging.
@@ -261,7 +261,7 @@ advertising are recognised by the inbox and only filed.
   advance payments → meter readings → bills (with the result booked as a
   special payment) → gas conversion → reminders. Through the same checks as
   manual entry; one error does not stop the rest.
-- **Way back:** the app makes a backup first (Settings → Data, reason “before
+- **Way back:** the app makes a backup first (Settings → Data and backup, reason “before
   household from documents”). Taking over a second time changes nothing: what
   has been taken over shows as “already there”.
 - **Afterwards** the documents the draft covers completely are “Taken over”: a

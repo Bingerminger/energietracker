@@ -1,0 +1,22 @@
+{
+  "_comment": "v3.12.0 (F1037) — gemeinsame Probe der Rückfragen zu einem neuen Zählerstand: public/js/lib/plausibility.js checkReading() (Erfassung) und ReadingService::plausibilityIssues() (Vorschlag einer KI über MCP) müssen dieselben Arten liefern. Erwartungen von Hand: JUMP_FACTOR 3, magnitude ab dem Zehnfachen ohne typischen Wert. future und sameDay prüft der Aufrufer und stehen nicht hier.",
+  "cases": [
+    { "name": "normaler Stand", "value": 1100, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": [] },
+    { "name": "kleiner als der vorige", "value": 990, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": ["lower"] },
+    { "name": "genau dreifach ist noch kein Sprung", "value": 1300, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": [] },
+    { "name": "mehr als dreifach ist ein Sprung", "value": 1300.5, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": ["jump"] },
+    { "name": "Tausch zwischen beiden Ständen erklärt den Rückgang", "value": 12, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": true, "expect": [] },
+    { "name": "ohne typischen Wert: zehnfach ist Komma vergessen", "value": 10000, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": null, "deviceChanged": false, "expect": ["magnitude"] },
+    { "name": "ohne typischen Wert: knapp unter zehnfach", "value": 9999.9, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": null, "deviceChanged": false, "expect": [] },
+    { "name": "kleiner voriger Stand unter 10: kein Zehnfach-Urteil", "value": 95, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 9 }, "typical": null, "deviceChanged": false, "expect": [] },
+    { "name": "mit typischem Wert kein Zehnfach-Urteil, aber Sprung", "value": 12000, "date": "2026-09-24", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": ["jump"] },
+    { "name": "voriger Stand nach dem Datum ist keine Vergleichsbasis", "value": 500, "date": "2026-09-01", "prev": { "date": "2026-09-14", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": [] },
+    { "name": "erster Stand", "value": 1100, "date": "2026-09-24", "prev": null, "typical": null, "deviceChanged": false, "expect": [] },
+    { "name": "über die Sommerzeit hinweg ganze Tage", "value": 1061, "date": "2026-03-30", "prev": { "date": "2026-03-28", "counter": 1000 }, "typical": 10, "deviceChanged": false, "expect": ["jump"] },
+    { "name": "größer als der nächste Stand (Skeptiker M7)", "value": 1565, "date": "2026-08-15", "prev": { "date": "2026-07-01", "counter": 1500 }, "next": { "date": "2026-10-01", "counter": 1560.5 }, "typical": null, "deviceChanged": false, "expect": ["higher_than_next"] },
+    { "name": "genau der nächste Stand ist in Ordnung", "value": 1560.5, "date": "2026-08-15", "prev": { "date": "2026-07-01", "counter": 1500 }, "next": { "date": "2026-10-01", "counter": 1560.5 }, "typical": null, "deviceChanged": false, "expect": [] },
+    { "name": "Tausch vor dem nächsten Stand erklärt den kleineren", "value": 1565, "date": "2026-08-15", "prev": { "date": "2026-07-01", "counter": 1500 }, "next": { "date": "2026-10-01", "counter": 12 }, "nextDeviceChanged": true, "typical": null, "deviceChanged": false, "expect": [] },
+    { "name": "ohne vorigen Stand zählt der nächste trotzdem", "value": 1565, "date": "2026-08-15", "prev": null, "next": { "date": "2026-10-01", "counter": 1560.5 }, "typical": null, "deviceChanged": false, "expect": ["higher_than_next"] },
+    { "name": "Sprung und über dem nächsten zugleich", "value": 2000, "date": "2026-08-15", "prev": { "date": "2026-08-14", "counter": 1000 }, "next": { "date": "2026-10-01", "counter": 1500 }, "typical": 10, "deviceChanged": false, "expect": ["jump", "higher_than_next"] }
+  ]
+}

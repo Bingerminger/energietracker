@@ -78,7 +78,7 @@ function checkComparison(out, meta) {
 }
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
-  '.csv': 'text/csv', '.pdf': 'application/pdf', '.png': 'image/png', '.woff2': 'font/woff2' };
+  '.csv': 'text/csv', '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
 function serve(dir, port) {
   const server = createServer((req, res) => {
@@ -143,8 +143,10 @@ function serve(dir, port) {
     Object.defineProperty(global, 'navigator', { value: w.navigator, configurable: true, writable: true });
     let inflight = 0;
     const nativeFetch = global.fetch;
+    const demoApiCalls = [];   // v3.12.0 — jeder Abruf unter demo-api/ trägt die Marke des Baus
     const browserFetch = async (input, init) => {
       if (typeof input === 'string' && !/^https?:\/\//i.test(input)) input = new URL(input, w.location.href).href;
+      if (String(input).includes('/demo-api/')) demoApiCalls.push([String(input), init]);
       inflight++;
       try { return await nativeFetch(input, init); } finally { inflight--; }
     };
@@ -176,10 +178,13 @@ function serve(dir, port) {
     // öffnet die Demo den Einrichtungsassistenten (geprüft weiter unten)
     w.localStorage.setItem('et-demo-persona', 'showcase');
     w.localStorage.setItem('et-demo-level', 'expert');
+    // v3.12.0 — dieselbe Version wie der Bau, sonst setzt der Start die Wahl oben zurück (tests/demo-start.test.mjs)
+    w.localStorage.setItem('et-demo-version', meta.version);
     await import(pathToFileURL(join(out, 'public/js/app.js')).href);
     await settle();
     await sleep(200);
     t('App startet in der Demo', !!w.document.querySelector('#view .view-header, #view h1'), w.document.title);
+    t('gleiche Version: Die Wahl bleibt, kein Assistent', w.localStorage.getItem('et-demo-persona') === 'showcase' && !w.document.querySelector('.modal #setup-lang'));
     t('Kennzeichen „Demo“ in der Kopfleiste', !!w.document.querySelector('.topbar__brand .demo-chip'));
     const bar = w.document.getElementById('demo-bar');
     t('Hinweisleiste mit Bautag, Installieren-Link und Sprachwahl',
@@ -192,23 +197,26 @@ function serve(dir, port) {
     const active = utilities.filter(u => (settings.active_utilities || []).includes(u.key));
     const year = new Date().getFullYear();
     const routes = ['#/dashboard', '#/zaehlerstaende',
-      ...active.flatMap(u => [`#/utility/${u.key}`, `#/utility/${u.key}/meters`, `#/utility/${u.key}/contracts`]),
+      ...active.flatMap(u => [`#/utility/${u.key}`, `#/household/meters?art=${u.key}`, `#/utility/${u.key}/contracts`]),
       `#/utility/gas?year=${year - 1}`,
-      '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
-      '#/reminders', '#/recommendations', '#/help', '#/temperatures',
+      '#/contracts', '#/contracts/past', '#/tariffs', '#/bill-check', '#/figures', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
+      '#/todo', '#/todo?art=rec', '#/todo?art=rights', '#/todo/dates', '#/todo/history', '#/todo/history/ai', '#/help',
+      // v3.12.0 (Paket wegweiser) — Wegweiser: Auswahl, jeder Weg, die Doku-Seite mit Bildern
+      '#/help/setups', '#/help/setups/by-hand', '#/help/setups/inbox', '#/help/setups/home-assistant', '#/help/setups/local-ai',
+      '#/help/setups/cloud-ai', '#/help/setups/together', '#/help/doc/einstieg/wegweiser.md',
       // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau des Beispieldokuments
       '#/inbox', '#/inbox?view=review', ...(await api.inbox()).entries.map(e => `#/inbox/${e.id}`), '#/inbox/draft',
       // v3.4.0 (N1019) — Handbuch: Index, Sprung in einen Abschnitt, Seite mit Bildern, Datei im Wurzelverzeichnis
       '#/help/doc/README.md', '#/help/doc/anleitungen/anwendungsfaelle.md?h=case-heat',
       '#/help/doc/en/referenz/ansichten.md', '#/help/doc/root/CHANGELOG.md',
-      '#/settings', '#/settings/household', '#/settings/utilities', '#/settings/data',
-      '#/settings/integrations', '#/settings/access', '#/settings/expert', '#/settings/system'];
+      '#/settings', '#/settings/region', '#/settings/display', '#/household', '#/household/people', '#/household/building', '#/household/utilities', '#/settings/data', '#/settings/calculation',
+      '#/connections', '#/connections/reading', '#/connections/homeassistant', '#/connections/homeassistant/meters', '#/connections/homeassistant/notifications', '#/connections/homeassistant/templates', '#/connections/weather', '#/connections/evcc', '#/connections/calendar', '#/connections/ai', '#/connections/ai/connect', '#/connections/keys', '#/connections/homenet', '#/settings/access', '#/settings/expert', '#/settings/system'];
     const before = errors.length;
     for (const r of routes) {
       w.location.hash = r;
       await settle();
       const view = w.document.getElementById('view');
-      const broken = view.querySelector('.banner--error')?.textContent?.trim();
+      const broken = view.querySelector('.infobox--fehler')?.textContent?.trim();
       if (broken) errors.push(`${r}: ${broken.slice(0, 160)}`);
       if (r === '#/dashboard') {
         t('Schaufenster: keine Kachel „Dein Hebel“ (ohne Viertelstunden)', !view.querySelector('[data-role="flex-lever"]'));
@@ -227,7 +235,7 @@ function serve(dir, port) {
         const before = view.querySelector('#ws-card')?.textContent;
         chips[0]?.click();
         await settle(); await sleep(150);
-        t('Werkstatt in der Demo: Beispielszenario rechnet (vorgerechnet)', !view.querySelector('#ws-banner .banner')
+        t('Werkstatt in der Demo: Beispielszenario rechnet (vorgerechnet)', !view.querySelector('#ws-banner .infobox')
           && view.querySelector('#ws-card')?.textContent !== before, view.querySelector('#ws-banner')?.textContent || '');
         const slider = view.querySelector('#ws-saving');
         slider.value = '7';
@@ -235,6 +243,39 @@ function serve(dir, port) {
         await sleep(400); await settle();
         t('Werkstatt in der Demo: eigener Wert → Hinweis statt Fehler', /Beispielszenarien/.test(view.querySelector('#ws-banner')?.textContent || ''));
         for (const k of [...(w.__etDemoMisses || [])]) if (k.startsWith('POST /api/forecast/scenario') && k.includes('"saving_pct":7')) w.__etDemoMisses.delete(k);
+        // v3.12.0 (F1040) — jede Art zeigt ihre eigenen Beispiele, auch in der Demo
+        view.querySelector('#ws-presets [data-preset=""]')?.click();
+        await settle(); await sleep(150);
+        const pick = view.querySelector('#util-select');
+        if ([...pick.options].some(o => o.value === 'wasser')) {
+          pick.value = 'wasser';
+          pick.dispatchEvent(new w.Event('change', { bubbles: true }));
+          await sleep(400); await settle();
+          const ids = [...view.querySelectorAll('#ws-presets [data-preset]')].map(b => b.dataset.preset).filter(Boolean);
+          t('Werkstatt in der Demo: Wasser mit eigenen Beispielen', ids.includes('shower') && !ids.includes('cold_winter'), ids.join(','));
+          view.querySelector('#ws-presets [data-preset="shower"]')?.click();
+          await settle(); await sleep(150);
+          t('Werkstatt in der Demo: Sparbrause rechnet (vorgerechnet)', !view.querySelector('#ws-banner .infobox'), view.querySelector('#ws-banner')?.textContent || '');
+          t('Werkstatt in der Demo: Wasser sagt, warum es keinen Tarif gibt', !view.querySelector('#ws-tariff-none').hidden && view.querySelector('#ws-tariff').closest('[data-cap]').hidden);
+        }
+        // v3.12.0 (F1040, Phase 2) — Heizöl, Pellets und PV rechnet die Werkstatt jetzt, auch in der Demo vorgerechnet
+        for (const [u, preset, want] of [['heizoel', 'heat_pump', /Wärmepumpe/], ['pellets', 'fuel_price_up', /Preis/], ['pv_erzeugung', 'battery', /Speicher/]]) {
+          if (![...pick.options].some(o => o.value === u)) continue;
+          // erst zurücksetzen: ein Beispiel der vorigen Art (Sparbrause) ist in der Demo für diese Art nicht vorgerechnet
+          view.querySelector('#ws-presets [data-preset=""]')?.click();
+          await settle(); await sleep(150);
+          pick.value = u;
+          pick.dispatchEvent(new w.Event('change', { bubbles: true }));
+          await sleep(400); await settle();
+          const ids = [...view.querySelectorAll('#ws-presets [data-preset]')].map(b => b.dataset.preset).filter(Boolean);
+          t(`Werkstatt in der Demo: ${u} mit eigenen Beispielen`, ids.includes(preset), ids.join(','));
+          view.querySelector(`#ws-presets [data-preset="${preset}"]`)?.click();
+          await settle(); await sleep(150);
+          t(`Werkstatt in der Demo: ${u}/${preset} rechnet (vorgerechnet)`, !view.querySelector('#ws-banner .infobox') && want.test(view.querySelector('#ws-card')?.textContent || ''),
+            (view.querySelector('#ws-banner')?.textContent || '') + (view.querySelector('#ws-card')?.textContent || '').slice(0, 120));
+          view.querySelector('#ws-presets [data-preset=""]')?.click();
+          await settle(); await sleep(150);
+        }
       }
       // v3.7.0 — In der Demo liest niemand aus: vorbereitete Auslesung, Übernehmen gesperrt, das PDF als Datei
       // v3.7.0 (Haushalt aus Dokumenten) — der Entwurf aus der vorbereiteten Auslesung, Übernehmen gesperrt
@@ -258,11 +299,29 @@ function serve(dir, port) {
         await sleep(150);
         t('Danke-Hinweis: nie in der Demo', !!view.querySelector('.report-print') && !w.document.querySelector('.thanks-note'));
       }
+      // v3.12.0 (F1037) — die neue Hauptfunktion ist sichtbar und sagt, dass hier nichts verbindet
+      if (r === '#/connections/ai') {
+        const card = view.querySelector('#mcp-card');
+        t('KI-Assistenten in der Demo: Karte da, ehrlicher Hinweis, aus', !!card && !!card.querySelector('[data-role="mcp-demo"]')
+          && card.querySelector('[data-role="mcp-state"]')?.dataset.state === 'off', card?.querySelector('[data-role="mcp-state"]')?.dataset.state || 'keine Karte');
+        t('KI-Assistenten in der Demo: Anleitung und Vorlagen', !!card?.querySelector('[data-role="mcp-guide"]')
+          && !!view.querySelector('a[href="#/connections/ai/connect"]') && !!view.querySelector('a[href="#/todo/history/ai"]'));
+      }
       if (r === '#/settings/system') {
         const link = view.querySelector('[data-source-link]')?.getAttribute('href') || '';
         t('System: Link auf den Quellcode dieser Version', link.endsWith(`/tree/v${meta.version}`), link);
       }
       // v3.4.0 (N1019) — das Handbuch liest sich auch in der Demo
+      if (r === '#/help/setups/local-ai') {
+        t('Wegweiser in der Demo: Weg mit Hausgrenze und „Im Detail“', !!view.querySelector('.ill-boundary') && !!view.querySelector('details[data-role="detail"]'));
+      }
+      if (r === '#/help/setups') {
+        t('Wegweiser in der Demo: Kurzauswahl und alle Wege', view.querySelectorAll('fieldset.guide-q').length === 3 && view.querySelectorAll('.guide-tile').length === 6);
+      }
+      if (r === '#/help/doc/einstieg/wegweiser.md') {
+        const src = view.querySelector('.doc-body picture img')?.getAttribute('src') || '';
+        t('Wegweiser in der Demo: Doku-Seite mit Schaubild aus dem Bau', /ui\/wegweiser\/by-hand\.de\.svg/.test(src) && statSync(join(out, 'demo-api/docs/ui/wegweiser/by-hand.de.svg')).size > 500, src);
+      }
       if (r === '#/help/doc/README.md') {
         t('Handbuch in der Demo: Index mit Inhalt und Sprachumschalter', !!view.querySelector('.doc-body h1')
           && !!view.querySelector('.doc-langs a[href="#/help/doc/en/README.md"]'), w.document.title);
@@ -317,7 +376,7 @@ function serve(dir, port) {
         /gemessen − /.test(note) && /Wärmepumpe HT/.test(note) && /Wärmepumpe NT/.test(note), note.slice(0, 200));
       t('Schaufenster: Kachel und Monatstabelle nennen die abgerechnete Menge', !!view.querySelector('[data-role="kpi-billed"]')
         && !!view.querySelector('th[data-role="col-billed"]'));
-      w.location.hash = '#/utility/strom/meters';
+      w.location.hash = '#/household/meters?art=strom';
       await settle();
       const mv = w.document.getElementById('view');
       t('Schaufenster: Zählwerke mit OBIS an den Zählern (1.8.0, 1.8.1, 1.8.2)', ['1.8.0', '1.8.1', '1.8.2'].every(o => mv.textContent.includes(o)));
@@ -367,7 +426,7 @@ function serve(dir, port) {
       // immer zwölf Tage voraus (demo_align), die Empfehlung zeigt die Norm als Link und „Brief entwerfen“;
       // der erste Entwurf des Briefs ist vorberechnet (letters-<lang>.json), nichts fehlt
       const missesLetter = new Set(w.__etDemoMisses || []);
-      w.location.hash = '#/recommendations';
+      w.location.hash = '#/todo?art=rec';
       await settle(); await settle();
       const rc = w.document.querySelector('#view [data-role="rights-card"][data-check="special_termination"]');
       t('Demo: Empfehlung „Rechte“ mit Norm als Link und „Brief entwerfen“', !!rc && !!rc.querySelector('a[data-role="rights-norm"]')
@@ -381,6 +440,83 @@ function serve(dir, port) {
         lm.slice(0, 2).join(' · ') || pv.replace(/\s+/g, ' ').slice(0, 120));
       mq('[data-act="close"]')?.click();
       await settle();
+
+      // v3.12.0 — Sprungmarke: Die Rechte-Karte aus dem Schaufenster, hervorgehoben; Rechte stehen in ihrer Stufe vorn
+      {
+        const id = rc?.dataset.recId;
+        const allRecs = await api.recommendations();
+        const order = allRecs.map(r => `${r.severity}|${r.category === 'recht' ? 'recht' : 'sonst'}`);
+        const inOrder = ['urgent', 'warning', 'info'].every(sev => {
+          const inSev = order.filter(o => o.startsWith(sev + '|'));
+          return inSev.join() === [...inSev].sort().join();
+        });
+        t('Demo: In jeder Stufe stehen die Rechte-Hinweise vorn', inOrder && order.some(o => o.endsWith('|recht')), order.join(' '));
+        w.location.hash = `#/todo?art=rec&rec=${encodeURIComponent(id)}`;
+        await settle(); await sleep(50);
+        const tg = w.document.querySelector('#view [data-rec-target]');
+        t('Demo: Sprungmarke hebt den Hinweis hervor', tg?.dataset.recId === id && tg.classList.contains('rec-card--target'));
+        const seg = w.document.querySelector('#view .seg__btn[data-art="rights"]');
+        t('Demo: Filter „Rechte“ mit Zahl', /^Rechte \d+$/.test(seg?.textContent.trim() || ''), seg?.textContent);
+
+        // v3.12.0 (Mehrwert) — „Neu in vX.Y“: Block offen, und gesprungen wird nach dem Router (der scrollt nach oben)
+        {
+          const seen = [];
+          const realScroll = w.scrollTo, realInto = w.Element.prototype.scrollIntoView;
+          w.scrollTo = () => seen.push('oben');
+          w.Element.prototype.scrollIntoView = function () { seen.push(this.id || this.tagName); };
+          w.location.hash = '#/settings/integrations?mcp=value';   // alte Adresse: die Weiterleitung nimmt die Sprungmarke mit
+          await settle(); await sleep(50);
+          const value = w.document.querySelector('#view #mcp-value');
+          t('Demo: „Neu in“ öffnet „Was bringt dir das?“ und springt danach dorthin', value?.open === true && seen.at(-1) === 'mcp-value', seen.join(' '));
+          w.scrollTo = realScroll; w.Element.prototype.scrollIntoView = realInto;
+        }
+
+        // „Zu tun“ führt zum Hinweis; die Agenda trägt die Sprungmarke vom Server
+        const due =((await api.agenda(90)).events ?? []).filter(e => e.kind === 'rights' && e.due_now);
+        t('Demo: „Zu tun“ führt einen Rechte-Eintrag zur Sprungmarke', due.length > 0 && due.every(e => !e.ref?.recommendation_id || e.href === `#/todo?art=rec&rec=${encodeURIComponent(e.uid)}`)
+          && due.some(e => e.ref?.recommendation_id), due.map(e => e.href).join(' '));
+        w.location.hash = '#/todo';   // v3.12.0 (M4) — die ganze Liste; die Übersicht zeigt vier Zeilen
+        await settle(); await settle();
+        const todoLink = [...w.document.querySelectorAll('#view .dash-todo a')].find(x => x.getAttribute('href') === `#/todo?art=rec&rec=${encodeURIComponent(id)}`);
+        t('Demo: Die Zeile unter „Zu tun“ trägt die Sprungmarke', !!todoLink, todoLink?.textContent.replace(/\s+/g, ' ').trim() || [...w.document.querySelectorAll('#view .dash-todo a')].map(x => x.getAttribute('href')).join(' '));
+
+        // Vertragskarte: Auswahl, Sonderkündigung führt zum Hinweis, Kündigung vorberechnet
+        const missesCard = new Set(w.__etDemoMisses || []);
+        w.location.hash = '#/utility/strom/contracts';
+        await settle(); await settle();
+        const cards = [...w.document.querySelectorAll('#view .contract-card')];
+        const withLetter = cards.filter(c => c.querySelector('[data-role="contract-letter"]'));
+        t('Demo: Vertragskarte mit „Brief schreiben“', withLetter.length > 0 && withLetter[0].querySelector('[data-role="contract-letter"]').textContent.includes('Brief schreiben'), `${withLetter.length} von ${cards.length}`);
+        withLetter[0]?.querySelector('[data-role="contract-letter"]')?.click();
+        await settle(); await sleep(200); await settle();
+        t('Demo: Auswahl am Vertrag bietet die Kündigung, nie die Sonderkündigung ohne Hinweis', !!mq('[data-role="contract-letter-menu"] [data-kind="termination"]') && !mq('[data-kind="special_termination"]'));
+        mq('[data-kind="termination"]')?.click();
+        await settle(); await sleep(300); await settle();
+        const pvCard = [...w.document.querySelectorAll('#modal-root [data-role="letter-preview"]')].pop()?.textContent || '';
+        const cm = [...(w.__etDemoMisses || [])].filter(k => !missesCard.has(k));
+        t('Demo: Kündigung am Vertrag vorberechnet', /Kündigung zum nächstmöglichen Termin/.test(pvCard) && !/§/.test(pvCard) && cm.length === 0, cm.slice(0, 2).join(' · ') || pvCard.replace(/\s+/g, ' ').slice(0, 120));
+        // v3.12.0 (m4b) — Schaufenster mit erfundenem Absender, Anschrift des Anbieters und Nummern: keine Lücke
+        // (Kopf bis zum Betreff: Absender, Empfänger, Angaben zur Zuordnung; der Termin hängt am Kalender und bleibt außen vor)
+        const kopf = pvCard.split('\nKündigung')[0];
+        t('Demo: Kündigung ohne Lücke im Kopf, Absender, Anschrift und Nummern vorbelegt', !kopf.includes('[…]') && kopf.includes('Anna und Paul Muster') && /Musterweg 12/.test(kopf)
+          && /Kundennummer: K-\d+/.test(kopf) && /Vertragsnummer: V-/.test(kopf) && /Lieferanschrift: Musterweg 12/.test(kopf), kopf.replace(/\s+/g, ' ').slice(0, 240));
+        for (const b of [...w.document.querySelectorAll('#modal-root [data-act="close"]')].reverse()) { b.click(); await sleep(20); }
+        await settle();
+      }
+    }
+
+    // v3.12.0 — meta.json am Cache vorbei, jeder andere Abruf unter demo-api/ mit `?b=<built_at>`; `demoKey` und die
+    // Abdeckung oben („ohne fehlende Antworten“) sehen die Marke nicht
+    {
+      const stamp = `b=${encodeURIComponent(meta.built_at)}`;
+      const unmarked = demoApiCalls.filter(([u]) => !u.includes(stamp) && !u.endsWith('/demo-api/meta.json')).map(([u]) => u);
+      t('Alle Abrufe unter demo-api/ mit der Marke des Baus', demoApiCalls.length > 100 && unmarked.length === 0, unmarked.slice(0, 3).join(' · ') || `${demoApiCalls.length} Abrufe`);
+      const metaCalls = demoApiCalls.filter(([u]) => u.endsWith('/demo-api/meta.json'));
+      t('meta.json ohne Cache', metaCalls.length === 1 && metaCalls[0][1]?.cache === 'no-cache', `${metaCalls.length}`);
+      const { demoKey, demoFileName } = await import(pathToFileURL(join(out, 'public/js/lib/demo-key.js')).href);
+      t('Schlüssel der Anfragen kennen die Marke nicht', demoKey('/api/rights') === '/api/rights' && !demoFileName('/api/reports/yearly.pdf?year=2025').includes(stamp));
+      const fileUrl = api.yearlyReportUrl(year - 1, { inline: true });
+      t('Datei-Adressen mit der Marke', fileUrl.includes(stamp) && (await browserFetch(fileUrl)).ok, fileUrl);
     }
 
     // v3.2.0 (F1018) — der Einrichtungsassistent bietet die Beispielhaushalte an
@@ -420,7 +556,7 @@ function serve(dir, port) {
         for (const r of pRoutes) {
           w.location.hash = r + (r.includes('?') ? '&' : '?') + 'p=' + persona + level;
           await settle();
-          const broken = w.document.getElementById('view').querySelector('.banner--error')?.textContent?.trim();
+          const broken = w.document.getElementById('view').querySelector('.infobox--fehler')?.textContent?.trim();
           if (broken) errors.push(`${persona} ${r}: ${broken.slice(0, 160)}`);
           // v3.6.0 (Paket flexplus) — Kachel „Dein Hebel“ (nachgeladen, vorgerechnet)
           if (r === '#/dashboard') leverTiles.push(w.document.querySelector('#view [data-role="flex-lever"] .dash-lever__big')?.textContent || '');

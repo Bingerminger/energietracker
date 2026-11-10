@@ -824,6 +824,8 @@ final class ReportAdviceService
                     : $this->i18n->t('balanceUncertain.why.factorLow', ['raw' => $this->share((float)($unc['factor_raw'] ?? 0) * 100),
                         'used' => $this->share((float)($unc['factor'] ?? 0) * 100)]),
                 'few_measured' => $this->i18n->t('balanceUncertain.why.few_measured'),
+                'group_readings_differ' => $this->i18n->t('balanceUncertain.why.group_readings_differ', [   // v3.12.0 (Nachprüfung A3)
+                    'earliest' => $this->i18n->date((string)($unc['group_readings']['earliest'] ?? '')), 'latest' => $this->i18n->date((string)($unc['group_readings']['latest'] ?? ''))]),
                 default => $this->i18n->t('balanceUncertain.why.poor_fit', ['pct' => $this->share((float)($unc['fit_ratio'] ?? 0) * 100)]),
             };
         }

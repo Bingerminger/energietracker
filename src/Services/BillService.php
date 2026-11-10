@@ -141,6 +141,7 @@ final class BillService
     public function create(string $utility, array $input): array
     {
         $this->assertUtility($utility);
+        \Energietracker\Support\Input::assertTexts($input, ['meter_id']);   // v3.12.0
         $meterId = (string)($input['meter_id'] ?? $this->meters->defaultId($utility));
         if (!$this->meters->get($utility, $meterId)) {
             throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
@@ -261,7 +262,10 @@ final class BillService
         elseif ($factors['inside'] && !$factors['known']) $reasons['factor_change_inside'] = true;
         if ($items != 0) $reasons['items_not_modelled'] = true;
         if (!empty($bd['totals']['price_missing'])) $reasons['price_missing'] = true;
-        if ((int)($bdQty['totals']['gaps'] ?? 0) - $bounds['trailing_gap'] > 0) $reasons['gaps'] = true;
+        // v3.12.0 — ein Abschnitt mit fallendem Stand ist keine fehlende Ablesung: eigener Grund
+        $falls = (int)($bdQty['totals']['decreases'] ?? 0);
+        if ($falls > 0) $reasons['decrease'] = true;
+        if ((int)($bdQty['totals']['gaps'] ?? 0) - $falls - $bounds['trailing_gap'] > 0) $reasons['gaps'] = true;
         //  - Ohne Preise ist der Betrag nicht nachzurechnen: eigenes Urteil
         //    `no_prices` mit den Abschnitten, in denen sie fehlen (Sprung zum
         //    Vertrag). Eine abweichende Menge bleibt „prüfen“.
@@ -553,10 +557,14 @@ final class BillService
     {
         $isNew = $old === null;
         $out = [];
+        // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
+        \Energietracker\Support\Input::assertTexts($in, ['meter_id', 'period_from', 'period_to', 'issued_on', 'contract_id',
+            'special_payment_id', 'end_reading_on', 'received_on', 'note']);
         foreach (['period_from', 'period_to'] as $f) {
             if ($isNew || array_key_exists($f, $in)) {
                 $v = (string)($in[$f] ?? '');
                 if (!Dates::isIsoDate($v)) throw new LocalizedException('errors.bill.periodInvalid', ['from' => (string)($in['period_from'] ?? ''), 'to' => (string)($in['period_to'] ?? '')], 'bill date');
+                \Energietracker\Support\Input::assertDateInRange($v, $f);   // v3.12.0 — 1900 bis 2100
                 $out[$f] = $v;
             }
         }
@@ -566,11 +574,35 @@ final class BillService
         if ($isNew || array_key_exists('issued_on', $in)) {
             $v = (string)($in['issued_on'] ?? '');
             if ($v !== '' && !Dates::isIsoDate($v)) throw new LocalizedException('errors.bill.periodInvalid', ['from' => $v, 'to' => ''], 'issued_on');
+            if ($v !== '') \Energietracker\Support\Input::assertDateInRange($v, 'issued_on');   // v3.12.0 — 1900 bis 2100
             $out['issued_on'] = $v === '' ? null : $v;
         }
-        if ($isNew || array_key_exists('kind', $in)) $out['kind'] = in_array($in['kind'] ?? null, self::KINDS, true) ? $in['kind'] : 'annual';
-        if (array_key_exists('contract_id', $in)) $out['contract_id'] = ($in['contract_id'] ?? '') === '' ? null : (string)$in['contract_id'];
+        // v3.12.0 — keine stillen Annahmen: eine unbekannte Art, ein unbekannter Vertrag, Rechnungsangaben, Posten
+        // oder CO₂ in falscher Form sind 400. Bisher wurde „abc“ als Rechnung zu {}, Posten als Text zu [],
+        // CO₂ als Text zu null und jede Vertrags-ID (auch „NaN“) gespeichert.
+        if ($isNew || array_key_exists('kind', $in)) {
+            $k = $in['kind'] ?? null;
+            if ($k !== null && $k !== '' && !in_array($k, self::KINDS, true)) throw $this->invalid('kind', $k);
+            $out['kind'] = $k === null || $k === '' ? 'annual' : $k;
+        }
+        if (array_key_exists('contract_id', $in)) {
+            $cid = ($in['contract_id'] ?? '') === '' ? null : (string)$in['contract_id'];
+            if ($cid !== null && !in_array($cid, array_map(fn($c) => (string)($c['id'] ?? ''), array_filter((array)$this->store->read("$utility/contracts.json", []), 'is_array')), true)) {
+                throw new LocalizedException('errors.contract.notFound', [], "bill contract $cid");
+            }
+            $out['contract_id'] = $cid;
+        }
         if (array_key_exists('special_payment_id', $in)) $out['special_payment_id'] = $in['special_payment_id'] === null ? null : (string)$in['special_payment_id'];
+        foreach (['invoice', 'co2'] as $f) {
+            if (isset($in[$f]) && $in[$f] !== '' && $in[$f] !== [] && (!is_array($in[$f]) || array_is_list($in[$f]))) {
+                throw \Energietracker\Support\Input::objectExpected($f);
+            }
+        }
+        foreach (['items', 'factors'] as $f) {
+            if (!isset($in[$f]) || $in[$f] === '') continue;
+            if (!is_array($in[$f]) || !array_is_list($in[$f])) throw new LocalizedException('errors.common.listExpected', ['field' => $f], "bill $f: list expected");
+            foreach ($in[$f] as $x) if (!is_array($x)) throw new LocalizedException('errors.common.listExpected', ['field' => $f], "bill $f: entries");
+        }
         if ($isNew || array_key_exists('invoice', $in)) {
             $inv = is_array($in['invoice'] ?? null) ? $in['invoice'] : [];
             $o = [];
@@ -581,7 +613,7 @@ final class BillService
             if (!isset($o['result_eur']) && isset($o['amount_eur'], $o['advances_paid_eur'])) {
                 $o['result_eur'] = round($o['amount_eur'] - $o['advances_paid_eur'], 2);
             }
-            if (array_key_exists('net', $inv)) $o['net'] = !empty($inv['net']);
+            if (array_key_exists('net', $inv)) $o['net'] = \Energietracker\Support\Input::bool($inv['net']) ?? throw $this->invalid('invoice.net', $inv['net']);   // v3.12.0
             $out['invoice'] = $o;
         }
         if ($isNew || array_key_exists('items', $in)) {
@@ -649,6 +681,7 @@ final class BillService
         if (array_key_exists('received_on', $in)) {
             $v = (string)($in['received_on'] ?? '');
             if ($v !== '' && !Dates::isIsoDate($v)) throw $this->invalid('received_on', $v);
+            if ($v !== '') \Energietracker\Support\Input::assertDateInRange($v, 'received_on');   // v3.12.0
             $out['received_on'] = $v === '' ? null : $v;
         }
         if (array_key_exists('reading_estimated', $in)) {
@@ -692,8 +725,10 @@ final class BillService
         if ($utility !== 'wasser' || !is_array($n)) throw $this->invalid('notice', $n);
         $out = ['public_law' => self::flag($n['public_law'] ?? false), 'dated_on' => null, 'served_on' => null, 'remedy' => null, 'file_number' => null];
         foreach (['dated_on', 'served_on'] as $f) {
+            if (isset($n[$f]) && !is_string($n[$f])) throw $this->invalid("notice.$f", $n[$f]);
             $v = (string)($n[$f] ?? '');
             if ($v !== '' && !Dates::isIsoDate($v)) throw $this->invalid("notice.$f", $v);
+            if ($v !== '') \Energietracker\Support\Input::assertDateInRange($v, "notice.$f");   // v3.12.0
             $out[$f] = $v === '' ? null : $v;
         }
         if ($out['public_law'] && $out['dated_on'] === null) throw $this->invalid('notice.dated_on', '');
@@ -769,10 +804,14 @@ final class BillService
         return $best;
     }
 
-    /** Ja/Nein aus JSON oder Formular: nur ein ausdrückliches Ja (wie MeterService::flag). */
-    private static function flag(mixed $v): bool
+    /**
+     * Ja/Nein aus JSON oder Formular. v3.12.0 — eine Regel für alle Schreibwege (Support\Input::bool):
+     * „ja“ ist ja, Unlesbares ein Fehler (bisher still nein).
+     */
+    private static function flag(mixed $v, string $field = 'flag'): bool
     {
-        return $v === true || $v === 1 || (is_string($v) && in_array(strtolower(trim($v)), ['1', 'true', 'on', 'yes'], true));
+        return \Energietracker\Support\Input::bool($v)
+            ?? throw new LocalizedException('errors.common.boolExpected', ['field' => $field], "bill $field: bool expected");
     }
 
     /** Steuersatz in % (0 bis 30, wie der dynamische Tarif). */

@@ -55,7 +55,7 @@ report and tile therefore say “incl. VAT”.
 - For **“Using solar power at home”** generation and feed-in per quarter hour
   (PV generation, PV feed-in).
 - For the **battery**, two meters under PV generation with the roles
-  “Battery – charging” and “Battery – discharging”, both with quarter hours
+  “Battery (charging)” and “Battery (discharging)”, both with quarter hours
   (§ 5).
 - For **§ 14a module 3**, the time windows on the electricity contract (§ 6).
   Module 3 does not need wholesale prices.
@@ -65,7 +65,7 @@ report and tile therefore say “incl. VAT”.
   charging days and marks this as a sample value (§ 4, “Your lever”).
 
 The calculation runs per calendar year in the time zone of the installation
-(Settings → General → Time zone). A year has 35,040 quarter hours, a leap year
+(Settings → Region and language → Time zone). A year has 35,040 quarter hours, a leap year
 35,136; the days of the clock change have 92 or 100.
 
 ---
@@ -405,7 +405,7 @@ all quarter-hour series (§ 8).
 ## 5. Battery
 
 The card **“Battery by wholesale price”** needs two meters under **PV
-generation** with the roles “Battery – charging” and “Battery – discharging”
+generation** with the roles “Battery (charging)” and “Battery (discharging)”
 ([PV §7](../verstehen/12-pv.md#7-battery-v310)), both with quarter hours, and
 the wholesale prices of the year.
 
@@ -585,7 +585,7 @@ months up to yesterday forward — day by day from the same calendar day a year
 earlier, the wholesale prices too; the day film shows them. The consumption is
 made up.
 
-To load it: Settings → General → **“Start the setup assistant”**, “Own house
+To load it: Settings → For you → **“Start the setup assistant”**, “Own house
 with heat pump and solar”, choose a level, at the end “Look at it with sample
 data”
 ([sample households](anwendungsfaelle.md#sample-households-to-look-at-v320)).

@@ -208,8 +208,10 @@ final class RightsSourcesDocTest extends TestCase
         foreach (self::claimRows(self::read(self::EXPLAIN[$lang]), 'rights-example') as [$kind, , $cells]) {
             preg_match_all('/\d{4}-\d{2}-\d{2}/', $cells[0], $in);
             preg_match_all('/\d{4}-\d{2}-\d{2}/', $cells[1], $out);
-            self::assertCount(1, $in[0], "$lang/$kind: ein Ausgangsdatum");
+            // v3.12.0 — beim später erhaltenen Bescheid zwei Ausgangsdaten: Bescheid und „Erhalten am“
+            self::assertCount($kind === 'fee_notice_received' ? 2 : 1, $in[0], "$lang/$kind: Ausgangsdaten");
             $from = $in[0][0];
+            $dates = fn(?array $fd): array => $fd === null ? [] : [$fd['known_on'], $fd['nominal_end'], $fd['deadline']];
             $expected = match ($kind) {
                 'bill_late' => (function () use ($from) {
                     $deadline = (string)Rights::billDeadline('DE', 'strom', $from);
@@ -226,13 +228,24 @@ final class RightsSourcesDocTest extends TestCase
                     $a = (array)Rights::announcement('DE', $from, $from);
                     return [$deadline, Rights::remindOn($deadline), $a['special']['announce_by'], $a['basic']['announce_by']];
                 })(),
-                'fee_notice' => array_values((array)Rights::feeNoticeDeadline('DE', $from)),
+                // v3.12.0 — dazu das Ende der Weichzone (möglicherweise abgelaufen bis …)
+                'fee_notice' => (function () use ($from, $dates) {
+                    $fd = Rights::feeNoticeDeadline('DE', $from);
+                    return [...$dates($fd), $fd['soft_until'] ?? null];
+                })(),
+                // v3.12.0 — später erhalten (§ 41 Abs. 2 Satz 3 VwVfG): frühestens ab dem Zugang, möglicherweise
+                // abgelaufen bis zum Monat ab dem vierten Tag nach dem Zugang (zur Post spätestens am Zugangstag)
+                'fee_notice_received' => (function () use ($from, $in, $dates) {
+                    $fd = Rights::feeNoticeDeadline('DE', $from, null, $in[0][1]);
+                    self::assertSame('received', $fd['basis']);
+                    return [...$dates($fd), $fd['soft_until']];
+                })(),
                 default => self::fail("$lang: unbekanntes Beispiel $kind"),
             };
             self::assertSame($expected, $out[0], "$lang/$kind ab $from");
             $kinds[$kind] = true;
         }
-        self::assertSame(['bill_late', 'special_termination', 'fee_notice'], array_keys($kinds), "$lang: Beispiele");
+        self::assertSame(['bill_late', 'special_termination', 'fee_notice', 'fee_notice_received'], array_keys($kinds), "$lang: Beispiele");
     }
 
     /** @return list<string> „<Paragraf> <Gesetz>“ je genannter Norm, etwa „40c EnWG“ */

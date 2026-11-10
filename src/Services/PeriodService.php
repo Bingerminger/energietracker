@@ -8,6 +8,7 @@ use Energietracker\Http\NotFoundException;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Support\Dates;
 use Energietracker\Support\Encoding;
+use Energietracker\Support\Input;
 use Energietracker\Support\LocalizedException;
 
 /**
@@ -76,10 +77,14 @@ final class PeriodService
         return $all;
     }
 
+    /** v3.12.0 — Textfelder eines Zeitraums (Liste oder Objekt statt Text: 400, s. Support\Input) */
+    private const TEXT_FIELDS = ['meter_id', 'client_ref', 'attachment_id', 'month', 'from', 'to', 'note', 'value_unit', 'source'];
+
     /** @return array<string,mixed> */
     public function create(string $utility, array $input): array
     {
         $this->assertUtility($utility);
+        Input::assertTexts($input, self::TEXT_FIELDS);
         $meterId = (string)($input['meter_id'] ?? $this->meters->defaultId($utility));
         $meter = $this->periodMeter($utility, $meterId);
 
@@ -115,6 +120,7 @@ final class PeriodService
     public function update(string $utility, string $id, array $input): array
     {
         $this->assertUtility($utility);
+        Input::assertTexts($input, self::TEXT_FIELDS);
         $all = $this->store->read("$utility/periods.json", []);
         if (!is_array($all)) $all = [];
         foreach ($all as $i => $p) {
@@ -169,9 +175,10 @@ final class PeriodService
         $meter = $this->periodMeter($utility, $meterId);
         if (trim($csv) === '') throw new \InvalidArgumentException($this->i18n->t('errors.import.emptyCsv'));
         [$csv] = Encoding::normalizeCsv($csv);
-        $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
-        $rows = []; $errors = []; $skipped = 0; $sep = null; $first = true;
-        foreach ($lines as $lineNo => $raw) {
+        // v3.12.0 — Datensätze statt Zeilen: mehrzeilige Notizen des eigenen Exports bleiben ganz (Support\Csv)
+        $rows = []; $errors = []; $skipped = 0; $sep = null; $first = true; $otherMeter = 0;
+        foreach (\Energietracker\Support\Csv::records($csv) as ['line' => $lineNum, 'text' => $raw]) {
+            $lineNo = $lineNum - 1;
             $line = trim($raw);
             if ($line === '') continue;
             $sep ??= str_contains($line, ';') ? ';' : (str_contains($line, "\t") ? "\t" : ',');
@@ -195,13 +202,18 @@ final class PeriodService
                     // eigener Export: Spalte Zähler-ID → nur die Zeilen dieses Zählers
                     $names = array_merge(['zaehler-id', 'meter_id', 'meter-id'],
                         array_map([ReadingImportService::class, 'fold'], array_values($this->i18n->valuesInAllLanguages('csvLocal.periods.meterId'))));
+                    // v3.12.0 — und die Spalte „Geschätzt“: Die Rundreise machte geschätzte Zeiträume bisher zu gemessenen
+                    $estNames = array_merge(['geschaetzt', 'estimated', 'is_estimated'],
+                        array_map([ReadingImportService::class, 'fold'], array_values($this->i18n->valuesInAllLanguages('csvLocal.periods.estimated'))));
                     foreach ($parts as $ci => $h) {
                         if (in_array(ReadingImportService::fold((string)$h), $names, true)) $meterCol = $ci;
+                        if (in_array(ReadingImportService::fold((string)$h), $estNames, true)) $estCol = $ci;
                     }
                     continue;
                 }
             }
-            if (isset($meterCol) && ($parts[$meterCol] ?? '') !== '' && $parts[$meterCol] !== $meterId) continue;
+            // v3.12.0 — Zeilen eines anderen Zählers zählen (other_meter_rows), statt still nichts zu übernehmen
+            if (isset($meterCol) && ($parts[$meterCol] ?? '') !== '' && $parts[$meterCol] !== $meterId) { $otherMeter++; continue; }
             if ($from === null || $to === null) {
                 $skipped++;
                 $errors[] = $this->i18n->t('errors.period.csvDate', ['line' => $n, 'value' => (string)($parts[0] ?? '')]);
@@ -213,7 +225,9 @@ final class PeriodService
                 $errors[] = $this->i18n->t('errors.period.csvValue', ['line' => $n, 'value' => (string)$valueCell]);
                 continue;
             }
-            $rows[] = ['line' => $n, 'from' => $from, 'to' => $to, 'value' => $value, 'note' => $note];
+            $row = ['line' => $n, 'from' => $from, 'to' => $to, 'value' => $value, 'note' => \Energietracker\Support\Csv::unguard((string)$note)];
+            if (isset($estCol)) $row['is_estimated'] = in_array(ReadingImportService::fold((string)($parts[$estCol] ?? '')), $this->yesWords(), true);
+            $rows[] = $row;
         }
 
         $all = $this->store->read("$utility/periods.json", []);
@@ -223,7 +237,8 @@ final class PeriodService
         foreach ($rows as $r) {
             try {
                 $p = ['id' => 'p_' . bin2hex(random_bytes(6)), 'meter_id' => $meter['id']]
-                    + $this->normalize($utility, ['from' => $r['from'], 'to' => $r['to'], 'value' => $r['value'], 'note' => $r['note'], 'source' => 'csv'], null);
+                    + $this->normalize($utility, ['from' => $r['from'], 'to' => $r['to'], 'value' => $r['value'], 'note' => $r['note'], 'source' => 'csv',
+                        'is_estimated' => $r['is_estimated'] ?? false], null);
                 $this->assertNoOverlap(array_merge($all, $new), $p);
                 $new[] = $p;
                 $imported++;
@@ -233,7 +248,7 @@ final class PeriodService
             }
         }
         if ($dryRun) {
-            return ['imported' => 0, 'skipped' => $skipped, 'errors' => $errors, 'dry_run' => true, 'rows' => $rows, 'would_import' => $imported];
+            return ['imported' => 0, 'skipped' => $skipped, 'errors' => $errors, 'dry_run' => true, 'rows' => $rows, 'would_import' => $imported] + ($otherMeter > 0 ? ['other_meter_rows' => $otherMeter] : []);
         }
         if ($new !== []) {
             $this->store->write("$utility/periods.json", array_values(array_merge($all, $new)));
@@ -242,7 +257,17 @@ final class PeriodService
             foreach ($new as $p) if ($newest === null || (string)$p['to'] > (string)$newest['to']) $newest = $p;
             if ($newest !== null) $this->activity?->periodRecorded($utility, $meter, $newest, self::lastTo($all, (string)$meter['id']));
         }
-        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors] + ($otherMeter > 0 ? ['other_meter_rows' => $otherMeter] : []);
+    }
+
+    /** v3.12.0 — „ja“ der Spalte Geschätzt in allen Sprachen (wie ReadingImportService::parseBool). */
+    private function yesWords(): array
+    {
+        return array_map([ReadingImportService::class, 'fold'], array_merge(
+            ['1', 'true', 'ja', 'yes', 'x', 'wahr'],
+            array_values($this->i18n->valuesInAllLanguages('common.yes')),
+            array_values($this->i18n->valuesInAllLanguages('csvLocal.periods.estimated')),
+        ));
     }
 
     /** `MM.JJJJ`, `MM/JJJJ`, `JJJJ-MM` → [erster, letzter Tag] oder null. */
@@ -274,6 +299,7 @@ final class PeriodService
             if ($isNew || array_key_exists($f, $input)) {
                 $v = (string)($input[$f] ?? '');
                 if (!Dates::isIsoDate($v)) throw new LocalizedException('errors.period.dateInvalid', ['date' => $v], "period $f");
+                Input::assertDateInRange($v, $f);   // v3.12.0 — 1900 bis 2100
                 $out[$f] = $v;
             }
         }
@@ -283,7 +309,8 @@ final class PeriodService
         if ($isNew || array_key_exists('value', $input)) {
             $raw = $input['value'] ?? null;
             $v = is_string($raw) ? ReadingImportService::parseNum($raw) : (is_int($raw) || is_float($raw) ? (float)$raw : null);
-            if ($v === null || !is_finite($v) || $v < 0) {
+            // v3.12.0 — mit Obergrenze wie der Zählerstand (ReadingService::MAX_COUNTER): 10³⁰⁸ ging bisher durch
+            if ($v === null || !is_finite($v) || $v < 0 || $v > ReadingService::MAX_COUNTER) {
                 throw new LocalizedException('errors.period.valueInvalid', ['value' => is_scalar($raw) ? (string)$raw : ''], 'period value');
             }
             $out['value'] = round($v, 3);
@@ -296,12 +323,19 @@ final class PeriodService
             if ($u['unit'] === $u['consumption_unit']) $unit = 'consumption';
             $out['value_unit'] = $unit;
         }
-        if ($isNew || array_key_exists('is_estimated', $input)) $out['is_estimated'] = !empty($input['is_estimated']);
+        // v3.12.0 — „geschätzt“ als echter Wahrheitswert; ein Text „false“ oder „nein“ war bisher true
+        if ($isNew || array_key_exists('is_estimated', $input)) {
+            $b = Input::bool($input['is_estimated'] ?? false);
+            if ($b === null) throw new LocalizedException('errors.common.boolExpected', ['field' => 'is_estimated'], 'field is_estimated: bool expected');
+            $out['is_estimated'] = $b;
+        }
         if ($isNew || array_key_exists('source', $input)) {
             $out['source'] = in_array($input['source'] ?? null, self::SOURCES, true) ? (string)$input['source'] : 'manual';
         }
         if ($isNew || array_key_exists('note', $input)) $out['note'] = mb_substr((string)($input['note'] ?? ''), 0, 500);
         if (array_key_exists('reference', $input)) {
+            // v3.12.0 — ein Text statt eines Objekts brach sonst beim Zugriff auf seine Felder ab
+            if ($input['reference'] !== null && !is_array($input['reference'])) throw Input::objectExpected('reference');
             $ref = [];
             foreach (self::REFERENCE_FIELDS as $f) {
                 $rv = $input['reference'][$f] ?? null;

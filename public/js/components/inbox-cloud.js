@@ -14,6 +14,8 @@
 //     Mitglieder speichern nur die lokalen Felder, die ihnen offenstehen.
 //   - Eigene Speichern-Taste; die Felder tragen kein data-key, die
 //     Speicherleiste der Seite sieht sie nicht (`data-field` für Sprünge).
+//   - v3.12.0: Lokal und Cloud nennen ihre Wahl (`data-shown-by`); ein Sprung
+//     an ein verborgenes Feld sagt so, wo es steht (lib/field-jump.js).
 // =====================================================================
 
 import { api } from '../api.js';
@@ -22,6 +24,7 @@ import { t, tp } from '../lib/i18n.js';
 import { escapeHtml, parseDecimal } from '../lib/format.js';
 import { toastOk, toastErr } from './toast.js';
 import { confirmModal } from './modal.js';
+import { icon } from '../lib/icons.js';
 
 const providerOf = (status, id) => (status?.providers || []).find(p => p.id === id) || {};
 const presetOf = (status, id) => (status?.presets || []).find(p => p.id === id) || {};
@@ -58,7 +61,7 @@ const fieldText = (key) => {
 function localPanel(settings, isAdmin) {
   const ep = fieldText('ocr_endpoint'), ap = fieldText('ocr_api'), md = fieldText('inbox_model'), to = fieldText('inbox_timeout_s');
   const api = OCR_APIS.includes(settings.ocr_api) ? settings.ocr_api : 'ollama';
-  return `<div class="settings-fields" data-role="rd-local">
+  return `<div class="settings-fields" data-role="rd-local" data-shown-by="rd-mode=local">
       <p class="settings-field__hint" data-role="rd-shared">${escapeHtml(t('settings.reading.localShared'))}</p>
       <div class="field settings-field">
         <label for="rd-endpoint">${escapeHtml(ep.label)}</label>
@@ -92,20 +95,20 @@ function localPanel(settings, isAdmin) {
 }
 
 function cloudPanel(status, dis, isAdmin) {
-  return `<div class="settings-fields" data-role="rd-cloud">
-      <p class="banner banner--warning" data-role="ic-experimental">${escapeHtml(t('inboxCloud.experimental'))}</p>
-      <p class="banner banner--warning" data-role="ic-privacy">${escapeHtml(t('settings.inboxCloud.privacy'))}</p>
+  return `<div class="settings-fields" data-role="rd-cloud" data-shown-by="rd-mode=cloud">
+      <p class="infobox infobox--achtung" data-role="ic-experimental">${escapeHtml(t('inboxCloud.experimental'))}</p>
+      <p class="infobox infobox--achtung" data-role="ic-privacy">${escapeHtml(t('settings.inboxCloud.privacy'))}</p>
       ${isAdmin ? '' : `<p class="muted" data-role="ic-admin-only">${escapeHtml(t('settings.inboxCloud.adminOnly'))}</p>`}
       <div class="field settings-field">
         <label for="ic-provider">${escapeHtml(t('settings.inboxCloud.provider'))}</label>
-        <select class="select" id="ic-provider" aria-describedby="ic-sends"${dis}>
+        <select class="select" id="ic-provider" data-field="inbox_cloud_provider" aria-describedby="ic-sends"${dis}>
           ${(status.presets || []).map(p => `<option value="${escapeHtml(p.id)}" ${p.id === status.preset ? 'selected' : ''}>${escapeHtml(presetLabel(p))}</option>`).join('')}
         </select>
         <span class="settings-field__hint" id="ic-sends" data-role="ic-sends"></span>
       </div>
       <div class="field settings-field" data-role="ic-endpoint-field">
         <label for="ic-endpoint">${escapeHtml(t('settings.inboxCloud.endpoint'))}</label>
-        <input class="input input--text" type="text" inputmode="url" id="ic-endpoint" spellcheck="false" autocapitalize="off"
+        <input class="input input--text" type="text" inputmode="url" id="ic-endpoint" data-field="inbox_cloud_endpoint" spellcheck="false" autocapitalize="off"
                value="${escapeHtml(status.preset === 'custom' ? (status.endpoint || '') : '')}" placeholder="https://api.example.com/v1" aria-describedby="ic-endpoint-hint"${dis}>
         <span class="settings-field__hint" id="ic-endpoint-hint">${escapeHtml(t('settings.inboxCloud.endpointHint'))}</span>
       </div>
@@ -119,18 +122,18 @@ function cloudPanel(status, dis, isAdmin) {
       <div class="field settings-field">
         <label for="ic-model">${escapeHtml(t('settings.inboxCloud.model'))}</label>
         <select class="select" id="ic-model-list" data-role="ic-model-list" aria-label="${escapeHtml(t('settings.reading.modelList'))}" hidden${dis}></select>
-        <input class="input input--text" type="text" id="ic-model" spellcheck="false" autocapitalize="off"
+        <input class="input input--text" type="text" id="ic-model" data-field="inbox_cloud_model" spellcheck="false" autocapitalize="off"
                value="${escapeHtml(status.model || '')}" aria-describedby="ic-model-hint"${dis}>
         <span class="settings-field__hint" id="ic-model-hint" data-role="ic-model-hint"></span>
         ${isAdmin ? `<div><button type="button" class="btn btn--ghost btn--sm" data-role="ic-model-load" hidden>${escapeHtml(t('settings.reading.modelLoad'))}</button></div>` : ''}
       </div>
       <div class="field settings-field">
         <label for="ic-timeout">${escapeHtml(t('settings.inboxCloud.timeout'))} <span class="settings-field__unit">${escapeHtml(t('settings.unit.seconds'))}</span></label>
-        <input class="input" type="text" inputmode="numeric" id="ic-timeout" value="${escapeHtml(String(status.timeout_s ?? ''))}"${dis}>
+        <input class="input" type="text" inputmode="numeric" id="ic-timeout" data-field="inbox_cloud_timeout_s" value="${escapeHtml(String(status.timeout_s ?? ''))}"${dis}>
       </div>
       <div class="field settings-field">
         <label class="settings-field__check">
-          <input type="checkbox" id="ic-enabled" aria-describedby="ic-enabled-hint" ${status.enabled ? 'checked' : ''}${dis}> ${escapeHtml(t('settings.inboxCloud.enabled'))}
+          <input type="checkbox" id="ic-enabled" data-field="inbox_cloud_enabled" aria-describedby="ic-enabled-hint" ${status.enabled ? 'checked' : ''}${dis}> ${escapeHtml(t('settings.inboxCloud.enabled'))}
         </label>
         <span class="settings-field__hint" id="ic-enabled-hint">${escapeHtml(t('settings.inboxCloud.enabledHint'))}</span>
       </div>
@@ -145,10 +148,10 @@ export function renderReadingCard(status, settings, isAdmin) {
   const view = nextView || ((settings.inbox_provider || 'local') !== 'local' ? 'cloud' : 'local');
   nextView = null;
   const radio = (v, label) => `<label class="seg__btn"><input type="radio" name="rd-mode" value="${v}" ${view === v ? 'checked' : ''}${dis}> ${escapeHtml(label)}</label>`;
-  return `<div class="card settings-card" id="inbox-reading-card" data-view="${view}">
-    <h2 class="card__title"><span aria-hidden="true">📥</span> ${escapeHtml(t('settings.reading.title'))}</h2>
+  return `<div class="card settings-card" id="inbox-reading-card" data-view="${view}" data-field="inbox_provider">
+    <h2 class="card__title">${icon('eingang')} ${escapeHtml(t('settings.reading.title'))}</h2>
     <p class="settings-card__hint">${escapeHtml(t('settings.reading.hint'))}</p>
-    <p class="banner ${state.warn ? 'banner--warning' : 'banner--info'}" data-role="ic-state">${escapeHtml(state.text)}</p>
+    <p class="infobox ${state.warn ? 'infobox--achtung' : 'infobox--info'}" data-role="ic-state">${escapeHtml(state.text)}</p>
     <form class="settings-fields" data-role="ic-form" autocomplete="off" novalidate>
       <fieldset class="seg seg--radio" data-role="rd-mode">
         <legend class="settings-field__label">${escapeHtml(t('settings.reading.mode'))}</legend>
@@ -278,7 +281,7 @@ export function wireReadingCard(container, status, settings, isAdmin, rerender) 
     if (!(e.detail?.keys || []).includes('inbox_provider') || typeof reader !== 'string') return;
     const state = stateOf(status, status.ready && reader === status.provider);
     const el = $('[data-role="ic-state"]');
-    if (el) { el.textContent = state.text; el.className = `banner ${state.warn ? 'banner--warning' : 'banner--info'}`; }
+    if (el) { el.textContent = state.text; el.className = `infobox ${state.warn ? 'infobox--achtung' : 'infobox--info'}`; }
   };
   window.addEventListener('et:settingschange', onSettings);
 

@@ -47,4 +47,16 @@ final class CrossSiteGuardTest extends TestCase
     {
         self::assertSame($foreign, CrossSiteGuard::isForeignWrite($method, $server));
     }
+
+    /** v3.12.0 (Nachprüfung A1) — belegt von der eigenen Seite: Browser nennen sich, curl und Skripte von sich aus nicht. */
+    public function testOwnPageNeedsProof(): void
+    {
+        $host = ['HTTP_HOST' => 'nas:8080'];
+        self::assertTrue(CrossSiteGuard::isOwnPage($host + ['HTTP_SEC_FETCH_SITE' => 'same-origin']));
+        self::assertTrue(CrossSiteGuard::isOwnPage($host + ['HTTP_ORIGIN' => 'http://nas:8080']));
+        self::assertFalse(CrossSiteGuard::isOwnPage($host), 'nichts nennt die Seite');
+        self::assertFalse(CrossSiteGuard::isOwnPage($host + ['HTTP_SEC_FETCH_SITE' => 'none']), 'direkt eingegeben');
+        self::assertFalse(CrossSiteGuard::isOwnPage($host + ['HTTP_SEC_FETCH_SITE' => 'cross-site', 'HTTP_ORIGIN' => 'http://nas:8080']));
+        self::assertFalse(CrossSiteGuard::isOwnPage($host + ['HTTP_ORIGIN' => 'http://evil.example']));
+    }
 }

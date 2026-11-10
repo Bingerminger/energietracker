@@ -7,6 +7,7 @@ use Energietracker\Config\Rights;
 use Energietracker\Config\Utilities;
 use Energietracker\Http\HttpStatusException;
 use Energietracker\Services\Pdf\PdfWriter;
+use Energietracker\Services\Rights\ContractChecks;
 use Energietracker\Support\Dates;
 
 /**
@@ -38,10 +39,19 @@ use Energietracker\Support\Dates;
  *                        deadline_on, bill_kind · bonus_missing: bonus_eur, tariff, issued_on ·
  *                        metering_cap: annual_eur, cap_eur, cap_rule, device, issued_on
  *   objection            dated_on, file_number, levy (Rechnung `notice` als Rückfall)
+ *
+ * v3.12.0 — Briefe an der Vertragskarte, ohne Befund (`contract_id` statt `finding_id`, siehe
+ * forContract()): Antrag auf Abschlagsanpassung und Kündigung zum nächstmöglichen Termin
+ * (`termination`). Sonderkündigung, Widerspruch und Beanstandung behaupten etwas (ein Recht,
+ * einen Fehler) und gibt es deshalb nur aus einem Befund. Die Kündigung nennt keine Norm.
  */
 final class LetterService
 {
-    public const KINDS = RightsService::LETTERS;
+    public const KINDS = [...RightsService::LETTERS, 'termination'];
+    /** v3.12.0 — Vorlagen, die ein Vertrag ohne Befund anbieten darf (Sonderkündigung nie: Rechtsbehauptung). */
+    public const CONTRACT_KINDS = ['advance_adjustment', 'termination'];
+    /** v3.12.0 — Verbrauchsarten mit Liefervertrag, an deren Karte es Briefe gibt. */
+    public const CONTRACT_UTILITIES = ['strom', 'gas', 'fernwaerme', 'wasser'];
     public const FORMATS = ['text', 'pdf'];
 
     /** Höchstens so viele Zeilen je Anschrift (DIN 5008: Anschriftzone mit sechs Zeilen). */
@@ -57,6 +67,7 @@ final class LetterService
         'estimate_query'      => ['customer_number', 'meter_serial'],
         'complaint'           => ['customer_number'],
         'objection'           => ['file_number'],
+        'termination'         => ['customer_number', 'contract_number', 'meter_serial'],   // v3.12.0
     ];
 
     /** Eingaben je Vorlage (Dialog): Name → Typ. */
@@ -66,6 +77,7 @@ final class LetterService
         'estimate_query'      => ['attach_photo' => 'bool'],
         'complaint'           => ['note' => 'text'],
         'objection'           => ['confirm_objection' => 'bool', 'levy' => 'line', 'reason' => 'text', 'suspend' => 'bool'],
+        'termination'         => ['term_date' => 'date', 'reading_value' => 'number', 'reading_date' => 'date'],   // v3.12.0
     ];
 
     /**
@@ -87,6 +99,7 @@ final class LetterService
     public const FILE_NAMES = [
         'special_termination' => 'sonderkuendigung', 'advance_adjustment' => 'abschlagsanpassung',
         'estimate_query' => 'rueckfrage-schaetzung', 'complaint' => 'beanstandung', 'objection' => 'widerspruch',
+        'termination' => 'kuendigung',   // v3.12.0
     ];
 
     public static function fileName(string $kind, string $today): string
@@ -108,12 +121,15 @@ final class LetterService
         private MeterService $meters,
         private ?BillService $bills = null,
         private string $templates = __DIR__ . '/Letters/de.json',
+        private ?ConsumptionService $consumption = null,   // v3.12.0 — Abschlag-Vorschlag der Saldo-Karte für den Brief am Vertrag
+        private ?SettingsService $settings = null,         // v3.12.0 (m4b) — Absender und Lieferanschrift aus dem Haushalt
     ) {}
 
     /**
      * POST /api/letters/render — Body prüfen, Befund lesen, Modell bauen.
-     * Fehler: 400 (Vorlage, Format, Feld), 404 (Befund), 422 (Befund bietet die Vorlage
-     * nicht an, Widerspruch ohne Bestätigung der Rechtsbehelfsbelehrung).
+     * Fehler: 400 (Vorlage, Format, Feld), 404 (Befund, Vertrag), 422 (Befund oder Vertrag bietet
+     * die Vorlage nicht an, Widerspruch ohne Bestätigung der Rechtsbehelfsbelehrung).
+     * v3.12.0 — statt `finding_id`: `utility` und `contract_id` (forContract).
      *
      * @param array<string,mixed> $body
      * @return array{format:string, model:array<string,mixed>}
@@ -124,6 +140,9 @@ final class LetterService
         $format = $body['format'] ?? 'text';
         if (!is_string($format) || !in_array($format, self::FORMATS, true)) {
             throw new HttpStatusException(400, 'errors.letter.formatInvalid', ['value' => is_scalar($format) ? mb_substr((string)$format, 0, 20) : '']);
+        }
+        if (array_key_exists('contract_id', $body) && !array_key_exists('finding_id', $body)) {
+            return ['format' => $format, 'model' => $this->forContract($body, $today)];
         }
         $id = $body['finding_id'] ?? null;
         $finding = is_string($id) && preg_match(RightsService::ID_PATTERN, $id) ? $this->rights->find($id, $today) : null;
@@ -136,23 +155,208 @@ final class LetterService
         }
         // v3.11.0 (Skeptiker H2) — kein Widerspruch nach dem Ende der Frist (der Befund bietet ihn dann auch
         // nicht an; der Server sagt es eigens, statt einen Brief mit „Begründung reiche ich nach“ zu bauen)
-        if ($kind === 'objection' && is_string($finding['deadline'] ?? null) && $finding['deadline'] < $today) {
+        // v3.12.0 — dieselbe Regel wie der Befund: abgelaufen erst nach der Weichzone (`facts.expired`, A7);
+        // ein Befund ohne das Feld (ältere Form) fällt auf das Fristende zurück
+        $facts = is_array($finding['facts'] ?? null) ? $finding['facts'] : [];
+        $passed = array_key_exists('expired', $facts) ? $facts['expired'] === true
+            : is_string($finding['deadline'] ?? null) && $finding['deadline'] < $today;
+        if ($kind === 'objection' && $passed) {
             throw new HttpStatusException(422, 'errors.letter.deadlinePassed');
         }
         if ($finding['letter'] !== $kind) throw new HttpStatusException(422, 'errors.letter.notOffered', ['kind' => $kind]);
-        $input = [
-            'sender'    => $this->lines($body['sender'] ?? [], 'sender'),
-            'recipient' => $this->lines($body['recipient'] ?? null, 'recipient'),
-            'place'     => $this->line($body['place'] ?? '', 'place'),
-            'refs'      => $this->refsInput($body['refs'] ?? []),
-            'extra'     => $this->extraInput($kind, $body['extra'] ?? []),
-        ];
+        $input = $this->input($kind, $body);
         // Entscheidung 5b: Widerspruch nur, wenn die Rechtsbehelfsbelehrung „Widerspruch“ nennt
         // (Pflichtbestätigung im Dialog) — auch für Vorschau und Text, nicht erst für das PDF
         if ($kind === 'objection' && $input['extra']['confirm_objection'] !== true) {
             throw new HttpStatusException(422, 'errors.letter.confirmRequired');
         }
         return ['format' => $format, 'model' => $this->model($finding, $kind, $input, $today)];
+    }
+
+    /**
+     * v3.12.0 (m4b) — ohne `sender` bzw. `place` gilt die Vorbelegung aus dem Haushalt (null), ein leerer Wert
+     * bleibt leer (die Person hat ihn im Dialog geleert).
+     *
+     * @return array{sender:?list<string>, recipient:?list<string>, place:?string, refs:array<string,?string>, extra:array<string,mixed>}
+     */
+    private function input(string $kind, array $body): array
+    {
+        return [
+            'sender'    => $this->lines($body['sender'] ?? null, 'sender'),
+            'recipient' => $this->lines($body['recipient'] ?? null, 'recipient'),
+            'place'     => array_key_exists('place', $body) ? $this->line($body['place'], 'place') : null,
+            'refs'      => $this->refsInput($body['refs'] ?? []),
+            'extra'     => $this->extraInput($kind, $body['extra'] ?? []),
+        ];
+    }
+
+    // ── Brief am Vertrag, ohne Befund (v3.12.0) ──────────────────────────
+
+    /**
+     * Die Briefe, die eine Vertragskarte ohne Befund anbietet (auch für `letters` in der
+     * Vertragsliste): nie ein Angebot, nie ein beendeter Vertrag.
+     *   - Antrag auf Abschlagsanpassung: laufender Vertrag, nur im Land mit Rechte-Regeln.
+     *   - Kündigung: auch im Land ohne Regeln, Text neutral. Nicht bei Wasser: Dazu steht keine
+     *     Regel im Prüfbericht, und die App weiß nicht, ob die Versorgung privatrechtlich läuft
+     *     (ContractChecks::ADVANCE_UTILITIES).
+     *
+     * @param array<string,mixed> $contract `phase` wird gelesen, wenn er sie schon trägt (withPhase)
+     * @return list<string>
+     */
+    public function contractKinds(string $utility, array $contract, ?string $today = null): array
+    {
+        if (!in_array($utility, self::CONTRACT_UTILITIES, true)) return [];
+        $phase = $contract['phase'] ?? $this->contracts->phase($contract, $this->contracts->list($utility), $today);
+        if ($phase === 'past' || $phase === 'shadow') return [];
+        $out = [];
+        if ($phase !== 'future' && Rights::supports($this->rights->country())) $out[] = 'advance_adjustment';
+        if ($utility !== 'wasser') $out[] = 'termination';
+        return $out;
+    }
+
+    /**
+     * POST /api/letters/render mit `utility` und `contract_id`: dasselbe Modell wie aus einem
+     * Befund, die Angaben kommen aus dem Vertrag. Rechte wie beim Befund, gespeichert wird nichts.
+     *
+     * @param array<string,mixed> $body
+     * @return array<string,mixed>
+     */
+    private function forContract(array $body, string $today): array
+    {
+        $u = $body['utility'] ?? null;
+        $id = $body['contract_id'];
+        $contract = is_string($u) && Utilities::exists($u) && is_string($id) ? $this->contracts->get($u, $id) : null;
+        if ($contract === null) {
+            throw new HttpStatusException(404, 'errors.letter.contractNotFound', ['id' => is_scalar($id) ? mb_substr((string)$id, 0, 60) : '']);
+        }
+        $kind = $body['kind'] ?? null;
+        if (!is_string($kind) || !in_array($kind, self::KINDS, true)) {
+            throw new HttpStatusException(400, 'errors.letter.kindInvalid', ['value' => is_scalar($kind) ? mb_substr((string)$kind, 0, 40) : '']);
+        }
+        if (!in_array($kind, $this->contractKinds($u, $contract, $today), true)) {
+            // v3.12.0 (Skeptiker N9) — am Vertrag gibt es keinen Hinweis, auf den der Text sich beziehen könnte
+            throw new HttpStatusException(422, 'errors.letter.notOfferedContract', ['kind' => $kind]);
+        }
+        $input = $this->input($kind, $body);
+        $m = $this->model([
+            'id' => null, 'check' => null, 'utility' => $u, 'contract_id' => (string)$contract['id'], 'bill_id' => null,
+            'meter_id' => is_string($contract['meter_id'] ?? null) && $contract['meter_id'] !== '' ? $contract['meter_id'] : null,
+            'facts' => $this->contractFacts($u, $contract, $kind, $today, is_numeric($input['extra']['amount_eur'] ?? null)),
+        ], $kind, $input, $today);
+        // für den Dialog: Fußzeile „Hinweis, keine Rechtsberatung“ nur, wenn der Brief eine Norm nennt
+        $m['finding'] = $m['norms'] !== [] ? ['norms' => $m['norms'], 'help' => $this->rights->help($u)] : [];
+        return $m;
+    }
+
+    /**
+     * Angaben aus dem Vertrag für die Vorlage (Namen wie die Fakten eines Befunds).
+     *
+     * @param bool $amountGiven der Betrag steht schon im Dialog: dann keine Rechnung für den Vorschlag
+     * @return array<string,mixed>
+     */
+    private function contractFacts(string $u, array $c, string $kind, string $today, bool $amountGiven): array
+    {
+        $meter = is_string($c['meter_id'] ?? null) && $c['meter_id'] !== '' ? $this->meters->get($u, $c['meter_id']) : null;
+        $facts = [];
+        // Gruppenvertrag: die Nummern aller Zähler der Gruppe (HT und NT)
+        $gid = (string)($c['meter_group_id'] ?? '');
+        if ($meter === null && $gid !== '') {
+            $serials = array_map(fn($m) => $this->str($this->meters->deviceOnDate($m, $today)['serial'] ?? null), $this->meters->groupMembers($u, $gid));
+            $facts['meter_serials'] = implode(', ', array_filter($serials, fn($s) => $s !== null));
+        }
+        if ($kind === 'termination') {
+            return $facts + ['term_date' => $this->terminationDate($u, $c, $today), 'term_assumed' => $this->assumedTerm($u, $c, $today),
+                'tariff' => $this->str($c['tariff_name'] ?? null)];
+        }
+        $rate = ContractChecks::nextRate($this->contracts->effectiveAdvanceSchedule($c), $today);
+        if ($rate !== null) $facts += ['next_due' => $rate['due'], 'every_months' => $rate['every_months'], 'rate_eur' => $rate['amount_eur']];
+        $billed = $meter !== null && $this->bills !== null ? ContractChecks::lastBilledQuantity($this->bills->list($u, (string)$meter['id']), $today) : null;
+        if ($billed !== null) $facts += ['period_from' => $billed['from'], 'period_to' => $billed['to'], 'quantity' => round($billed['qty'], 1)];
+        if (!$amountGiven && $meter !== null && $rate !== null) {
+            $suggested = $this->suggestedAdvance($u, $meter, $c, $rate['amount_eur'], $today);
+            if ($suggested !== null) $facts['assessment_eur'] = $suggested;
+        }
+        return $facts;
+    }
+
+    /** Der Vorschlag der Saldo-Karte, unter derselben Bedingung (spürbar anders als heute, utility.js `suggestHtml`). */
+    private function suggestedAdvance(string $u, array $meter, array $c, float $rate, string $today): ?float
+    {
+        foreach ($this->consumption?->contractStatus($u, $meter, $today)['contracts'] ?? [] as $r) {
+            if (($r['contract_id'] ?? null) !== ($c['id'] ?? null) || empty($r['is_current'])) continue;
+            $s = $r['suggested_advance'] ?? null;
+            return is_numeric($s) && (float)$s > 0 && abs((float)$s - $rate) >= 5 ? (float)$s : null;
+        }
+        return null;
+    }
+
+    /**
+     * Termin laut Vertrag: letzter Tag vor dem nächstmöglichen Wechsel (ContractService::switchTiming,
+     * dieselbe Rechnung wie Saldo-Karte und „Wechsel prüfen“). Null, wenn die Frist zum Laufzeitende
+     * verstrichen ist und keine Regel den nächsten Termin kennt, oder ohne eingetragene Frist: Lücke im Brief.
+     */
+    private function terminationDate(string $u, array $c, string $today): ?string
+    {
+        $timing = $this->terminationTiming($u, $c, $today);
+        if ($timing['switch_date'] === null) return null;
+        if ($timing['basis'] === 'fixed_end' && $timing['cancel_by'] !== null && $timing['cancel_by'] < $today && !isset($timing['renewal_term'])) return null;
+        // v3.12.0 (Skeptiker M11) — eine Annahme nach § 32 AVBFernwärmeV steht nicht „nach meinen Unterlagen“ im Brief: Lücke, der Dialog sagt warum
+        if ($this->assumedTerm($u, $c, $today) !== null) return null;
+        return date('Y-m-d', (int)strtotime($timing['switch_date'] . ' -1 day'));
+    }
+
+    /**
+     * @return array{switch_date: ?string, cancel_by: ?string, days_to_cancel: ?int, basis: string, renewal_term?: array{until:string, cancel_by:string}}
+     */
+    private function terminationTiming(string $u, array $c, string $today): array
+    {
+        $all = $this->contracts->list($u);
+        $renewed = $this->contracts->phase($c, $all, $today) === 'renewed';
+        $until = $renewed ? ($this->contracts->coverageOf($c, $all)['to'] ?? null) : null;
+        // v3.12.0 (Skeptiker M11) — Grundversorgung: zwei Wochen Frist (§ 20 Abs. 1 StromGVV/GasGVV, Prüfbericht 26), auch wenn
+        // ein Folgevertrag eingetragen ist; sein Beginn ist nicht der nächstmögliche Termin
+        if (($c['supply_kind'] ?? null) === 'basic') $until = null;
+        return $this->contracts->switchTiming($c, $today, $renewed, $u, $this->rights->country(), is_string($until) ? $until : null);
+    }
+
+    /**
+     * v3.12.0 (Skeptiker M11) — Der Termin käme aus der Annahme nach § 32 AVBFernwärmeV (keine Frist eingetragen,
+     * die neun Monate vor dem Ende sind verstrichen): {until, cancel_by}, sonst null. Für den Satz im Dialog.
+     *
+     * @return array{until:string, cancel_by:string}|null
+     */
+    private function assumedTerm(string $u, array $c, string $today): ?array
+    {
+        $t = $this->terminationTiming($u, $c, $today);
+        if ($t['basis'] === 'renewal_term' && $t['switch_date'] !== null && $t['cancel_by'] !== null) {
+            return ['until' => date('Y-m-d', (int)strtotime($t['switch_date'] . ' -1 day')), 'cancel_by' => (string)$t['cancel_by']];
+        }
+        if (isset($t['renewal_term']) && $t['cancel_by'] !== null && $t['cancel_by'] < $today) {
+            return ['until' => (string)$t['renewal_term']['until'], 'cancel_by' => (string)$t['cancel_by']];
+        }
+        return null;
+    }
+
+    /**
+     * v3.12.0 — Warum der Kündigungstermin eine Lücke bleibt (für den Satz im Dialog):
+     *   missed     der Stichtag zum Vertragsende ist verpasst (`cancel_by`); wie es danach weitergeht, steht im Vertrag;
+     *   renewed    der Vertrag läuft nach seinem Ende weiter, ohne eingetragene Regel für die Kündigung;
+     *   no_notice  weder ein Ende noch eine Kündigungsfrist ist eingetragen.
+     * Einen Termin nach einer verpassten Frist oder in der Verlängerung rechnet die App bewusst nicht
+     * (Rechtsgrundlagen Nr. 59: für Strom und Gas nicht sicher belegt).
+     *
+     * @return array{reason:string, cancel_by:?string, end:?string}
+     */
+    private function termGap(string $u, array $c, string $today): array
+    {
+        $t = $this->terminationTiming($u, $c, $today);
+        $end = Dates::isIsoDate($c['end'] ?? null) ? (string)$c['end'] : null;
+        $reason = match (true) {
+            $t['basis'] === 'fixed_end' && $t['cancel_by'] !== null && $t['cancel_by'] < $today => 'missed',
+            $t['basis'] === 'renewed' && $end !== null                                          => 'renewed',
+            default                                                                              => 'no_notice',
+        };
+        return ['reason' => $reason, 'cancel_by' => $reason === 'missed' ? $t['cancel_by'] : null, 'end' => $end];
     }
 
     /**
@@ -167,6 +371,7 @@ final class LetterService
     {
         $this->gaps = [];
         $t = $this->templates();
+        $fromContract = $finding['id'] === null;   // v3.12.0 — Brief am Vertrag, ohne Befund
         $u = (string)$finding['utility'];
         $facts = is_array($finding['facts'] ?? null) ? $finding['facts'] : [];
         $contract = $finding['contract_id'] !== null ? $this->contracts->get($u, (string)$finding['contract_id']) : null;
@@ -190,26 +395,34 @@ final class LetterService
         // Vertragsnummer des Lieferanten gehören nicht hinein, die Zählernummer schon (Pflicht)
         $toMsb = $finding['check'] === 'metering_cap';
         $required = $toMsb ? ['meter_serial'] : self::REF_REQUIRED[$kind];
+        // v3.12.0 (m4b) — Absender und Lieferanschrift aus dem Haushalt, Anschrift des Anbieters aus dem Vertrag
+        $household = $this->household();
+        $recipientTo = $this->recipientOf($kind, $finding, $contract);
         $defaults = [
-            'recipient' => $this->defaultRecipient($kind, $finding, $contract),
+            'sender'    => $household['sender'],
+            'place'     => self::placeOf($household['sender']),
+            'recipient' => $recipientTo['lines'],
+            'recipient_name' => $recipientTo['name'],
             'refs' => array_filter([
                 'customer_number' => $toMsb ? null : $this->str($contract['customer_number'] ?? null),
                 'contract_number' => $toMsb ? null : $this->str($contract['contract_number'] ?? null),
-                'meter_serial'    => $this->str($device['serial'] ?? null),
+                'meter_serial'    => $this->str($device['serial'] ?? $facts['meter_serials'] ?? null),
                 'malo_id'         => Rights::isEnergy($country, $u) ? $this->str($meter['malo_id'] ?? null) : null,
                 'invoice_number'  => $this->str($facts['invoice_number'] ?? null),
                 'file_number'     => $kind === 'objection' ? $this->str($facts['file_number'] ?? null) : null,
+                'supply_address'  => $household['supply'],   // v3.12.0 (m4b)
             ], fn($v) => $v !== null),
             'extra' => array_filter([
                 'amount_eur'   => $kind === 'advance_adjustment' && is_numeric($facts['assessment_eur'] ?? null) ? (float)ceil((float)$facts['assessment_eur']) : null,
                 'attach_photo' => $kind === 'estimate_query' ? !empty($facts['photo']) : null,
                 'levy'         => $kind === 'objection' ? $this->str($facts['levy'] ?? null) : null,
+                'term_date'    => $kind === 'termination' ? $this->str($facts['term_date'] ?? null) : null,
             ], fn($v) => $v !== null),
         ];
         $extra = array_replace($defaults['extra'], array_filter($input['extra'], fn($v) => $v !== null && $v !== ''));
 
         // ── Kopf ──
-        $sender = $input['sender'];
+        $sender = $input['sender'] ?? $defaults['sender'];
         if ($sender === []) $this->gap('sender');
         $recipient = $input['recipient'] ?? $defaults['recipient'];
         if ($recipient === []) $this->gap('recipient');
@@ -223,7 +436,16 @@ final class LetterService
             $refs[] = ['key' => $k, 'label' => $t['common']['ref'][$k], 'value' => $v ?? $t['common']['gap']];
         }
         $date = self::date($today);
-        $placeDate = $input['place'] !== '' ? $input['place'] . ', ' . $date : $date;
+        // v3.12.0 — ohne Ort aus dem Absender, der im Brief steht: dem der Anfrage, sonst dem des Haushalts (bisher
+        // immer dem des Haushalts, auch wenn die Anfrage einen anderen Absender nannte)
+        $place = $input['place'] ?? self::placeOf($sender);
+        // woher der Absender kommt: aus dem Haushalt, auch wenn die Anfrage ihn unverändert mitschickt; ein anderer aus der Anfrage
+        $senderSource = match (true) {
+            $sender === []                                          => null,
+            $input['sender'] === null || $sender === $household['sender'] => $household['sender'] !== [] ? 'household' : null,
+            default                                                 => 'request',
+        };
+        $placeDate = $place !== '' ? $place . ', ' . $date : $date;
 
         // ── Inhalt ──
         $v = $this->values($facts, $u);
@@ -231,10 +453,11 @@ final class LetterService
         $norms = [];
         $paras = match ($kind) {
             'special_termination' => $this->specialTermination($t, $v, $extra, $u, $supplyKind, $country, $norms),
-            'advance_adjustment'  => $this->advanceAdjustment($t, $v, $facts, $extra, $u, $supplyKind, $country, $norms),
+            'advance_adjustment'  => $this->advanceAdjustment($t, $v, $facts, $extra, $u, $supplyKind, $country, $norms, $fromContract),
             'estimate_query'      => $this->estimateQuery($t, $v, $u, $country, $norms),
             'complaint'           => $this->complaint($t, $v, $facts, $extra, (string)$finding['check'], $u, $country, $norms),
             'objection'           => $this->objection($t, $v, $extra),
+            'termination'         => $this->termination($t, $v, $extra, $u),
         };
         $subjectTpl = match (true) {
             $kind === 'complaint' => $t['complaint'][$finding['check']]['subject'] ?? $t['complaint']['subject'],
@@ -244,23 +467,41 @@ final class LetterService
 
         $attachments = [];
         if ($kind === 'estimate_query' && !empty($extra['attach_photo'])) $attachments[] = $this->fill($t['estimate_query']['photo'], $v);
+        // Unterschrift nötig: der Widerspruch; v3.12.0 die Kündigung von Fernwärme (§ 32 AVBFernwärmeV, Prüfbericht 30)
+        $written = $kind === 'objection' || ($kind === 'termination' && $u === 'fernwaerme' && Rights::supports($country));
 
         $model = [
             'kind'        => $kind,
             'file_name'   => self::fileName($kind, $today),   // v3.11.0 (Skeptiker N12)
-            'finding_id'  => (string)$finding['id'],
-            'form'        => $kind === 'objection' ? 'written' : 'text',
+            'finding_id'  => $fromContract ? null : (string)$finding['id'],
+            'contract_id' => $fromContract ? $finding['contract_id'] : null,   // v3.12.0
+            'rules'       => Rights::supports($country),                       // v3.12.0 — sonst sagt der Dialog: nur eine Vorlage
+            'form'        => $written ? 'written' : 'text',
+            // v3.12.0 (Skeptiker M11) — Kündigung: der Termin wäre nur eine Annahme nach § 32 AVBFernwärmeV (Satz im Dialog)
+            'term_assumed' => is_array($facts['term_assumed'] ?? null) ? $facts['term_assumed'] : null,
+            // v3.12.0 — Kündigung: steht der Termin als Lücke da (ohne Annahme), sagt der Dialog warum und wo man ihn einträgt
+            'term_gap'    => $kind === 'termination' && $contract !== null && in_array('term_date', $this->gaps, true) && !is_array($facts['term_assumed'] ?? null)
+                ? $this->termGap($u, $contract, $today) : null,
             'sender'      => $sender,
             'recipient'   => $recipient,
             'return_line' => implode(', ', $sender),
+            'place'       => $place,        // v3.12.0 (m4b) — für das Feld im Dialog
             'place_date'  => $placeDate,
+            // v3.12.0 (m4b) — woher die Vorbelegung kommt (der Dialog sagt es und, wo etwas fehlt, wo man es einträgt);
+            // `contract`: der Vertrag, an dem „Am Vertrag speichern“ die Anschrift des Anbieters ablegt
+            'sources'     => [
+                'sender'            => $senderSource,
+                'supply_address'    => $household['supply'] !== null ? 'household' : null,
+                'recipient_address' => $recipientTo['address'] !== [] ? 'contract' : null,
+                'contract'          => $recipientTo['name'] !== [] && $contract !== null ? ['utility' => $u, 'id' => (string)$contract['id']] : null,
+            ],
             'refs'        => $refs,
             'subject'     => $subject,
             'salutation'  => $t['common']['salutation'],
             'paragraphs'  => $paras,
             'closing'     => $t['common']['closing'],
             'signature'   => $sender[0] ?? $t['common']['gap'],
-            'signature_line' => $kind === 'objection',
+            'signature_line' => $written,
             'attachments' => $attachments,
             'norms'       => array_values(array_map(fn($k) => array_intersect_key(Rights::rule($country, $k), array_flip(['key', 'norm', 'url', 'checked_on', 'status'])), array_unique($norms))),
             'gaps'        => array_values(array_unique($this->gaps)),
@@ -268,7 +509,12 @@ final class LetterService
             'extra'       => $extra,
             // für den Dialog: Hinweis und Fußzeile in der Sprache der Anfrage (nicht im Brief)
             'finding'     => array_intersect_key($finding, array_flip(['id', 'check', 'utility', 'date', 'deadline', 'todo',
-                                                                         'title', 'text', 'footer', 'help', 'norms'])),
+                                                                         'title', 'text', 'footer', 'help', 'norms']))
+                             // v3.12.0 — Gebührenbescheid: Frist möglicherweise abgelaufen (der Dialog sagt es)
+                             + (array_key_exists('maybe_expired', $facts) ? ['maybe_expired' => $facts['maybe_expired'] === true] : [])
+                             // mit eingetragenem Zugang rechnet das früheste Ende vom Zugang, das späteste vom vierten Tag danach
+                             + (is_string($facts['known_basis'] ?? null) ? ['known_basis' => $facts['known_basis']] : [])
+                             + (is_string($facts['soft_until'] ?? null) ? ['soft_until' => $facts['soft_until']] : []),
         ];
         $model['lines'] = $this->textLines($model, $t);
         $model['text'] = implode("\n", $model['lines']);
@@ -281,6 +527,7 @@ final class LetterService
         $m['defaults']['refs'] = (object)$m['defaults']['refs'];
         $m['defaults']['extra'] = (object)$m['defaults']['extra'];
         $m['extra'] = (object)$m['extra'];
+        $m['finding'] = (object)$m['finding'];
         return $m;
     }
 
@@ -302,10 +549,12 @@ final class LetterService
     }
 
     /** @return list<string> */
-    private function advanceAdjustment(array $t, array $v, array $facts, array $extra, string $u, ?string $supplyKind, string $country, array &$norms): array
+    private function advanceAdjustment(array $t, array $v, array $facts, array $extra, string $u, ?string $supplyKind, string $country, array &$norms, bool $fromContract = false): array
     {
         $tpl = $t['advance_adjustment'];
-        $keys = $this->cite(self::NORMS['advance_adjustment'], $country, $u, $supplyKind);
+        // v3.12.0 — am Vertrag: Wasser ohne Norm (privatrechtlich oder Gebührensatzung, weiß die App nicht)
+        $keys = $fromContract && !in_array($u, ContractChecks::ADVANCE_UTILITIES, true)
+            ? [] : $this->cite(self::NORMS['advance_adjustment'], $country, $u, $supplyKind);
         $norms = [...$norms, ...$keys];
         $v['norms'] = $keys === [] ? null : $this->normText($keys, $country, $t);
         $v['unit'] ??= $this->unit($u, 'consumption_unit');
@@ -321,6 +570,23 @@ final class LetterService
         $v['rhythm'] = $t['common']['rhythm'][(string)$months] ?? $this->fill($t['common']['rhythm']['other'], ['n' => (string)$months]);
         $v['amount_eur'] = isset($extra['amount_eur']) ? self::money((float)$extra['amount_eur']) : null;
         $v['reasons'] = isset($extra['reasons']) ? (string)$extra['reasons'] : null;
+        return $this->paragraphs($fromContract ? $tpl['body_contract'] : $tpl['body'], $v);
+    }
+
+    /**
+     * v3.12.0 — Kündigung zum nächstmöglichen Termin: ordentlich, ohne Norm und ohne Rechtsaussage.
+     *
+     * @return list<string>
+     */
+    private function termination(array $t, array $v, array $extra, string $u): array
+    {
+        $tpl = $t['termination'];
+        $v['supply'] = $tpl['supply'][$u] ?? null;
+        $v['tariff'] = $this->str($v['tariff'] ?? null) !== null ? $this->fill($tpl['tariff'], ['tariff' => (string)$v['tariff']]) : '';
+        $v['term_date'] = isset($extra['term_date']) ? self::date((string)$extra['term_date']) : null;
+        $v['reading_value'] = isset($extra['reading_value']) ? self::number((float)$extra['reading_value']) : null;
+        $v['reading_date'] = isset($extra['reading_date']) ? self::date((string)$extra['reading_date']) : null;
+        $v['unit'] ??= $this->unit($u, 'unit');
         return $this->paragraphs($tpl['body'], $v);
     }
 
@@ -622,12 +888,57 @@ final class LetterService
         return $names === [] ? null : implode($t['common']['norms_join'], $names);
     }
 
-    /** Empfänger vorbelegen: der Anbieter des Vertrags; Messstellenbetreiber und Behörde kennt die App nicht. */
-    private function defaultRecipient(string $kind, array $finding, ?array $contract): array
+    /**
+     * Empfänger vorbelegen: der Anbieter des Vertrags; Messstellenbetreiber und Behörde kennt die App nicht.
+     * v3.12.0 (m4b) — dazu die Anschrift des Anbieters am Vertrag (`provider_address`, freiwillig); der Name
+     * bekommt höchstens so viele Zeilen, dass beides in die Anschriftzone passt (ADDRESS_LINES).
+     *
+     * @return array{lines:list<string>, name:list<string>, address:list<string>}
+     */
+    private function recipientOf(string $kind, array $finding, ?array $contract): array
     {
-        if ($kind === 'objection' || $finding['check'] === 'metering_cap') return [];
+        $none = ['lines' => [], 'name' => [], 'address' => []];
+        if ($kind === 'objection' || $finding['check'] === 'metering_cap') return $none;
         $p = $this->str($contract['provider'] ?? null);
-        return $p !== null ? self::wrap($p) : [];
+        $address = self::addressLines($contract['provider_address'] ?? null);
+        if ($p === null) return $none;
+        $name = self::wrap($p, max(1, min(3, self::ADDRESS_LINES - count($address))));
+        return ['lines' => [...$name, ...$address], 'name' => $name, 'address' => $address];
+    }
+
+    /**
+     * v3.12.0 (m4b) — Absender (Name, dann die Anschrift) und Lieferanschrift aus dem Haushalt (Einstellungen,
+     * SettingsService::LETTER_KEYS); was dort nicht passt (alter Bestand, Sicherung), gilt als nicht angegeben.
+     *
+     * @return array{sender:list<string>, supply:?string}
+     */
+    private function household(): array
+    {
+        if ($this->settings === null) return ['sender' => [], 'supply' => null];
+        $get = fn(string $k) => SettingsService::cleanLetterValue($k, $this->settings->get($k, '')) ?? '';
+        $name = $get('letter_sender_name');
+        $sender = $name === '' ? [] : [$name, ...self::addressLines($get('letter_sender_address'))];
+        $supply = $get('letter_supply_address');
+        return ['sender' => $sender, 'supply' => $supply === '' ? null : $supply];
+    }
+
+    /** Zeilen einer gespeicherten Anschrift (bereinigt wie beim Speichern; Unpassendes: keine). @return list<string> */
+    private static function addressLines(mixed $v): array
+    {
+        $clean = SettingsService::cleanLetterValue('letter_sender_address', $v);
+        return $clean === null || $clean === '' ? [] : explode("\n", $clean);
+    }
+
+    /**
+     * v3.12.0 (m4b) — Ort für „Ort, Datum“ aus der letzten Zeile der Anschrift, wenn sie mit einer Postleitzahl
+     * beginnt („12345 Musterstadt“, „D-12345 Musterstadt“, „1010 Wien“); sonst leer, nie geraten.
+     *
+     * @param list<string> $sender
+     */
+    public static function placeOf(array $sender): string
+    {
+        if (count($sender) < 2) return '';
+        return preg_match('/^(?:[A-Z]{1,2}[-\s])?\d{4,5}\s+(\S.*)$/u', (string)end($sender), $m) ? trim($m[1]) : '';
     }
 
     /**

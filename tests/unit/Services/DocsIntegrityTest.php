@@ -31,7 +31,7 @@ final class DocsIntegrityTest extends TestCase
         $files = [];
         foreach (['README.md', 'README.de.md', 'INSTALL.md', 'INSTALL.de.md', 'CHANGELOG.md', 'SECURITY.md',
                   'CONTRIBUTING.md', 'CONTRIBUTING.de.md', 'roadmap.md', 'demo-data/README.md', 'tests/README.md',
-                  'AGENTS.md', 'TRADEMARKS.md'] as $f) {
+                  'AGENTS.md', 'TRADEMARKS.md', 'CODE_OF_CONDUCT.md'] as $f) {
             if (is_file("$root/$f")) $files[] = $f;
         }
         $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator("$root/docs", \FilesystemIterator::SKIP_DOTS));
@@ -60,7 +60,7 @@ final class DocsIntegrityTest extends TestCase
     {
         $text = self::prose($md);
         preg_match_all('/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/', $text, $a);
-        preg_match_all('/<(?:img|a)\b[^>]*?\s(?:src|href)="([^"]+)"/', $text, $b);
+        preg_match_all('/<(?:img|a|source)\b[^>]*?\s(?:src|href|srcset)="([^"]+)"/', $text, $b);
         preg_match_all('/^\[[^\]]+\]:\s*(\S+)/m', $text, $c);
         return array_values(array_filter(array_merge($a[1], $b[1], $c[1]),
             fn($t) => !preg_match('#^(?:[a-z][a-z0-9+.-]*:|/)#i', $t)));
@@ -269,6 +269,19 @@ final class DocsIntegrityTest extends TestCase
         self::assertContains('docs/assets/promo', $ignored, 'Werbebilder gehören nicht ins Image');
         foreach (array_keys(\Energietracker\Services\DocsService::ROOT_FILES) as $name) {
             self::assertNotContains($name, $ignored, "$name fehlt im Image, DocsService liefert es aber aus");
+        }
+    }
+
+    /**
+     * v3.12.0 — Die READMEs versprachen „ⓘ an jeder Kennzahl“; gezählt im Schaufenster tragen die meisten
+     * Kennzahl-Kacheln keins (Übersicht und Prognose keine). Wie die Referenz der Ansichten: ⓘ neben Fachbegriffen.
+     */
+    public function testTheReadmesDoNotPromiseAnInfoOnEveryKeyFigure(): void
+    {
+        foreach (['README.de.md' => ['jeder Kennzahl', 'ⓘ neben Fachbegriffen'], 'README.md' => ['every key figure', 'ⓘ next to technical terms']] as $file => [$no, $yes]) {
+            $md = (string)file_get_contents(self::root() . "/$file");
+            self::assertStringNotContainsString($no, $md, "$file verspricht mehr, als die App zeigt");
+            self::assertStringContainsString($yes, $md, $file);
         }
     }
 }

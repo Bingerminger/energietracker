@@ -28,6 +28,11 @@ final class InboxController
     /** v3.7.0 — Laufzeit für Erkennen/Auslesen (PHP-Standard 30 s reicht lokalen Modellen nicht) */
     public const READ_TIME_LIMIT_S = 660;
 
+    /** v3.12.0 (Skeptiker M8) — mit einem KI-Schlüssel: Herkunft am Eintrag, Ergebnis fürs Zugriffsprotokoll (Status, Fehlercode) */
+    public ?string $source = null;
+    /** @var (\Closure(int, ?string): void)|null */
+    public ?\Closure $onResult = null;
+
     public function __construct(private InboxService $inbox, private I18nService $i18n, private ?FolderIntake $folder = null) {}
 
     public function index(Request $req): never
@@ -61,13 +66,18 @@ final class InboxController
             if (is_string($req->body['name'] ?? null) && trim($req->body['name']) !== '') $name = $req->body['name'];
         }
         try {
-            $entry = $this->inbox->upload($bytes, $name);
+            $entry = $this->inbox->upload($bytes, $name, $this->source);
         } catch (DuplicateDocumentException $e) {
+            if ($this->onResult !== null) ($this->onResult)(409, 'errors.inbox.duplicate');
+            // v3.12.0 (Nachprüfung A2) — eine KI bekommt das Doppel nur als Kennung: Der Dateiname kann eine Nummer tragen,
+            // `get_document` nennt ihn nach ihren Regeln
+            $forAi = $this->source === 'mcp';
             Response::error($this->i18n->t('errors.inbox.duplicate', [
                 'date' => $this->i18n->date(substr((string)($e->existing['created_at'] ?? ''), 0, 10)),
-                'name' => (string)($e->existing['name'] ?? ''),
-            ]), 409, ['existing' => $e->existing], 'errors.inbox.duplicate', true);
+                'name' => $forAi ? '[…]' : (string)($e->existing['name'] ?? ''),
+            ]), 409, ['existing' => $forAi ? array_intersect_key($e->existing, ['id' => 1, 'created_at' => 1]) : $e->existing], 'errors.inbox.duplicate', true);
         }
+        if ($this->onResult !== null) ($this->onResult)(201, null);
         Response::json(InboxService::summary($entry), 201);
     }
 

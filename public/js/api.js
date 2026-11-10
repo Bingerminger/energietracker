@@ -328,6 +328,12 @@ export const api = {
   haNotify:       ()                   => request('GET',   '/api/homeassistant/notify'),
   updateHaNotify: (data)               => request('PATCH', '/api/homeassistant/notify', data),
   testHaNotify:   ()                   => request('POST',  '/api/homeassistant/notify/test', {}),
+  // v3.12.0 (F1037) — KI-Assistenten (MCP): Stand, Zugriffsprotokoll, offene Vorschläge (nur Verwalter)
+  mcpStatus:      ()                   => request('GET',    '/api/mcp/status'),
+  mcpJournal:     ()                   => request('GET',    '/api/mcp/journal'),
+  mcpProposals:   ()                   => request('GET',    '/api/mcp/proposals'),
+  rejectMcpProposal: (id)              => request('DELETE', `/api/mcp/proposals/${encodeURIComponent(id)}`),
+  applyMcpProposal:  (id)              => request('POST',   `/api/mcp/proposals/${encodeURIComponent(id)}/apply`, {}),
 
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the

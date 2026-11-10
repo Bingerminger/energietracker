@@ -211,7 +211,92 @@ export const shapes = {
   caption(x, y, text = '', { anchor = 'middle' } = {}) {
     return text ? `<text class="ill-small" x="${n(x)}" y="${n(y)}" text-anchor="${anchor === 'start' || anchor === 'end' ? anchor : 'middle'}">${esc(text)}</text>` : '';
   },
+  // v3.12.0 (Paket wegweiser) — Bausteine der Schaubilder im Wegweiser (lib/setup-scenes.js)
+  /** Handy. (x, y) = linke obere Ecke, auch bei den folgenden Geräten. */
+  phone(x, y, { w = 16, h = 26 } = {}) {
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="3"/>
+      <path class="ill-line" d="M${n(x + 3.5)},${n(y + 6)} H${n(x + w - 3.5)} M${n(x + 3.5)},${n(y + 10.5)} H${n(x + w - 5.5)} M${n(x + w * 0.36)},${n(y + h - 4)} H${n(x + w * 0.64)}"/></g>`;
+  },
+  /** Rechner: aufgeklappter Laptop. */
+  computer(x, y, { w = 34, h = 24 } = {}) {
+    return `<g><rect class="ill-face" x="${n(x + 4)}" y="${n(y)}" width="${n(w - 8)}" height="${n(h - 5)}" rx="2"/>
+      <path class="ill-face" d="M${n(x + 4)},${n(y + h - 5)} H${n(x + w - 4)} L${n(x + w)},${n(y + h)} H${n(x)} Z"/></g>`;
+  },
+  /** NAS oder Server: Gehäuse mit Laufwerken und Leuchten. */
+  nas(x, y, { w = 26, h = 26 } = {}) {
+    const row = (top) => `<path class="ill-line" d="M${n(x + 4)},${n(top)} H${n(x + w - 9)}"/><circle class="ill-dot" cx="${n(x + w - 5)}" cy="${n(top)}" r="1.4"/>`;
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="2.5"/>${row(y + h * 0.27)}${row(y + h * 0.5)}${row(y + h * 0.73)}</g>`;
+  },
+  /** Programm: Fenster mit Titelleiste. */
+  program(x, y, { w = 30, h = 24 } = {}) {
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="2.5"/>
+      <path class="ill-line" d="M${n(x)},${n(y + 7)} H${n(x + w)} M${n(x + 5)},${n(y + 13)} H${n(x + w - 5)} M${n(x + 5)},${n(y + 18)} H${n(x + w - 10)}"/>
+      <circle class="ill-dot" cx="${n(x + 4)}" cy="${n(y + 3.5)}" r="1.2"/><circle class="ill-dot" cx="${n(x + 8.5)}" cy="${n(y + 3.5)}" r="1.2"/></g>`;
+  },
+  /** Container: Kiste mit Rippen wie ein Frachtcontainer. */
+  container(x, y, { w = 34, h = 24 } = {}) {
+    let ribs = '';
+    for (let i = 1; i < 6; i++) ribs += `M${n(x + w * i / 6)},${n(y + 4)} V${n(y + h - 4)} `;
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.5"/><path class="ill-line" d="${ribs.trim()}"/></g>`;
+  },
+  /** Wolke: alles außerhalb des Hauses. */
+  cloud(x, y, { w = 36, h = 24 } = {}) {
+    const X = (f) => n(x + w * f), Y = (f) => n(y + h * f);
+    return `<path class="ill-face" d="M${X(0.24)},${Y(1)} C${X(0.07)},${Y(1)} ${X(0)},${Y(0.74)} ${X(0.05)},${Y(0.56)} C${X(0.09)},${Y(0.38)} ${X(0.2)},${Y(0.32)} ${X(0.28)},${Y(0.38)} C${X(0.33)},${Y(0.08)} ${X(0.6)},${Y(-0.03)} ${X(0.7)},${Y(0.28)} C${X(0.85)},${Y(0.2)} ${X(1)},${Y(0.42)} ${X(0.96)},${Y(0.62)} C${X(1.02)},${Y(0.82)} ${X(0.9)},${Y(1)} ${X(0.78)},${Y(1)} Z"/>`;
+  },
+  /** Hausgrenze: gestrichelter Rahmen; was darin steht, bleibt im Haus. Beschriftung mit Häuschen oben links. */
+  boundary(x, y, w = 120, h = 80, { label = '', size = 12 } = {}) {
+    return `<g><rect class="ill-zone" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="10"/>
+      <rect class="ill-boundary" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="10"/>
+      ${shapes.house(x + 9, y + 7, 15, 14, { fill: false })}
+      ${label ? `<text class="ill-zone-label" x="${n(x + 30)}" y="${n(y + 7 + size)}" font-size="${n(size)}">${esc(label)}</text>` : ''}</g>`;
+  },
+  /** Rahmen um zusammengehörige Bausteine (der Rechner, Docker), Beschriftung oben links oder bei labelX. */
+  frame(x, y, w = 80, h = 50, { label = '', size = 11, labelX = null } = {}) {
+    return `<g><rect class="ill-frame" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6"/>
+      ${label ? `<text class="ill-frame-label" x="${n(labelX ?? x + 8)}" y="${n(y + size + 3)}" font-size="${n(size)}">${esc(label)}</text>` : ''}</g>`;
+  },
+  /**
+   * Datenfluss: Linienzug mit Spitze am Ende, optional mit Beschriftung.
+   * kind: 'line' (im Haus), 'ink' (betont), 'out' (über die Hausgrenze).
+   * dashed: nur auf Wunsch oder nur einmal.
+   */
+  flow(points, { kind = 'line', dashed = false, label = '' } = {}) {
+    const cls = `ill-flow ill-flow--${kind}`;
+    const [ax, ay] = points[points.length - 2], [bx, by] = points[points.length - 1];
+    const a = Math.atan2(by - ay, bx - ax), s = 6.5;
+    const head = (d) => `${n(bx - s * Math.cos(a + d))},${n(by - s * Math.sin(a + d))}`;
+    return `<polyline class="${cls}${dashed ? ' ill-flow--dash' : ''}" points="${pts(points)}"/><path class="${cls}" d="M${head(-0.5)} L${n(bx)},${n(by)} L${head(0.5)}"/>${label}`;
+  },
+  /** Wegweiser: Pfosten mit zwei Schildern, Fuß bei (cx, y). */
+  signpost(cx, y, s = 1) {
+    const sign = (top, dir) => `<path class="ill-face" d="M${n(cx)},${n(top)} H${n(cx + dir * 30 * s)} L${n(cx + dir * 38 * s)},${n(top + 7 * s)} L${n(cx + dir * 30 * s)},${n(top + 14 * s)} H${n(cx)} Z"/>`;
+    return `<g><path class="ill-ink" d="M${n(cx)},${n(y)} V${n(y - 62 * s)}"/>${sign(y - 60 * s, 1)}${sign(y - 40 * s, -1)}</g>`;
+  },
+  /** Mehrzeiliger Text; y ist die Grundlinie der ersten Zeile. */
+  lines(x, y, list = [], { cls = 'ill-sub', anchor = 'middle', size = 11, lh = 13.5 } = {}) {
+    if (!list.length) return '';
+    const spans = list.map((l, i) => `<tspan x="${n(x)}" y="${n(y + i * lh)}">${esc(l)}</tspan>`).join('');
+    return `<text class="${cls}" font-size="${n(size)}" text-anchor="${anchor}">${spans}</text>`;
+  },
 };
+
+/**
+ * v3.12.0 — Text auf eine Breite umbrechen, ohne das DOM zu fragen: Dieselbe
+ * Rechnung läuft in der App und im Werkzeug für die Doku. Die Zeichenbreite ist
+ * eher zu groß geschätzt, damit nichts über den Rand läuft (DM Sans ≈ 0,52 em).
+ */
+export function wrapText(text, maxWidth, size = 11, { bold = false } = {}) {
+  const perChar = size * (bold ? 0.58 : 0.54);
+  const out = [];
+  let line = '';
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && next.length * perChar > maxWidth) { out.push(line); line = word; } else line = next;
+  }
+  if (line) out.push(line);
+  return out;
+}
 
 // ── Bilder der Ersteinrichtung (Zier: die Frage daneben sagt alles) ──────
 
@@ -231,6 +316,8 @@ const SETUP = {
   concept: () => shapes.grid(12, 60) + shapes.wire([[20, 43], [30, 43]], { strong: true }) + shapes.meter(30, 30, { w: 22, h: 26 })
     + shapes.wire([[52, 43], [64, 43]]) + shapes.bus(64, 22, 64, { nodes: [43] }) + shapes.wire([[64, 22], [80, 22]])
     + shapes.house(80, 2, 32, 30) + shapes.wire([[64, 64], [84, 64]]) + shapes.heatpump(84, 54, { w: 26, h: 20 }),
+  /** v3.12.0 (Paket wegweiser) — Wie willst du arbeiten: ein Wegweiser. */
+  ways: () => shapes.ground(6, 114, 72) + shapes.signpost(60, 72),
   /** Los geht's: Dokument fällt in den Posteingang. */
   finish: () => shapes.doc(46, 6, { check: true }) + shapes.arrow(82, 16, 82, 44) + shapes.tray(36, 50, 56, 18) + shapes.ground(6, 114, 74),
 };

@@ -26,7 +26,7 @@ Two ways bring the sessions in: the **CSV file** from evcc — always works — 
   charger)”** (§ 2).
 - The **“Experienced”** level or higher: only then does the wallbox view show
   the card “Charging sessions from evcc”. The address for fetching is under
-  Settings → Expert (“Expert” level).
+  Connections → evcc (“Expert” level).
 - With [users in the household](benutzer.md): only someone who manages the
   installation enters the evcc address. Everyone may take over sessions.
 
@@ -81,7 +81,7 @@ price are taken along when present.
 Instead of a file, the Energietracker fetches the sessions from evcc itself at
 the press of a button.
 
-1. **Settings → Expert → “evcc in your home network” → “evcc address”**: the
+1. **Connections → evcc → “evcc address”**: the
    address you open evcc at in the browser, e.g. `http://192.168.178.30:7070`.
    Port 7070 is evcc’s default for the web interface and the API.
 2. Save. The card “Charging sessions from evcc” now shows the button **“Fetch
@@ -128,7 +128,7 @@ alike:
 |---|---|---|
 | **“from the wallbox meter (otherwise added up)”** — default | The start reading on the day of charging, the end reading on the day after — the way the app reads a reading: as the reading at the start of the day. So every charge counts for its own day and month. If the wallbox reports no meter readings, the app adds up as in the next row. | the meter in the Energietracker is the meter in the wallbox that evcc reads (e.g. a MID meter in the wallbox). Usually the right choice. |
 | **“add up from the energy charged”** | Starting from the last reading up to the day of the first session — without one, from the device’s initial reading — the app adds up the energy charged and creates a reading on the day after each charging day. | your meter in the Energietracker is a different one from the meter the wallbox reports (e.g. a separate sub-meter), or the wallbox readings do not match your own readings. What the wallbox uses in standby is in no session; the added-up reading therefore lags slightly behind the real one. Take a real reading now and then. |
-| **“none – only the sessions”** | Only the sessions; the meter readings stay as they are. | the readings already come another way — by hand, from [Home Assistant](home-assistant.md) or from the [portal](daten-aus-portalen.md) — and you only want solar share and price. Likewise when all charging points of a file should go to one meter (§ 7). |
+| **“none (sessions only)”** | Only the sessions; the meter readings stay as they are. | the readings already come another way — by hand, from [Home Assistant](home-assistant.md) or from the [portal](daten-aus-portalen.md) — and you only want solar share and price. Likewise when all charging points of a file should go to one meter (§ 7). |
 
 Readings from evcc carry the note “evcc”. An existing reading on the same day
 is replaced; the preview says how many. The end reading of a session from
@@ -169,7 +169,7 @@ readings, however, belong to exactly one wallbox — so the app asks:
   the second wallbox, load the same file again in its view. Via the API this
   is `loadpoint` (§ 11).
 - **One wallbox meter in the Energietracker for all charging points:** choose
-  “none – only the sessions”. Then all sessions go to this meter, the readings
+  “none (sessions only)”. Then all sessions go to this meter, the readings
   stay as they are; the preview names the charging points.
 
 ---
@@ -217,12 +217,12 @@ the wallbox uses in standby between charging days is spread by days.
 | Message | Cause and fix |
 |---|---|
 | “evcc cannot be reached.” | evcc is not running, the port is wrong, a firewall blocks it, the name cannot be resolved (`evcc.local` in a Docker container, [§ 4](#name-or-ip-address)), or the address starts with `https://` and evcc has a self-signed certificate. First check: open the address with `/api/sessions` appended in the browser — if a list appears there, the problem is the way from the server to evcc (name, Docker, firewall). Without the PHP extension curl the fetch does not work either; the Docker image includes it. |
-| “evcc has to run in your own network – “…” is not an address in the home network.” | The address — or one the name points to — is not in your own network. Enter evcc’s IP address in the home network. |
+| “evcc has to run in your own network. “…” is not an address in the home network.” | The address — or one the name points to — is not in your own network. Enter evcc’s IP address in the home network. |
 | “evcc did not return a list of charging sessions.” | Something other than evcc answers at the address, e.g. on a wrong port. |
 | “No completed charging sessions found.” | The file is empty, all sessions are still running, or no session matches the chosen charging point (`loadpoint`). |
 | “Several charging points (…): meter readings belong to one wallbox – …” | Via the API without `loadpoint` but with meter readings. Give the charging point or `counters: "none"` (§ 7). |
 | “This does not look like the CSV export from evcc: the columns for start and energy are missing.” | A different file, or XLSX instead of CSV was downloaded in evcc (§ 3). |
-| “No evcc address set up (Settings → Expert).” | A fetch via the API without an address. |
+| “No evcc address set up (Connections → evcc).” | A fetch via the API without an address. |
 | “This meter records consumption per period – …” | The chosen meter records periods instead of readings. Use a meter with readings. |
 | “Only someone who manages this installation may do that.” | A member tried to change the evcc address ([Users](benutzer.md)). |
 | The card is missing | The meter does not have the role “Wallbox (EV charger)”, or the level is “Beginner”. |

@@ -216,7 +216,7 @@ final class LocaleCatalogTest extends TestCase
         $glossary = $ids[1];
         self::assertGreaterThan(20, count($glossary));
 
-        $settings = (string)file_get_contents("$root/public/js/views/settings.js");
+        $settings = (string)file_get_contents("$root/public/js/views/settings-fields.js");
         preg_match_all("/\{ key: '([a-z0-9_]+)'/", $settings, $fields);
         self::assertGreaterThan(40, count($fields[1]));
 

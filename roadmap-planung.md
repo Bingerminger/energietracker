@@ -5,7 +5,7 @@ offenen Punkte, sortiert nach dem Release, in das sie geplant sind. Konzepte und
 früherer Releases stehen unverändert im [Archiv](roadmap-archiv.md); was ausgeliefert ist, im
 [CHANGELOG](CHANGELOG.md).
 
-**Stand:** 2026-11-04 · **Baseline:** v3.11.0 · **Schema:** 1.8.0
+**Stand:** 2026-11-10 · **Baseline:** v3.11.0 · **Schema:** 1.8.0
 
 ---
 
@@ -81,20 +81,53 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 Spalten wie bisher im Eingang: vorläufiger Code, Thema, Größe, Abhängigkeit, Auslöser. Zeilen aus dem
 alten Eingang sind unverändert übernommen; neue Zeilen tragen das Datum 2026-10-28.
 
-### v3.12.0 — Energietracker für deine KI (in Arbeit)
+### v3.12.0 — Energietracker für deine KI (wird ausgeliefert)
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
-| F10xx | **Fernsteuerung durch eine KI (MCP):** Energietracker als MCP-Server (`/mcp`, Schlüssel mit Rechten lesen/schreiben). Werkzeuge: Übersicht, Fristen, Verträge, Verbrauch, Prognose-Szenario, „Rechnung prüfen“, Ablesung eintragen, Dokument einreichen und übernehmen; schreibende Werkzeuge nur mit Bestätigung im KI-Client. Ziel: Energietracker als zentrale Akte und Energieverwaltung, bedient von einer KI („hier ist meine Gasrechnung, trag sie ein und sag mir, ob sie stimmt“). Vorbereitung: maschinenlesbare Beschreibung der Schnittstelle (OpenAPI) | L | v3.7.0 Posteingang | Entscheidung 2026-10-21: nur Konzept, eigenes Release |
+| F1037 | **Fernsteuerung durch eine KI (MCP):** Energietracker als MCP-Server (`/mcp`, Schlüssel mit Rechten lesen/schreiben). Werkzeuge: Übersicht, Fristen, Verträge, Verbrauch, Prognose-Szenario, „Rechnung prüfen“, Ablesung eintragen, Dokument einreichen und übernehmen; schreibende Werkzeuge nur mit Bestätigung im KI-Client. Ziel: Energietracker als zentrale Akte und Energieverwaltung, bedient von einer KI („hier ist meine Gasrechnung, trag sie ein und sag mir, ob sie stimmt“). Vorbereitung: maschinenlesbare Beschreibung der Schnittstelle (OpenAPI) | L | v3.7.0 Posteingang | Entscheidung 2026-10-21: nur Konzept, eigenes Release |
 | **N1011** | API-Versionierung (`/api/v1/…`) | M | Ursprünglich als Smart-Meter-Vorbereitung geplant; mit dessen Streichung kein fester Slot mehr. Wird nur umgesetzt, wenn ein echter Bruch der API-Kompatibilität ansteht. |
-| F10xx | HACS-Integration mit eigenen Sensoren | M–L | N1025 | Release-Schnitt 2026-10-13 (nicht gewählt) |
+| F1038 | HACS-Integration mit eigenen Sensoren | M–L | N1025 | Release-Schnitt 2026-10-13 (nicht gewählt) |
+| — | **Briefe leichter finden** (2026-11-04): Rechte-Hinweise vorn mit Filter, Sprungmarke je Hinweis, „Brief schreiben“ an der Vertragskarte auch ohne Hinweis | S–M | v3.11.0 Briefe | Rückmeldung des Maintainers 2026-11-04 |
+| — | **Demo beginnt nach jedem Release bei null** (2026-11-04): gemerkte Wahlen versteckten neue Funktionen vor wiederkehrenden Besuchern | S | v3.0.0 Demo | Rückmeldung des Maintainers 2026-11-04 |
+| — | **Übernahme nur in der App bestätigen** (2026-11-04): Schalter ab Werk an, Änderungen einer KI bestätigt die Person in der App; Erklärung und Beispiele in der Anleitung | S–M | Vorschlag und Übernahme | Skeptiker-Lauf v3.12.0 |
+| — | **Was bringt dir die KI-Schnittstelle, und wie lange dauert es?** (2026-11-04): Beispiele in Anleitung und Schaufenster, Messreihe mit lokalen Modellen in der Anleitung; geprüft mit Open WebUI und Ollama, Cloud-KI und weitere Programme experimentell | S | — | Wunsch des Maintainers 2026-11-04 |
+| — | **Neue Oberfläche und Designsprache** (#59, 2026-11-05): Menü in zwei Bereichen, Zu tun, Verbindungen, Einstellungen nach Themen mit Suche, eigene Grafiken, festes Raster. Keine Funktion fällt weg, alte Adressen führen weiter. Konzept freigegeben, Bau in sieben Etappen | XL | nav-model | Wunsch des Maintainers |
+| — | **Saldo von Zählergruppen** (#58, 2026-11-05): falsch, wenn die Zähler nicht am selben Tag abgelesen sind. Kein Patch, Korrektur kommt mit diesem Release | M | | Prüfung vor dem Release |
+
+Später (2026-11-04): weitere lokale Modelle auf Laufzeit und Treffsicherheit messen und eine Empfehlung je Rechnergröße geben (Größe S, nach v3.12.0).
 
 Ergänzung 2026-10-28: Bild „Die KI ist die Oberfläche, der Energietracker Akte, Auswertung und
 Berichtswerkzeug dahinter“; jede Zahl mit Herkunft (gemessen, verteilt, geschätzt), damit eine KI nichts
 erfindet; Berichtsvorlagen (Monats- und Jahresbericht) als MCP-Prompts. Die HACS-Integration wird mit
 diesem Release veröffentlicht (eigenes Repo, Aufnahme in die HACS-Standardliste beantragen).
 
-### v3.13.0 — Lange Verläufe und Umzug
+### v3.13.0 — Prognose für Wärmepumpe, PV und E-Auto (geplant für Dienstag, 17.11.2026)
+
+Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte Grenzen“ auf v3.13 verweist.
+
+| Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
+|---|---|---|---|---|
+| F10xx | **Prognose für Wärmepumpe, PV, Batterie und E-Auto:** Wärmepumpe und PV nach dem Wetter, Batterie und E-Auto in derselben Rechnung; in der Werkstatt Beispiele für Winter und Raumtemperatur beim Strom der Wärmepumpe, beim Heizungstausch eine Arbeitszahl, die dem Wetter folgt (heute übers ganze Jahr gleich), und die PV nach dem Wetter statt aus dem zuletzt gemessenen Jahr | L | F1013 Heizmodell, F1021 Viertelstunden, F1040 Werkstatt je Energieart | Bekannte Grenze v3.12.0, Entscheidung 2026-11-10 |
+| — | **Auszahlungen der Einspeisung erfassen:** Die Saldo-Karte rechnet die Einspeisung seit v3.12.0 je Abrechnungsjahr; dazu kommen die Auszahlungen des Netzbetreibers | M | v3.12.0 Einspeisung je Abrechnungsjahr | Entscheidung 2026-11-10 |
+| — | **Vertragswechsel im Monat klären:** Der letzte Abschlag zählt tagesanteilig, nahe null kann das Vorzeichen des Saldos kippen. An echten Schlussrechnungen prüfen (nur lokal), ob ganze Raten richtiger sind | S–M | — | Bekannte Grenze v3.12.0 |
+| — | **Einstellung „Angaben für Briefe nur Verwalter“:** Mit Anmeldung ändert auf Wunsch nur ein Verwalter Absender und Lieferanschrift | S | v3.12.0 Briefe | Entscheidung 2026-11-10 |
+| — | **Längengrenzen für Freitext:** Notizen und Namen mit Höchstlänge, dieselbe Grenze im Backup-Import | M | v3.12.0 Eingaben | Bekannte Grenze v3.12.0 |
+| — | **Tankmodell schneller:** die Tagesreihe je Anfrage einmal rechnen und auf den abgefragten Zeitraum begrenzen; Messung in `docs/entwicklung/messung-grosse-daten.md` ergänzen | M | v3.7.0 Messung | Entscheidung 2026-11-10 |
+| — | **Begriffe in den Übersetzungen:** die Heizgrenze in fr, it, es, pt und nl überall gleich, „HGT-Basistemperatur“ unter Rechnen, „Snapshot“ in it und nl, „Annual report“ im Englischen | S–M | — | Bekannte Grenze v3.12.0 |
+| — | **Ältere Gegenproben nachziehen:** rund 70 Muster passen nach dem Umbau nicht mehr zum Code und laufen bis dahin nicht | M | — | Entscheidung 2026-11-10 |
+| — | **Prüfung der öffentlichen Demo im Januar:** `demo.test` wird ab Mitte Januar rot, weil das Schaufenster zu Beginn seines Abrechnungsjahrs noch keinen gemessenen Teil hat; die Prüfung aus dem Stand der Demo ableiten oder an einem festen Tag laufen lassen | S | — | Bekannte Grenze v3.12.0 |
+| — | **Mitglieder sehen nur, was sie ändern dürfen:** Token-Knöpfe, evcc- und Heimnetz-Felder unter Verbindungen ausblenden | S | v3.12.0 Verbindungen | Bekannte Grenze v3.12.0 |
+| — | **Haushalt › Zähler „Alle“ mit einer Sammelabfrage** statt bis zu 18 einzelner Anfragen | S–M | v3.12.0 Haushalt | Entscheidung 2026-11-10 |
+| — | **Kosten & Verträge:** Zahl am Reiter „Frühere Verträge“, Knopf „Neuer Vertrag“ im Kopf der Seite | S | v3.12.0 Kosten & Verträge | Entscheidung 2026-11-10 |
+| — | **Rücknahme von KI-Einträgen** im Verlauf (heute lehnt „Rückgängig“ sie mit `409` ab) | M | F1037 | Entscheidung 2026-11-10 |
+| — | **Listenfelder im Posteingang** einzeln bestätigen und korrigieren | M | v3.7.0 Posteingang | Bekannte Grenze v3.12.0 |
+| — | **Zeitreise in der CI:** die Runde unter verstellter Uhr als eigenen Job prüfen (heute lokal vor jedem Release) | S | v3.12.0 Stichtag | Entscheidung 2026-11-10 |
+| — | **Stichtag für Zähler mit Verbrauch je Zeitraum** | M | v3.12.0 Stichtag | Bekannte Grenze v3.12.0 |
+| — | **Werkstatt nach dem Wetterabgleich neu rechnen,** damit am selben Tag dieselbe Zahl steht | S | F1040 | Bekannte Grenze v3.12.0 |
+| — | **HACS 1.1.0:** Sensor für den Füllstand von Öl und Pellets | S | F1038 | Entscheidung 2026-11-10 |
+
+### v3.14.0 — Lange Verläufe und Umzug
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
@@ -104,7 +137,7 @@ diesem Release veröffentlicht (eigenes Repo, Aufnahme in die HACS-Standardliste
 | — | Beispielhaushalte nicht mehr aus dem Modell der App erzeugen (Heizkurve mit Heizgrenze unter 15 °C, Solargewinne, Speichermasse; einige Haushalte mit lückenhaften Ablesungen), damit Demo und Render-Tests auch Unsicherheit zeigen | M | v3.7.0 unordentlicher Testhaushalt | Entscheidung 2026-10-22 |
 | — | **Umzug aus anderen Apps** (2026-10-28): Import der Exporte verbreiteter Verbrauchs-Apps samt Historie (Zählerstände, Verträge, Preise), mit Trockenlauf wie beim CSV-Import; Formate nach Auswahl der Apps | M–L | Massen-Import | Planung 2026-10-28 |
 
-### v3.14.0 — Für alle verständlich
+### v3.15.0 — Für alle verständlich
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|

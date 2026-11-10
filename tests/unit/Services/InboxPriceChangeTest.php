@@ -327,6 +327,25 @@ final class InboxPriceChangeTest extends ServiceTestCase
         return $this->gist->describe($pv['entry'], $pv['assignment'], $pv['proposals'], $today);
     }
 
+    /**
+     * v3.12.0 — Grundpreis je Jahr im Schreiben: Der Vorschlag rechnet den neuen Wert in je Monat um und nennt den
+     * bisherigen ebenso. Vorher stand der alte roh als Jahreswert daneben („… pro Monat (bisher <Jahreswert>)“).
+     * Erfunden: 150,00 € → 162,00 € je Jahr = 12,50 € → 13,50 € je Monat.
+     */
+    public function testAYearlyBasePriceNamesTheOldOneMonthlyToo(): void
+    {
+        $this->gasHousehold();
+        [$pages, $answer] = self::document(['from' => '01.01.2027', 'date' => '07.12.2026']);
+        $q = 'Der Grundpreis steigt von 150,00 € auf 162,00 € pro Jahr.';
+        $pages[0] .= "\n$q";
+        $f = fn($v) => ['value' => $v, 'quote' => $q, 'page' => 1];
+        $answer += ['base_price_old' => $f('150,00'), 'base_price_new' => $f('162,00'), 'base_price_period' => $f('year')];
+        $pv = $this->read($this->inbox($answer, $pages, '2026-12-08'), $pages);
+        $p = self::kind($pv['proposals'], 'contract_base_price')[0] ?? null;
+        self::assertNotNull($p, json_encode(array_column($pv['proposals'], 'kind')));
+        self::assertSame([13.5, 12.5], [$p['params']['value'], $p['params']['old']]);
+    }
+
     public function testTakenOverPricesCarryTheDateOfTheLetterAndTheRateAndTheTerminIsTheDayBefore(): void
     {
         $h = $this->gasHousehold();

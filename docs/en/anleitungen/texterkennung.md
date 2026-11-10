@@ -31,7 +31,9 @@ over with Live Text (“Scan Text” in the field).
   (`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), `100.64.0.0/10` (Tailscale)
   and the corresponding IPv6 ranges (`::1`, `fc00::/7`). Link-local
   (`169.254.x`, `fe80::`) no longer counts as the home network since v3.4.0 —
-  on rented servers that is where the providers' metadata services answer. It
+  on rented servers that is where the providers' metadata services answer.
+  Since v3.12.0 `100.100.100.200` is blocked too, a metadata service in the
+  middle of `100.64.0.0/10`; the rest of that network stays home network. It
   refuses a public address. There is no switch to lift this.
 - The check runs on **every** call, after name resolution, and the connection
   goes to exactly the checked address. A name that suddenly points to the
@@ -171,8 +173,8 @@ All three lead to addresses in your own network and pass the check.
 
 ## Settings
 
-At the top of **Settings → Expert**, before the collapsed calculation
-parameters, there are two cards. Text recognition shares address and interface
+On the page **Connections → Reading mail and photos** there are two
+cards. Text recognition shares address and interface
 with the inbox; since v3.7.0 they therefore appear once, in the **📥 Reading
 documents** card under **Local** (with **Check connection**, see
 [Inbox](posteingang.md#setting-up-reading)). Meter photos are always read by your
@@ -187,7 +189,7 @@ own service, even when the inbox reads in the cloud.
 
 Save (each card on its own). The next time you open “Meter readings”, text
 recognition is active. All keys:
-[Settings → Text recognition in the home network](../referenz/einstellungen.md#text-recognition-in-the-home-network-v310).
+[Settings reference: Text recognition in the home network](../referenz/einstellungen.md#text-recognition-in-the-home-network-v310).
 
 ---
 
@@ -223,11 +225,11 @@ value and a self-assessment. Technical details:
 
 | Message | Cause and fix |
 |---|---|
-| “Text recognition has to run in your own network – “…” is not an address in the home network.” | The address — or one of the addresses the name points to — is not in your own network. Enter the IP address of the computer in the home network. A cloud service is deliberately not possible. |
+| “Text recognition has to run in your own network. “…” is not an address in the home network.” | The address — or one of the addresses the name points to — is not in your own network. Enter the IP address of the computer in the home network. A cloud service is deliberately not possible. |
 | “Text recognition did not answer within 30 seconds.” | The model is too slow for the time limit, especially on the first call after a break, when the service first loads the model into memory. Raise the time limit, use a smaller model or run the service on a faster computer. |
 | “Text recognition cannot be reached.” | The service is not running, only listens on `127.0.0.1` (`OLLAMA_HOST`, “Serve on Local Network”), a firewall blocks the port, the container has `localhost` ([Docker](#if-the-energietracker-runs-in-docker)) or the name does not resolve. Likewise if the service answers with an error — say, because there is no model by that name (`ollama list` shows the names), the interface does not match or LM Studio requires a sign-in (“Require Authentication”) — or the server lacks the PHP extension curl. First test: the `curl` from above, run on the Energietracker server. |
 | “Text recognition returned no usable answer.” | The service answered, but without text — a model that cannot make anything of the image, say, or a different service answers at that address. |
-| “No meter reading recognised – please enter it by hand.” | The model answered but found no number. Take the photo closer, straighter and sharper, or try another model. |
+| “No meter reading recognised. Please enter it by hand.” | The model answered but found no number. Take the photo closer, straighter and sharper, or try another model. |
 | The suggestion is wrong or nonsense | A model **without vision** rejects the image (then “cannot be reached”) or answers without seeing it — with an invented value or none. Enter a vision model such as `qwen2.5vl`, `llama3.2-vision` or `minicpm-v`. If decimal places are missing or in the way, correct the value before saving: only what is in the field is saved. |
 
 ---

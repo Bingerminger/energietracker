@@ -92,14 +92,29 @@ console.log('Marken, offene Punkte, Rechnung prüfen (treffsicher)');
   const re = I.proposalText({ kind: 'reading', label_key: 'inbox.proposal.readingEstimated', params: { date: '2025-12-31', counter: 13580 } }, { unit: 'm³' });
   t('Ablesung geschätzt laut Rechnung', re === 'Ablesung am 31.12.2025: 13.580 m³ (geschätzt laut Rechnung)', re);
   t('Ablese-Art als ja/nein', I.valueText('bool', true) === 'Ja' && I.valueText('bool', false) === 'Nein');
-  t('Grund „Form ungültig“ (Marktlokation) als Text', /^Form ungültig – eine Marktlokation hat 11 Ziffern/.test(I.reasonText(['invalid_format'])), I.reasonText(['invalid_format']));
+  t('Grund „Form ungültig“ (Marktlokation) als Text', /^Form ungültig: Eine Marktlokation hat 11 Ziffern/.test(I.reasonText(['invalid_format'])), I.reasonText(['invalid_format']));
   // Nachbesserung 2: Nettopreis umgerechnet, gleicher Preis mit anderem Steuersatz
   const netItem = I.itemText('working_prices', { from: '2025-01-01', ct: 10, basis: 'net', vat_pct: 19 }, { net: { vat_pct: 19, gross: 11.9 } });
   t('Arbeitspreis netto: Satz und Bruttopreis daneben', netItem === 'ab 01.01.2025: 10 ct/kWh netto + 19 % USt = 11,9 ct/kWh', netItem);
   t('Arbeitspreis ohne erkannten Nettopreis: wie gedruckt', I.itemText('working_prices', { from: '2025-01-01', ct: 10, basis: 'net' }, { net: null }) === 'ab 01.01.2025: 10 ct/kWh');
+  // v3.12.0 — Gutschriften wie die Abschläge (vorher roh „Guthaben · 34.56 · credit_other“); im Vorschlag als Posten genannt
+  // v3.12.0 — Preise je kWh in der Untereinheit der Währung (Rp., p), nicht fest „ct“
+  {
+    const { setCurrencyParams } = await import(`${JS}/lib/i18n.js`);
+    setCurrencyParams('CHF');
+    const chf = [I.valueText('price_ct', 10), I.itemText('working_prices', { from: '2025-01-01', ct: 10 }, { net: null })];
+    setCurrencyParams('EUR');
+    t('Preis je kWh mit CHF in Rp.', chf[0] === '10 Rp./kWh' && chf[1] === 'ab 01.01.2025: 10 Rp./kWh', chf.join(' | '));
+  }
+  const nb = (s) => String(s).replace(/[  ]/g, ' ');   // Geld mit geschütztem Leerzeichen
+  const credit = nb(I.itemText('credits', { label: 'Treuebonus', amount: 15.5, kind: 'credit_other' }));
+  t('Gutschrift: Betrag als Geld, Art übersetzt', credit === 'Treuebonus: 15,50 € (andere Gutschrift)', credit);
+  t('Grund „Gutschrift = Ergebnis“ als Text', /^Gleich dem Ergebnis der Rechnung/.test(I.reasonText(['credit_is_result'])), I.reasonText(['credit_is_result']));
+  const billLines = I.proposalLines({ kind: 'bill', data: { items: [{ label: 'Treuebonus', amount_eur: -15.5, kind: 'credit' }, { label: '', amount_eur: 24, kind: 'metering' }] } }).map(nb);
+  t('Rechnung erfassen: nennt die Gutschrift als Posten', billLines.length === 1 && billLines[0] === 'Gutschrift als Posten: Treuebonus, 15,50 €', billLines.join(' | '));
   t('Feld: netto umgerechnet und anderer Steuersatz sind Hinweise', M.fieldHints({ reasons: ['price_from_invoice', 'net_price', 'vat_changed'] }).join() === 'net_price,vat_changed');
   const vat = M.proposalNotes({ hints: [{ field: 'working_prices', reason: 'net_price' }, { field: 'working_prices', reason: 'vat_changed' }] }).join(' | ');
-  t('Vorschlag: gleicher Preis, anderer Steuersatz', vat === 'Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt.', vat);
+  t('Vorschlag: gleicher Preis, anderer Steuersatz', vat === 'Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz. Die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt.', vat);
   const net = M.proposalNotes({ hints: [{ field: 'base_price', reason: 'net_price' }] }).join(' | ');
   t('Vorschlag: netto in brutto umgerechnet', /^Netto laut Rechnung, mit dem ausgewiesenen Steuersatz in brutto umgerechnet/.test(net), net);
   const dup = M.duplicateHtml({ duplicates: [{ id: 'inb_0123456789ab', name: 'Scan <1>.pdf', created_at: '2026-02-05T18:42:00+01:00' }] });
@@ -114,7 +129,7 @@ console.log('Marken, offene Punkte, Rechnung prüfen (treffsicher)');
   const fm = BC.compareNotesHtml({ verdict: 'ok', factor_mismatches: [{ from: '2025-07-01',
     invoice: { kwh_per_m3: 10.64, zustandszahl: 0.95, brennwert: 11.2 }, list: { kwh_per_m3: 10.83 } }] }, { key: 'gas' });
   t('Brennwert laut Rechnung: beide Werte, Sprung zur Einstellung', /Ab 01\.07\.2025: laut Rechnung 10,640 kWh\/m³ \(0,9500 × 11,200\), in den Einstellungen 10,830 kWh\/m³/.test(fm)
-    && /href="#\/settings\/utilities"/.test(fm), fm.replace(/\s+/g, ' ').slice(0, 200));
+    && /href="#\/household\/utilities"/.test(fm), fm.replace(/\s+/g, ' ').slice(0, 200));
   t('ohne Befund kein Zusatz', BC.compareNotesHtml({ verdict: 'ok', factor_mismatches: [] }) === '');
   // Nachbesserung nach dem Nutzentest: weicht die Menge ab, bleibt „prüfen“ — die fehlenden Preise stehen trotzdem da
   const npC = BC.compareNotesHtml({ verdict: 'check', reasons: ['quantity', 'price_missing'],
@@ -123,10 +138,10 @@ console.log('Marken, offene Punkte, Rechnung prüfen (treffsicher)');
     && /01\.01\.2025 bis 31\.12\.2025: kein Preis im Vertrag Muster/.test(npC) && /href="#\/utility\/gas\/contracts"/.test(npC), npC.replace(/\s+/g, ' ').slice(0, 160));
   t('„prüfen“ ohne fehlende Preise: kein Hinweis', !/no-prices/.test(BC.compareNotesHtml({ verdict: 'check', price_missing_at: [] }, { key: 'gas' })));
   const oqG = I.gistText({ key: 'inbox.gist.invoice.offQuantityNoPrices', params: { pct: 7.25 } });
-  t('Kernaussage nennt Menge und fehlende Preise', oqG === 'Der Verbrauch auf der Abrechnung weicht um 7,3 % von deinen Zählerständen ab, und im Vertrag fehlen Preise – den Betrag kann die App nicht nachrechnen.', oqG);
+  t('Kernaussage nennt Menge und fehlende Preise', oqG === 'Der Verbrauch auf der Abrechnung weicht um 7,3 % von deinen Zählerständen ab. Den Betrag kann die App nicht nachrechnen, weil im Vertrag Preise fehlen.', oqG);
   // Zusammenführung mit „betrieb“: die Kernaussage kennt „keine Preise“, offene Punkte und Doppel
   const npG = I.gistText({ key: 'inbox.gist.invoice.noPrices', params: { from: '2025-01-01', to: '2025-12-31' } });
-  t('Kernaussage „keine Preise“ mit Zeitraum', npG === 'Die Abrechnung 01.01.2025 bis 31.12.2025: Im Vertrag fehlen Preise – den Betrag kann die App nicht nachrechnen.', npG);
+  t('Kernaussage „keine Preise“ mit Zeitraum', npG === 'Den Betrag der Abrechnung 01.01.2025 bis 31.12.2025 kann die App nicht nachrechnen: Im Vertrag fehlen Preise.', npG);
   t('Knopf zu den Preisen im Vertrag', I.gistActionLabel({ key: 'inbox.gist.action.addPrices' }) === 'Preise im Vertrag eintragen');
   const openG = I.gistDetails({ details: [{ key: 'inbox.note.missing', params: { fields: ['advance', 'working_price'] } },
     { key: 'billCheck.noPrices.at', params: { from: '2025-01-01', to: '2025-12-31', provider: 'Muster' } }] });
@@ -146,7 +161,7 @@ console.log('Kernaussage (Paket betrieb)');
   t('Preisänderung: Satz mit Datum, Anbieter und Betrag', /^Ab 01\.04\.2026 kostet dich Stadtwerke Musterstadt rund 52,40\s€ mehr im Jahr\.$/.test(s), s);
   t('Zahl mit Vorzeichen je Jahr', /^\+52,40\s€ im Jahr$/.test(I.gistFigure(pc.figure)), I.gistFigure(pc.figure));
   t('Minderkosten mit Minuszeichen', /^−7,00\s€ im Monat$/.test(I.gistFigure({ kind: 'money_month', value: -7, signed: true })), I.gistFigure({ kind: 'money_month', value: -7, signed: true }));
-  t('Knopf nennt die Ersparnis', /^Wechsel spart rund 120,00\s€ – Tarife vergleichen$/.test(I.gistActionLabel(pc.action)), I.gistActionLabel(pc.action));
+  t('Knopf nennt die Ersparnis', /^Wechsel spart rund 120,00\s€: Tarife vergleichen$/.test(I.gistActionLabel(pc.action)), I.gistActionLabel(pc.action));
   const d = I.gistDetails(pc);
   t('Details: Arbeitspreis in ct/kWh, Grundpreis in €', d[0] === 'Arbeitspreis: 11,9 ct/kWh → 12,8 ct/kWh' && /^Grundpreis im Monat: 12,50\s€ → 13,10\s€$/.test(d[1]), d.slice(0, 2).join(' | '));
   t('Lücke mit Pluralform (1 Tag / 3 Tage)', /liegt 1 Tag ohne/.test(d[2]) && /liegen 3 Tage ohne/.test(d[3]), d.slice(2).join(' | '));
@@ -158,7 +173,7 @@ console.log('Kernaussage (Paket betrieb)');
   const basis = I.gistLine('inbox.gist.detail.advanceBasis', { recommended: 140, months: 12, balance: -960 });
   t('Abschlag: Ende der Abrechnung als Guthaben', /Guthaben 960,00\s€/.test(basis), basis);
   const who = I.gistText({ key: 'inbox.gist.reading.who', params: { date: '2026-12-01', meter: 'Gas', person: 'Mia' } });
-  t('Zählerstand: Frist und zuständige Person', who === 'Zählerstand Gas bis 01.12.2026 melden – zuständig ist Mia.', who);
+  t('Zählerstand: Frist und zuständige Person', who === 'Zählerstand Gas bis 01.12.2026 melden. Zuständig ist Mia.', who);
   const nobody = I.gistText({ key: 'inbox.gist.priceChange.new', params: { date: null } });
   t('fehlendes Datum als Strich statt „null“', nobody === 'Ab – gelten neue Preise.', nobody);
   const swap = I.gistText({ key: 'inbox.gist.meterChange.todo', params: { date: '2026-05-15', old: 13902.5, new: 0.8, serial: 'X-2' } });
@@ -273,7 +288,7 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Buchung ersetzen: was bisher gebucht ist', bookedDetail === 'Gebucht ist bisher: Nachzahlung 30,00 €.', bookedDetail);
   // v3.10.0 (Skeptiker N7) — Kernaussage einer Rechnungskorrektur, auch auf 0 € (weder Nachzahlung noch Guthaben)
   const kg = sp(I.gistLine('inbox.gist.invoice.correction', { from: '2025-01-01', to: '2025-12-31', balance: 30, result: 0 }));
-  t('Kernaussage Rechnungskorrektur: ersetzt, Zeitraum, Ergebnis 0,00 € statt Nachzahlung', kg.startsWith('Rechnungskorrektur 01.01.2025 bis 31.12.2025: Sie ersetzt die erfasste Rechnung, das Ergebnis wird 0,00 € statt Nachzahlung 30,00 €.'), kg);
+  t('Kernaussage Rechnungskorrektur: ersetzt, Zeitraum, Ergebnis 0,00 € statt Nachzahlung', kg.startsWith('Rechnungskorrektur 01.01.2025 bis 31.12.2025: Das Ergebnis wird 0,00 € statt Nachzahlung 30,00 €. Sie ersetzt die erfasste Rechnung.'), kg);
   // v3.10.0 — Anfangsstand der Rechnung = deine Ablesung am Vortag
   const before = I.detailText({ kind: 'reading', detail: { same_on: '2024-12-31', counter: 1000 } }, { unit: 'm³' });
   t('Anfangsstand: dein Stand vom Vortag ist derselbe', before === 'Dein Stand vom 31.12.2024 (1.000 m³) ist derselbe: Der Anfangsstand der Rechnung ist deine Ablesung davor.', before);
@@ -458,8 +473,64 @@ console.log('Warten nach 504 oder Netzabbruch');
     return {};
   } });
   t('Lauf: nach „keine Antwort“ weiter mit dem nächsten, nicht noch einmal', tries.join() === 'q1,q2' && prog.failed === 1 && prog.done === 1, tries.join());
+
+  // v3.12.0 — kaputtes PDF (Kopf „%PDF-“, Inhalt unlesbar): Meldung aus dem Katalog, der Server vermerkt „fehlgeschlagen“
+  const patches = [];
+  global.fetch = async (url, init) => {
+    if (/\/api\/inbox\/b1$/.test(String(url)) && init?.method === 'PATCH') { patches.push(JSON.parse(init.body)); return json({ entry: { id: 'b1', status: 'failed' } }); }
+    return prevFetch(url, init);
+  };
+  const pdfjsError = () => Object.assign(new Error('Invalid PDF structure.'), { name: 'InvalidPDFException' });
+  err = null;
+  const steps2 = [];
+  try { await Q.readDocument({ id: 'b1', status: 'new', attachment_id: 'x9' }, { open: async () => { throw pdfjsError(); }, onStep: (s) => steps2.push(s) }); } catch (e) { err = e; }
+  t('kaputtes PDF: Meldung aus dem Katalog statt „Invalid PDF structure.“', err?.code === 'pdf_unreadable' && err.message === tr('inbox.doc.broken')
+    && /beschädigt oder kein lesbares PDF/.test(err.message), err?.message);
+  t('… der Server vermerkt „fehlgeschlagen“ (kein Hängen bei „neu“)', patches.length === 1 && patches[0].status === 'failed' && patches[0].reason === 'pdf_unreadable'
+    && steps2.join() === 'text', JSON.stringify(patches));
+  t('… Ursache: die Datei, nicht der Browser', P.pdfErrorCode(pdfjsError()) === 'broken' && P.pdfErrorCode({ name: 'FormatError' }) === 'broken'
+    && P.pdfErrorCode(Object.assign(new Error('pdf.js unsupported'), { code: 'unsupported' })) === null && P.pdfErrorCode({ status: 404 }) === null
+    && P.pdfErrorCode(new TypeError('Failed to fetch')) === null);
+  // ein anderer Fehler beim Öffnen (Netz) bleibt, wie er ist, und meldet nichts
+  patches.length = 0; err = null;
+  try { await Q.readDocument({ id: 'b1', status: 'new', attachment_id: 'x9' }, { open: async () => { throw Object.assign(new Error('HTTP 503'), { status: 503 }); } }); } catch (e) { err = e; }
+  t('… Netzfehler beim Öffnen: kein Vermerk', err?.status === 503 && patches.length === 0, JSON.stringify(patches));
   global.fetch = prevFetch;
   t('Server rechnet nach einem Abbruch zu Ende (ignore_user_abort)', /@ignore_user_abort\(true\)/.test(readFileSync(resolve(ROOT, 'src/Controllers/InboxController.php'), 'utf8')));
+}
+
+// v3.12.0 — Grundpreis ohne gelesenen Steuersatz: „netto/brutto“ ohne Belegstelle trägt kein Häkchen, und am markierten
+// Preis steht, dass „Stimmt“ ihn als Bruttopreis übernimmt (vorher „brutto ✓“ ohne Beleg)
+console.log('Felder: Preis ohne Steuersatz');
+{
+  const V = await import(`${JS}/views/inbox.js`);
+  const pv = { schema: { base_price: { kind: 'money' }, base_price_basis: { kind: 'enum', aux: true, options: ['net', 'gross'] },
+    base_price_vat_pct: { kind: 'number', aux: true } }, entry: { edits: {}, extraction: { flags: 1 } } };
+  const fields = { base_price: { status: 'check', reasons: ['price_from_invoice'], value: 120 },
+    base_price_basis: { status: 'ok', reasons: [], value: 'gross' },
+    base_price_vat_pct: { status: 'ok', reasons: [], value: 19, quote: 'zzgl. 19 % USt', page: 1 } };
+  const box = document.createElement('div');
+  box.innerHTML = V.fieldsHtml(pv, fields);
+  const li = (n) => box.querySelector(`[data-field="${n}"]`);
+  t('netto/brutto ohne Belegstelle: kein Häkchen, „Ohne Belegstelle“', !li('base_price_basis')?.querySelector('.inbox-field__mark svg')
+    && /Ohne Belegstelle/.test(li('base_price_basis')?.querySelector('[data-role="no-quote"]')?.textContent || ''), li('base_price_basis')?.textContent.replace(/\s+/g, ' '));
+  t('… mit Belegstelle bleibt das Häkchen', !!li('base_price_vat_pct')?.querySelector('.inbox-field__mark svg') && !li('base_price_vat_pct')?.querySelector('[data-role="no-quote"]'));
+  t('markierter Preis ohne Steuersatz: „Stimmt“ übernimmt ihn als Bruttopreis', /als Bruttopreis/.test(li('base_price')?.querySelector('[data-role="gross-note"]')?.textContent || ''),
+    li('base_price')?.textContent.replace(/\s+/g, ' '));
+  fields.base_price.net = { vat_pct: 19, gross: 142.8 };
+  box.innerHTML = V.fieldsHtml(pv, fields);
+  t('… mit erkanntem Nettopreis kein solcher Satz', !li('base_price')?.querySelector('[data-role="gross-note"]'));
+}
+
+// v3.12.0 — Erfassung: Ein nachgetragener, älterer Stand wird nicht gegen den jüngeren verglichen („−75,5 m³ seit letztem Stand“)
+console.log('Erfassung: Vorschau beim Nachtrag');
+{
+  const RE = await import(`${JS}/views/readings-entry.js`);
+  const row = { unit: 'm³', last_reading: { date: '2026-11-07', counter: 1775.5 } };
+  const nb = (s) => String(s ?? '').replace(/[  ]/g, ' ');
+  t('heute nach dem letzten Stand: Vorschau mit Tagen', nb(RE.previewText(row, 1780, '2026-11-09')) === '+4,5 m³ seit letztem Stand (vor 2 Tagen)',
+    nb(RE.previewText(row, 1780, '2026-11-09')));
+  t('Nachtrag vor dem letzten Stand: keine Vorschau gegen den späteren', RE.previewText(row, 1700, '2026-09-25') === null, nb(RE.previewText(row, 1700, '2026-09-25')));
 }
 
 console.log('Textebene (pdf.js)');

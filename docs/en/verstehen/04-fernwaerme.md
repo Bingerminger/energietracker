@@ -76,7 +76,7 @@ app refuses a capacity charge without a connected load (“A capacity charge
 needs the connected load in kW”), and invalid values as well.
 
 **The network CO₂ factor** replaces the general “CO₂ district heating” value
-(Settings → Utilities & billing) in the CO₂ balance for the months of the
+(Settings → Calculation) in the CO₂ balance for the months of the
 contract. It is also the only basis for the **CO₂ price** of district heating —
 there is no standard factor for it ([CO₂ price in fuel](16-co2-preis.md)).
 

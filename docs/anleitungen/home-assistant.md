@@ -10,7 +10,8 @@
 Diese Anleitung ist die **offizielle** Integration (ab Energietracker **v1.9.0**,
 Feature F1009).
 
-> ⚠️ **Achtung vor kursierenden Forenanleitungen.** Es gibt eine populäre, aber
+> [!WARNING]
+> **Achtung vor kursierenden Forenanleitungen.** Es gibt eine populäre, aber
 > **technisch falsche** Anleitung (KI-generiert), die `POST /api.php` mit einem
 > `{"action":"add_reading", "value":…, "timestamp":…}` und einen Token aus
 > `settings.json` beschreibt. **Nichts davon existiert im Energietracker** — ein
@@ -48,7 +49,7 @@ selbst so ein (etwa eine Adresse von Home Assistant außerhalb, über einen
 Fernzugang). Der Energietracker spricht nur die Adresse an, die du einträgst.
 
 Alle Schritte lassen sich direkt im Energietracker unter
-**Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** vorbereiten
+**Verbindungen → Home Assistant** vorbereiten
 (inkl. Copy-&-Paste-YAML).
 
 Wo läuft der Energietracker? Mit **Home Assistant OS** als App direkt in Home
@@ -121,7 +122,7 @@ environment:
 | Protokoll | Reiter „Protokoll“ der App | `docker logs` |
 
 Jeder Benutzer von Home Assistant sieht den Eintrag in der Seitenleiste;
-Rollen änderst du unter Einstellungen → Zugriff. Eine Person wird über die
+Rollen änderst du unter Einstellungen → Zugang und Sicherheit. Eine Person wird über die
 Kennung des HA-Benutzers geführt, eine Umbenennung in Home Assistant macht
 keine neue. Der Gesundheitscheck des Images (`/api/health`) ist zugleich die
 Überwachung der App: Mit „Watchdog“ startet Home Assistant sie bei einem
@@ -133,12 +134,12 @@ kommt sie dann über den Watchdog. Lass ihn deshalb eingeschaltet.
 gelten unverändert, nur die Adresse ist eine andere: Home Assistant erreicht
 die App in seinem eigenen Netz unter `http://<Hostname der App>` (Port 80,
 ohne Ingress), etwa `http://1a2b3c4d-energietracker`. Die Vorlagen unter
-Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung setzen den
+Verbindungen → Home Assistant setzen den
 richtigen Namen ein. Weil die Anmeldung an ist, braucht der Push einen
 **Token** (Schritt 1) und die Sensoren einen **Lese-Schlüssel** (Schritt 5).
 
 **Umzug von einer Docker-Installation.** In der alten Installation unter
-Einstellungen → Daten → 💾 Backup & Wiederherstellung das JSON-Backup
+Einstellungen → Daten und Sicherung → 💾 Backup & Wiederherstellung das JSON-Backup
 herunterladen, in der App an derselben Stelle einspielen (über Ingress bis
 256 MB, die App streamt Uploads). Personen, Token und Schlüssel gehören nicht
 zum Backup: Token und Lese-Schlüssel in der App neu erzeugen und die Adresse
@@ -168,8 +169,8 @@ iPhone oder iPad über einen freigegebenen direkten Port
 ([Kurzbefehl](posteingang.md#per-kurzbefehl-vom-iphone-oder-ipad)).
 
 **Benachrichtigungen *(v3.9.0)*.** Die App darf über den Supervisor mit Home
-Assistant sprechen (`homeassistant_api: true`). Unter Einstellungen →
-Integrationen → 🔔 Benachrichtigungen an Home Assistant genügt „Benachrichtigungen
+Assistant sprechen (`homeassistant_api: true`). Unter Verbindungen →
+Benachrichtigungen genügt „Benachrichtigungen
 senden“ ([Schritt 6](#schritt-6--benachrichtigungen-an-home-assistant-v390)).
 Über diesen Zugang handelt die App gegenüber Home Assistant mit den Rechten
 eines Administrators (so beschreibt es die Doku von Home Assistant); sie ruft
@@ -182,15 +183,15 @@ Was unter Ingress sonst gilt, steht unter
 
 ## Schritt 1 — API-Token erzeugen
 
-1. Energietracker öffnen → **Einstellungen** → **Integrationen** →
-   **🏠 Home-Assistant-Anbindung**.
+1. Energietracker öffnen → **Verbindungen** → **Home Assistant**
+   (Reiter „Verbinden“).
 2. Auf **„Token erzeugen"** klicken. Der Token wird **nur einmal** angezeigt —
    sofort kopieren und sicher ablegen (z. B. in den HA-Secrets).
 3. Der Token schützt **nur** den Push-Endpoint `/api/ingest`, nicht den Rest
    der App. Solange keiner gesetzt ist, nimmt der Push Werte ohne Token an
    (nur fürs Heimnetz gedacht). **Sobald ein Token existiert, muss HA ihn
    mitsenden** — andernfalls antwortet der Endpoint mit `401`.
-4. **Mit eingeschalteter Anmeldung** (Einstellungen → Zugriff → „Anmeldung &
+4. **Mit eingeschalteter Anmeldung** (Einstellungen → Zugang und Sicherheit → „Anmeldung &
    Zugriff", seit v2.6.0) ist der Token **Pflicht**: Ohne Token lehnt der Push
    dann jeden Wert ab. Die App selbst schützt die Anmeldung — siehe
    [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
@@ -209,8 +210,8 @@ Was unter Ingress sonst gilt, steht unter
 HA soll die Zähler nicht über kryptische interne IDs (`m_strom_main`)
 ansprechen. Vergib stattdessen pro Zähler einen **Alias**:
 
-- In **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung →
-  Zähler-Aliase** je Zähler einen Alias eintragen (z. B. `stromzaehler_haus`,
+- In **Verbindungen → Home Assistant →
+  Zähler zuordnen** je Zähler einen Alias eintragen (z. B. `stromzaehler_haus`,
   `gaszaehler_wohnung`) und **speichern**.
 - Erlaubt sind 1–64 Zeichen aus Buchstaben, Ziffern, `_`, `.`, `-`.
 - Der Alias muss innerhalb einer Verbrauchsart eindeutig sein.
@@ -258,7 +259,8 @@ energietracker_auth: "Bearer et_dein_kopierter_token"
 > Anleitung) ist es gewöhnlicher Text — der Energietracker bekommt die Zeichenkette
 > wörtlich und antwortet `401`.
 
-> ⚠️ **Hast du die Vorlage vor v2.5.3 übernommen?** Dann steht bei dir
+> [!WARNING]
+> **Hast du die Vorlage vor v2.5.3 übernommen?** Dann steht bei dir
 > `| float(0)`. Bitte entfernen (`| float`) und die Bedingung aus Schritt 4
 > ergänzen. `float(0)` macht aus einem nicht verfügbaren Sensor einen
 > Zählerstand **0**; die nächste echte Ablesung zählt dann als Verbrauch eines
@@ -275,7 +277,7 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  # Nur senden, wenn der Sensor einen Wert hat – nach einem Neustart steht er kurz auf „unavailable“.
+  # Nur senden, wenn der Sensor einen Wert hat. Nach einem Neustart steht er kurz auf „unavailable“.
   - if:
       - condition: template
         value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
@@ -356,6 +358,8 @@ mode: single
 ---
 
 ## Schritt 5 — Werte zurück nach Home Assistant
+
+> **Ohne YAML:** Die [HACS-Integration](#hacs-integration-v3120) legt diese Sensoren selbst an.
 
 Seit v3.1.0 geht es auch in die andere Richtung: Der Energietracker rechnet
 Saldo, Prognose und Fälligkeiten, Home Assistant zeigt sie an und reagiert
@@ -446,7 +450,7 @@ rest:
   [Hinweise erledigen](hinweise-erledigen.md).
 
 **Mit eingeschalteter Anmeldung** braucht Home Assistant zum Lesen einen
-API-Schlüssel mit Bereich **„Lesen“** (Einstellungen → Zugriff → „API-Schlüssel
+API-Schlüssel mit Bereich **„Lesen“** (Verbindungen → Schlüssel → „API-Schlüssel
 für Skripte“). Der Ingest-Token aus Schritt 1 gilt dafür nicht. In die
 `secrets.yaml`, wieder der ganze Header-Wert:
 
@@ -535,12 +539,12 @@ Minuten fragt.
   kommen vier einzeln und der Rest in einer Sammelnachricht.
 - **Home Assistant nicht erreichbar?** Dann versucht er es nach einer halben
   Stunde noch einmal, nicht bei jeder Anfrage.
-- **Sprache:** die der Installation (Einstellungen → Allgemein →
-  Standardsprache), nicht die des Geräts.
+- **Sprache:** die der Installation (Einstellungen → Region und Sprache →
+  Vorgabe für alle), nicht die des Geräts.
 
 ### Ziel einrichten
 
-Einstellungen → Integrationen → 🔔 Benachrichtigungen an Home Assistant:
+Verbindungen → Benachrichtigungen:
 
 | Ziel | Wofür | Was du einträgst |
 |---|---|---|
@@ -553,6 +557,13 @@ Beim Supervisor und beim Token ruft der Energietracker eine **Aktion** auf.
 Benachrichtigungen in Home Assistant, eine zweite Nachricht zum selben Punkt
 ersetzt die erste. `notify.mobile_app_<Gerät>` schickt sie an die
 Companion-App auf dem Handy. Beide nehmen `title` und `message`.
+
+**Fremdtext ohne Link und Bild** *(v3.12.0)*: Namen von Dokumenten und Titel oder
+Texte aus deinen Daten (Termine, Zähler, Anbieter) stehen in der Nachricht ohne
+Zeilenumbruch, gekürzt und so, dass Home Assistant daraus keinen Link, kein Bild
+und kein HTML macht: eckige und spitze Klammern werden runde, eine Adresse
+wird nicht anklickbar. Den Namen eines Dokuments bestimmt beim Weg über den Ordner
+oder die Weiterleitung der Absender.
 
 - **„Testnachricht senden“** prüft das Ziel, auch bevor du einschaltest.
 - **Webhook-ID und Token sind Geheimnisse.** Sie stehen nur auf dem Server,
@@ -585,7 +596,7 @@ selbst ausgestellten Zertifikate werden anerkannt. Das Stammzertifikat gilt
 **zusätzlich** zu den üblichen Stammzertifikaten; öffentliche Ziele
 funktionieren weiter.
 
-- **In der App:** Einstellungen → Experte → 🔐 Verbindungen im Heimnetz →
+- **In der App:** Verbindungen → Sicherheit im Heimnetz →
   „Eigenes Stammzertifikat (PEM)“. Den Text der Datei deines
   Root-Zertifikats einfügen, ab `-----BEGIN CERTIFICATE-----` bis
   `-----END CERTIFICATE-----`, und speichern. Nur das Zertifikat, nie den
@@ -694,11 +705,14 @@ Was der Webhook bekommt (JSON; in der Automation unter `trigger.json`):
 | `key` | eindeutiger Schlüssel der Nachricht |
 | `date`, `severity` | Fälligkeit und Stufe (`overdue`, `urgent`, `due`, `info`) |
 | `items` | bei Sammelnachricht und Dokumenten die einzelnen Punkte |
+| `href` | *(v3.12.0)* nur bei einem Hinweis „Deine Rechte als Kunde“: Sprungmarke in der App, etwa `#/todo?art=rec&rec=rights-…`. Häng sie an die Adresse deiner App. Einen fertigen Link kann die Nachricht nicht tragen, weil die App ihre eigene Adresse nicht kennt; der Text nennt deshalb die Seite |
 | `language`, `instance_id`, `sent_at`, `source` | Sprache, Kennung der Installation, Zeitpunkt; `source` ist immer `energietracker` |
 
 ---
 
 ## Sensor „Zu tun“ *(v3.9.0)*
+
+> **Ohne YAML:** Die [HACS-Integration](#hacs-integration-v3120) legt diese Sensoren selbst an.
 
 `GET /api/todo` liefert die Liste „Zu tun“: wie viele Punkte fällig sind, wie
 viele davon überfällig oder dringend, und den nächsten. Jeder fällige Punkt
@@ -789,15 +803,37 @@ Energietracker das Dokument danach zurück.
 
 ---
 
-## HACS-Integration *(in Vorbereitung)*
+## HACS-Integration *(v3.12.0)*
 
-Eine Integration für HACS ist in Vorbereitung. Nach der Einrichtung (Adresse,
-auf Wunsch ein Lese-Schlüssel) legt sie die Sensoren selbst an, ohne YAML:
-„Zu tun“ mit dem nächsten Punkt und je Zähler Saldo, Verbrauch im laufenden
-Jahr und Prognose. Sie liest dieselben Endpunkte wie die Vorlagen oben
-(`/api/summary` und `/api/todo`). Sie ist noch nicht veröffentlicht; bis
-dahin gehen die Sensoren über die Vorlagen aus Schritt 5 und den
-[Sensor „Zu tun“](#sensor-zu-tun-v390).
+Die Integration **Energietracker for Home Assistant** legt die Sensoren selbst an, ohne YAML. Sie liest
+dieselben Endpunkte wie die Vorlagen oben (`/api/summary` und `/api/todo`) und braucht den Energietracker 3.9.0
+oder neuer (die Attribute zu erwartetem und gemessenem Saldo, „bald fällig“ und dem nächsten Termin ab 3.10.0)
+sowie Home Assistant 2026.3 oder neuer.
+
+**Installieren:** HACS → Menü **⋮ → Benutzerdefinierte Repositories** →
+`https://github.com/Bingerminger/energietracker-hacs`, Typ **Integration** → **Energietracker** herunterladen →
+Home Assistant neu starten. Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
+Energietracker**: die Adresse, unter der du den Energietracker öffnest, und nur bei eingeschalteter Anmeldung
+einen Lese-Schlüssel (Bereich „Lesen“, wie in Schritt 5). Bei der App in Home Assistant steht die Adresse unter
+Verbindungen → Home Assistant.
+
+**Was du bekommst:**
+
+- Gerät „Energietracker“: **Zu tun** (Attribute `overdue`, `soon`, `next_upcoming`, `items`), **Nächster Punkt**,
+  **Nächster Punkt fällig**, **Nächster Termin**, **Nächster Termin am**.
+- Je Zähler ein Gerät: **Saldo** (bei laufendem Vertrag, mit den Attributen `projected_end_balance_total`,
+  `projected_end_range_total`, `projected_end_balance`, `measured_balance`, `measured_until` wie oben),
+  **Verbrauch seit Jahresbeginn**, **Prognose 12 Monate** (nicht bei Heizöl und Pellets), **Tage seit Ablesung**.
+- Eine Zählergruppe mit Gruppenvertrag bekommt ein eigenes Gerät nur mit **Saldo**; so zählt eine Summe über
+  alle Saldo-Sensoren jeden Vertrag einmal.
+
+Die Integration fragt alle 15 Minuten. Ein neuer Zähler erscheint nach dem Neuladen der Integration. Wird die
+Anmeldung eingeschaltet oder der Schlüssel widerrufen, fragt Home Assistant nach einem neuen Schlüssel; ist der
+Energietracker älter als 3.9.0, steht unter Einstellungen → Reparaturen ein Hinweis. Mehr im
+[README der Integration](https://github.com/Bingerminger/energietracker-hacs#deutsch).
+
+Die Vorlagen aus Schritt 5 und der Sensor „Zu tun“ bleiben gültig, etwa für Werte, die die Integration nicht
+anlegt (Tage bis zum Stichtag, PV-Kennzahlen).
 
 ---
 
@@ -937,8 +973,8 @@ Jahresarbeitszahl ([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszah
 | Wärmepumpe Strom | `strom`, Rolle „Wärmepumpe (Heizstrom)“, Subzähler des Hausanschlusses | `strom_waermepumpe` |
 | Wärmemenge Wärmepumpe | `waerme`, Rolle „Wärmemenge der Wärmepumpe“, unter „Stromzähler der Wärmepumpe“ mit `strom_waermepumpe` verknüpft | `waerme_wp` |
 
-Die Verbrauchsart **Heizwärme** muss eingeschaltet sein (Einstellungen →
-Verbrauchsarten & Abrechnung). Beide Sensoren liefern kumulative Zählerstände
+Die Verbrauchsart **Heizwärme** muss eingeschaltet sein (Haushalt →
+Verbrauchsarten). Beide Sensoren liefern kumulative Zählerstände
 in kWh.
 
 **HA-Automatisierung:**
@@ -1075,7 +1111,7 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0 das Folgende. Die
 | `400 … arbeitet mit Lieferungen` | Heizöl/Pellets werden nicht per Ingest unterstützt. |
 | `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Den Push dann **auslassen**, nie durch 0 ersetzen: Bedingung `has_value(…)` wie in Schritt 4. `| float(0)` tauscht den sichtbaren Fehler gegen eine stille Falschbuchung. |
 | Template-Fehler „float got invalid input“ im HA-Log | Dieselbe Ursache, von `| float` ohne Ersatzwert gemeldet — gewollt: Es wird nichts gebucht. Bedingung `has_value(…)` ergänzen, dann bleibt das Log ruhig. |
-| Antwort `created`/`updated`, aber der Wert taucht nicht auf | Die Verbrauchsart ist unter Einstellungen → Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten abgewählt (dann fehlt sie im Menü, gespeichert ist der Wert trotzdem), oder die Ansicht zeigt einen anderen Zähler bzw. ein anderes Jahr. Auch ein auf „inaktiv“ gesetzter Zähler nimmt Werte an und zählt mit. |
+| Antwort `created`/`updated`, aber der Wert taucht nicht auf | Die Verbrauchsart ist unter Haushalt → Verbrauchsarten → Aktive Verbrauchsarten abgewählt (dann fehlt sie im Menü, gespeichert ist der Wert trotzdem), oder die Ansicht zeigt einen anderen Zähler bzw. ein anderes Jahr. Auch ein auf „inaktiv“ gesetzter Zähler nimmt Werte an und zählt mit. |
 | Sensoren aus Schritt 5: `401` oder „unbekannt“ | `401`: Anmeldung eingeschaltet, aber kein Lese-Schlüssel (`energietracker_read`) — der Ingest-Token gilt dafür nicht. „unbekannt“: `key` passt nicht (er nennt die interne Zähler-ID, nicht den Alias) oder der Wert fehlt (kein laufender Vertrag, noch keine Prognose). Die Vorlage in den Einstellungen setzt die Schlüssel richtig ein. |
 | Stapel: Antwort `200`, aber Stände fehlen | Einzelne Einträge sind gescheitert — `failed` und die Einträge mit `"status": "error"` nennen Grund (`code`) und Position (`index`). |
 | `400 Zeitstempel „…“ nicht lesbar` | `timestamp` ohne Zeitzone oder in einem anderen Format. Erwartet ist ISO 8601 mit Zone, etwa `2026-10-12T14:15:00+02:00`; die Vorlage `{{ now().isoformat() }}` liefert das. |

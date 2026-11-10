@@ -22,7 +22,7 @@ ist, und übernimmst mit einem Klick.
    den Posteingang. Ist noch kein Dienst zum Auslesen eingerichtet, öffnet
    **„Auslesen einrichten“** die Karte „Auslesen“ (Lokal | Cloud) gleich als
    Dialog — im Assistenten und über der Liste des Posteingangs, auch später
-   noch; dieselbe Karte steht weiter unter Einstellungen → Experte. Einrichten
+   noch; dieselbe Karte steht unter Verbindungen → Post und Fotos auslesen. Einrichten
    darf, wer die Installation verwaltet ([Posteingang](posteingang.md)).
 2. **Ablegen** — alle PDFs auf einmal, per Dateiauswahl (am iPad aus der
    Dateien-App) oder per Ziehen.
@@ -263,7 +263,7 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   Preise und Abschläge → Ablesungen → Rechnungen (mit Buchung des Ergebnisses
   als Sonderzahlung) → Gas-Umrechnung → Termine. Über dieselben Prüfungen wie
   die Handeingabe; ein Fehler hält den Rest nicht auf.
-- **Rückweg:** Vorher legt die App eine Sicherung an (Einstellungen → Daten,
+- **Rückweg:** Vorher legt die App eine Sicherung an (Einstellungen → Daten und Sicherung,
   Anlass „vor Haushalt aus Dokumenten“). Ein zweites Übernehmen ändert nichts:
   Was schon übernommen ist, steht als „schon vorhanden“ da.
 - **Danach** sind die Dokumente, die der Entwurf vollständig abdeckt,

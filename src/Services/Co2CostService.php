@@ -81,9 +81,11 @@ final class Co2CostService
         $perM2 = null;
         if ($total !== null && $area > 0) {
             $kg = round($total['emissions_kg'] / $area, 1);
-            [$stage, $share] = self::stage($kg);
+            // v3.12.0 — Teiljahr (Einzug oder Auszug im Jahr): Grenzen anteilig gekürzt wie in der Aufteilung
+            $days = self::periodDays($this->tenancyOf($year), $year);
+            [$stage, $share] = self::stage($kg, $days);
             // v3.6.0 — area_assumed: weder im Mietverhältnis noch in den Einstellungen eingetragen
-            $perM2 = ['kg' => $kg, 'area_m2' => $area, 'area_assumed' => $assumed, 'stage' => $stage, 'landlord_share_pct' => $share];
+            $perM2 = ['kg' => $kg, 'area_m2' => $area, 'area_assumed' => $assumed, 'stage' => $stage, 'landlord_share_pct' => $share, 'days' => $days];
         }
         return ['supported' => true, 'scheme' => $scheme, 'year' => $year, 'rows' => $rows, 'total' => $total,
                 'per_m2' => $perM2, 'price' => $price, 'vat' => $vat, 'note' => null];
@@ -104,6 +106,36 @@ final class Co2CostService
             if ($kg < $upper * $scale) return [$i + 1, $share];
         }
         return [10, 95];
+    }
+
+    /**
+     * v3.12.0 — Tage des Jahres, über die die Stufe gilt: bei Miete die Tage des Mietverhältnisses im Kalenderjahr
+     * (Einzug bzw. Auszug im Jahr ergibt ein Teiljahr, § 5 Abs. 3 Satz 4 mit Abs. 1 CO2KostAufG: Grenzen anteilig
+     * kürzen), sonst das ganze Jahr. Eine Regel für die Kennzahl je m² und die Aufteilung (Co2SplitService).
+     */
+    public static function periodDays(?array $tenancy, int $year): int
+    {
+        $first = new \DateTimeImmutable("$year-01-01");
+        $last = new \DateTimeImmutable("$year-12-31");
+        $full = $first->diff($last)->days + 1;
+        if ($tenancy === null) return $full;
+        $from = max("$year-01-01", (string)($tenancy['start'] ?? "$year-01-01"));
+        $to = min("$year-12-31", (string)(($tenancy['end'] ?? null) ?: "$year-12-31"));
+        if ($to < $from) return $full;
+        return min($full, (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days + 1);
+    }
+
+    /** v3.12.0 — das Mietverhältnis eines Jahres wie für die Fläche (area()): nur bei Miete, sonst null. */
+    private function tenancyOf(int $year): ?array
+    {
+        if ($this->tenancies === null || $this->settings->get('wohnverhaeltnis', 'eigentum') !== 'miete') return null;
+        $any = null;
+        foreach ($this->tenancies->list() as $t) {
+            if ((string)$t['start'] > "$year-12-31" || (!empty($t['end']) && (string)$t['end'] < "$year-01-01")) continue;
+            if (!empty($t['wohnflaeche_m2'])) return $t;
+            $any ??= $t;
+        }
+        return $any;
     }
 
     /**

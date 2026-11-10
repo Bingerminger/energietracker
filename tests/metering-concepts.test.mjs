@@ -210,6 +210,19 @@ t('Rest je Zählwerk: abgerechnet 200 kWh (HT 0, NT 200), nicht 150 in Summe', /
 const mr = RB.mergeRestOf([regRest, regRest]);
 t('Monate zusammen: je Zählwerk zusammengezählt', mr.registers.length === 2 && mr.registers[0].rest === -100 && mr.registers[0].short_kwh === 100 && mr.registers[1].measured === 600, JSON.stringify(mr.registers));
 t('ein Zählwerk: Formel wie bisher', /gemessen/.test(RB.restFormula({ measured: 500, rest: 300, submeters: [{ meter_id: 's', name: 'WP', kwh: 200 }] })));
+// v3.12.0 — der Hinweis nennt die abgerechnete Menge: Juni 240, Juli −250 (nicht berechnet), August 248 = 488 kWh
+const shortRest = { measured: 882, rest: 238, billed: 488, short_kwh: 250, submeters: [{ meter_id: 's', name: 'Wallbox', kwh: 644 }] };
+const sn = RB.restNoteText(shortRest);
+t('Rest unter null: vorn die abgerechnete Menge, die Zeile geht auf (488 = 882 − 644 + 250)',
+  /^Abgerechnet wird hier nur der Rest: 488\s?kWh = 882\s?kWh gemessen − 644\s?kWh Wallbox \+ 250\s?kWh\./.test(sn), sn);
+const months = [{ measured: 150, rest: -250, short_kwh: 250, submeters: [{ meter_id: 's', name: 'Wallbox', kwh: 400 }] },
+  { measured: 372, rest: 248, submeters: [{ meter_id: 's', name: 'Wallbox', kwh: 124 }] }];
+const mm = RB.mergeRestOf(months);
+t('Monate zusammen: abgerechnet 0 + 248, nicht 150 − 400 + 248', mm.billed === 248 && mm.rest === -2 && mm.short_kwh === 250, JSON.stringify(mm));
+const regMix = RB.mergeRestOf([{ ...regRest, registers: [{ meter_id: 'g1', name: 'Z1 HT', obis: '1.8.1', measured: 100, deducted: 150, rest: -50, short_kwh: 50 }] },
+  { ...regRest, registers: [{ meter_id: 'g1', name: 'Z1 HT', obis: '1.8.1', measured: 200, deducted: 120, rest: 80 }] }]);
+t('je Zählwerk: abgerechnet 0 + 80, die Zeile geht auf', regMix.registers[0].billed === 80
+  && /HT 80\s?kWh = 300\s?kWh − 270\s?kWh \+ 50\s?kWh/.test(RB.registerFormula(regMix)), RB.registerFormula(regMix));
 
 console.log('Assistent');
 const W = await import(`${JS}/components/concept-wizard.js`);
@@ -237,14 +250,14 @@ const meters = read('public/js/views/meters.js'), settingsView = read('public/js
 t('angeboten an Strom und PV, nicht an Gas, auch in der öffentlichen Demo (Vorschau vorberechnet)', W.conceptOffered('strom', false) && W.conceptOffered('pv_einspeisung', false)
   && !W.conceptOffered('gas', false) && W.conceptOffered('strom', true));
 t('Einstiege: Zählerseite, Einstellungen, Ersteinrichtung (alle über conceptOffered)',
-  (meters.match(/conceptOffered\(u\.key\)/g) || []).length === 2 && /!conceptOffered\(\) \? '' : `<div class="card settings-card" id="concept-card">/.test(settingsView)
-  && /choice\('concept'/.test(setup) && /\?concept=1/.test(setup));
+  (meters.match(/conceptOffered\(u\.key\)/g) || []).length === 2 && /!conceptOffered\(\) \? '' : `<div class="card settings-card" id="concept-card" data-field="concept">/.test(settingsView)
+  && /choice\('concept'/.test(setup) && /&concept=1/.test(setup));
 
 console.log('Doku nennt den Assistenten mit den Texten des Katalogs');
 for (const [lang, file] of [['de', 'docs/anleitungen/anwendungsfaelle.md'], ['en', 'docs/en/anleitungen/anwendungsfaelle.md']]) {
   const doc = read(file).replace(/\s+/g, ' ');
   const c = JSON.parse(read(`public/locales/${lang}.json`));
-  const want = [c.concept.title, c.concept.entry.title, c.concept.setup.deviceHeatPump, c.concept.setup.touAll, c.concept.layout.cascade.title, c.settings.page.utilities.title];
+  const want = [c.concept.title, c.concept.entry.title, c.concept.setup.deviceHeatPump, c.concept.setup.touAll, c.concept.layout.cascade.title, c.household.utilities.title];
   t(`${lang}: Use-Case H nennt Knopf, Karte, Antworten und Aufbau wie der Assistent`, doc.includes('doc-claim: concept-wizard') && want.every(s => doc.includes(s)),
     want.filter(s => !doc.includes(s)).join(' | '));
 }

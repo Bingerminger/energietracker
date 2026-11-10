@@ -21,6 +21,7 @@ final class Utilities
             'key'             => 'gas',
             'label'           => 'Gas',
             'icon'            => '🔥',
+            'glyph'           => 'art-gas',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'm³',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => true,
@@ -41,6 +42,7 @@ final class Utilities
             'key'             => 'strom',
             'label'           => 'Strom',
             'icon'            => '⚡',
+            'glyph'           => 'art-strom',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kWh',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => false,
@@ -60,6 +62,7 @@ final class Utilities
             'key'             => 'wasser',
             'label'           => 'Wasser',
             'icon'            => '💧',
+            'glyph'           => 'art-wasser',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'm³',
             'consumption_unit'=> 'm³',
             'unit_to_kwh'     => false,
@@ -82,6 +85,7 @@ final class Utilities
             'key'             => 'fernwaerme',
             'label'           => 'Fernwärme',
             'icon'            => '🌡️',
+            'glyph'           => 'art-fernwaerme',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kWh',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => false,
@@ -99,6 +103,7 @@ final class Utilities
             'key'             => 'heizoel',
             'label'           => 'Heizöl',
             'icon'            => '🛢️',
+            'glyph'           => 'art-heizoel',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'L',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => true,
@@ -117,6 +122,7 @@ final class Utilities
             'key'             => 'pellets',
             'label'           => 'Holzpellets',
             'icon'            => '🪵',
+            'glyph'           => 'art-pellets',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kg',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => true,
@@ -141,6 +147,7 @@ final class Utilities
             'key'             => 'pv_einspeisung',
             'label'           => 'PV-Einspeisung',
             'icon'            => '☀️',
+            'glyph'           => 'art-pv_einspeisung',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kWh',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => false,
@@ -163,6 +170,7 @@ final class Utilities
             'key'             => 'pv_erzeugung',
             'label'           => 'PV-Erzeugung',
             'icon'            => '🔆',
+            'glyph'           => 'art-pv_erzeugung',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kWh',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => false,
@@ -190,6 +198,7 @@ final class Utilities
             'key'             => 'waerme',
             'label'           => 'Heizwärme',
             'icon'            => '♨️',
+            'glyph'           => 'art-waerme',     // v3.12.0 — Grafik der Oberfläche (lib/icons.js); `icon` bleibt für API, CSV, Home Assistant
             'unit'            => 'kWh',
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => false,

@@ -9,6 +9,7 @@
 // =====================================================================
 
 import { escapeHtml as esc } from './format.js';
+import { icon as glyph } from './icons.js';
 
 /**
  * @param {{icon?: string, title?: string, text?: string, action?: string, role?: string, card?: boolean}} o
@@ -16,7 +17,7 @@ import { escapeHtml as esc } from './format.js';
  */
 export function emptyHtml({ icon = '', title = '', text = '', action = '', role = '', card = true } = {}) {
   return `<div class="${card ? 'card ' : ''}empty"${role ? ` data-role="${esc(role)}"` : ''}>
-    ${icon ? `<div class="empty-icon" aria-hidden="true">${esc(icon)}</div>` : ''}
+    ${icon ? `<div class="empty-icon" aria-hidden="true">${glyph(icon, { size: 48 })}</div>` : ''}
     ${title ? `<h2 class="empty__title">${esc(title)}</h2>` : ''}
     ${text ? `<p>${esc(text)}</p>` : ''}
     ${action}

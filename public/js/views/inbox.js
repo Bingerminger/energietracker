@@ -27,7 +27,7 @@ import { confirmModal } from '../components/modal.js';
 import { activeUtilities } from '../state.js';
 import { DEMO } from '../lib/demo-mode.js';
 import { docUrl } from '../lib/docs.js';
-import { pdfSupported, openPdf, renderPages } from '../lib/pdf.js';
+import { pdfSupported, openPdf, renderPages, pdfErrorCode } from '../lib/pdf.js';
 import { readDocument, runQueue, runScope, cancelQueue, queueProgress } from '../lib/inbox-queue.js';
 import {
   openCount, TYPES, typeLabel, statusLabel, fieldLabel, reasonText, valueText, itemText,
@@ -42,6 +42,10 @@ import { readingSetupButtonHtml, openReadingSetup } from '../components/reading-
 import { fieldHints, proposalNotes, duplicateHtml } from '../lib/inbox-marks.js';   // v3.7.0 (treffsicher)
 import { scanFolder } from '../lib/inbox-folder.js';
 import { priceBasisText, grossOf } from '../lib/price-basis.js';   // v3.7.0 — Basis eines Preises am Eingabefeld
+import { icon } from '../lib/icons.js';
+
+// Ton der Infobox zur Einordnung eines Dokuments (figure.tone aus der Zusammenfassung)
+const GIST_TONE = { good: 'erfolg', warn: 'achtung', bad: 'fehler' };
 
 // v3.7.0 (Paket betrieb) — Kernaussage je Dokument: ein Satz, eine Zahl, ein Knopf, der Rest aufklappbar
 
@@ -71,7 +75,7 @@ function gistCardHtml(g, extra = '') {
   if (!g) return '';
   const details = gistDetails(g);
   const figure = gistFigure(g.figure);
-  return `<div class="card inbox-card inbox-gist inbox-gist--${esc(g.figure?.tone || 'neutral')}" id="inbox-gist" data-gist="${esc(g.key)}">
+  return `<div class="infobox infobox--${GIST_TONE[g.figure?.tone] || 'neutral'} inbox-card inbox-gist" id="inbox-gist" data-gist="${esc(g.key)}">
     <h2 class="card__title">${esc(t('inbox.gist.title'))}</h2>
     ${figure ? `<p class="inbox-gist__figure" data-role="gist-figure">${esc(figure)}</p>` : ''}
     <p class="inbox-gist__text" data-role="gist-text">${esc(gistText(g))}</p>
@@ -104,11 +108,11 @@ function gistLineHtml(e) {
   const figure = gistFigure(e.gist.figure);
   // v3.7.0 (treffsicher) — dasselbe Schreiben in einer zweiten Datei: kenntlich in der Liste
   const dup = e.duplicate_of ? ` · <span data-role="duplicate">${esc(t('inbox.duplicate.short'))}</span>` : '';
-  return `<div class="inbox-gist-line inbox-gist-line--${esc(e.gist.figure?.tone || 'neutral')}" data-role="gist">${figure ? `<strong>${esc(figure)}</strong> · ` : ''}${esc(gistText(e.gist))}${dup}</div>`;
+  return `<div class="inbox-gist-line${e.gist.figure?.tone === 'bad' ? ' ton-fehler' : ''}" data-role="gist">${figure ? `<strong>${esc(figure)}</strong> · ` : ''}${esc(gistText(e.gist))}${dup}</div>`;
 }
 
 /** Hinweis auf die anderen Wege in den Posteingang: Kurzbefehl, Ordner, E-Mail über Home Assistant. */
-function channelsHtml(folder) {
+export function channelsHtml(folder) {
   if (DEMO) return '';
   const pending = folder?.pending ? ` ${esc(tp('inbox.channels.pending', folder.pending))}` : '';
   // v3.9.0 (F1033) — ein eigener Ordner (ET_INBOX_DIR, etwa /share in der App für Home Assistant) liegt nicht im Datenverzeichnis
@@ -135,17 +139,17 @@ const header = (title, sub, back = '') => `
 
 /** Hinweis zum Dienst: wer ausliest, oder wie man es einrichtet. */
 function providerHtml(p) {
-  if (DEMO) return `<div class="banner banner--info" data-role="provider">${esc(t('inbox.demo.note'))}</div>`;
+  if (DEMO) return `<div class="infobox infobox--info" data-role="provider">${esc(t('inbox.demo.note'))}</div>`;
   if (!p) return '';
-  if (!p.known) return `<div class="banner banner--warning" data-role="provider">${esc(t('errors.inbox.providerUnknown', { provider: p.id }))}</div>`;
+  if (!p.known) return `<div class="infobox infobox--achtung" data-role="provider">${esc(t('errors.inbox.providerUnknown', { provider: p.id }))}</div>`;
   if (!p.available && !p.local) {
     // v3.7.0 (cloud) — gewählt, aber nicht bereit (aus oder ohne Schlüssel, etwa nach einer Sicherung von einem anderen Server)
-    return `<div class="banner banner--warning" data-role="provider">${esc(t('inbox.provider.cloudOff', { service: p.label }))}
-      <a href="#/settings/expert">${esc(t('inbox.provider.setup'))}</a></div>`;
+    return `<div class="infobox infobox--achtung" data-role="provider">${esc(t('inbox.provider.cloudOff', { service: p.label }))}
+      <a href="#/connections/reading">${esc(t('inbox.provider.setup'))}</a></div>`;
   }
   if (!p.available) {
-    return `<div class="banner banner--info" data-role="provider">${esc(t('inbox.provider.off', { model: p.recommended_model }))}
-      <a href="#/settings/expert?field=ocr_endpoint">${esc(t('inbox.provider.setup'))}</a></div>`;
+    return `<div class="infobox infobox--info" data-role="provider">${esc(t('inbox.provider.off', { model: p.recommended_model }))}
+      <a href="#/connections/reading?field=ocr_endpoint">${esc(t('inbox.provider.setup'))}</a></div>`;
   }
   return `<p class="muted small" data-role="provider">${esc(t(p.local ? 'inbox.provider.on' : 'inbox.provider.onCloud', { service: p.label, model: p.model || '–' }))}</p>`;
 }
@@ -180,7 +184,7 @@ async function renderList(container, ctx = {}) {
   try {
     data = await api.inbox();
   } catch (e) {
-    container.innerHTML = `${header(t('inbox.title'))}<div class="banner banner--error">${esc(t('inbox.loadError', { msg: e.message || e }))}</div>`;
+    container.innerHTML = `${header(t('inbox.title'))}<div class="infobox infobox--fehler">${esc(t('inbox.loadError', { msg: e.message || e }))}</div>`;
     return;
   }
   const mode = ctx.query?.get('view') === 'review' ? 'review' : 'list';
@@ -202,7 +206,7 @@ async function renderList(container, ctx = {}) {
       ${readingSetupButtonHtml(data.provider)}
       <label class="drop-zone inbox-drop${DEMO ? ' inbox-drop--off' : ''}" id="inbox-drop" for="inbox-file">
         <input type="file" id="inbox-file" accept="application/pdf,.pdf" multiple class="sr-only"${DEMO ? ' disabled' : ''}>
-        <span class="inbox-drop__icon" aria-hidden="true">📥</span>
+        <span class="inbox-drop__icon" aria-hidden="true">${icon('eingang', { size: 48 })}</span>
         <span class="inbox-drop__title">${esc(t('inbox.drop.title'))}</span>
         <span class="inbox-drop__hint">${esc(t('inbox.drop.hint'))}</span>
       </label>
@@ -324,7 +328,7 @@ function queueHtml(data) {
 }
 
 function listHtml(entries) {
-  if (!entries.length) return `<div class="banner banner--info">${esc(t('inbox.empty'))}</div>`;
+  if (!entries.length) return `<div class="infobox infobox--info">${esc(t('inbox.empty'))}</div>`;
   return `<div class="table-wrap"><table class="data-table inbox-table">
     <thead><tr><th scope="col">${esc(t('inbox.col.document'))}</th><th scope="col">${esc(t('inbox.col.type'))}</th>
       <th scope="col">${esc(t('inbox.col.status'))}</th><th scope="col">${esc(t('inbox.col.added'))}</th>
@@ -335,9 +339,9 @@ function listHtml(entries) {
         <td>${esc(e.type ? typeLabel(e.type) : '–')}</td>
         <td>${statusBadge(e)}</td>
         <td>${esc(fmt.date(String(e.created_at || '').slice(0, 10)))}</td>
-        <td class="cell-actions">${gistActionHtml(e.gist, { entryId: e.id, inList: true })}
+        <td class="cell-actions"><div class="cell-actions__reihe">${gistActionHtml(e.gist, { entryId: e.id, inList: true })}
           <a class="btn btn--ghost btn--sm" href="#/inbox/${esc(encodeURIComponent(e.id))}">${esc(t('inbox.open'))}</a>
-          ${DEMO ? '' : `<button type="button" class="btn btn--ghost btn--sm" data-act="delete" data-id="${esc(e.id)}" aria-label="${esc(t('inbox.delete.label', { name: e.name || e.id }))}">✕</button>`}</td>
+          ${DEMO ? '' : `<button type="button" class="btn btn--ghost btn--sm" data-act="delete" data-id="${esc(e.id)}" aria-label="${esc(t('inbox.delete.label', { name: e.name || e.id }))}">${icon('kreuz', { size: 16 })}</button>`}</div></td>
       </tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -348,7 +352,7 @@ function statusBadge(e) {
 }
 
 function reviewHtml(list) {
-  if (!list?.length) return `<div class="banner banner--success">${esc(t('inbox.review.empty'))}</div>`;
+  if (!list?.length) return `<div class="infobox infobox--erfolg">${esc(t('inbox.review.empty'))}</div>`;
   return `<p class="muted">${esc(t('inbox.review.hint'))}</p><ul class="inbox-review" id="inbox-review">${list.map(r => `
     <li class="inbox-review__item">
       <a href="#/inbox/${esc(encodeURIComponent(r.entry_id))}?field=${esc(encodeURIComponent(r.field))}"><strong>${esc(fieldLabel(r.field))}</strong></a>
@@ -367,7 +371,7 @@ async function renderDetail(container, rawId, ctx = {}) {
   try {
     [pv, info] = await Promise.all([api.inboxEntry(id), api.inbox()]);
   } catch (e) {
-    container.innerHTML = `${header(t('inbox.title'), '', true)}<div class="banner banner--error">${esc(e.status === 404 ? t('errors.inbox.notFound') : t('inbox.loadError', { msg: e.message || e }))}</div>`;
+    container.innerHTML = `${header(t('inbox.title'), '', true)}<div class="infobox infobox--fehler">${esc(e.status === 404 ? t('errors.inbox.notFound') : t('inbox.loadError', { msg: e.message || e }))}</div>`;
     return;
   }
   const provider = info.provider;
@@ -388,7 +392,7 @@ async function renderDetail(container, rawId, ctx = {}) {
 
   container.innerHTML = `
     ${header(pv.entry.name || t('inbox.title'), '', true)}
-    ${DEMO ? `<div class="banner banner--info">${esc(t('inbox.demo.note'))}</div>` : ''}
+    ${DEMO ? `<div class="infobox infobox--info">${esc(t('inbox.demo.note'))}</div>` : ''}
     <div class="inbox-detail">
       <section class="inbox-doc card" id="inbox-doc" aria-label="${esc(t('inbox.doc.label'))}">
         <p class="inbox-doc__bar"><a class="btn btn--ghost btn--sm" href="${esc(fileUrl)}" target="_blank" rel="noopener">${esc(t('inbox.doc.open'))}</a></p>
@@ -404,7 +408,8 @@ async function renderDetail(container, rawId, ctx = {}) {
     openPdf(fileUrl).then((doc) => {
       if (!container.isConnected) return;
       stopPages = renderPages(doc, pagesEl, { label: (n) => t('inbox.doc.page', { n }) });
-    }).catch(() => { pagesEl.innerHTML = `<p class="muted">${esc(t('inbox.doc.noViewer'))}</p>`; });
+    // v3.12.0 — eine kaputte Datei ist nicht der Browser: eigener Satz (pdfErrorCode)
+    }).catch((e) => { pagesEl.innerHTML = `<p class="muted" data-role="doc-error">${esc(t(pdfErrorCode(e) === 'broken' ? 'inbox.doc.broken' : 'inbox.doc.noViewer'))}</p>`; });
   } else {
     pagesEl.innerHTML = `<p class="muted">${esc(t('inbox.doc.noViewer'))}</p>`;
   }
@@ -466,7 +471,7 @@ async function renderDetail(container, rawId, ctx = {}) {
               ${TYPES.map(x => `<option value="${x}"${x === e.type ? ' selected' : ''}>${esc(typeLabel(x))}</option>`).join('')}
             </select></label>
         </div>
-        ${e.error ? `<div class="banner banner--warning">${esc(t(e.error.key, e.error.params || {}))}</div>` : ''}
+        ${e.error ? `<div class="infobox infobox--achtung">${esc(t(e.error.key, e.error.params || {}))}</div>` : ''}
         ${busy.reading ? `<p role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span>
             <span data-role="step">${esc(t('inbox.step.' + busy.step))}</span> · <span data-role="elapsed">${esc(elapsed())}</span>
             <button type="button" class="btn btn--ghost btn--sm" id="inbox-read-cancel">${esc(t('inbox.queue.cancel'))}</button></p>`
@@ -475,7 +480,7 @@ async function renderDetail(container, rawId, ctx = {}) {
               s: Math.round((e.extraction.seconds?.classify || 0) + (e.extraction.seconds?.extract || 0)) }))}</span>` : ''}</p>
             ${!canRead && !DEMO ? providerHtml(provider) : ''}`}
       </div>
-      ${pv.recognize_only ? `<div class="banner banner--info" id="inbox-filed">${esc(t('inbox.recognizeOnly', { type: typeLabel(e.type) }))}</div>` : ''}
+      ${pv.recognize_only ? `<div class="infobox infobox--info" id="inbox-filed">${esc(t('inbox.recognizeOnly', { type: typeLabel(e.type) }))}</div>` : ''}
       ${pv.gist && !busy.reading ? '' : duplicateHtml(pv)}
       <div class="card inbox-card" id="inbox-assign">
         <h2 class="card__title">${esc(t('inbox.assign.title'))}</h2>
@@ -483,7 +488,7 @@ async function renderDetail(container, rawId, ctx = {}) {
         <div class="form-row">
           <div class="field"><label for="inbox-utility">${esc(t('inbox.assign.utility'))}</label>
             <select class="select" id="inbox-utility"${DEMO ? ' disabled' : ''}><option value="">–</option>
-              ${utilities.map(u => `<option value="${esc(u.key)}"${u.key === as.utility ? ' selected' : ''}>${esc((u.icon || '') + ' ' + u.label)}</option>`).join('')}</select></div>
+              ${utilities.map(u => `<option value="${esc(u.key)}"${u.key === as.utility ? ' selected' : ''}>${esc(u.label)}</option>`).join('')}</select></div>
           <div class="field"><label for="inbox-meter">${esc(t('inbox.assign.meter'))}</label>
             <select class="select" id="inbox-meter"${DEMO || !as.utility ? ' disabled' : ''}><option value="">–</option>
               ${meters.map(m => `<option value="${esc(m.id)}"${m.id === as.meter_id ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>
@@ -568,6 +573,9 @@ async function renderDetail(container, rawId, ctx = {}) {
         }
         // v3.7.0 (Paket betrieb) — eine Rechnung ist danach geprüft: das Urteil gleich nennen
         if (res.gist?.check?.verdict) (res.gist.check.verdict === 'ok' ? toastOk : toastWarn)(gistText(res.gist));
+        // v3.12.0 — Übernehmen kann Zähler und Verträge anlegen: Listen neu laden, sonst zeigt die Zuordnung
+        // „kein Vertrag“, bis die Seite neu geladen wird
+        lists.clear();
         pv = await api.inboxEntry(id);
         window.dispatchEvent(new CustomEvent('et:badges-refresh'));
       } catch (e) { toastErr(e.message || e); }
@@ -634,8 +642,8 @@ function fieldValue(fields, name) {
   return typeof v === 'string' ? v : '';
 }
 
-/** Die Felder der Auslesung mit Belegstelle; markierte zuerst. */
-function fieldsHtml(pv, fields) {
+/** Die Felder der Auslesung mit Belegstelle; markierte zuerst. (v3.12.0 — exportiert für tests/inbox.test.mjs) */
+export function fieldsHtml(pv, fields) {
   const schema = pv.schema || {};
   const edits = pv.entry.edits || {};
   const names = orderedFields(fields, schema);
@@ -648,22 +656,28 @@ function fieldsHtml(pv, fields) {
     const def = schema[n] || {};
     const edited = Object.prototype.hasOwnProperty.call(edits, n);
     const check = f.status === 'check' && !edited;
+    // v3.12.0 — ein Hilfsfeld (netto/brutto, Steuersatz) ohne Belegstelle ist nicht geprüft: kein Häkchen
+    const unquoted = !!def.aux && !check && !edited && f.status !== 'empty' && !f.quote;
+    // v3.12.0 — „Stimmt“ an einem Preis ohne gelesenen Steuersatz übernimmt ihn als Bruttopreis: das sagen
+    const grossNote = check && ['money', 'price_ct'].includes(def.kind) && (f.reasons || []).includes('price_from_invoice') && !f.net;
     const value = def.kind === 'list'
       ? (f.items || []).map(i => `<li${i.status === 'check' ? ' class="inbox-item--check"' : ''}>${esc(itemText(n, i.value, i))}
           ${i.quote ? `<blockquote class="inbox-quote">${esc(i.quote)}${i.page ? ` <button type="button" class="link-btn" data-page="${esc(i.page)}">${esc(t('inbox.doc.page', { n: i.page }))}</button>` : ''}</blockquote>` : ''}</li>`).join('')
       : esc(valueText(def.kind, edited ? edits[n] : f.value));
     return `<li class="inbox-field${check ? ' inbox-field--check' : ''}${edited ? ' inbox-field--edited' : ''}" data-field="${esc(n)}">
       <div class="inbox-field__head"><span class="inbox-field__label">${esc(fieldLabel(n))}</span>
-        <span class="inbox-field__mark" aria-hidden="true">${check ? '⚠' : edited ? '✎' : f.status === 'empty' ? '–' : '✓'}</span></div>
+        <span class="inbox-field__mark" aria-hidden="true">${check ? icon('achtung', { size: 16 }) : edited ? icon('stift', { size: 16 }) : f.status === 'empty' || unquoted ? '–' : icon('haken', { size: 16 })}</span></div>
       ${def.kind === 'list' ? `<ul class="inbox-field__items">${value}</ul>` : `<div class="inbox-field__value">${value}</div>`}
       ${check ? `<p class="inbox-field__reason">${esc(reasonText(f.reasons))}</p>` : ''}
+      ${grossNote ? `<p class="inbox-field__reason muted" data-role="gross-note">${esc(t('inbox.field.confirmAsGross'))}</p>` : ''}
+      ${unquoted ? `<p class="inbox-field__reason muted" data-role="no-quote">${esc(reasonText(['no_quote']))}</p>` : ''}
       ${!check && !edited && fieldHints(f).length ? `<p class="inbox-field__reason muted" data-role="hint">${esc(reasonText(fieldHints(f)))}</p>` : ''}
       ${edited ? `<p class="inbox-field__reason">${esc(t('inbox.field.edited', { value: valueText(def.kind, f.value) }))}</p>` : ''}
       ${def.kind !== 'list' && f.quote ? `<blockquote class="inbox-quote">${esc(f.quote)}${f.page ? ` <button type="button" class="link-btn" data-page="${esc(f.page)}">${esc(t('inbox.doc.page', { n: f.page }))}</button>` : ''}</blockquote>` : ''}
       ${check && def.kind !== 'list' && !DEMO ? `<p class="inbox-field__actions">
-        ${f.value !== null && f.value !== undefined ? `<button type="button" class="btn btn--ghost btn--xs" data-confirm="${esc(n)}">${esc(t('inbox.field.confirm'))}</button>` : ''}
-        <button type="button" class="btn btn--ghost btn--xs" data-correct="${esc(n)}">${esc(t('inbox.field.correct'))}</button></p>` : ''}
-      ${!check && edited && !DEMO ? `<p class="inbox-field__actions"><button type="button" class="btn btn--ghost btn--xs" data-correct="${esc(n)}">${esc(t('inbox.field.correct'))}</button></p>` : ''}
+        ${f.value !== null && f.value !== undefined ? `<button type="button" class="btn btn--ghost btn--sm" data-confirm="${esc(n)}">${esc(t('inbox.field.confirm'))}</button>` : ''}
+        <button type="button" class="btn btn--ghost btn--sm" data-correct="${esc(n)}">${esc(t('inbox.field.correct'))}</button></p>` : ''}
+      ${!check && edited && !DEMO ? `<p class="inbox-field__actions"><button type="button" class="btn btn--ghost btn--sm" data-correct="${esc(n)}">${esc(t('inbox.field.correct'))}</button></p>` : ''}
     </li>`;
   };
   const flags = pv.entry.extraction?.flags || 0;
@@ -704,7 +718,7 @@ export function proposalsHtml(pv, unit) {   // v3.11.0 (Nachprüfung) — export
           ${detail ? `<p class="inbox-proposal__detail">${esc(detail)}</p>` : ''}
           ${proposalLines(p).length ? `<ul class="inbox-proposal__lines" data-role="lines">${proposalLines(p).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
           ${proposalNotes(p).map(n => `<p class="inbox-proposal__detail" data-role="note">${esc(n)}</p>`).join('')}
-          ${p.estimate_backwards ? `<p class="inbox-proposal__detail warning-text" data-role="estimate-backwards">${esc(backwardsText(p.estimate_backwards, unit))}</p>` : ''}
+          ${p.estimate_backwards ? `<p class="inbox-proposal__detail ton-warn" data-role="estimate-backwards">${esc(backwardsText(p.estimate_backwards, unit))}</p>` : ''}
         </li>`;
       }).join('')}</ul>
       <p><button type="button" class="btn btn--primary" id="inbox-apply"${DEMO ? ' disabled' : ''}>${esc(tp('inbox.applyButton', list.filter(p => p.checked).length))}</button>

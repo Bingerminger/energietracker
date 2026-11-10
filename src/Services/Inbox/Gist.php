@@ -429,7 +429,7 @@ final class Gist
         if ($c['meter'] !== null && $c['u'] !== null && Utilities::isCumulative($c['u'])) {
             $q = array_filter(['replace' => (string)$c['meter']['id'], 'date' => $date, 'old' => $old, 'new' => $new, 'serial' => $serial,
                 'inbox' => (string)($e['id'] ?? '')], fn($v) => $v !== null && $v !== '');
-            $action = ['kind' => 'link', 'key' => 'inbox.gist.action.openSwap', 'href' => '#/utility/' . rawurlencode($c['u']) . '/meters?' . http_build_query($q)];
+            $action = ['kind' => 'link', 'key' => 'inbox.gist.action.openSwap', 'href' => '#/household/meters?' . http_build_query(['art' => $c['u']] + $q)];
         }
         return ['key' => 'inbox.gist.meterChange.todo', 'params' => $params,
             'figure' => $date !== null ? ['kind' => 'date', 'value' => $date, 'tone' => 'warn'] : null, 'action' => $action, 'details' => $details];

@@ -258,6 +258,18 @@ final class BillingPeriodService
     private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false): array
     {
         $today ??= date('Y-m-d');
+        // v3.12.0 — die ganze Rechnung am Stichtag: Monatszeilen und Abschnitte (billBreakdown) sehen nur
+        // Ablesungen bis zu ihm, wie die Perioden selbst (dataSpan). Bis v3.11 rechneten sie am echten Datum.
+        return $this->consumption->atDate($today, fn() => $this->computeAt($utility, $meters, $withMonths, $today, $money, $measured));
+    }
+
+    /**
+     * @param list<array<string,mixed>> $meters
+     * @param list<array<string,mixed>> $money
+     * @return array<string,mixed>
+     */
+    private function computeAt(string $utility, array $meters, bool $withMonths, string $today, array $money, bool $measured): array
+    {
         ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
          'switches' => $switches, 'periods' => $periods] = $this->structure($utility, $meters, $today);
         // v3.9.0 (F1032) — die Verträge der Subzähler mit eigenem Vertrag ordnen nur ihre Abschläge zu
@@ -281,7 +293,7 @@ final class BillingPeriodService
         }
 
         $monthly = [];
-        foreach (array_merge($meters, $money) as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m);
+        foreach (array_merge($meters, $money) as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m, null, $today);
         $contracts = $this->carryingContracts($utility, array_merge($meters, $money));
         $this->money = $money;
         $this->measured = $measured;
@@ -317,6 +329,10 @@ final class BillingPeriodService
             // v3.11.0 (D, #54) — „angenommen“: Abschnitte, in denen ein Vertrag nur durch Fortschreibung
             // über sein Ende rechnet, während ein anderer laut Eintrag diese Zeit beansprucht (additiv)
             $p['assumed'] = self::assumedParts($coverage, $byId, $p['from'], $p['until']);
+            // v3.12.0 (Nachprüfung B2, additiv) — kein Vertrag rechnet in dieser Periode: Eine 0 ist dann kein ausgeglichener Saldo.
+            // Mit Betrag (Mitglied einer Gruppe mit Gruppenvertrag: dessen Vertrag steht hier nicht in der Liste) hat sie einen.
+            $p['no_contract'] = self::mainContract($coverage, $p['from'], $p['until']) === null
+                && abs((float)$p['cost']) < 0.005 && abs((float)$p['advances']) < 0.005;
             // Abschläge mindestens ADVANCE_COST_FACTOR × Kosten in einer abgeschlossenen Periode (additiv, sonst null)
             $p['advance_vs_cost'] = self::advanceVsCost($p, $today);
             // v3.11.0 (Skeptiker N13) — der Vertrag, der die meisten Tage der Periode abrechnet (additiv)

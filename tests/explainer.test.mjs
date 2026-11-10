@@ -223,7 +223,7 @@ t('Netzladung: Brücke gezeichnet und im Text erklärt', (() => {
 t('Sonne → Speicher als „rechnerisch“ gekennzeichnet (gestrichelt, Liste, Hinweis)', (() => {
   const fig = parse(EX.energyHtml({ year: 2025, flow: flowFor(CASES['Speicher ohne Geräte']), battery: {} }));
   return !!fig.querySelector('[data-flow="pv_battery"] .ef-calc') && /rechnerisch/.test(fig.querySelector('.ef-list').textContent)
-    && !fig.querySelector('.ef-note').hidden;
+    && !fig.querySelector('.fussnote').hidden;
 })());
 t('Kennzahl vom Server: Hausknopf zeigt flow.autarky (eine Quelle)', (() => {
   const f = { ...flowFor(CASES['Speicher, Wärmepumpe, Wallbox']), autarky: 0.42 };
@@ -349,7 +349,7 @@ section('Energiefluss: geschätzt, widersprüchlich, Zeitraum (V4)');
   fig = document.querySelector('.ex-energy');
   EX.playExplainers(document.getElementById('root4'));
   const lab = () => fig.querySelector('.ef-period__label').textContent;
-  const note = () => fig.querySelector('.ef-note');
+  const note = () => fig.querySelector('.fussnote');
   t('V4: Jahr nennt den erfassten Zeitraum und ≈', lab() === `≈ ${tr('explainer.energy.yearRange', { year: 2025, from: 'April', to: 'Juni', span: '3 Monate' })}`, lab());
   t('V4: Jahr: Hinweis verteilt (mit Ablesungen), widersprüchlich, Teilmonat', !note().hidden
     && note().textContent.includes('Verteilt, nicht gemessen: Erzeugung und Netzbezug dieser Monate (2 Ablesungen von Mai 2023 bis Aug. 2025)')
@@ -365,7 +365,7 @@ section('Energiefluss: geschätzt, widersprüchlich, Zeitraum (V4)');
   t('V4: gemessener Monat ohne ≈ und ohne Hinweis', !lab().startsWith('≈') && note().hidden && !/≈/.test(fig.querySelector('.explainer__text').textContent), `${lab()} | ${note().textContent}`);
   // gemessenes Jahr ohne Zeitraumangabe (die Demo bleibt, wie sie war)
   const plain = parse(EX.energyHtml(summary, { year: 2025 }));
-  t('V4: gemessenes ganzes Jahr ohne ≈ und ohne Hinweis zur Schätzung', !/≈/.test(plain.textContent) && !/Verteilt|Widersprüchlich|Ohne /.test(plain.querySelector('.ef-note').textContent));
+  t('V4: gemessenes ganzes Jahr ohne ≈ und ohne Hinweis zur Schätzung', !/≈/.test(plain.textContent) && !/Verteilt|Widersprüchlich|Ohne /.test(plain.querySelector('.fussnote').textContent));
 }
 
 // ── 4. Zeitstrahl ───────────────────────────────────────────────────────

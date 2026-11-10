@@ -95,6 +95,17 @@ final class SessionController
      * Anmeldung (bis v3.5 dann leer): Die Personen eines Beispielhaushalts oder
      * aus einem Backup stehen so zur Wahl.
      */
+    /**
+     * v3.12.0 — Name, Rolle, Passwort, Bereich als Text (Support\Input): Eine Liste oder ein Objekt ergab
+     * hier bisher 500 („Array to string conversion“), auf allen Schreibwegen der Personen und Schlüssel.
+     *
+     * @param list<string> $keys
+     */
+    private static function texts(Request $req, array $keys): void
+    {
+        \Energietracker\Support\Input::assertTexts(is_array($req->body) ? $req->body : [], $keys);
+    }
+
     public function people(Request $req): never
     {
         if ($this->people === null) Response::json($this->auth->people());
@@ -175,6 +186,7 @@ final class SessionController
         if ($this->auth->mode() !== 'password') {
             Response::error($this->i18n->t('errors.auth.notPasswordMode'), 400);
         }
+        self::texts($req, ['name', 'password']);
         $r = $this->auth->checkLogin((string)$req->input('name', ''), (string)$req->input('password', ''), self::client());
         $this->failOn($r['status']);
         self::cookie($this->auth->issueSession($r['user']), $this->auth->sessionTtl());
@@ -184,7 +196,21 @@ final class SessionController
     public function logout(Request $req): never
     {
         self::cookie('', -1);
+        self::clearBrowserCache();
         Response::json(['authenticated' => false]);
+    }
+
+    /**
+     * v3.12.0 — Härtung: Abmelden leert den Zwischenspeicher des Browsers für
+     * diese Adresse (Belege, Antworten der API). Browser beachten die Kopfzeile
+     * nur über HTTPS und auf localhost; sonst fragt der Browser vor jeder
+     * Anzeige eines Belegs nach (AttachmentController::show, no-cache), und
+     * ohne Sitzung kommt 401. Die Cache Storage des Service Workers leert die
+     * Oberfläche selbst (login.js, clearRuntimeCaches).
+     */
+    private static function clearBrowserCache(): void
+    {
+        if (!headers_sent()) header('Clear-Site-Data: "cache"');
     }
 
     /**
@@ -197,6 +223,7 @@ final class SessionController
         $me = $this->user() ?? Response::error($this->i18n->t('errors.users.noUser'), 400, null, 'errors.users.noUser');
         $this->auth->logoutEverywhere((string)$me['id']);
         self::cookie('', -1);
+        self::clearBrowserCache();
         Response::json(['authenticated' => false, 'logged_out_everywhere' => true]);
     }
 
@@ -211,6 +238,7 @@ final class SessionController
         if ($this->auth->passwordFixedByEnv()) {
             Response::error($this->i18n->t('errors.auth.passwordFixed'), 409);
         }
+        self::texts($req, ['current', 'password']);
         // Ändern verlangt das bisherige Passwort — ein gestohlenes Cookie reicht nicht.
         if ($this->auth->mode() === 'password' && $this->auth->hasPassword()) {
             $this->checkCurrent((string)$req->input('current', ''));
@@ -248,6 +276,7 @@ final class SessionController
 
     public function createKey(Request $req): never
     {
+        self::texts($req, ['name', 'scope']);
         $scope = (string)$req->input('scope', 'read');
         // v3.1.0 — calendar: Kalender-Abo; v3.7.0 (Paket betrieb) — inbox: nur PDFs ablegen
         if (!in_array($scope, \Energietracker\Services\AuthService::API_KEY_SCOPES, true)) {
@@ -294,6 +323,7 @@ final class SessionController
         if (($me['source'] ?? '') !== 'password') {
             Response::error($this->i18n->t('errors.users.proxyNoPassword'), 400, null, 'errors.users.proxyNoPassword');
         }
+        self::texts($req, ['current', 'password']);
         $name = $me['id'] === AuthService::LEGACY_ADMIN ? '' : (string)$me['name'];
         $this->failOn($this->auth->checkLogin($name, (string)$req->input('current', ''), self::client())['status']);
         $this->userCall(fn() => $this->auth->updateUser((string)$me['id'], ['password' => (string)$req->input('password', '')]));
@@ -322,6 +352,7 @@ final class SessionController
         // v3.9.0 — `has_account: false`: eine Person ohne Zugang, nur ins Verzeichnis
         // (Name, Rolle; kein Passwort). Sie steht unter „Zuständig“ zur Wahl, auch ohne
         // Anmeldung. Rechte wie jede Route unter /api/users (App::adminOnly).
+        self::texts($req, ['name', 'password', 'role']);
         if (is_array($req->body) && ($req->body['has_account'] ?? null) === false && $this->people !== null) {
             $p = $this->userCall(fn() => $this->people->add((string)$req->input('name', ''), (string)$req->input('role', 'member')));
             Response::json(['id' => $p['id'], 'name' => $p['name'], 'role' => $p['role'], 'source' => 'none', 'prefs' => (object)[],
@@ -336,6 +367,7 @@ final class SessionController
 
     public function updateUser(Request $req): never
     {
+        self::texts($req, ['name', 'role', 'password']);
         $patch = [];
         foreach (['name', 'role', 'password'] as $k) {
             if (is_array($req->body) && array_key_exists($k, $req->body)) $patch[$k] = (string)$req->body[$k];

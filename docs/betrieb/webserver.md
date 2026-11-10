@@ -74,7 +74,7 @@ Ein VirtualHost dafür:
 `AllowOverride None` legt die `.htaccess` still — dann liefert Apache `data/`
 aus, und die Cache-Regeln fehlen. Fehlt nur `mod_rewrite`, sperrt seit v3.4.0
 ein Rückfall mit `mod_alias` (`RedirectMatch 404`) dieselben Pfade. Ob der
-Schutz wirkt, zeigt Einstellungen → Zugriff → „Sicherheits-Check“. Der Betrieb in einem Unterverzeichnis (etwa
+Schutz wirkt, zeigt Einstellungen → Zugang und Sicherheit → „Sicherheits-Check“. Der Betrieb in einem Unterverzeichnis (etwa
 `/energietracker/`) funktioniert ohne Änderung; die Regeln der `.htaccess` sind
 relativ.
 
@@ -134,18 +134,20 @@ server {
     # sonstigen PHP-Quelltext nie roh ausliefern
     location ~ \.php$ { return 404; }
 
-    # 4. Cache-Header
+    # 4. Cache-Header; nosniff in jeder location mit Dateien (v3.12.0)
     location ~ ^/public/(js|locales)/ {
         add_header Cache-Control "no-cache, must-revalidate" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri =404;
     }
     location ~ \.(woff2?|ttf|eot)$ {
         add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri =404;
     }
 
     # 3. statische Datei oder die Oberfläche
-    location / { try_files $uri @spa; }
+    location / { add_header X-Content-Type-Options "nosniff" always; try_files $uri @spa; }
     location @spa {
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
@@ -158,6 +160,12 @@ server {
 nginx reicht den `Authorization`-Header von sich aus an PHP-FPM weiter
 (Punkt 5). Für ein Unterverzeichnis müssten alle Muster das Präfix tragen —
 einfacher ist ein eigener Hostname.
+
+**Zugriffsprotokoll ohne Abfrage** *(v3.12.0)*: Das Kalender-Abo trägt seinen
+Schlüssel im Link. Das Standardformat schreibt ihn mit ins Protokoll; das Format
+`et_main` aus `docker/nginx.conf` (`map` und `log_format` im `http`-Block) nennt
+nur den Pfad. Für Apache steht das Gegenstück in
+[Sicherheit § 10](sicherheit.md#10-protokoll-und-fehlersuche).
 
 ## Upload-Grenzen und PHP-Speicher *(v3.1.0)*
 

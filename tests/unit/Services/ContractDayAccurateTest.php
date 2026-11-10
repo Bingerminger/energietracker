@@ -49,9 +49,9 @@ final class ContractDayAccurateTest extends ServiceTestCase
         return array_column($this->consumption->forMeter('strom', $this->meters->get('strom', $this->meterId)), null, 'ym');
     }
 
-    private function contractStates(): array
+    private function contractStates(?string $today = null): array
     {
-        return array_column($this->consumption->contractStatus('strom', $this->meters->get('strom', $this->meterId))['contracts'], null, 'contract_id');
+        return array_column($this->consumption->contractStatus('strom', $this->meters->get('strom', $this->meterId), $today)['contracts'], null, 'contract_id');
     }
 
     // ── Preise tagesgenau (CALC-10) ─────────────────────────────────────
@@ -296,7 +296,10 @@ final class ContractDayAccurateTest extends ServiceTestCase
 
     public function testAdvanceOfAContractStartingMidMonthIsProrated(): void
     {
-        $first = date('Y-m-01');
+        // v3.12.0 — fester Stichtag: Mit dem echten Datum lag der Beginn im Januar und Februar im Vorjahr,
+        // der Saldo der laufenden Abrechnungsperiode (Stichtag 01.01.) zählte dann nur die Raten des neuen Jahres
+        $today = '2026-06-10';
+        $first = substr($today, 0, 7) . '-01';
         $startMonth = date('Y-m-01', strtotime($first . ' -2 months'));
         $start = date('Y-m-d', strtotime($startMonth . ' +14 days'));
         $dim = (int)date('t', strtotime($startMonth));
@@ -305,7 +308,7 @@ final class ContractDayAccurateTest extends ServiceTestCase
             'working_prices'   => [['from' => $start, 'ct_per_kwh' => 30.0]],
             'advance_payments' => [['from' => $start, 'amount_eur' => 100.0]],
         ]);
-        $s = $this->contractStates()[$c['id']];
+        $s = $this->contractStates($today)[$c['id']];
         self::assertEqualsWithDelta(100.0 * ($dim - 14) / $dim + 200.0, $s['advance_paid'], 0.01,
             'erster Monat anteilig — vorher fehlte er ganz');
     }

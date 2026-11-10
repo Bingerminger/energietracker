@@ -32,7 +32,7 @@
   display: flex; align-items: center; gap: var(--sp-3);
 }
 .reading-card__icon {
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
   width: 2.25rem; height: 2.25rem;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-2);
@@ -46,7 +46,7 @@
 }
 .reading-card__sub {
   font-size: var(--fs-sm); color: var(--text-2);
-  margin-top: 2px;
+  margin-top: var(--sp-0);
 }
 
 .reading-card__status {
@@ -56,8 +56,8 @@
   flex-shrink: 0;
 }
 .reading-card__status:empty { display: none; }
-.reading-card__status--ok      { color: #10b981; }
-.reading-card__status--err     { color: #ef4444; }
+.reading-card__status--ok      { color: var(--success); --ico: currentColor; --ico-f: transparent; }
+.reading-card__status--err     { color: var(--danger); --ico: currentColor; --ico-f: transparent; }
 .reading-card__status--pending { color: var(--c-blue); opacity: .8; }
 /* v2.6.0 — Rückfrage abgelehnt: nicht gespeichert, bitte prüfen */
 .reading-card__status--warn    { color: var(--warning); }
@@ -71,8 +71,8 @@
   line-height: 1.5;
 }
 .reading-card__tag {
-  display: inline-block; margin-left: 6px;
-  padding: 1px 8px; border-radius: 999px;
+  display: inline-block; margin-left: var(--sp-1h);
+  padding: var(--sp-0) var(--sp-2); border-radius: var(--r-sm);
   background: var(--bg-3);
   font-size: var(--fs-xs);
 }
@@ -92,26 +92,23 @@
 /* v2.12.0 — Direktsprung (#/zaehlerstaende?meter=…): die gemeinte Karte */
 .reading-card--focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--c-blue-soft);
 }
-.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .field__label {
   font-size: var(--fs-xs);
   color: var(--text-2);
-  letter-spacing: 0.02em;
 }
 .input--counter {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
   padding: var(--sp-3);
-  min-height: 48px; /* iOS-Touch-Target */
+  min-height: 52px; /* iOS-Touch-Target, gleich hoch wie das Datum */
 }
 .field--date .input {
   /* v2.11.0 (Review UI-10) — 16 px: darunter zoomt Safari beim Fokus (vorher 15 px) */
-  font-size: max(16px, var(--fs-base));
+  font-size: 16px;
   padding: var(--sp-3);
-  min-height: 48px;
+  min-height: 52px;
   min-width: 140px;
 }
 
@@ -137,13 +134,7 @@
 .reading-card__note .input { padding: var(--sp-2) var(--sp-3); }
 
 .reading-card__hint {
-  font-size: var(--fs-sm);
-  /* v2.11.0 (Review UI-09) — Token statt festem Amber (2,2:1 auf Weiß) */
-  color: var(--warning);
-  background: var(--warning-soft);
-  border-left: 3px solid var(--warning);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  margin: 0;
 }
 
 /* ── Sticky-Action-Bar am unteren Viewport-Rand ───────────────────── */
@@ -186,11 +177,6 @@
   .input--counter { font-size: var(--fs-lg); }
 }
 
-/* Light-Theme-Anpassung der Hint-Farbe */
-[data-theme="light"] .reading-card__hint {
-  background: rgba(245, 158, 11, 0.12);
-  color: #92400e;
-}
 
 /* v2.0.0 (UX) — B: globales Ablesedatum oben über der Kartenliste */
 .readings-entry__toolbar {
@@ -223,7 +209,7 @@
 }
 .reading-card__ocr { flex: 1 1 12rem; font-size: var(--fs-sm); color: var(--text-2); }
 
-.readings-entry__outbox { margin-bottom: var(--sp-4); border-left: 3px solid var(--warning); }
+.readings-entry__outbox { margin-bottom: var(--sp-4); }
 .outbox-list { list-style: none; margin: var(--sp-2) 0; padding: 0; display: grid; gap: var(--sp-2); }
 .outbox-item {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;

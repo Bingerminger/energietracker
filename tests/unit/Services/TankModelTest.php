@@ -22,11 +22,21 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * Die Testdaten sind so gebaut, dass der alte Weg sichtbar falsch liegt:
  * ein Klima mit Winter und Sommer, Stützstellen an bekannten Tagen, Preise,
  * die sich zwischen Anfangsbestand und Lieferung unterscheiden.
+ *
+ * v3.12.0 — fester Stichtag statt „heute“: Der Tank rechnet bis TODAY
+ * (tankModel/stockHistory/forMeter mit Datum), die Testtage liegen davor.
+ * Bis v3.11 lagen sie relativ zum echten Datum, und im fortschreitenden
+ * Kalender lief der Tank in manchen Monaten vor der ersten Lieferung leer;
+ * zweimal wurde der Anfangsbestand nachgeschoben. Nur die Prüfungen beim
+ * Speichern (Peilstand „in der Zukunft“) bleiben am echten Datum (nowDay).
  */
 #[CoversClass(DeliveryConsumptionService::class)]
 #[CoversClass(DeliveryService::class)]
 final class TankModelTest extends ServiceTestCase
 {
+    /** Fester Stichtag aller Rechnungen dieses Tests (Mitte März, nach einem Winter). */
+    private const TODAY = '2026-03-15';
+
     private DeliveryService $deliveries;
 
     protected function setUp(): void
@@ -35,8 +45,14 @@ final class TankModelTest extends ServiceTestCase
         $this->deliveries = new DeliveryService($this->store, $this->meters, $this->i18n);
     }
 
-    /** Tag relativ zu heute. */
+    /** Tag relativ zum Stichtag TODAY. */
     private static function day(int $offset): string
+    {
+        return date('Y-m-d', strtotime(sprintf('%s %+d days', self::TODAY, $offset)));
+    }
+
+    /** Tag relativ zum echten heutigen Tag: nur für die Prüfungen beim Speichern, die gegen ihn prüfen. */
+    private static function nowDay(int $offset): string
     {
         return date('Y-m-d', strtotime(sprintf('%+d days', $offset)));
     }
@@ -48,11 +64,11 @@ final class TankModelTest extends ServiceTestCase
         return round(9.0 - 10.0 * cos(2 * M_PI * ($doy - 15) / 365.25), 2);
     }
 
-    /** Temperaturen für [from, heute]; $skip(Datum) = true lässt einen Tag aus. */
+    /** Temperaturen für [from, TODAY]; $skip(Datum) = true lässt einen Tag aus. */
     private function writeTemperatures(string $from, ?callable $skip = null): void
     {
         $out = [];
-        for ($d = $from; $d <= date('Y-m-d'); $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
+        for ($d = $from; $d <= self::TODAY; $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
             if ($skip !== null && $skip($d)) continue;
             $t = self::temp($d);
             $out[$d] = ['avg' => $t, 'min' => $t - 3, 'max' => $t + 3, 'source' => 'csv'];
@@ -77,7 +93,13 @@ final class TankModelTest extends ServiceTestCase
     private function model(array $tank): array
     {
         $meter = $this->meters->get('heizoel', $tank['id']);
-        return (new DeliveryConsumptionService($this->store, $this->settings))->tankModel('heizoel', $meter);
+        return (new DeliveryConsumptionService($this->store, $this->settings))->tankModel('heizoel', $meter, self::TODAY);
+    }
+
+    /** Monatszeilen des Tanks am Stichtag. */
+    private function rows(array $tank): array
+    {
+        return $this->consumption->forMeter('heizoel', $this->meters->get('heizoel', $tank['id']), null, self::TODAY);
     }
 
     /** Σ Verbrauch (Liter) über [from, to) */
@@ -104,7 +126,7 @@ final class TankModelTest extends ServiceTestCase
 
         $past = fn() => array_sum(array_map(
             fn($m) => $m['ym'] < $closedBefore ? (float)$m['kwh'] : 0.0,
-            $this->consumption->forMeter('heizoel', $this->meters->get('heizoel', $tank['id']))
+            $this->rows($tank)
         ));
         $before = $past();
         self::assertGreaterThan(0.0, $before);
@@ -136,24 +158,22 @@ final class TankModelTest extends ServiceTestCase
 
     public function testStockCurveAndConsumptionAreOneCalculation(): void
     {
+        // v3.12.0 — fester Stichtag: 400 Tage ab 2025-02-08, Lieferungen am
+        // 2025-07-08 und 2026-01-14. Die Bilanz unten gilt nur, solange der
+        // Tank nicht leer ist; das sichert die Vorbedingung im Test selbst zu
+        // (Lektion 86), und mit festen Tagen gilt sie an jedem Kalendertag.
+        // (Bis v3.11 lagen die Tage relativ zu heute: Mit 1800 L, dann 2800 L
+        // lief der Tank in manchen Monaten vor der ersten Lieferung leer.)
         $start = self::day(-400);
         $this->writeTemperatures($start);
-        // v3.0.0 — kalenderfest: Die Tage liegen relativ zu heute, das Klima ist
-        // jahreszeitlich. Mit 1800 L lief der Tank in manchen Monaten vor der
-        // ersten Lieferung leer (seit 2026-10-07), und die Bilanz unten gilt
-        // nur, solange er nicht leer ist. Großer Tank, hoher Anfangsbestand:
-        // weder leer noch übervoll, egal in welcher Jahreszeit der Test läuft.
-        // v3.9.0 — 2800 L reichten nicht mehr, seit die 150 Tage vor der ersten
-        // Lieferung einen ganzen Winter umfassen (leer ab 2026-10-26); 4000 L
-        // tragen einen Winter, und auch im Sommer bleibt der Tank unter 6000 L.
         $initial = 4000.0;
         $tank = $this->tank($start, $initial, 6000.0);
         $this->deliver($tank, self::day(-250), 1500.0);
         $this->deliver($tank, self::day(-60), 1400.0);
         $meter = $this->meters->get('heizoel', $tank['id']);
 
-        $hist  = $this->deliveries->stockHistory('heizoel', $tank['id'], $this->consumption);
-        $kwh   = $this->consumption->dailyDeliveryConsumption('heizoel', $meter);
+        $hist  = $this->deliveries->stockHistory('heizoel', $tank['id'], $this->consumption, self::TODAY);
+        $kwh   = $this->consumption->dailyDeliveryConsumption('heizoel', $meter, self::TODAY);
         $hu    = (float)$this->settings->get('heizoel_kwh_per_l', 10.0);
         foreach ($hist['days'] as $row) {
             self::assertEqualsWithDelta($row['consumption'] * $hu, $kwh[$row['date']], 0.01,
@@ -205,7 +225,7 @@ final class TankModelTest extends ServiceTestCase
 
     public function testASummerIntervalIsMostlyBaseLoad(): void
     {
-        $y = (int)date('Y') - 1;
+        $y = (int)substr(self::TODAY, 0, 4) - 1;
         $start = $y . '-05-01';
         $this->writeTemperatures($start);
         $tank = $this->tank($start, 2000.0);
@@ -318,13 +338,14 @@ final class TankModelTest extends ServiceTestCase
             'tank_levels' => [['date' => self::day(-40), 'level' => 1200]],
         ]);
 
-        $rows = $this->consumption->forMeter('heizoel', $this->meters->get('heizoel', $tank['id']));
+        $rows = $this->rows($tank);
         $last = end($rows);
+        self::assertSame(substr(self::TODAY, 0, 7), $last['ym'], 'die Monatszeilen enden am Stichtag (bis v3.11: heute)');
         self::assertGreaterThan(0, $last['estimated_days']);
         self::assertSame(0, $rows[0]['estimated_days']);
         self::assertEqualsWithDelta(9.5, $rows[0]['working_price_ct'], 0.05, '95 ct/L bei 10 kWh/L');
 
-        $hist = $this->deliveries->stockHistory('heizoel', $tank['id'], $this->consumption);
+        $hist = $this->deliveries->stockHistory('heizoel', $tank['id'], $this->consumption, self::TODAY);
         self::assertSame(['start', 'level'], array_column($hist['anchors'], 'kind'));
         self::assertSame(self::day(-40), $hist['estimated_from']);
         self::assertSame('anchors', $hist['calibration']);
@@ -332,12 +353,13 @@ final class TankModelTest extends ServiceTestCase
 
     public function testTankReadingsAreValidatedStrictly(): void
     {
-        $tank = $this->tank(self::day(-30), 1000.0, 3000.0);
+        // Das Speichern prüft gegen den echten heutigen Tag („Zukunft“), daher nowDay()
+        $tank = $this->tank(self::nowDay(-30), 1000.0, 3000.0);
         $cases = [
-            'Zukunft'            => [['date' => self::day(3), 'level' => 100]],
-            'über der Kapazität' => [['date' => self::day(-3), 'level' => 3200]],
-            'negativ'            => [['date' => self::day(-3), 'level' => -1]],
-            'doppelt'            => [['date' => self::day(-3), 'level' => 10], ['date' => self::day(-3), 'level' => 20]],
+            'Zukunft'            => [['date' => self::nowDay(3), 'level' => 100]],
+            'über der Kapazität' => [['date' => self::nowDay(-3), 'level' => 3200]],
+            'negativ'            => [['date' => self::nowDay(-3), 'level' => -1]],
+            'doppelt'            => [['date' => self::nowDay(-3), 'level' => 10], ['date' => self::nowDay(-3), 'level' => 20]],
             'kein Datum'         => [['date' => '2026-02-30', 'level' => 10]],
         ];
         foreach ($cases as $name => $levels) {
@@ -350,9 +372,9 @@ final class TankModelTest extends ServiceTestCase
         }
         // Dezimalkomma wird angenommen (wie in den Formularen), sortiert wird nach Datum
         $ok = $this->meters->update('heizoel', $tank['id'], [
-            'tank_levels' => [['date' => self::day(-3), 'level' => '1234,5'], ['date' => self::day(-10), 'level' => '900,5']],
+            'tank_levels' => [['date' => self::nowDay(-3), 'level' => '1234,5'], ['date' => self::nowDay(-10), 'level' => '900,5']],
         ]);
-        self::assertSame(self::day(-10), $ok['tank_levels'][0]['date'], 'nach Datum sortiert');
+        self::assertSame(self::nowDay(-10), $ok['tank_levels'][0]['date'], 'nach Datum sortiert');
         self::assertEqualsWithDelta(900.5, $ok['tank_levels'][0]['level'], 1e-9);
         self::assertEqualsWithDelta(1234.5, $ok['tank_levels'][1]['level'], 1e-9);
     }

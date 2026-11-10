@@ -18,7 +18,8 @@ Norm, gleiche Quelle, gleicher Stand.
 > Gas, bei der Schlichtungsstelle Energie.
 
 Die Regeln gelten nur für Deutschland. In einem anderen Land zeigt die App
-keine Hinweise zu Rechten und keine Briefe.
+keine Hinweise zu Rechten. Von den Briefen bleibt dort nur die Kündigung an der
+Vertragskarte; sie nennt keine Norm und macht keine Rechtsaussage (v3.12.0).
 
 ## Status
 
@@ -188,6 +189,8 @@ konventionelle Zähler und für Gas prüft sie nichts.
 | 49 <!-- doc-claim: rights-rule de.vwgo.68.1 --> | *Zu prüfen:* Landesrecht kann das Widerspruchsverfahren ausschließen; dann ist binnen eines Monats Klage zu erheben. | [§ 68 Abs. 1 Satz 2, § 74 Abs. 1 VwGO](https://www.gesetze-im-internet.de/vwgo/__68.html) | 2026-11-03 | G |
 | 50 <!-- doc-claim: rights-rule de.vwvfg.41.2 --> | Ein Bescheid, der im Inland per Post übermittelt wird, gilt am vierten Tag nach Aufgabe zur Post als bekannt gegeben. | [§ 41 Abs. 2 Satz 1 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-03 | W |
 | 50 <!-- doc-claim: rights-rule de.ao.122.2 --> | Für Abgaben ebenso nach der Abgabenordnung; der Verweis im Kommunalabgabengesetz ist je Land noch zu prüfen. | [§ 122 Abs. 2 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-03 | W |
+| 50 <!-- doc-claim: rights-rule de.vwvfg.41.2.3 --> | Kam der Bescheid nicht oder später an, gilt der vierte Tag nicht: „Dies gilt nicht, wenn der Verwaltungsakt nicht oder zu einem späteren Zeitpunkt zugegangen ist; im Zweifel hat die Behörde den Zugang des Verwaltungsaktes und den Zeitpunkt des Zugangs nachzuweisen.“ | [§ 41 Abs. 2 Satz 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-09 | W |
+| 50 <!-- doc-claim: rights-rule de.ao.122.2.zugang --> | Ebenso für Abgaben: „außer wenn er nicht oder zu einem späteren Zeitpunkt zugegangen ist“. | [§ 122 Abs. 2 AO, letzter Halbsatz](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-09 | W |
 | 51 <!-- doc-claim: rights-rule de.vwgo.80 --> | Widerspruch und Klage gegen öffentliche Abgaben schieben die Zahlung nicht auf; die Vollziehung soll ausgesetzt werden, wenn ernstliche Zweifel bestehen oder sie eine unbillige Härte wäre. | [§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO](https://www.gesetze-im-internet.de/vwgo/__80.html) | 2026-11-03 | W |
 | 52 <!-- doc-claim: rights-rule de.bgb.188 --> | *Zu prüfen:* Eine Monatsfrist endet mit dem Tag des Folgemonats mit derselben Zahl; fehlt er, mit dem Monatsletzten (das BGB gilt nach § 222 Abs. 1 ZPO und § 31 Abs. 1 VwVfG). Zum Ende am Wochenende oder Feiertag Nr. 60. | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-03 | G |
 | 60 <!-- doc-claim: rights-rule de.vwgo.57.2 --> | Fällt das Ende einer Frist auf einen Sonntag, einen allgemeinen Feiertag oder einen Sonnabend, endet sie mit Ablauf des nächsten Werktags; das gilt nach § 57 Abs. 2 VwGO für die Fristen der VwGO. | [§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO](https://www.gesetze-im-internet.de/vwgo/__57.html) | 2026-11-03 | W |

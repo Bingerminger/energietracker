@@ -295,7 +295,7 @@ final class DeliveryConsumptionService
      *
      * @return array<string,float>  date(YYYY-MM-DD) → verbrauch_kwh
      */
-    public function dailyDeliveryConsumption(string $utility, array $meter): array
+    public function dailyDeliveryConsumption(string $utility, array $meter, ?string $today = null): array
     {
         if (!Utilities::isDelivery($utility)) {
             throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
@@ -303,7 +303,7 @@ final class DeliveryConsumptionService
         }
         $kwhPerUnit = $this->kwhPerUnit($utility);
         $out = [];
-        foreach ($this->tankModel($utility, $meter)['days'] as $d => $row) {
+        foreach ($this->tankModel($utility, $meter, $today)['days'] as $d => $row) {   // v3.12.0 — bis zum Stichtag
             $out[$d] = round($row['draw'] * $kwhPerUnit, 6);
         }
         return $out;
@@ -315,13 +315,13 @@ final class DeliveryConsumptionService
      *
      * @return array<string,float> date → Abzug in Mengeneinheiten/Tag
      */
-    public function dailyDeliveryStockDraw(string $utility, array $meter): array
+    public function dailyDeliveryStockDraw(string $utility, array $meter, ?string $today = null): array
     {
         if (!Utilities::isDelivery($utility)) {
             throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
                 "dailyDeliveryStockDraw only for delivery utilities, not $utility");
         }
-        return array_map(fn($row) => $row['draw'], $this->tankModel($utility, $meter)['days']);
+        return array_map(fn($row) => $row['draw'], $this->tankModel($utility, $meter, $today)['days']);
     }
 
     /** Heizwert je Mengeneinheit (kWh/L bzw. kWh/kg) aus den Einstellungen. */

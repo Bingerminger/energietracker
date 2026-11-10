@@ -47,15 +47,15 @@ t('Freigabeliste', Object.keys(pages).length > 50 && assets.size > 10 && allow.r
   `${Object.keys(pages).length} Seiten, ${assets.size} Bilder, Wurzel: ${allow.root_files.join(' ')}`);
 t('Freigabeliste: keine Weiterleitung, kein Promo-Bild',
   !Object.keys(pages).some(k => /^<!-- (umgezogen|moved):/.test(readFileSync(`${ROOT}/${pages[k].file}`, 'utf8').slice(0, 40)))
-  && ![...assets].some(a => !a.startsWith('ui/screenshots/') || !a.endsWith('.png')));
+  && ![...assets].some(a => !(a.startsWith('ui/screenshots/') && a.endsWith('.png')) && !(a.startsWith('ui/wegweiser/') && a.endsWith('.svg'))));
 
 // ── Prüfung der Ausgabe im DOM ──
 const { document } = new JSDOM('<!doctype html><body></body>').window;
-const TAGS = new Set(['a', 'blockquote', 'code', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'input',
+const TAGS = new Set(['a', 'blockquote', 'code', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'input', 'picture', 'source',
   'li', 'ol', 'p', 'pre', 'strong', 'table', 'tbody', 'td', 'th', 'thead', 'tr', 'ul']);
 const ATTRS = {
-  a: ['href', 'target', 'rel', 'id'], img: ['src', 'alt', 'width', 'loading'], pre: ['class', 'data-lang'],
-  div: ['class'], p: ['class'], ol: ['start'], input: ['type', 'disabled', 'checked'],
+  a: ['href', 'target', 'rel', 'id'], img: ['src', 'alt', 'width', 'loading'], source: ['media', 'srcset'], pre: ['class', 'data-lang'],
+  div: ['class'], p: ['class'], ol: ['start'], input: ['type', 'disabled', 'checked'], blockquote: ['class'],
   h1: ['id'], h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
 };
 const SAFE_HREF = /^(?:#\/|https?:\/\/|mailto:)/i;
@@ -81,8 +81,8 @@ function unsafe(html, { relativeOnly = true } = {}) {
     }
     if (tag === 'a' && el.hasAttribute('id') && !el.id.startsWith(ID_PREFIX)) bad.push(`id ohne Präfix: ${el.id}`);
     if (/^h[1-6]$/.test(tag) && !el.id.startsWith(ID_PREFIX)) bad.push(`Überschrift ohne Präfix: ${el.id}`);
-    if (tag === 'img') {
-      const src = el.getAttribute('src') || '';
+    if (tag === 'img' || tag === 'source') {
+      const src = el.getAttribute(tag === 'img' ? 'src' : 'srcset') || '';
       if (/^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith('/') || src.includes('\\')) bad.push(`img ${src.slice(0, 40)}`);
       if (relativeOnly && !src.startsWith(ASSET)) bad.push(`img nicht über den Endpunkt: ${src.slice(0, 40)}`);
     }
@@ -129,9 +129,9 @@ for (const [key, out] of Object.entries(rendered)) {
       if (/github\.com\/Bingerminger\/energietracker\/blob\//.test(href)) badLinks.push(`${key} → ${href} (blob)`);
     }
   }
-  for (const img of root.querySelectorAll('img')) {
+  for (const img of root.querySelectorAll('img, source')) {
     images++;
-    const p = new URLSearchParams(img.getAttribute('src').split('?')[1] || '').get('path');
+    const p = new URLSearchParams((img.getAttribute('src') || img.getAttribute('srcset')).split('?')[1] || '').get('path');
     if (!assets.has(p)) badImages.push(`${key} → ${p}`);
   }
   const text = out.html.replace(/<pre[\s\S]*?<\/pre>/g, '').replace(/<code>[\s\S]*?<\/code>/g, '');
@@ -157,6 +157,19 @@ t('Anwendungsfälle: Anker in DE und EN', caseMiss.length === 0 && CASES.length 
 const caseEl = renderMarkdown('<a id="case-heat"></a>\n## F — Fernwärme', {}).html;
 t('Sprungmarke vor einer Überschrift ohne leeren Absatz', /^<a id="d-case-heat"><\/a>\n<h2 id="d-f--fernwärme">/.test(caseEl), caseEl.slice(0, 80).replace(/\n/g, ' '));
 
+// v3.12.0 (Paket wegweiser) — <picture>: schmale Fassung nur mit einer Breitenangabe, sonst bleibt das einfache Bild
+const pic = (media) => renderMarkdown(`<picture><source media="${media}" srcset="a.svg"><img src="b.svg" alt="x" width="760"></picture>`, { image: (s) => s }).html;
+t('Doku: schmale Fassung eines Bilds', /<picture><source media="\(max-width: 600px\)" srcset="a\.svg"><img src="b\.svg" alt="x" width="760"/.test(pic('(max-width: 600px)')), pic('(max-width: 600px)'));
+t('Doku: fremde Medienangabe fällt weg, das Bild bleibt', !/<source/.test(pic('print')) && /<img src="b\.svg"/.test(pic('print')), pic('print'));
+
+// v3.12.0 (M6) — Zitate erscheinen als Infobox der App; `> [!WARNING]` wie auf GitHub wählt den Ton
+const box = (md) => renderMarkdown(md, {}).html.trim();
+const tones = Object.entries({ NOTE: 'info', TIP: 'erfolg', IMPORTANT: 'info', WARNING: 'achtung', CAUTION: 'fehler' })
+  .filter(([k, tone]) => box(`> [!${k}]\n> **Text** mit Inhalt.`) !== `<blockquote class="infobox infobox--${tone}"><p><strong>Text</strong> mit Inhalt.</p>\n</blockquote>`);
+t('Doku: Hinweise in GitHub-Schreibweise als Infobox in fünf Tönen, die Markierung verschwindet', tones.length === 0, tones.map(([k]) => k).join(', ') + ' ' + box('> [!NOTE]\n> **Text** mit Inhalt.'));
+t('Doku: Zitat ohne Markierung ist eine neutrale Infobox', box('> Nur ein Satz.').startsWith('<blockquote class="infobox infobox--neutral"><p>Nur ein Satz.</p>'), box('> Nur ein Satz.'));
+t('Doku: unbekannte Markierung bleibt Text', box('> [!FOO]\n> x').includes('infobox--neutral') && box('> [!FOO]\n> x').includes('[!FOO]'), box('> [!FOO]\n> x'));
+
 // ── 3. Angriffs-Payloads — der Renderer allein (Linkregeln, die alles durchlassen) ──
 const permissive = { link: (href) => ({ href }), image: (src) => src };
 const PAYLOADS = [
@@ -168,6 +181,8 @@ const PAYLOADS = [
   '[x](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)',
   '[x](vbscript:msgbox)',
   '![x](javascript:alert(1))',
+  '<picture><source media="(max-width: 600px)" srcset="javascript:alert(1)"><img src="javascript:alert(1)" alt="x"></picture>',
+  '<picture><source media="print" onerror="alert(1)" srcset="a.svg"><img src="a.svg" onload="alert(1)" alt="x"></picture>',
   '![x](//evil.example/x.png)',
   '![x](https://evil.example/x.png)',
   '![x](data:image/svg+xml;base64,PHN2Zy8+)',
@@ -247,6 +262,7 @@ const sw = readFileSync(`${ROOT}/sw.js`, 'utf8');
 const m = sw.match(/const CACHEABLE_API = \/(.+)\/;/);
 const re = m ? new RegExp(m[1]) : null;
 t('Service Worker cacht /api/docs und /api/docs/asset', !!re && re.test('docs') && re.test('docs/asset') && !re.test('backup/export'));
+
 
 console.log(`\n  docs: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

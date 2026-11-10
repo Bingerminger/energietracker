@@ -60,7 +60,7 @@ home indicator and shows the most recently loaded data even without a network.
 
 | | without a network |
 |---|---|
-| View the overview and evaluations | ✓ with the state of the last visit; the top bar shows "Offline – data as of …" |
+| View the overview and evaluations | ✓ with the state of the last visit; the top bar shows “Offline: data as of …” |
 | Save readings in “Meter readings” | ✓ since v3.1.0: the reading waits in the browser and is sent later (see below) |
 | Photo with the reading | ✓ waits with the reading and is uploaded before it |
 | Monthly value of a meter with consumption per period | ✓ waits like a reading ([Heat](../verstehen/15-waerme.md)) |

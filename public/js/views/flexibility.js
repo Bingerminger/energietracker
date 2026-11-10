@@ -35,6 +35,7 @@ import { info } from '../components/info.js';
 import { docUrl } from '../lib/docs.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
 import { windowText, leverLabel, actionText, evBasisText, availabilityTagText, assumptionsText } from '../lib/flex-text.js';
+import { icon } from '../lib/icons.js';
 
 const esc = escapeHtml;
 
@@ -47,7 +48,7 @@ export async function render(container, _params = [], ctx = {}) {
   try {
     [r, series] = await Promise.all([api.flexibility(year), api.intervals().catch(() => ({ series: [] }))]);
   } catch (e) {
-    container.innerHTML = `<div class="banner banner--error">${esc(e.message)}</div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler">${esc(e.message)}</div>`;
     return;
   }
   const years = [now, now - 1, now - 2, now - 3];
@@ -144,7 +145,7 @@ const ct1 = (v) => (v == null ? '–' : `${fmt.num(v, 1)} ct`);
 const hh = (h) => `${String(h).padStart(2, '0')}:00`;
 const list = (key) => t(key).split(',').map(s => s.trim());
 /** Ampel: Symbol UND Wort, nie nur Farbe (wie im Jahresbericht). */
-const LEVEL_SYMBOL = { cheap: '✔', mid: '▲', expensive: '✖' };
+const LEVEL_SYMBOL = { cheap: icon('haken', { size: 16 }), mid: icon('achtung', { size: 16 }), expensive: icon('kreuz', { size: 16 }) };
 
 // ── Sätze aus den Daten des Servers (lib/flex-text.js) ───────────────
 
@@ -174,16 +175,16 @@ function missingCard(ins, year) {
   if (!miss.length) return '';
   return `<div class="card flex-missing">
     <h2 class="card__title">${esc(t('flex.missing.title'))}</h2>
-    <ul class="flex-missing__list">${miss.map(k => `<li data-missing="${esc(k)}">${t(`flex.missing.${k}`, { year })}${k === 'prices'
-      ? ` <button type="button" class="btn btn--sm btn--primary" data-act="flex-smard">${esc(t('flex.loadPrices', { year }))}</button>` : ''}</li>`).join('')}</ul>
+    <ul class="flex-missing__list">${miss.map(k => `<li class="zeile" data-missing="${esc(k)}">${icon('info', { size: 20 })}<span class="zeile__text">${t(`flex.missing.${k}`, { year })}</span>${k === 'prices'
+      ? `<button type="button" class="btn btn--sm btn--primary zeile__aktion" data-act="flex-smard">${esc(t('flex.loadPrices', { year }))}</button>` : ''}</li>`).join('')}</ul>
     <p class="muted small"><a href="${esc(docUrl('flexibility'))}">${esc(t('flex.missing.guide'))}</a></p>
   </div>`;
 }
 
 /** Ohne `insights` (ältere Antwort, Demo vor v3.6): die bisherigen Hinweise. */
 function legacyBanners(r, meters, year) {
-  return `${!r.prices?.available ? `<div class="banner banner--info">${esc(t('flex.noPrices', { year }))}</div>` : ''}
-    ${!meters.length ? `<div class="banner banner--info">${esc(t('flex.noIntervals', { year }))}</div>` : ''}`;
+  return `${!r.prices?.available ? `<div class="infobox infobox--info">${esc(t('flex.noPrices', { year }))}</div>` : ''}
+    ${!meters.length ? `<div class="infobox infobox--info">${esc(t('flex.noIntervals', { year }))}</div>` : ''}`;
 }
 
 function tagFor(x, ins = null) {
@@ -223,7 +224,7 @@ function actionsCard(ins) {
     <h2 class="card__title">${esc(t('flex.actions.title'))}</h2>
     <p class="muted small">${esc(t('flex.actions.lead', { season: t(`flex.season.${ins.season_now}`) }))}</p>
     <ol class="flex-actions__list">${acts.map(a => `<li class="flex-action flex-action--${esc(a.signal)}">
-      <span class="flex-action__icon" aria-hidden="true">${a.signal === 'solar' ? '☀' : a.signal === 'tou' ? '🌙' : '⏱'}</span>
+      <span class="flex-action__icon" aria-hidden="true">${icon(a.signal === 'solar' ? 'sonne' : a.signal === 'tou' ? 'mond' : 'stoppuhr', { size: 20 })}</span>
       <span class="flex-action__body"><strong>${esc(actionText(a))}</strong> ${tagFor(a, ins)}
         ${a.other ? `<span class="muted small flex-action__other">${esc(t('flex.actions.other', { season: t(`flex.seasonBtn.${other}`), window: windowText(a.other) }))}</span>` : ''}</span>
     </li>`).join('')}</ol>
@@ -241,7 +242,7 @@ function ampelHtml(ins, season, year) {
   const lead = !hasPrice ? t('flex.ampel.leadSun') : ins.signal === 'tou' ? t('flex.ampel.leadTou') : t('flex.ampel.lead', { year });
   const band = `<ol class="flex-band" aria-label="${esc(t('flex.ampel.day'))}">${p.hours.map((h, i) => `
     <li class="flex-band__h flex-lv--${esc(h.level || 'none')}">
-      <span class="flex-band__sun flex-sun--${esc(h.sun_level || 'none')}" aria-hidden="true">${h.sun_level === 'strong' || h.sun_level === 'some' ? '☀' : ''}</span>
+      <span class="flex-band__sun flex-sun--${esc(h.sun_level || 'none')}" aria-hidden="true">${h.sun_level === 'strong' || h.sun_level === 'some' ? icon('sonne', { size: 16 }) : ''}</span>
       <span class="flex-band__cell" aria-hidden="true">${h.level ? LEVEL_SYMBOL[h.level] : ''}</span>
       <span class="flex-band__label" aria-hidden="true">${i % 3 === 0 ? i : ''}</span>
       <span class="sr-only">${esc(t('flex.ampel.hourCell', { hour: hh(i), level: lvl(h.level), ct: h.ct != null ? ct1(h.ct) : '–' }))}${h.sun_level && h.sun_level !== 'none' ? `, ${esc(sunWord(h.sun_level))}` : ''}</span>
@@ -265,7 +266,7 @@ function ampelHtml(ins, season, year) {
     <p class="flex-legend small"><span class="flex-key flex-lv--cheap" aria-hidden="true">${LEVEL_SYMBOL.cheap}</span> ${esc(lvl('cheap'))}
       <span class="flex-key flex-lv--mid" aria-hidden="true">${LEVEL_SYMBOL.mid}</span> ${esc(lvl('mid'))}
       <span class="flex-key flex-lv--expensive" aria-hidden="true">${LEVEL_SYMBOL.expensive}</span> ${esc(lvl('expensive'))}
-      ${p.hours.some(h => h.sun_level === 'strong') ? `<span class="flex-key flex-sun--strong" aria-hidden="true">☀</span> ${esc(sunWord('strong'))}` : ''}</p>
+      ${p.hours.some(h => h.sun_level === 'strong') ? `<span class="flex-key flex-sun--strong" aria-hidden="true">${icon('sonne', { size: 16 })}</span> ${esc(sunWord('strong'))}` : ''}</p>
     ${summary ? `<p class="flex-ampel__summary">${esc(summary)}</p>` : ''}
     ${hasPrice && p.min_ct != null ? `<p class="muted small" data-role="ampel-range">${esc(t(ins.signal === 'spot' ? 'flex.ampel.range' : 'flex.ampel.rangeTou', { min: ct1(p.min_ct), max: ct1(p.max_ct), mean: ct1(p.mean_ct) }))}</p>` : ''}
     ${week}`;
@@ -291,7 +292,7 @@ function windowsCard(ins, season) {
 function solarCard(ins, year) {
   const s = ins.solar;
   return `<div class="card flex-solar" data-min-level="advanced">
-    <h2 class="card__title"><span aria-hidden="true">☀</span> ${esc(t('flex.solar.title'))}</h2>
+    <h2 class="card__title">${icon('art-pv_einspeisung')} ${esc(t('flex.solar.title'))}</h2>
     <p>${esc(t('flex.solar.now', { year, self: fmt.unit(s.self_kwh, 'kWh'), gen: fmt.unit(s.generation_kwh, 'kWh'), share: fmt.pct(s.self_share, 0), feed: fmt.unit(s.feed_kwh, 'kWh') }))}</p>
     <div class="flex-solar__bars" aria-hidden="true">
       <span class="flex-solar__bar flex-solar__bar--self" style="width:${(s.self_share * 100).toFixed(1)}%"></span>
@@ -395,7 +396,7 @@ function seriesCard(list, names = new Map()) {
         <td>${esc(s.kind === 'price' ? t('flex.series.prices') : (names.get(s.meter_id) || `${s.utility} · ${s.meter_id}`))}</td>
         <td class="num">${s.year}</td><td class="num">${fmt.pct(s.slots ? s.filled / s.slots : 0, 0)}</td>
         <td>${esc(t('flex.series.sources.' + (['import', 'ingest', 'smard'].includes(s.source) ? s.source : 'import')))}</td>
-        <td class="row-actions"><button type="button" class="icon-btn" data-series-del="${esc(s.id)}" aria-label="${esc(t('flex.series.delete'))}"><span aria-hidden="true">🗑️</span></button></td>
+        <td class="row-actions"><button type="button" class="icon-btn" data-series-del="${esc(s.id)}" aria-label="${esc(t('flex.series.delete'))}">${icon('eimer')}</button></td>
       </tr>`).join('')}</tbody>
     </table></div>
   </div>`;

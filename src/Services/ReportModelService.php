@@ -148,6 +148,16 @@ final class ReportModelService
      */
     public function build(int $year, array $opts = []): array
     {
+        // v3.12.0 — mit `today` rechnen auch Monatszeilen, Prognosen und Tanks an diesem Tag (bis v3.11 am echten Datum)
+        return $this->consumption->atDate(is_string($opts['today'] ?? null) ? $opts['today'] : null, fn() => $this->buildOn($year, $opts));
+    }
+
+    /**
+     * @param array{utilities?:?list<string>,detail?:bool,billing?:bool,today?:string} $opts
+     * @return array<string,mixed>
+     */
+    private function buildOn(int $year, array $opts): array
+    {
         $this->rowCache = []; $this->errors = []; $this->terms = []; $this->sources = []; $this->flexAnalysis = null;
         $this->today = (string)($opts['today'] ?? date('Y-m-d'));
         $this->year = $year;
@@ -496,6 +506,7 @@ final class ReportModelService
               'history' => ['years' => $years, 'cost' => [], 'consumption' => [], 'co2' => []]];
         $cn = $cp = 0.0; $hasCost = false;
         $en = $ep = 0.0; $hasEnergy = false; $adjUsed = false;
+        $energyRule = [];   // v3.12.0 — verglichene Arten → bereinigt ja/nein (für die Linie)
         $co2n = $co2p = $co2nCmp = 0.0;
         // v3.9.0 (Skeptiker M3) — der Vergleich nur über Arten mit Kosten in beiden Jahren; was neu
         // abgerechnet wird (etwa Wasser aus dem Vertrag der Rechnung), steht getrennt da. Bis dahin
@@ -535,6 +546,7 @@ final class ReportModelService
                 $en += $useAdj ? $now['adj'] : $now['value'];
                 $ep += $useAdj ? $prev['adj'] : $prev['value'];
                 $hasEnergy = true; $adjUsed = $adjUsed || $useAdj;
+                $energyRule[$u] = $useAdj;   // v3.12.0 — dieselbe Wahl für die Linie
             }
         }
         if ($hasCost) {
@@ -555,16 +567,28 @@ final class ReportModelService
         }
         $t['co2_now'] = round($co2n, 1); $t['co2_prev'] = $co2p > 0 ? round($co2p, 1) : null;
         $t['co2_pct'] = $co2p > 0 ? round(($co2nCmp / $co2p - 1) * 100, 1) : null;
+        // v3.12.0 — die Linie der Verbrauchskachel zeigt dieselbe Größe wie Zahl und Prozentangabe: mit Vergleich
+        // die verglichenen Arten, jede bereinigt genau dann, wenn die Kachel sie bereinigt nimmt (fehlt einem Jahr der
+        // Linie dann die bereinigte Menge, bleibt dieser Punkt leer statt roh); ohne Vergleich roh. Bis v3.11 nahm die
+        // Linie je Jahr für sich „bereinigt, wo es geht“: Nach einer Zäsur endete sie nicht bei der großen Zahl.
+        $lineRule = $hasEnergy && $ep > 0 ? $energyRule : null;
         foreach ($years as $hy) {
-            $c = 0.0; $e = 0.0; $k = 0.0;
+            $c = 0.0; $e = 0.0; $k = 0.0; $comparable = true;
             foreach ($consumptionU as $u) {
                 $d = $yd[$u][$hy];
                 if ($d['priced']) $c += $d['cost_gross'];
-                if (self::unit($u) === 'kWh') $e += Utilities::isHgtRelevant($u) && $d['adj'] !== null ? $d['adj'] : $d['value'];
+                if (self::unit($u) === 'kWh') {
+                    if ($lineRule === null) {
+                        $e += $d['value'];
+                    } elseif (array_key_exists($u, $lineRule)) {
+                        if ($lineRule[$u] && $d['adj'] === null && $d['value'] > 0) $comparable = false;
+                        $e += $lineRule[$u] ? (float)($d['adj'] ?? 0.0) : $d['value'];
+                    }
+                }
                 $k += $d['co2'];
             }
             $t['history']['cost'][] = $c > 0 ? round($c, 2) : null;
-            $t['history']['consumption'][] = $e > 0 ? round($e, 1) : null;
+            $t['history']['consumption'][] = $e > 0 && $comparable ? round($e, 1) : null;
             $t['history']['co2'][] = $k > 0 ? round($k, 1) : null;
         }
         $t['price_effect'] = round($t['price_effect'], 2);
@@ -752,7 +776,7 @@ final class ReportModelService
     private function anomalyFacts(array $consumptionU): array
     {
         $out = [];
-        foreach ($this->recommendations->all() as $r) {
+        foreach ($this->recommendations->allAt($this->today) as $r) {   // v3.12.0 — am Stichtag des Berichts
             $rule = substr((string)$r['id'], 0, 3);
             if (!in_array($rule, ['r1_', 'r4_'], true)) continue;
             $ev = $r['evidence'] ?? [];

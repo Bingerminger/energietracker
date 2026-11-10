@@ -1,8 +1,11 @@
 blank_issues_enabled: true
 contact_links:
   - name: Idee oder Wunsch / Idea or feature request
-    url: https://github.com/Bingerminger/energietracker/discussions/categories/ideas
-    about: Wünsche bitte unter Discussions → Ideas, dort kann jeder mit 👍 abstimmen / Please post ideas under Discussions → Ideas, where everyone can vote with 👍
+    url: https://github.com/Bingerminger/energietracker/discussions/new?category=ideas
+    about: Wünsche bitte unter Discussions → Ideas (mit Vorlage), dort kann jeder mit 👍 abstimmen / Please post ideas under Discussions → Ideas (with a form), where everyone can vote with 👍
+  - name: Verhaltensregeln / Code of conduct
+    url: https://github.com/Bingerminger/energietracker/blob/main/CODE_OF_CONDUCT.md
+    about: Freundlich, beim Thema, keine echten Daten / Kind, on topic, no real data
   - name: Frage / Question
     url: https://github.com/Bingerminger/energietracker/discussions/categories/q-a
     about: Fragen zur Nutzung unter Discussions → Q&A / Questions about using it under Discussions → Q&A

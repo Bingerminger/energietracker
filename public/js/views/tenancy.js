@@ -13,6 +13,7 @@
 import { api } from '../api.js';
 import { activeUtilities } from '../state.js';
 import { fmt, escapeHtml as esc, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
+import { balanceView } from '../lib/semantics.js';   // v3.12.0 (Sichtung S1)
 import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { toastOk, toastErr } from '../components/toast.js';
@@ -20,6 +21,7 @@ import { info } from '../components/info.js';
 import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
 // v3.11.0 (E) — Zuständig am Mietverhältnis (Person aus dem Verzeichnis), wie am Vertrag
 import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
+import { icon } from '../lib/icons.js';
 
 const CATEGORIES = ['heating', 'warm_water', 'cold_water', 'sewage', 'operating', 'other'];
 let selectedId = null;
@@ -49,7 +51,7 @@ export async function render(container, params, ctx) {
   if (!ten) {
     container.innerHTML = `${header}
       <div class="empty" style="padding:32px">
-        <div class="empty-icon">🔑</div>
+        <div class="empty-icon" aria-hidden="true">${icon('schluessel', { size: 48 })}</div>
         <h2>${t('tenancy.empty.title')}</h2>
         <p class="muted">${t('tenancy.empty.text')}</p>
       </div>`;
@@ -86,11 +88,13 @@ export async function render(container, params, ctx) {
 function budgetCard(b) {
   if (!b || b.error) {
     return `<div class="card"><h2 class="card__title">${t('tenancy.budget.title')}</h2>
-      <div class="banner banner--error">${esc(b?.error || t('tenancy.budget.unavailable'))}</div></div>`;
+      <div class="infobox infobox--fehler">${esc(b?.error || t('tenancy.budget.unavailable'))}</div></div>`;
   }
   const r = Number(b.projected_result_eur || 0);
-  const verdict = r > 0.5 ? t('tenancy.budget.additional', { amount: fmt.eur(r) })
-    : r < -0.5 ? t('tenancy.budget.credit', { amount: fmt.eur(-r) }) : t('tenancy.budget.even');
+  // v3.12.0 (Sichtung S1) — ein Saldo: Farbe nach dem Vorzeichen, neutral nur bei genau 0
+  const rv = balanceView(r, null);
+  const verdict = rv.credit === null ? t('tenancy.budget.even')
+    : rv.credit ? t('tenancy.budget.credit', { amount: fmt.eur(rv.amount) }) : t('tenancy.budget.additional', { amount: fmt.eur(rv.amount) });
   const riskCls = { low: 'success', medium: 'warning', high: 'danger' }[b.risk] || 'neutral';
   return `
     <div class="card">
@@ -99,7 +103,7 @@ function budgetCard(b) {
       <div class="kpi-grid">
         <div class="kpi"><div class="kpi__label">${t('tenancy.budget.expected')}</div><div class="kpi__value">${fmt.eur(b.expected_eur)}</div></div>
         <div class="kpi"><div class="kpi__label">${t('tenancy.budget.prepaid')}</div><div class="kpi__value">${fmt.eur(b.prepaid_eur)}</div></div>
-        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.result')}</div><div class="kpi__value">${esc(verdict)}</div>
+        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.result')}</div><div class="kpi__value ${rv.credit === null ? '' : rv.cls}" data-role="tenancy-result">${esc(verdict)}</div>
           ${b.risk ? `<span class="badge badge--${riskCls}">${esc(t('tenancy.risk.' + b.risk))}</span>` : ''}</div>
         <div class="kpi"><div class="kpi__label">${t('tenancy.budget.suggested')}</div><div class="kpi__value">${fmt.eur(b.suggested_prepayment_eur)}</div></div>
       </div>
@@ -122,9 +126,10 @@ function budgetCard(b) {
             <td class="num">${fmt.num(Number(m.warm_water_m3) + Number(m.cold_water_m3), 1)} m³</td>
             <td class="num">${fmt.eur(m.expected_eur)}</td>
             <td class="num">${fmt.eur(m.prepaid_eur)}</td>
-            <td class="num">${fmt.eur(m.balance_eur)}</td>
+            <td class="num ${balanceView(m.balance_eur, null)?.cls ?? ''}">${balanceView(m.balance_eur, null)?.signed ?? '–'}</td>
           </tr>`).join('')}</tbody>
         </table></div>
+        <p class="fussnote" data-role="tenancy-legend">${esc(t('saldo.tableLegend'))}</p>
       </details>
     </div>`;
 }
@@ -145,8 +150,9 @@ function co2Card(r, year) {
       <div class="kpi"><div class="kpi__label">${t('co2split.landlordShare')}</div><div class="kpi__value">${r.landlord_share_pct} %</div></div>
       <div class="kpi"><div class="kpi__label">${t('co2split.amount')}</div><div class="kpi__value">${fmt.eur(r.landlord_amount_eur)}</div></div>
     </div>
+    ${r.days != null && r.days < 365 ? `<p class="muted small" data-role="co2-part-year">${tp('co2split.partYear', r.days, { days: r.days })}</p>` : ''}
     ${r.area_assumed ? areaAssumedHtml(r.area_m2, r.tenancy_id ? 'tenancy' : 'household') : ''}
-    ${(r.checks || []).length ? `<div class="banner banner--warning">${r.checks.map(c => esc(t('co2split.check.' + c))).join('<br>')}</div>` : ''}
+    ${(r.checks || []).length ? `<div class="infobox infobox--achtung">${r.checks.map(c => esc(t('co2split.check.' + c))).join('<br>')}</div>` : ''}
     ${(r.reductions || []).length ? `<p class="muted small">${r.reductions.map(x => esc(t('co2split.reduction.' + x))).join(' · ')}</p>` : ''}
     <p class="muted small">${esc(t('co2split.disclaimer'))}</p>
     <a class="btn btn--ghost btn--sm" href="${esc(api.co2SplitPdfUrl(year, { inline: true }))}" target="_blank" rel="noopener">${t('co2split.letter.open')}</a>
@@ -201,9 +207,9 @@ function statementsCard(statements) {
           <td class="num">${fmt.eur(s.prepaid_eur)}</td>
           <td class="num">${esc(resultText(s.result_eur))}</td>
           <td style="text-align:right;white-space:nowrap">
-            ${(s.attachment_ids || []).map(id => `<a class="icon-btn" href="${esc(api.attachmentUrl(id))}" target="_blank" rel="noopener" title="${esc(t('tenancy.statements.pdf'))}" aria-label="${esc(t('tenancy.statements.pdf'))}"><span aria-hidden="true">📄</span></a>`).join('')}
-            <button class="icon-btn" data-st-edit="${esc(s.id)}" title="${esc(t('utility.readingsTable.edit'))}" aria-label="${esc(t('utility.readingsTable.edit'))}"><span aria-hidden="true">✏️</span></button>
-            <button class="icon-btn" data-st-del="${esc(s.id)}" title="${esc(t('utility.readingsTable.delete'))}" aria-label="${esc(t('utility.readingsTable.delete'))}"><span aria-hidden="true">🗑️</span></button>
+            ${(s.attachment_ids || []).map(id => `<a class="icon-btn" href="${esc(api.attachmentUrl(id))}" target="_blank" rel="noopener" title="${esc(t('tenancy.statements.pdf'))}" aria-label="${esc(t('tenancy.statements.pdf'))}">${icon('dokument')}</a>`).join('')}
+            <button class="icon-btn" data-st-edit="${esc(s.id)}" title="${esc(t('utility.readingsTable.edit'))}" aria-label="${esc(t('utility.readingsTable.edit'))}">${icon('stift')}</button>
+            <button class="icon-btn" data-st-del="${esc(s.id)}" title="${esc(t('utility.readingsTable.delete'))}" aria-label="${esc(t('utility.readingsTable.delete'))}">${icon('eimer')}</button>
           </td>
         </tr>`).join('')}</tbody>
       </table></div>` : `<p class="muted">${t('tenancy.statements.empty')}</p>`}
@@ -429,7 +435,7 @@ function openStatementModal(ten, st, done) {
       </fieldset>
       <div class="fgrid">
         <div class="field field--full">
-          <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('tenancy.statement.attachPdf')}
+          <label class="btn btn--ghost btn--sm">${icon('dokument')} ${t('tenancy.statement.attachPdf')}
             <input type="file" accept="application/pdf,image/*" data-role="pdf" class="sr-only"></label>
           <span class="muted small" data-role="pdf-list">${esc(tp('tenancy.statement.attached', attachments.length))}</span>
         </div>

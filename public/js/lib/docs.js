@@ -14,6 +14,13 @@ import { getLocale } from './i18n.js';
 
 export const REPO_URL = 'https://github.com/Bingerminger/energietracker';
 export const ISSUES_URL = `${REPO_URL}/issues`;
+// v3.12.0 (M6) — Linkreihe der Hilfe wie oben im README: Demo, Handbuch, Roadmap, Discussions.
+// Roadmap und Discussions beschreiben das Projekt, nicht diese Version; sie stehen deshalb auf `main`.
+export const DEMO_URL = 'https://bingerminger.github.io/energietracker/';
+export const DISCUSSIONS_URL = `${REPO_URL}/discussions`;
+const ROADMAP_DE = `${REPO_URL}/blob/main/roadmap.md`;
+const ROADMAP_EN = `${REPO_URL}/blob/main/roadmap.en.md`;
+export const roadmapUrl = () => (getLocale() === 'de' ? ROADMAP_DE : ROADMAP_EN);
 
 /** v3.4.0 — Quellcode genau dieser Version (Tag), optional eine Datei oder ein Ordner darin. */
 export const sourceUrl = (version, path = '') => `${REPO_URL}/tree/v${version}${path ? '/' + encodeURI(path) : ''}`;
@@ -41,6 +48,15 @@ const PAGES = {
   inbox:         ['docs/anleitungen/posteingang.md',     'docs/en/anleitungen/posteingang.md'],       // v3.7.0
   inboxDraft:    ['docs/anleitungen/haushalt-aus-dokumenten.md', 'docs/en/anleitungen/haushalt-aus-dokumenten.md'], // v3.7.0
   levels:        ['docs/referenz/stufen.md',             'docs/en/referenz/stufen.md'],               // v3.7.0 (Paket reifegrad)
+  aiAssistant:   ['docs/anleitungen/ki-assistent.md',    'docs/en/anleitungen/ki-assistent.md'],      // v3.12.0 (F1037)
+  provenance:    ['docs/verstehen/18-herkunft.md',       'docs/en/verstehen/18-herkunft.md'],         // v3.12.0 (F1037)
+  // v3.12.0 (Paket wegweiser) — Schritte und „Im Detail“ im Wegweiser verlinken dorthin
+  install:       ['docs/betrieb/installation.md',        'docs/en/betrieb/installation.md'],
+  docker:        ['docs/betrieb/docker.md',              'docs/en/betrieb/docker.md'],
+  phone:         ['docs/einstieg/handy.md',              'docs/en/einstieg/handy.md'],
+  ocr:           ['docs/anleitungen/texterkennung.md',   'docs/en/anleitungen/texterkennung.md'],
+  otherSystems:  ['docs/anleitungen/andere-systeme.md',  'docs/en/anleitungen/andere-systeme.md'],
+  guide:         ['docs/einstieg/wegweiser.md',          'docs/en/einstieg/wegweiser.md'],
   // v3.11.0 (F1035) — Rechte als Kunde; Sprungmarke je Prüfung `rights-<check>` (RightsSourcesDocTest)
   rights:        ['docs/verstehen/17-rechte.md',         'docs/en/verstehen/17-rechte.md'],
   rightsSources: ['docs/referenz/rechtsgrundlagen.md',   'docs/en/referenz/rechtsgrundlagen.md'],
@@ -68,6 +84,9 @@ export const CASES = [
   { id: 'cascade',       page: 'useCases', anchor: 'case-cascade' },         // H (v3.9.0, F1032)
   { id: 'levels',        page: 'setup',    anchor: 'case-levels' },          // Nutzungsstufen
 ];
+
+/** v3.12.0 (Paket wegweiser) — Repo-Pfad einer Seite je Sprache (für tools/build-setup-guide.mjs). */
+export const docPagePath = (page, lang = 'de') => (PAGES[page] || PAGES.compendium)[lang === 'de' ? 0 : 1];
 
 /** Schlüssel einer Seite für /api/docs: `einstieg/faq.md`, außer Deutsch `en/einstieg/faq.md`. */
 export function docKey(page) {

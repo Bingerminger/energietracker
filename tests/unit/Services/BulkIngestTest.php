@@ -68,7 +68,8 @@ final class BulkIngestTest extends ServiceTestCase
         self::assertSame([0, 1, 2, 3, 4], array_column($r['results'], 'index'), 'Antwort in Eingabereihenfolge');
         self::assertSame('errors.ingest.meterNotFound', $r['results'][1]['code']);
         self::assertSame('errors.ingest.bodyInvalid', $r['results'][3]['code']);
-        self::assertSame('errors.ingest.valueMissing', $r['results'][4]['code']);
+        // v3.12.0 — ein Wert, der da ist, aber keine Zahl: die Ursache, nicht „Wert fehlt“
+        self::assertSame('errors.reading.counterInvalid', $r['results'][4]['code']);
         self::assertSame('created', $r['results'][2]['status']);
         self::assertSame($this->meterId, $r['results'][2]['meter_id']);
     }

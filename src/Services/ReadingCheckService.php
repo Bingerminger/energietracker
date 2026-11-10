@@ -232,13 +232,13 @@ final class ReadingCheckService
     /**
      * Befund eines Zählers.
      *
-     * @return array{checks:list<array<string,mixed>>, duplicates:list<array<string,mixed>>, level_shift:?array<string,mixed>, basis:?string, unit:string, billing_only:list<string>}
+     * @return array{checks:list<array<string,mixed>>, duplicates:list<array<string,mixed>>, level_shift:?array<string,mixed>, basis:?string, unit:string, billing_only:list<string>, skipped:list<array<string,mixed>>}
      */
     public function forMeter(string $utility, array $meter, ?string $today = null): array
     {
         $today ??= date('Y-m-d');
         $unit = (string)(Utilities::exists($utility) ? (Utilities::get($utility)['unit'] ?? '') : '');
-        $out = ['checks' => [], 'duplicates' => [], 'level_shift' => null, 'basis' => null, 'unit' => $unit, 'billing_only' => []];
+        $out = ['checks' => [], 'duplicates' => [], 'level_shift' => null, 'basis' => null, 'unit' => $unit, 'billing_only' => [], 'skipped' => []];
         if (!Utilities::exists($utility) || !Utilities::isCumulative($utility) || !empty($meter['is_group'])
             || ($meter['capture'] ?? 'counter') === 'period' || empty($meter['id'])) {
             return $out;
@@ -249,6 +249,8 @@ final class ReadingCheckService
         $all = $this->readings->list($utility, (string)$meter['id']);
         $out['duplicates'] = $this->duplicates($utility, $meter, $all, $today);
         foreach ($all as $r) if (!empty($r['is_billing_only'])) $out['billing_only'][] = (string)($r['id'] ?? '');
+        // v3.12.0 (Skeptiker M7) — Ein Stand, den die Rechnung übergeht, wirkt sonst still nicht. Nur zum Nachsehen: Die Agenda meldet ihn nicht
+        $out['skipped'] = $this->consumption->skippedReadings($utility, $meter, $all);
 
         $points = $this->points($utility, $meter, $all, $today);
         $iv = $this->intervals($utility, $meter, $points);

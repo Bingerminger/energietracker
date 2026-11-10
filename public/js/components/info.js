@@ -10,6 +10,7 @@
 // =====================================================================
 import { t, getLocale } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
+import { icon } from '../lib/icons.js';
 
 /** Alle Begriffe des Glossars (Schlüssel unter `glossary.`). */
 export const GLOSSARY = [
@@ -74,7 +75,7 @@ export function billPortal() {
 /** HTML eines ⓘ-Knopfs zum Glossar-Begriff `id`. Nicht in Links oder Knöpfe setzen. */
 export function info(id) {
   const label = t('help.explain', { term: glossaryTerm(id) });
-  return `<button type="button" class="info-btn" data-glossary="${escapeHtml(id)}" aria-expanded="false" aria-label="${escapeHtml(label)}"><span aria-hidden="true">ⓘ</span></button>`;
+  return `<button type="button" class="info-btn" data-glossary="${escapeHtml(id)}" aria-expanded="false" aria-label="${escapeHtml(label)}">${icon('info', { size: 16 })}</button>`;
 }
 
 /**
@@ -83,7 +84,7 @@ export function info(id) {
  */
 export function infoNote(term, text) {
   const label = t('help.explain', { term });
-  return `<button type="button" class="info-btn" data-info-term="${escapeHtml(term)}" data-info-text="${escapeHtml(text)}" aria-expanded="false" aria-label="${escapeHtml(label)}"><span aria-hidden="true">ⓘ</span></button>`;
+  return `<button type="button" class="info-btn" data-info-term="${escapeHtml(term)}" data-info-text="${escapeHtml(text)}" aria-expanded="false" aria-label="${escapeHtml(label)}">${icon('info', { size: 16 })}</button>`;
 }
 
 let open = null;   // { btn, pop }

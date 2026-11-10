@@ -67,7 +67,9 @@ final class HealthCheckService
         $checks['data_dir_writable'] = ['ok' => $writable, 'level' => $writable ? 'ok' : 'error'];
 
         $newer = $this->safe(fn() => $migrator->dataSchemaIsNewer());
-        $pending = $this->safe(fn() => $migrator->pendingSteps(), 0);
+        // v3.12.0 — ein leeres Datenverzeichnis wartet auf den ersten Aufruf der Oberfläche (der
+        // Gesundheitscheck legt es nicht mehr an, s. App); dort steht keine Migration aus
+        $pending = $this->safe(fn() => $migrator->isPristine() ? 0 : $migrator->pendingSteps(), 0);
         $checks['schema'] = match (true) {
             $newer !== null => ['ok' => false, 'level' => 'error', 'data_schema' => $newer, 'app_schema' => Migrator::SCHEMA_VERSION],
             $pending > 0    => ['ok' => false, 'level' => 'degraded', 'pending_steps' => $pending],
@@ -87,6 +89,14 @@ final class HealthCheckService
 
         $removed = $this->removeStaleTempFiles($root);
         $checks['temp_files'] = ['ok' => true, 'level' => 'ok', 'removed' => $removed];
+
+        // v3.12.0 — ein Einspielen, das mittendrin endete (Abbruch, Speicher- oder Zeitlimit): Der Haushalt
+        // kann aus alten und neuen Dateien bestehen. Gemeldet mit der Sicherung von vorher; zurück geht es
+        // über „Sicherung wiederherstellen“ (POST /api/backup/snapshots/{name}/restore) oder erneutes Einspielen.
+        $marker = $this->safe(fn() => $this->store->exists(BackupService::RESTORE_MARKER) ? $this->store->read(BackupService::RESTORE_MARKER, []) : null);
+        $checks['restore'] = is_array($marker)
+            ? ['ok' => false, 'level' => 'degraded', 'interrupted_at' => (string)($marker['started_at'] ?? ''), 'snapshot' => $marker['snapshot'] ?? null]
+            : ['ok' => true, 'level' => 'ok'];
 
         $levels = array_column($checks, 'level');
         $status = in_array('error', $levels, true) ? 'error'

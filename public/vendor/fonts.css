@@ -22,6 +22,17 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* v3.12.0 — DM Sans hat keine gleich breiten Ziffern (`tnum`). Abgeleitet: nur 0 bis 9, jede
+   mittig auf derselben Vorschubbreite, über alle Strichstärken, für Tabellen (--font-num). */
+@font-face {
+  font-family: 'DM Sans Ziffern';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url(fonts/dm-sans-ziffern.woff2) format('woff2');
+  unicode-range: U+0030-0039;
+}
+
 @font-face {
   font-family: 'DM Mono';
   font-style: normal;

@@ -216,7 +216,9 @@ final class NotifyConfig
             ['key' => $key, 'value' => is_scalar($v) ? mb_substr((string)$v, 0, 80) : gettype($v)], "invalid $key");
         switch ($key) {
             case 'ha_notify_enabled':
-                return (bool)$v;
+                // v3.12.0 — eine Regel für Wahrheitswerte (Support\Input::bool): „false“ ist aus, nicht an
+                $b = \Energietracker\Support\Input::bool($v);
+                return $b ?? $bad();
             case 'ha_notify_target':
                 return is_string($v) && in_array($v, self::TARGETS, true) ? $v : $bad();
             case 'ha_notify_url':
@@ -234,7 +236,8 @@ final class NotifyConfig
                 foreach ($v as $e) if (!is_string($e) || !in_array($e, self::EVENTS, true)) $bad();
                 return array_values(array_intersect(self::EVENTS, $v));
             case 'ha_notify_hour':
-                return is_numeric($v) && (int)$v == $v && (int)$v >= 0 && (int)$v <= 23 ? (int)$v : $bad();
+                // v3.12.0 — erst der Bereich, dann die Ganzzahl: (int)1e308 ist unter PHP 8.5 ein Fehler (500)
+                return is_numeric($v) && !is_bool($v) && (float)$v >= 0 && (float)$v <= 23 && floor((float)$v) == (float)$v ? (int)$v : $bad();
         }
         return $v;
     }
@@ -281,7 +284,7 @@ final class NotifyConfig
             $this->store->delete(self::SECRET_FILE);
             return;
         }
+        // nur der Webserver-Benutzer liest sie: 0600 setzt JsonStore (SECRET_FILES, v3.12.0)
         $this->store->write(self::SECRET_FILE, $secrets);
-        @chmod($this->store->path(self::SECRET_FILE), 0600);   // nur der Webserver-Benutzer liest sie
     }
 }

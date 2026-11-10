@@ -188,6 +188,11 @@ final class Rights
             'status' => 'W', 'report' => 50, 'utilities' => ['wasser'], 'supply_kinds' => null],
         'de.ao.122.2' => ['norm' => '§ 122 Abs. 2 Nr. 1 AO', 'url' => self::G . 'ao_1977/__122.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 50, 'utilities' => ['wasser'], 'supply_kinds' => null],
+        // v3.12.0 — späterer Zugang verschiebt die Bekanntgabe (Wortlaut abgerufen 2026-11-09)
+        'de.vwvfg.41.2.3' => ['norm' => '§ 41 Abs. 2 Satz 3 VwVfG', 'url' => self::G . 'vwvfg/__41.html', 'checked_on' => '2026-11-09',
+            'status' => 'W', 'report' => 50, 'utilities' => ['wasser'], 'supply_kinds' => null],
+        'de.ao.122.2.zugang' => ['norm' => '§ 122 Abs. 2 AO, letzter Halbsatz', 'url' => self::G . 'ao_1977/__122.html', 'checked_on' => '2026-11-09',
+            'status' => 'W', 'report' => 50, 'utilities' => ['wasser'], 'supply_kinds' => null],
         'de.vwgo.80' => ['norm' => '§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO', 'url' => self::G . 'vwgo/__80.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 51, 'utilities' => ['wasser'], 'supply_kinds' => null],
         'de.bgb.188' => ['norm' => '§§ 187 Abs. 1, 188 Abs. 2, 3 BGB', 'url' => self::G . 'bgb/__188.html', 'checked_on' => self::CHECKED_ON,
@@ -322,6 +327,12 @@ final class Rights
     public const BONUS_TOLERANCE_EUR = 1.0;
     /** App-Schwelle (A3, A7): Ein Termin mit Frist steht so viele Tage vorher unter „Zu tun“. */
     public const DEADLINE_REMIND_DAYS = 14;
+    /**
+     * App-Schwelle (A7, v3.12.0): So viele Tage nach dem frühesten Fristende (vom Bescheiddatum gerechnet) heißt
+     * es „möglicherweise abgelaufen“, der Brief bleibt, der Eintrag unter „Zu tun“ auch; erst danach „abgelaufen“.
+     * Das Bescheiddatum ist nicht der Tag der Aufgabe zur Post, das Ende also nur eine Untergrenze.
+     */
+    public const NOTICE_SOFT_DAYS = 7;
 
     /** Kennt die App Rechtsregeln für dieses Land? (Entscheidung 1a: nur DE) */
     public static function supports(string $country): bool
@@ -454,16 +465,41 @@ final class Rights
      * VwVfG; § 108 Abs. 3 AO; Prüfbericht 60): `deadline`. Bis dahin galt ein Bescheid mit Fristende
      * am Sonntag schon am Montag als „abgelaufen“. Termin, Befund, Brief und Kalender nennen
      * `deadline`. null ohne Regeln für das Land.
+     * v3.12.0 — ein eingetragener Zugang (`received_on`, „Erhalten am“) nach dem vierten Tag verschiebt die
+     * Bekanntgabe: „Dies gilt nicht, wenn der Verwaltungsakt nicht oder zu einem späteren Zeitpunkt
+     * zugegangen ist“ (§ 41 Abs. 2 Satz 3 VwVfG; § 122 Abs. 2 AO, letzter Halbsatz; Wortlaut abgerufen
+     * 2026-11-09). Ein früherer Zugang ändert nichts (die Fiktion bleibt der vierte Tag), eine Zustellung
+     * geht vor. `basis`: served | received | post. Nur mit Zustellung ist das Ende sicher: `soft_until` = `deadline`.
+     * Sonst ist es das früheste mögliche, denn den Tag der Aufgabe zur Post kennt die App nicht (das Bescheiddatum
+     * ist nicht dieser Tag). Bekannt gegeben ist der Bescheid am späteren von viertem Tag nach der Aufgabe zur Post
+     * und Zugang (§ 41 Abs. 2 Satz 1 und 3 VwVfG, § 122 Abs. 2 Nr. 1 AO; Wortlaut auf gesetze-im-internet.de
+     * abgerufen 2026-11-10). Bis `soft_until` heißt es „möglicherweise abgelaufen“:
+     *   post      Ende + NOTICE_SOFT_DAYS (wie entschieden);
+     *   received  das späteste Ende: Zur Post ging der Bescheid spätestens am Tag des Zugangs, der vierte Tag danach
+     *             ist die späteste Bekanntgabe. Vorher galt der Zugangstag als sicher, und ein Bescheid, der kurz
+     *             vor dem Zugang zur Post ging, hieß bis zu vier Tage zu früh „abgelaufen“.
      *
-     * @return array{known_on:string, nominal_end:string, deadline:string}|null
+     * @return array{known_on:string, nominal_end:string, deadline:string, basis:string, soft_until:string}|null
      */
-    public static function feeNoticeDeadline(string $country, string $datedOn, ?string $servedOn = null): ?array
+    public static function feeNoticeDeadline(string $country, string $datedOn, ?string $servedOn = null, ?string $receivedOn = null): ?array
     {
         $d = self::DEADLINES[$country] ?? null;
         if ($d === null || !Dates::isIsoDate($datedOn)) return null;
-        $known = $servedOn !== null && Dates::isIsoDate($servedOn) ? $servedOn : self::plusDays($datedOn, (int)$d['notice_postal_days']);
+        $postal = self::plusDays($datedOn, (int)$d['notice_postal_days']);
+        [$known, $basis] = match (true) {
+            $servedOn !== null && Dates::isIsoDate($servedOn)                          => [$servedOn, 'served'],
+            $receivedOn !== null && Dates::isIsoDate($receivedOn) && $receivedOn > $postal => [$receivedOn, 'received'],
+            default                                                                       => [$postal, 'post'],
+        };
         $nominal = self::plusMonths($known, (int)$d['notice_months']);
-        return ['known_on' => $known, 'nominal_end' => $nominal, 'deadline' => self::nextWorkingDay($country, $nominal)];
+        $deadline = self::nextWorkingDay($country, $nominal);
+        $soft = match ($basis) {
+            'post'     => self::plusDays($deadline, self::NOTICE_SOFT_DAYS),
+            'received' => max($deadline, self::nextWorkingDay($country,
+                              self::plusMonths(self::plusDays((string)$receivedOn, (int)$d['notice_postal_days']), (int)$d['notice_months']))),
+            default    => $deadline,
+        };
+        return ['known_on' => $known, 'nominal_end' => $nominal, 'deadline' => $deadline, 'basis' => $basis, 'soft_until' => $soft];
     }
 
     /**
@@ -536,6 +572,11 @@ final class Rights
     {
         $table = self::meteringTableOn($country, $date);
         if ($table === null || !in_array($device, ['mme', 'imsys'], true)) return null;
+        // v3.12.0 — Grenzen gerundet vergleichen: Ein Jahreswert aus Monaten oder einer hochgerechneten
+        // Rechnung trägt Gleitkomma-Reste (6000 ÷ 365 × 365 = 6000,000000000001), und „über 6 000“ heißt
+        // mehr als die Grenze, nicht deren Rundungsrest. Sechs Stellen sind feiner als jedes Zählwerk.
+        $kwhPerYear = $kwhPerYear === null ? null : round($kwhPerYear, 6);
+        $pvKw = $pvKw === null ? null : round($pvKw, 6);
         $pick = null;
         $fallback = null;
         foreach ($table['cases'] as $c) {

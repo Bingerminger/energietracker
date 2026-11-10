@@ -16,7 +16,7 @@
 
 import { api } from '../api.js';
 import { t } from './i18n.js';
-import { openPdf, textPages } from './pdf.js';
+import { openPdf, textPages, pdfErrorCode } from './pdf.js';
 
 /** Zeitlimit je Schritt im Browser: etwas über dem längsten des Servers (300 s). */
 const STEP_TIMEOUT_MS = 330000;
@@ -85,10 +85,18 @@ export async function settle(send, before, step, { onWait = () => {}, wait = WAI
  *
  * @returns {Promise<object>} Vorschau (wie GET /api/inbox/{id})
  */
-export async function readDocument(entry, { consent = false, fresh = false, onStep = () => {}, cancelled = () => false, pages = null, wait = WAIT, sleep, now } = {}) {
+export async function readDocument(entry, { consent = false, fresh = false, onStep = () => {}, cancelled = () => false, pages = null, wait = WAIT, sleep, now, open = openPdf } = {}) {
   onStep('text');
   if (!pages) {
-    const doc = await openPdf(api.inboxFileUrl(entry.attachment_id));
+    let doc;
+    try { doc = await open(api.inboxFileUrl(entry.attachment_id)); }
+    catch (e) {
+      if (pdfErrorCode(e) !== 'broken') throw e;
+      // v3.12.0 — kaputte Datei: Der Server vermerkt „fehlgeschlagen“ (wie beim Scan ohne Textebene), die
+      // Meldung kommt aus dem Katalog statt der englischen Rohmeldung von pdf.js („Invalid PDF structure.“)
+      await api.updateInbox(entry.id, { status: 'failed', reason: 'pdf_unreadable' }).catch(() => {});
+      throw Object.assign(new Error(t('inbox.doc.broken')), { code: 'pdf_unreadable', status: 422 });
+    }
     pages = await textPages(doc);
     doc.destroy?.();
   }
@@ -161,7 +169,8 @@ export async function runQueue({ consent = false, only = null, read = readDocume
         state.failed++;
         if (e?.status === 0 || e?.code === 'unsupported') break;   // Netz weg oder Browser ohne pdf.js: später weiter
         // im Browser gescheitert, oder nach dem Warten keine Antwort (der Eintrag bliebe vorgemerkt): nicht noch einmal
-        if (!e?.status || e?.code === 'waited') skipped.add(entry.id);
+        // v3.12.0 — kaputtes PDF: vermerkt der Server es nicht (Netz), bliebe es vorgemerkt
+        if (!e?.status || e?.code === 'waited' || e?.code === 'pdf_unreadable') skipped.add(entry.id);
       }
       emit();
       data = await api.inbox();

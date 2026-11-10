@@ -27,6 +27,7 @@ only happens with an opt-in.
 |---|---|
 | [Getting started](einstieg/erste-schritte.md) | Installation → first meter → first reading → first contract → first forecast |
 | [Setup and experience levels](einstieg/einrichtung.md) | Setup assistant, the four sample households and the showcase, Beginner · Experienced · Expert, explainers, public demo |
+| [Setup guide](einstieg/wegweiser.md) | Which way suits you: by hand, with supplier mail, with Home Assistant, with AI, with diagrams |
 | [What the Energietracker does](einstieg/funktionen.md) | All features, ordered by question |
 | [Questions and answers](einstieg/faq.md) | The most common questions, answered briefly |
 | [Use on your phone](einstieg/handy.md) | Open it on the home network, install it as an app, photo as a receipt, offline queue |
@@ -35,15 +36,16 @@ only happens with an opt-in.
 
 | Document | Contents |
 |---|---|
+| [**Connect an AI assistant (MCP)**](anleitungen/ki-assistent.md) | *New in v3.12.0:* ask your AI about balance, consumption and deadlines: switching on, key, setup for Claude Code, VS Code, Cursor, LM Studio and Open WebUI, prompts and resources, changes only with a proposal and consent, limits, access from the cloud, privacy |
 | [**Household from documents**](anleitungen/haushalt-aus-dokumenten.md) | *New in v3.7.0:* file and read supplier mail, one draft across all documents — meters, contracts with their price chain, meter readings, bills, reminders; check only what is doubtful, take it over with one click; which documents help, limits |
 | [**What if? The forecast workshop**](anleitungen/was-waere-wenn.md) | *New in v3.6.0:* what does a cold winter cost, what does insulation bring, is switching worth it? Move a slider, see the result at once — result card, curves, ranking, best combination within a budget; save, print, share as an image |
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
 | [Share CO₂ costs with the landlord](anleitungen/co2-aufteilung.md) | The landlord’s share under the CO2KostAufG: work it out and claim it with your own gas boiler, check the statement with central heating; deadline and letter |
-| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor |
+| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor; *since v3.12.0* the HACS integration (sensors without YAML) |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Send readings from other systems: the common contract and one recipe each |
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
-| [Writing a letter](anleitungen/brief-schreiben.md) | *New in v3.11.0:* a letter for a note “Your rights as a customer”: five fixed templates, always in German, prefilled from contract and meter, as PDF for a window envelope or as text; nothing stored; mark as sent |
+| [Writing a letter](anleitungen/brief-schreiben.md) | Three ways to a letter (note, check a bill, contract card); *v3.12.0:* advance adjustment and termination without a note too; *v3.11.0:* a letter for a note “Your rights as a customer”: five fixed templates, always in German, prefilled from contract and meter, as PDF for a window envelope or as text; nothing stored; mark as sent |
 | [Ticking off notices and the history](anleitungen/hinweise-erledigen.md) | What clears itself (follow-on contract, reading, delivery), ticking off by hand with date, note and receipt, undo, the “Done” tab, who appears in the history, retention and privacy; *since v3.9.0* “Check a reading” |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
 | [Inbox: let the app read supplier mail](anleitungen/posteingang.md) | *New in v3.7.0:* file a PDF (on the iPad from the Files app), read it locally with qwen3.8, check every value against its quote, take it over with one click; enter by hand next to the document, many at once, privacy; reading in the cloud as an opt-in — Claude (Anthropic) or an OpenAI-compatible service, key, what leaves, limits |
@@ -71,6 +73,7 @@ only happens with an opt-in.
 | [Meter topology](verstehen/13-meter-topologie.md) | Sub-meters, meter groups and the group contract; *since v3.9.0* remainder billing on the parent meter, cascade and the “metering concept” assistant |
 | [Country profiles](verstehen/14-laenderprofile.md) | Currency, formats, efficiency scale, CO₂ factors, gas units and bill terms per country |
 | [Scenario flat](verstehen/07-szenario-wohnung.md) · [Scenario house](verstehen/08-szenario-eigenheim.md) | Worked examples |
+| [Where a figure comes from](verstehen/18-herkunft.md) | *New in v3.12.0:* measured, entered, distributed, assumed, estimated; the figure object of the AI interface and the sign of a balance |
 | [Glossary & formulas](verstehen/09-glossar.md) | All terms and formulas in brief |
 
 ## 📖 Reference — *look things up*
@@ -117,7 +120,7 @@ Planning: [roadmap](../../roadmap.en.md)
 ## Conventions in these docs
 
 - Interface terms appear exactly as the app shows them; menu paths as
-  "Settings → Weather data".
+  "Connections → Weather data".
 - Formulas are plain-text code blocks, checked against the source code, not
   written from memory.
 - **[Unverified]** marks assumptions and defaults without a reliable primary

@@ -11,17 +11,19 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Sixteen keys can then
+([Users in the household](../anleitungen/benutzer.md)). Twenty-nine keys can then
 only be changed by admins, because they make the app talk to other addresses,
-let it be embedded, block names, shorten the history or send documents to the
-cloud: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
+let it be embedded, block names, shorten the history or hand data to the
+outside: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
 `allowed_hosts` and `activity_keep_months`, and (since v3.7.0) `inbox_provider`,
 where supplier mail goes to be read, and `inbox_cloud_enabled`,
 `inbox_cloud_provider`, `inbox_cloud_endpoint` and `inbox_cloud_model`, (since
 v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` and
 `ha_notify_service`, whether and where notifications to Home Assistant go,
 (since v3.10.0) `home_ca_pem` and `home_tls_insecure`, whom connections into
-the home network trust. A member who sends one of them gets `403` `errors.auth.adminOnly`; members may
+the home network trust, (since v3.12.0) `mcp_enabled`,
+`mcp_share_identifiers`, `mcp_share_documents` and `mcp_apply_in_app`, whether and what an AI may
+read and who confirms a change, `language`, `country`, `currency` and `timezone`, the default for everyone, and `update_check`, `location_name`, `latitude`, `longitude` and `weather_auto_fill`, whether the app asks for new versions and which location it gives the weather service. A member who sends one of them gets `403` `errors.auth.adminOnly`; members may
 change every other key. Without sign-in the restriction does not apply.
 
 The defaults apply to a new installation in Germany. Another country sets its
@@ -29,16 +31,13 @@ profile on the first start (location, currency, time zone, heating limit, CO₂
 factors …) — see [Country profiles](../verstehen/14-laenderprofile.md). A test
 checks that this page names every key.
 
-## Settings → General
+## Settings → For you
 
-### Language & country
+Address `#/settings`. First page of the settings, with the search across all settings at the top.
 
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `language` | `de` | Default language of the installation | de, en, fr, it, es, pt, nl. Applies to devices without a choice of their own, to the annual report and CSV files, and to messages for Home Assistant and scripts. Since v3.1.0 every device also picks its own language ("Language on this device", stored in the browser); the app sends it as `X-ET-Language`, and labels and messages of the API follow it. |
-| `country` | `DE` | Country | Country (ISO code). Changing it offers to apply the country profile — see [Country profiles](../verstehen/14-laenderprofile.md). |
-| `currency` | `EUR` | Currency | Currency (ISO code) for display; nothing is converted. |
-| `timezone` | `Europe/Berlin` | Time zone | Time zone for "today", billing dates and reminders. |
+**A result leads to the field**, even above your own level. If it sits in a
+part that is hidden right now, for example under “Cloud”, a note on the card
+says where it is; **“Show” opens that part and saves nothing** *(v3.12.0)*.
 
 ### Experience level and setup *(v3.2.0)*
 
@@ -53,6 +52,23 @@ level stays reachable and shows a note whose one click raises the level. More:
 | `setup_pending` | `false` | — | `true` means: the setup assistant appears the next time the app opens. It is only set on the very first start of a new installation, never after an update; the assistant resets it when it is finished or skipped, and so does loading an example household. The assistant can be started again at any time with “Start the setup assistant” on the card “Experience level and setup” — that does not need this key. |
 | `setup_persona` | empty (`null`) | Setup assistant, first question | The persona chosen last: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` or `showcase` (“Just look at everything first”); empty or `none` = none. The assistant suggests the answer from it; loading an example household sets the loaded persona. Calculates nothing. |
 
+## Settings → Region and language
+
+Address `#/settings/region`.
+
+### Language & country
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `language` | `de` | Language, default for everyone | de, en, fr, it, es, pt, nl. Applies to everyone without a choice of their own, to CSV files, to annual reports without their own language choice, and to messages for Home Assistant and scripts. **Order in the app:** the choice of the signed-in person (on all their devices), then the choice on this device (stored in the browser), then this default. The app sends the language it shows as `X-ET-Language`, and labels and messages of the API follow it. Only admins change the default; a person's own choice stays free. |
+| `country` | `DE` | Country | Country (ISO code). Changing it offers to apply the country profile — see [Country profiles](../verstehen/14-laenderprofile.md). |
+| `currency` | `EUR` | Currency | Currency (ISO code) for display; nothing is converted. |
+| `timezone` | `Europe/Berlin` | Time zone | Time zone for "today", billing dates and reminders. |
+
+## Settings → Display and reminders
+
+Address `#/settings/display`.
+
 ### Display
 
 | Key | Default | In the app | Effect |
@@ -65,7 +81,7 @@ level stays reachable and shows a note whose one click raises the level. More:
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `update_check` | off | Tell me about new versions | Once a day the server asks GitHub for the newest published version (`GET /api/update-check`); if it is newer, a note with a link to the release notes appears until you close it for that version. GitHub only sees the server’s address. When switched off, no request goes out. Setup suggests it; existing installations stay off until someone switches it on. |
+| `update_check` | off | Tell me about new versions | Once a day the server asks GitHub for the newest published version (`GET /api/update-check`); if it is newer, a note with a link to the release notes appears until you close it for that version. GitHub only sees the server’s address. When switched off, no request goes out. Setup suggests it; existing installations stay off until someone switches it on. **Admins only** *(v3.12.0)*. |
 
 Independently of this, every device shows “Updated to …” once after an update, with a link to the release notes — without any request going out.
 
@@ -85,32 +101,119 @@ Independently of this, every device shows “Updated to …” once after an upd
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `contract_remind_days_1` | 90 | Level 1 — early warning | Days before the last day to cancel (without a notice period: before the contract end) for the first reminder. |
-| `contract_remind_days_2` | 30 | Level 2 — reminder | second stage |
-| `contract_remind_days_3` | 1 | Level 3 — urgent | third stage |
+| `contract_remind_days_1` | 90 | First reminder | Days before the last day to cancel (without a notice period: before the contract end) for the first reminder. |
+| `contract_remind_days_2` | 30 | Second reminder | second stage |
+| `contract_remind_days_3` | 1 | Final reminder | third stage |
 | `reminder_warn_days_before` | 14 | Reminder “due soon” from | From this many days before the date, a reminder counts as “due soon”. |
 | `reminder_overdue_days` | 0 | Grace until “overdue” | For this many days after the date a reminder still counts as due, then as overdue. 0 = from the next day. |
 
-### History of done notices *(v3.4.0)*
+## Settings → Data and backup
 
-Not under Settings, but under **Reminders & tips → Done → “Manage history”** —
-where the history is
-([Ticking off notices](../anleitungen/hinweise-erledigen.md)).
+Address `#/settings/data`.
+
+### Receipts *(v3.1.0)*
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `activity_keep_months` | 60 | Keep (months, 0 = unlimited) | History entries that are older (day they were done) drop out with the next entry; their receipts are released. 0–1200, `0` = unlimited. Admins only. |
+| `attachments_max_mb` | 500 | Storage for receipts, at most | Upper limit for all receipts together (photos, PDFs) in MB, 10–100000. Once it is reached, the app refuses new receipts. From 80 % the backup card under Settings → Data and backup shows a warning. A single photo may have at most 3 MB, a PDF 10 MB. |
 
-## Settings → Household & building
+## Settings → Access and security
+
+Address `#/settings/access`.
+
+### Embedding
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `frame_ancestors` | empty | Allowed embedding addresses | Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself. Addresses allowed to embed the app (Content Security Policy), such as a Home Assistant dashboard. Since v3.2.0 admins only. |
+
+### Host names *(v3.4.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `allowed_hosts` | empty | Allowed host names | Comma list without scheme and port, `*.domain` as a wildcard, at most 20 entries; stored as `a.example, *.b.example`. Empty = all names. Otherwise the app answers other names with `421` (against DNS rebinding); IP addresses and `localhost` always work. Applies together with `ET_ALLOWED_HOSTS`. When saving, the name the request comes in on must be included, otherwise `400` `errors.settings.hostNotListed`. Admins only — [Security § 8](../betrieb/sicherheit.md#8-host-names-and-embedding). |
+
+## Settings → Calculation
+
+Address `#/settings/calculation`. The calculation parameters, from the Expert level. Up to v3.11 the page was called “Expert”.
+
+### CO₂ emission factors
+
+Since v3.6.0 the long list in the tile is collapsed (“Factors per utility and
+electricity per year” — the same disclosure as “Detailed forecast”; each
+device remembers whether it is open). An error in one of the fields and saving
+a change in it open it.
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `co2_gas` | 182 | CO₂ gas | BAFA: 201 g/kWh, based on the net calorific value. The app counts gas by gross calorific value (z-number × calorific value), hence × 0.906 = 182. Existing installations keep the former default 201 (net calorific value) until they take over the new values. |
+| `co2_strom` | 380 | CO₂ electricity | Applies to years before the first yearly value. Without yearly values, it applies to all years. |
+| `co2_strom_years` | 2015–2025 (344–530) | CO₂ electricity per year | Electricity mix per year (German Environment Agency, UBA). After the last year its value applies, before that “CO₂ electricity”. Electricity mix per year, 2015–2025 from the German Environment Agency (g/kWh). |
+| `co2_wasser` | 350 | CO₂ water | For treatment and pumping per m³ of water. An estimate without an official source. |
+| `co2_fernwaerme` | 280 | CO₂ district heating | BAFA flat rate. Your heat network’s own value is more accurate; your supplier has it. Former default 180. |
+| `co2_heizoel` | 266 | CO₂ heating oil | BAFA, based on the net calorific value, as the app calculates heating oil. |
+| `co2_pellets` | 36 | CO₂ pellets | BAFA, CO₂ equivalents including the upstream chain. Former default 26. |
+| `co2_pv_avoided` | empty (`null`) | CO₂ avoided by PV | *(v3.1.0)* Your own avoidance factor in g/kWh (0–2000) for PV generation and feed-in. Empty = electricity mix as for “CO₂ electricity” (previous behaviour). The app suggests no value; the German Environment Agency’s emissions balance of renewable energy gives a guide. |
+
+### Regression & forecast
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `min_days_period` | 20 | Min. days per period | Months with fewer recorded days (partial months) stay out of the heating signature and anomalies. |
+| `min_hdd_regression` | 5 | Min. HDD for regression | Months with fewer heating degree days stay out of the heating signature. In summer the base load drives consumption, not the weather. |
+| `blend_max` | 0.8 | Max. blend weight | Highest weight of the weather model in the forecast; the rest comes from the seasonal profile. 0.8 means at least 20 % seasonal profile. |
+| `forecast_model` | `linear` | Default model | Model for forecast and tariff comparison. Linear suits most homes; the analysis shows which one explains your data best. Values: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid`. |
+| `segmented_split_mode` | `auto` | Segment breakpoint | auto = fitted from data, fixed = fixed HDD value below. Values: `auto`, `fixed`. |
+| `segmented_fixed_split` | 50 | Fixed breakpoint | Only effective in “fixed” mode. |
+| `confidence_band_sigma` | 1.28 | Forecast band width | In units of spread σ: 1.28 means consumption falls inside the band in 80 % of years; 1.64 would be 90 %. |
+| `anomaly_threshold` | 2 | Anomaly threshold | From what deviation (in units of spread σ) a month counts as unusual in the analysis. Smaller means more sensitive. |
+
+### Recommendations & distribution
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `recommendation_anomaly_sigma` | 2 | Recommendation anomaly threshold | The same kind of threshold for recommendations: only from this deviation on does a tip appear. |
+| `recommendation_trend_pct_year` | 3 | Recommendation trend threshold | From what increase per year the recommendations report rising consumption. |
+| `delivery_baseload_share` | 0.15 | Base-load share distribution | Share of consumption as weather-independent base load (rest HDD-weighted). |
+
+### CO₂ price *(v3.1.0)*
+
+The CO₂ price in fuel (BEHG) — background and calculation under
+[CO₂ price in fuel](../verstehen/16-co2-preis.md). Effective only in countries
+with a CO₂ price, today Germany.
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption — for 2027 therefore 60, although § 4(1) no. 3 CO2KostAufG makes the average of the auctions from 1 July to 30 November 2026 the applicable price; the German Environment Agency publishes it no later than ten working days before the year begins, enter it here then. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
+| `co2_price_scenario_eur_t` | empty (`null`) = off | Scenario: CO₂ price | Default for the forecast field “CO₂ price from 2028 (€/t)” (0–1000 €/t): the forecast then shows what this price would cost extra. Empty = off. |
+| `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading for buildings and road transport (ETS2) starts and replaces the national price (Art. 2 Regulation (EU) 2026/667). |
+
+## Household → Building
+
+Address `#/household/building`.
 
 ### Building & efficiency
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. Since v3.6.0 the “Benchmark” card only rates heating once the area has been entered (see below). |
+| `wohnflaeche_m2` | 100 | Living area | Heated area. The efficiency figure is based on it. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. Since v3.6.0 the “Benchmark” card only rates heating once the area has been entered (see below). |
 | `gebaeudetyp` | `efh` | Building type | Multi-family means three or more flats. Values: `efh` detached/semi-detached, `rh` terraced house, `mfh` apartment building, `whg` flat. Determines the reference area of the certificate-style figure. |
 | `beheizter_keller` | off | Heated basement | Residential building with up to two dwellings (detached/semi-detached, also terraced house) with heated basement: usable floor area = 1.35 × living area (otherwise 1.2; § 82(2) GModG, formerly GEG) — for the certificate-style figure. Only takes effect with `gebaeudetyp` `efh` or `rh`. |
 | `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a surcharge of 20 kWh/m²·yr, from 2027 of 16 kWh/m²·yr (§ 82 GModG). |
+
+### Details for letters *(v3.12.0)*
+
+**Optional.** The letter dialog uses them to prefill the sender and the supply
+address ([Writing a letter](../anleitungen/brief-schreiben.md)). They stay in
+your data and in the backup; **the app never passes them on to an AI**, not
+even with the switch for identifiers
+([AI assistant → privacy](../anleitungen/ki-assistent.md#security-and-privacy)). At most 60 characters per line.
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `letter_sender_name` | empty | Name (sender) | One line; first line of the sender and the signature under the letter. Empty: no sender, the letter shows the gap `[…]`. |
+| `letter_sender_address` | empty | Address (sender) | Up to four lines, for example street and number, then postcode and town. If the last line starts with a postcode, the letter suggests the town for “place, date”. Only appears in the letter when there is a name too. |
+| `letter_supply_address` | empty | Supply address (point of consumption) | One line; appears in the letter among the references as “Lieferanschrift” (the letter is always German). |
 
 ### Home and hot water *(v3.1.0)*
 
@@ -122,7 +225,7 @@ CO₂ value of the heat. Step by step for tenants:
 | Key | Default | In the app | Effect |
 |---|---|---|---|
 | `wohnverhaeltnis` | `eigentum` | I live | “in my own home” (`eigentum`) or “in a rented home” (`miete`). Rented: the “Tenancy” page appears under Costs & contracts (prepayment, estimate, service charge statements), and agenda and calendar know the two deadlines of the service charge statement. In Germany the app also splits the CO₂ costs between tenant and landlord ([Share CO₂ costs](../anleitungen/co2-aufteilung.md)). In your own home nothing changes. |
-| `waerme_energietraeger` | empty | Heat comes from | For the CO₂ value of the Heat utility – an approximation, since the heat is counted, not the fuel. Values: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (heat pump, instantaneous water heater) or empty (“not specified”) — then the CO₂ value is 0. The CO₂ factor of that energy source is used (electricity per year). |
+| `waerme_energietraeger` | empty | Heat comes from | For the CO₂ value of the Heat utility. An approximation, since the heat is counted, not the fuel. Values: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (heat pump, instantaneous water heater) or empty (“not specified”) — then the CO₂ value is 0. The CO₂ factor of that energy source is used (electricity per year). |
 | `warmwasser_energietraeger` | empty | Hot water is heated by | What heats the hot water: the same values plus `waerme` (“Heat (central)”). For information only; the calculation does not change. |
 | `warmwasser_temp_c` | 60 | Hot water temperature | For the heat of the hot-water meters under HeizkostenV § 9 (2): 2.5 kWh per m³ and degree above 10 °C (30–90 °C). Unknown: 60 °C — then 1 m³ of hot water is 125 kWh. Only affects water meters with the role “Hot water”. |
 
@@ -149,8 +252,8 @@ field focused.
 |---|---|---|---|
 | `wasser_personen_anzahl` | 2 | Number of people | For the water saving index: litres per person and day compared with the reference. Since v3.6.0 the “Benchmark” card only rates water once the number has been entered (see below). Up to v3.7 the field was called “People in household”; since v3.9.0 that is the name of the card with the names for “Responsible”. |
 | `wasser_personen_referenz` | 122 | Reference | BDEW 2024: 122 L per person and day (Germany). Existing installations keep the former default 127 until they take over the new values. |
-| `wasser_sparindex_gut` | 100 | Saving index — good up to | Index ≤ this value is considered unremarkable. |
-| `wasser_sparindex_warnung` | 150 | Saving index — warning from | Index ≥ this value indicates saving potential. |
+| `wasser_sparindex_gut` | 100 | Saving index: good up to | Index ≤ this value is considered unremarkable. |
+| `wasser_sparindex_warnung` | 150 | Saving index: warning from | Index ≥ this value indicates saving potential. |
 
 ### Living area and people: entered or assumed *(v3.6.0)*
 
@@ -168,7 +271,19 @@ area comes first) — it says **“Assumed living area 100 m² – please enter 
 with a link straight to the field, and the annual report adds a sentence. The API reports the open
 values under `assumed_keys` ([API](api.md#assumed-values-assumed_keys-v360)).
 
-## Settings → Utilities & billing
+**Checked when saving *(v3.12.0)*:** <!-- doc-claim: household-limits -->
+The living area is a number from 0 to 100,000 m², the number of people a whole number
+from 0 to 1,000; 0 means “not given”, as before. A decimal comma works through the API
+too (**“120,5” is 120.5 m²**). Text such as “viel”, negative or larger values are
+rejected by `PATCH /api/settings` with `400` (`errors.settings.valueInvalid`). Up to
+v3.11 any value got through: “120,5” was calculated as 120 m² and counted as not entered
+at the same time. What an older version stored this way the app reads honestly: “120,5”
+as 120.5 m², unreadable or negative values as not entered. The same check for a number
+applies to **all number settings** (for example the heating limit `hdd_base_temp`).
+
+## Household → Utilities
+
+Address `#/household/utilities`.
 
 ### Active utilities
 
@@ -190,9 +305,9 @@ values under `assumed_keys` ([API](api.md#assumed-values-assumed_keys-v360)).
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `gas_conversion_factors` | 11.5 kWh/m³ (undated) | Gas conversion factors | One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first effective date. Consumption splits every reading interval day-exactly at the effective dates. List with "valid from", volume correction factor and calorific value per period; one entry may be undated. Default: undated 11.5 kWh/m³. |
+| `gas_conversion_factors` | 11.5 kWh/m³ (undated) | Gas conversion factors | One entry per calorific-value period, as on the gas bill: valid from, volume correction factor and calorific value. The app derives the kWh/m³ factor from them; without a breakdown, enter the factor directly. The undated entry applies to everything before the first effective date. At each effective date the app splits the reading interval to the day. List with "valid from", volume correction factor and calorific value per period; one entry may be undated. Default: undated 11.5 kWh/m³. |
 | `gas_cv_unit` | `kwh` | Enter calorific value in | Unit in which the calorific value is entered: `kwh` (kWh/m³), `mj` (MJ/m³) or `gj` (GJ/Smc). Always stored as kWh/m³. |
-| `hdd_base_temp` | 15 | HDD base temperature | Heating limit — days below count as heating days. |
+| `hdd_base_temp` | 15 | HDD base temperature | Heating limit: days below count as heating days. |
 
 ### Fuels (delivery)
 
@@ -201,24 +316,6 @@ values under `assumed_keys` ([API](api.md#assumed-values-assumed_keys-v360)).
 | `heizoel_kwh_per_l` | 10 | Heating oil energy content | Energy per litre of heating oil (net calorific value, usually 10 kWh/L). Converts litres to kWh. |
 | `pellets_kwh_per_kg` | 4.8 | Pellets energy content | Energy per kg of pellets (usually 4.8 kWh/kg). Converts kg to kWh. |
 | `tank_warn_pct` | 15 | Tank warning from | Below this level the tank turns yellow, below half of it red, and “To do” suggests a delivery. |
-
-### CO₂ emission factors
-
-Since v3.6.0 the long list in the tile is collapsed (“Factors per utility and
-electricity per year” — the same disclosure as “Detailed forecast”; each
-device remembers whether it is open). An error in one of the fields and saving
-a change in it open it.
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `co2_gas` | 182 | CO₂ gas | BAFA: 201 g/kWh, based on the net calorific value. The app counts gas by gross calorific value (z-number × calorific value), hence × 0.906 = 182. Existing installations keep the former default 201 (net calorific value) until they take over the new values. |
-| `co2_strom` | 380 | CO₂ electricity | Applies to years before the first yearly value — without yearly values, to all years. |
-| `co2_strom_years` | 2015–2025 (344–530) | CO₂ electricity per year | Electricity mix per year (German Environment Agency, UBA). After the last year its value applies, before that “CO₂ electricity”. Electricity mix per year, 2015–2025 from the German Environment Agency (g/kWh). |
-| `co2_wasser` | 350 | CO₂ water | For treatment and pumping per m³ of water — an estimate without an official source. |
-| `co2_fernwaerme` | 280 | CO₂ district heating | BAFA flat rate. Your heat network’s own value is more accurate — ask your supplier. Former default 180. |
-| `co2_heizoel` | 266 | CO₂ heating oil | BAFA, based on the net calorific value — as the app calculates heating oil. |
-| `co2_pellets` | 36 | CO₂ pellets | BAFA, CO₂ equivalents including the upstream chain. Former default 26. |
-| `co2_pv_avoided` | empty (`null`) | CO₂ avoided by PV | *(v3.1.0)* Your own avoidance factor in g/kWh (0–2000) for PV generation and feed-in. Empty = electricity mix as for “CO₂ electricity” (previous behaviour). The app suggests no value; the German Environment Agency’s emissions balance of renewable energy gives a guide. |
 
 ### Photovoltaics *(v3.1.0)*
 
@@ -244,45 +341,9 @@ as long as nothing is entered (`example_keys` in `GET /api/settings`).
 | `flex_ev_plugged_from` | empty (`null`) | Car without evcc: plugged in from | Full hour 0–23. Together with `flex_ev_plugged_until` the car’s plug-in time when there are no charging sessions from evcc: charging is only shifted within it. Empty = available all day on charging days (sample value). With charging sessions from evcc, their plug-in times count. |
 | `flex_ev_plugged_until` | empty (`null`) | Car without evcc: plugged in until | Full hour 0–23; if it comes before “from”, the time runs past midnight (18 to 7 = evening to morning). Equal to “from” = no window. |
 
-## Settings → Weather data
+## Connections → Reading mail and photos
 
-### Location and sync
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `location_name` | `Leipzig Zentrum` | Place name | Name of the location, for display. Set under Settings → Weather data by place search. |
-| `latitude` | 51.3397 | Latitude | Latitude for temperatures and climate normal (sent to Open-Meteo rounded to two decimals, about 1 km). |
-| `longitude` | 12.3731 | Longitude | Longitude, like latitude. |
-| `weather_auto_fill` | on | Fill weather automatically | Fetches temperatures from Open-Meteo at most once a day when the app opens (location rounded to about 1 km). |
-
-## Settings → Access
-
-### Embedding
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `frame_ancestors` | empty | Allowed embedding addresses | Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself. Addresses allowed to embed the app (Content Security Policy), such as a Home Assistant dashboard. Since v3.2.0 admins only. |
-
-### Host names *(v3.4.0)*
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `allowed_hosts` | empty | Allowed host names | Comma list without scheme and port, `*.domain` as a wildcard, at most 20 entries; stored as `a.example, *.b.example`. Empty = all names. Otherwise the app answers other names with `421` (against DNS rebinding); IP addresses and `localhost` always work. Applies together with `ET_ALLOWED_HOSTS`. When saving, the name the request comes in on must be included, otherwise `400` `errors.settings.hostNotListed`. Admins only — [Security § 8](../betrieb/sicherheit.md#8-host-names-and-embedding). |
-
-## Settings → Expert
-
-Since v3.7.0 the card “Reading documents” comes first (who reads the post in the
-inbox, Local | Cloud), since v3.1.0 the groups “Receipts” and “Text recognition
-in the home network”, since v3.2.0 also “evcc in your home network”; the
-calculation parameters (regression & forecast, recommendations & distribution,
-since v3.1.0 CO₂ price) sit below, collapsed behind “Show calculation
-parameters”. The page belongs to the Expert level.
-
-### Receipts *(v3.1.0)*
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `attachments_max_mb` | 500 | Storage for receipts, at most | Upper limit for all receipts together (photos, PDFs) in MB, 10–100000. Once it is reached, the app refuses new receipts. From 80 % the backup card under Settings → Data shows a warning. A single photo may have at most 3 MB, a PDF 10 MB. |
+Address `#/connections/reading`. One “Reading documents” card for both paths, with the switch **Local | Cloud**.
 
 ### Text recognition in the home network *(v3.1.0)*
 
@@ -305,7 +366,7 @@ limit.
 
 Reads supplier mail in the inbox — locally through the text recognition service
 (address and interface as above), with a text model. Everything for it is in
-**one** card, “Reading documents” (Settings → Expert), with the switch **Local |
+**one** card, “Reading documents” (Connections → Reading mail and photos), with the switch **Local |
 Cloud** and a **Save** button of its own; “Local” shows address, interface, text
 model, time limit and “Check connection” (`GET /api/inbox/local/check`, admins
 only). Setup:
@@ -317,47 +378,6 @@ only). Setup:
 | `inbox_model` | `qwen3.8` | Reading documents → Local: Text model | Name of a text model as the service knows it (at most 200 characters; empty = `qwen3.8`). Recommended: `qwen3.8`, needs about 18 GB of memory. |
 | `inbox_timeout_s` | 300 | Reading documents → Local: Time limit per step | Seconds per step (recognise the type, read the fields), 30–300. Every step is a request of its own and so stays below the 310 seconds nginx waits in the Docker image. |
 
-### evcc in your home network *(v3.2.0)*
-
-Fetches the wall box charging sessions straight from evcc when you tap “Fetch
-from evcc” in the wall box view. The CSV file from evcc always works, also
-without this key. Setup:
-[Charging sessions from evcc](../anleitungen/evcc.md).
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `evcc_endpoint` | empty | evcc address | Base address with `http://` or `https://` at which you open evcc in the browser, for example `http://192.168.178.30:7070` or `http://evcc.local:7070`; the app appends `/api/sessions`. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise the fetch refuses (as with text recognition). Admins only. |
-
-### Notifications to Home Assistant *(v3.9.0)*
-
-Settings → Integrations → 🔔 Notifications to Home Assistant. Webhook ID and
-token are not stored here but in a separate file on the server (not in the
-backup, never in the browser). When what is sent:
-[Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390).
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `ha_notify_enabled` | off | Send notifications | The switch. Off = nothing goes to Home Assistant. Switching on only works with a complete destination. Admins only. |
-| `ha_notify_target` | `supervisor` | Where to? | `supervisor` (app in Home Assistant, no setup), `webhook` or `token` (address and token). Admins only. |
-| `ha_notify_url` | empty | Home Assistant address | For webhook and token, without a path, for example `http://192.168.178.10:8123`. In the home network `http://` or `https://`, an address outside only with `https://`. Admins only. |
-| `ha_notify_service` | `persistent_notification.create` | Action in Home Assistant | For Supervisor and token: `persistent_notification.create` or `notify.<name>` (for example `notify.mobile_app_…`). Admins only. |
-| `ha_notify_events` | all | What to report? | Subset of `reminder` (appointments), `deadline` (deadlines and other items from “To do”), `warning` (warnings), `document` (new documents in the inbox). |
-| `ha_notify_hour` | `8` | Daily check from | Hour (0 to 23) from which the daily check runs, with the first request after it. |
-
-### Connections in the home network *(v3.10.0)*
-
-Settings → Expert → 🔐 Connections in the home network. For Home Assistant,
-text recognition, reading in the home network and evcc over `https://` with
-certificates you issued yourself ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
-The cloud services and the public services (weather, exchange prices, update
-notice) keep checking only against the system's root certificates. Guide:
-[Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100).
-
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `home_ca_pem` | empty | Own root certificate (PEM) | The root certificate you issue your own certificates with, as PEM text (`-----BEGIN CERTIFICATE-----` …), several are fine. It applies **in addition** to the system's root certificates and to the file from `ET_CA_FILE`; checking stays on. Only the certificates themselves are stored; a private key or an unreadable block is refused (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). A certificate is not a secret, it is part of the backup. Admins only. |
-| `home_tls_insecure` | off | Do not check certificates in the home network | Fallback: connections to addresses in the home network do not check the certificate (neither issuer nor name). Without checking, anyone who gets in between on the network can read along, including the Home Assistant token. Decided by the address the app connects to (after name resolution): home network means 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` and `fc00::/7`. No effect for any other address. Admins only. |
-
 ### Inbox: reading in the cloud *(v3.7.0)*
 
 An opt-in for the inbox: a cloud service reads the post from your supplier
@@ -365,7 +385,7 @@ when there is no powerful computer at home. Off until an admin switches it on;
 before every reading the app names the service. **Experimental:** all cloud
 paths, Claude included, have not yet been checked against real-world feedback;
 the card and the question say so. The cloud side of the “Reading documents” card
-(Settings → Expert) saves via `PATCH /api/inbox/cloud`
+(Connections → Reading mail and photos) saves via `PATCH /api/inbox/cloud`
 ([API](api.md#get-apiinboxcloud--patch-apiinboxcloud-v370)). Setup:
 [Reading in the cloud](../anleitungen/posteingang.md#reading-in-the-cloud).
 
@@ -397,38 +417,116 @@ card’s switch; the keys here set up the cloud service.
 | `inbox_cloud_model` | empty | Reading documents → Cloud: Model | From the service’s list or by hand. Empty = the provider’s default (`claude-opus-5-5` for Claude, the only built-in name); required for `openai`. Letters, digits and `. _ : / @ + -`, at most 200 characters. Changing the provider or the service behind the address clears the model. Admins only. |
 | `inbox_cloud_timeout_s` | 120 | Reading documents → Cloud: Time limit | Seconds the server waits for the cloud service (10–600). Behind your own web server or reverse proxy its limit applies; in the Docker image nginx waits up to 660 seconds when recognising and reading *(v3.7.0)*. |
 
-### Regression & forecast
+## Connections → Notifications
+
+Address `#/connections/homeassistant/notifications`.
+
+### Notifications to Home Assistant *(v3.9.0)*
+
+Connections → Notifications. Webhook ID and
+token are not stored here but in a separate file on the server (not in the
+backup, never in the browser). When what is sent:
+[Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390).
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `min_days_period` | 20 | Min. days per period | Months with fewer recorded days (partial months) stay out of the heating signature and anomalies. |
-| `min_hdd_regression` | 5 | Min. HDD for regression | Months with fewer degree days stay out of the heating signature — in summer the base load drives consumption, not the weather. |
-| `blend_max` | 0.8 | Max. blend weight | Highest weight of the weather model in the forecast; the rest comes from the seasonal profile. 0.8 means at least 20 % seasonal profile. |
-| `forecast_model` | `linear` | Default model | Model for forecast and tariff comparison. Linear suits most homes; the analysis shows which one explains your data best. Values: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid`. |
-| `segmented_split_mode` | `auto` | Segment breakpoint | auto = fitted from data, fixed = fixed HDD value below. Values: `auto`, `fixed`. |
-| `segmented_fixed_split` | 50 | Fixed breakpoint | Only effective in “fixed” mode. |
-| `confidence_band_sigma` | 1.28 | Forecast band width | In units of spread σ: 1.28 means consumption falls inside the band in 80 % of years; 1.64 would be 90 %. |
-| `anomaly_threshold` | 2 | Anomaly threshold | From what deviation (in units of spread σ) a month counts as unusual in the analysis. Smaller means more sensitive. |
+| `ha_notify_enabled` | off | Send notifications | The switch. Off = nothing goes to Home Assistant. Switching on only works with a complete destination. Admins only. |
+| `ha_notify_target` | `supervisor` | Where to? | `supervisor` (app in Home Assistant, no setup), `webhook` or `token` (address and token). Admins only. |
+| `ha_notify_url` | empty | Home Assistant address | For webhook and token, without a path, for example `http://192.168.178.10:8123`. In the home network `http://` or `https://`, an address outside only with `https://`. Admins only. |
+| `ha_notify_service` | `persistent_notification.create` | Action in Home Assistant | For Supervisor and token: `persistent_notification.create` or `notify.<name>` (for example `notify.mobile_app_…`). Admins only. |
+| `ha_notify_events` | all | What to report? | Subset of `reminder` (appointments), `deadline` (deadlines and other items from “To do”), `warning` (warnings), `document` (new documents in the inbox). |
+| `ha_notify_hour` | `8` | Daily check from | Hour (0 to 23) from which the daily check runs, with the first request after it. |
 
-### Recommendations & distribution
+## Connections → evcc
 
-| Key | Default | In the app | Effect |
-|---|---|---|---|
-| `recommendation_anomaly_sigma` | 2 | Recommendation anomaly threshold | The same kind of threshold for recommendations: only from this deviation on does a tip appear. |
-| `recommendation_trend_pct_year` | 3 | Recommendation trend threshold | From what increase per year the recommendations report rising consumption. |
-| `delivery_baseload_share` | 0.15 | Base-load share distribution | Share of consumption as weather-independent base load (rest HDD-weighted). |
+Address `#/connections/evcc`.
 
-### CO₂ price *(v3.1.0)*
+### evcc in your home network *(v3.2.0)*
 
-The CO₂ price in fuel (BEHG) — background and calculation under
-[CO₂ price in fuel](../verstehen/16-co2-preis.md). Effective only in countries
-with a CO₂ price, today Germany.
+Fetches the wall box charging sessions straight from evcc when you tap “Fetch
+from evcc” in the wall box view. The CSV file from evcc always works, also
+without this key. Setup:
+[Charging sessions from evcc](../anleitungen/evcc.md).
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption — for 2027 therefore 60, although § 4(1) no. 3 CO2KostAufG makes the average of the auctions from 1 July to 30 November 2026 the applicable price; the German Environment Agency publishes it no later than ten working days before the year begins, enter it here then. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
-| `co2_price_scenario_eur_t` | empty (`null`) = off | Scenario: CO₂ price | Default for the forecast field “CO₂ price from 2028 (€/t)” (0–1000 €/t): the forecast then shows what this price would cost extra. Empty = off. |
-| `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading for buildings and road transport (ETS2) starts and replaces the national price (Art. 2 Regulation (EU) 2026/667). |
+| `evcc_endpoint` | empty | evcc address | Base address with `http://` or `https://` at which you open evcc in the browser, for example `http://192.168.178.30:7070` or `http://evcc.local:7070`; the app appends `/api/sessions`. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise the fetch refuses (as with text recognition). Admins only. |
+
+## Connections → Weather data
+
+Address `#/connections/weather`.
+
+### Location and sync
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `location_name` | `Leipzig Zentrum` | Place name | Name of the location, for display. Set under Connections → Weather data by place search. **Admins only** *(v3.12.0)*. |
+| `latitude` | 51.3397 | Latitude | Latitude for temperatures and climate normal (sent to Open-Meteo rounded to two decimals, about 1 km). **Admins only** *(v3.12.0)*. |
+| `longitude` | 12.3731 | Longitude | Longitude, like latitude. **Admins only** *(v3.12.0)*. |
+| `weather_auto_fill` | on | Fill weather automatically | Fetches temperatures from Open-Meteo at most once a day when the app opens (location rounded to about 1 km). **Admins only** *(v3.12.0)*. |
+
+## Connections → Home network security
+
+Address `#/connections/homenet`.
+
+### Connections in the home network *(v3.10.0)*
+
+Connections → Home network security. For Home Assistant,
+text recognition, reading in the home network and evcc over `https://` with
+certificates you issued yourself ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
+The cloud services and the public services (weather, exchange prices, update
+notice) keep checking only against the system's root certificates. Guide:
+[Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `home_ca_pem` | empty | Own root certificate (PEM) | The root certificate you issue your own certificates with, as PEM text (`-----BEGIN CERTIFICATE-----` …), several are fine. It applies **in addition** to the system's root certificates and to the file from `ET_CA_FILE`; checking stays on. Only the certificates themselves are stored; a private key or an unreadable block is refused (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). A certificate is not a secret, it is part of the backup. Admins only. |
+| `home_tls_insecure` | off | Do not check certificates in the home network | Fallback: connections to addresses in the home network do not check the certificate (neither issuer nor name). Without checking, anyone who gets in between on the network can read along, including the Home Assistant token. Decided by the address the app connects to (after name resolution): home network means 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` and `fc00::/7`. No effect for any other address. Admins only. |
+
+## Connections → AI assistants
+
+Address `#/connections/ai`.
+
+### AI assistants (MCP) *(v3.12.0)*
+
+Connections → AI assistants. An AI assistant (for example in VS
+Code, Cursor, LM Studio, Open WebUI) reads along via `POST /api/mcp`; it always needs
+an API key with scope `mcp` (read) or `mcp_write` (read and propose), even
+without sign-in. The environment variable `ET_MCP=off` locks the interface,
+even when the switch is on. Websites in a browser have no access; there is no
+setting for that. The rate limits are fixed. Interface:
+[API, AI interface](api.md#ai-interface-mcp-v3120).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `mcp_enabled` | off | Switch on the AI interface | The switch. Off = `/api/mcp` answers with `403` and says where to switch it on. A truth value; a text such as `"false"` or `"off"` counts as off, anything unreadable is rejected (`errors.settings.valueInvalid`). The same applies to the two switches below. Admins only. |
+| `mcp_share_identifiers` | off | Give identifiers to the AI | Meter number, market and metering location, customer, contract and invoice number (on contract and bill as well as from documents in the inbox), from documents also the file number, appear in the answers to the AI only with this switch, free text of it under `untrusted`. Without it the field is missing (`withheld`), and the app replaces known numbers (of the document and the household) in everything taken from documents: quotes, text values, file names; a quote that still carries an unknown long number is dropped. What the AI reads from an original itself, the app cannot hold back. Admins only. |
+| `mcp_share_documents` | off | Give originals to the AI | Original PDFs from the inbox (up to 5 MB) only with this switch; without it the document names no address for one. Admins only. |
+| `mcp_apply_in_app` | on | Confirm changes in the app only | Safety switch. On: `apply_proposal` writes nothing and answers with `status: awaiting_confirmation`; the person confirms under Open proposals with “Apply”, the proposal is valid for 24 hours. Off: `apply_proposal` writes, the proposal is valid for 15 minutes, protected only by the AI program’s prompt, which the server cannot check. Admins only. |
+
+**In the app** *(card “AI assistants (MCP)”, admins only)*: the three switches
+save at once, without a save bar; if saving fails, the box flips back. The card
+reads its state from `GET /api/mcp/status`. If `ET_MCP=off` locks the interface,
+the card says “Locked” at the top, the switch “Switch on the AI interface”
+cannot be used, and the card “Connect an AI assistant” is left out. The card
+creates keys with scope `mcp` (“AI read”) or `mcp_write` (“AI read and
+propose”) itself; they also appear in the list under Connections → Keys → “API keys for
+scripts”, with the same label. The interface shows no origin list for websites
+([Views, Settings](ansichten.md#11-settings)).
+
+## To do → History
+
+Address `#/todo/history`.
+
+### History of done notices *(v3.4.0)*
+
+Not under Settings, but under **To do → History → “Manage history”** —
+where the history is
+([Ticking off notices](../anleitungen/hinweise-erledigen.md)).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `activity_keep_months` | 60 | Keep (months, 0 = unlimited) | History entries that are older (day they were done) drop out with the next entry; their receipts are released. 0–1200, `0` = unlimited. Admins only. |
 
 ## Only via the API
 

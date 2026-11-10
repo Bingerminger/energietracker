@@ -2,10 +2,11 @@
 
 [English](INSTALL.md) · **Deutsch**
 
-> 🔐 **Sicherheit:** Ohne Anmeldung kann jeder, der die App erreicht, alle Daten
+> [!WARNING]
+> **Sicherheit:** Ohne Anmeldung kann jeder, der die App erreicht, alle Daten
 > lesen und ändern — im eigenen Heimnetz in Ordnung. Bevor du sie von außen
 > erreichbar machst (Portfreigabe, Reverse-Proxy, QuickConnect), schalte die
-> Anmeldung ein (Einstellungen → Zugriff → „Anmeldung & Zugriff") und lies
+> Anmeldung ein (Einstellungen → Zugang und Sicherheit → „Anmeldung & Zugriff") und lies
 > [Sicherheit & Netzbetrieb](docs/betrieb/sicherheit.md). Besser noch:
 > unterwegs per VPN zugreifen.
 
@@ -29,7 +30,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.11.0
+├── VERSION                ← 3.12.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -144,7 +145,7 @@ Vorlagen für Synology, Unraid, CasaOS/ZimaOS und Umbrel (die drei letzten unter
 ## Beispieldaten laden (optional)
 
 Am einfachsten in der App: auf der leeren Übersicht **„Mit Beispieldaten
-ausprobieren“**, sonst Einstellungen → Daten → „Demo-Daten laden“. Vorher legt
+ausprobieren“**, sonst Einstellungen → Daten und Sicherung → „Demo-Daten laden“. Vorher legt
 die App einen Snapshot des jetzigen Stands an. Das Repository enthält dieselben
 Daten auch als Backup-Datei:
 [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
@@ -174,7 +175,7 @@ im Aufbau von v0.9.0 vorliegt, wandelt die App beim ersten Start weiterhin um.
 Du betreibst Home Assistant und möchtest Zählerstände automatisch übergeben
 lassen? Der Energietracker hat dafür einen offiziellen Push-Endpoint
 (`POST /api/ingest`) mit optionalem API-Token. Einrichtung direkt in der UI
-unter **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung**.
+unter **Verbindungen → Home Assistant**.
 
 Schritt-für-Schritt inkl. REST-Command, Automatisierung und Use-Cases
 (Eigenheim, Mietwohnung): [Home Assistant anbinden](docs/anleitungen/home-assistant.md).

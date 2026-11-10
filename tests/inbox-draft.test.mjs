@@ -145,7 +145,7 @@ try {
   t('Missing: offene Punkte eines Dokuments mit den Sätzen des Posteingangs (fehlt / unsicher)',
     openText === 'Strom: a.pdf – Fehlt im Dokument, später nachtragen: Kündigungsfrist · Unsicher gelesen, nicht übernommen: Tarif', openText);
   t('Abgleich: andere Schreibweise am selben Zähler zur selben Zeit wird gesagt', L.findingText({ kind: 'same_supplier', params: { name: 'B Energie', of: 'Stadtwerke B' } })
-    === 'B Energie und Stadtwerke B: als derselbe Versorger behandelt – gleicher Zähler, gleiche Zeit, ein gemeinsamer Name.');
+    === 'B Energie und Stadtwerke B: als derselbe Versorger behandelt (gleicher Zähler, gleiche Zeit, ein gemeinsamer Name).');
   // Nachbesserung nach Nutzentest 2 — Rechnungspreis als Befund, Preise unter „Fehlt noch“, vorgezogener Beginn, Korrektur
   const wpText = L.findingText({ kind: 'invoice_wp', params: { name: 'r.pdf', date: '2025-10-01', invoice: 26.22, chain: 31.2 } });
   t('Befund: abweichender Rechnungspreis mit beiden Werten, die Kette bleibt', wpText.startsWith('r.pdf: Arbeitspreis ab 01.10.2025 26,22 ct/kWh statt 31,2 ct/kWh') && /Übernommen wird die Kette/.test(wpText), wpText);
@@ -173,12 +173,12 @@ try {
   t('Grund: Tausch passt nicht ganz', /passen nicht ganz zum Tausch/.test(L.reasonText(['swap_readings'])));
   // 3.7.1 — Entwurf auf einen bestehenden Haushalt
   t('Gründe: ergänzen und Überschneidung am Bestand', L.reasonText(['existing_update', 'existing_overlap'])
-    === 'Ergänzt, was schon da ist – bitte prüfen · Überschneidet sich mit dem Bestand – bitte prüfen', L.reasonText(['existing_update', 'existing_overlap']));
+    === 'Ergänzt den Bestand, bitte prüfen · Überschneidet sich mit dem Bestand, bitte prüfen', L.reasonText(['existing_update', 'existing_overlap']));
   const choice = L.missingText({ kind: 'meter_choice', params: { meter: 'GAS-88', count: 1, meters: 'Gaszähler, Gaszähler Garage' } }, 'Gas');
   t('Fehlt noch: zu welchem Zähler gehört die Nummer', /^Gas: Zu welchem Zähler gehört GAS-88\? In Frage: Gaszähler, Gaszähler Garage\./.test(choice), choice);
   const near = L.findingText({ kind: 'start_near', params: { provider: 'Nordlicht', from: '2025-01-03', date: '2025-01-01' } });
-  t('Befund: Beginn wenige Tage neben dem Bestand', /Beginn laut Dokument 03\.01\.2025, im Bestand 01\.01\.2025 – derselbe Vertrag/.test(near), near);
-  t('Dokument: Zähler offen', L.docStateText('meter_choice') === 'Zähler offen – im Dokument wählen');
+  t('Befund: Beginn wenige Tage neben dem Bestand', /Beginn laut Dokument 03\.01\.2025, im Bestand 01\.01\.2025\. Bei bis zu 7 Tagen Abstand ist es derselbe Vertrag/.test(near), near);
+  t('Dokument: Zähler offen', L.docStateText('meter_choice') === 'Zähler offen: im Dokument wählen');
   t('Befunde: vorgezogener Beginn und Rechnungskorrektur', /Beginn auf den 01\.04\.2024 vorgezogen/.test(L.findingText({ kind: 'start_from_invoice', params: { provider: 'N', from: '2024-04-01', to: '2025-04-01' } }))
     && /b\.pdf ersetzt a\.pdf/.test(L.findingText({ kind: 'bill_corrected', params: { name: 'b.pdf', of: 'a.pdf' } })));
 
@@ -335,7 +335,7 @@ try {
   for (let i = 0; i < 60 && !modal(); i++) await sleep(25);
   modal()?.querySelector('[data-act="next"]')?.click(); await sleep(40);   // Sprache und Land
   modal()?.querySelector('input[name="setup-persona"][value="mieterin"]')?.click(); await sleep(40);
-  for (let s = 0; s < 3; s++) { modal()?.querySelector('[data-act="next"]')?.click(); await sleep(40); }   // Energieträger, Stufe → So geht es weiter
+  for (let s = 0; s < 4; s++) { modal()?.querySelector('[data-act="next"]')?.click(); await sleep(40); }   // Energieträger, Stufe, Wie arbeiten → So geht es weiter
   const m = modal();
   const starts = [...(m?.querySelectorAll('input[name="setup-start"]') || [])].map(r => r.value);
   // v3.9.0 (F1032) — dazu „Messkonzept einrichten“ (Haushalt mit Strom), vor dem Beispielhaushalt

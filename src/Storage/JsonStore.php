@@ -14,6 +14,67 @@ final class JsonStore
     /** v3.3.0 — Dateien unter diesem Verzeichnis werden kompakt geschrieben (IntervalService::DIR). */
     private const COMPACT_DIR = 'intervals/';
 
+    /**
+     * v3.12.0 — Härtung: Dateien mit Geheimnissen, nur für den Benutzer des
+     * Webservers lesbar (0600); alles andere 0644 wie bisher. Die eine Liste:
+     *   - auth.json (AuthService::FILE): Sitzungsgeheimnis, Passwort-, Token- und Schlüssel-Hashes
+     *   - inbox_cloud_key.json (CloudConfig::KEY_FILE): API-Schlüssel des Cloud-Diensts
+     *   - ha_notify_secret.json (NotifyConfig::SECRET_FILE): Webhook-ID und Token für Home Assistant
+     * SecretFilesTest hält die Liste mit den Diensten deckungsgleich. Wer einen
+     * neuen Topf mit Geheimnis anlegt, trägt ihn hier ein.
+     */
+    public const SECRET_FILES = ['auth.json', 'inbox_cloud_key.json', 'ha_notify_secret.json'];
+
+    private const MODE_SECRET = 0600;
+    private const MODE_DEFAULT = 0644;
+
+    /** v3.12.0 — Liegt unter diesem relativen Pfad ein Geheimnis? */
+    public static function isSecret(string $relative): bool
+    {
+        return in_array($relative, self::SECRET_FILES, true);
+    }
+
+    private static function modeFor(string $relative): int
+    {
+        return self::isSecret($relative) ? self::MODE_SECRET : self::MODE_DEFAULT;
+    }
+
+    /**
+     * v3.12.0 — Härtung für bestehende Installationen: Geheimnis-Dateien aus
+     * früheren Versionen (0644) beim Start auf 0600 setzen. Gehört die Datei einem
+     * anderen Benutzer, scheitert chmod still; lesen kann die App sie dann ohnehin
+     * nur, wenn die Rechte es erlauben (das meldet /api/health).
+     *
+     * @return int Zahl der Dateien, deren Rechte jetzt enger sind
+     */
+    public function protectSecrets(): int
+    {
+        $n = 0;
+        foreach (self::SECRET_FILES as $relative) {
+            $path = $this->rootDir . '/' . $relative;
+            $perms = @fileperms($path);
+            if ($perms === false || !is_file($path) || ($perms & 0077) === 0) continue;
+            if (@chmod($path, self::MODE_SECRET)) $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * v3.12.0 — Temp-Datei für ein atomares Schreiben: im selben Verzeichnis,
+     * Rechte des Ziels gesetzt, bevor ein Byte darin steht (eine Datei mit
+     * Geheimnis ist so auch nach einem Abbruch nie für andere lesbar).
+     *
+     * @return array{0: string, 1: resource}|null Pfad und offener Zeiger
+     */
+    private function openTemp(string $relative, string $path): ?array
+    {
+        $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
+        $fp = @fopen($tmp, 'xb');
+        if ($fp === false) return null;
+        @chmod($tmp, self::modeFor($relative));
+        return [$tmp, $fp];
+    }
+
     public function __construct(private string $rootDir)
     {
         if (!is_dir($this->rootDir)) {
@@ -141,7 +202,13 @@ final class JsonStore
         $copyRel = $relative . '.corrupt-' . substr(hash('sha256', $contents), 0, 8);
         $copyAbs = $this->rootDir . '/' . ltrim($copyRel, '/');
         if (is_file($copyAbs)) return $copyRel;
-        return @file_put_contents($copyAbs, $contents, LOCK_EX) !== false ? $copyRel : null;
+        // v3.12.0 — Härtung: die Kopie einer Geheimnis-Datei trägt dieselben Geheimnisse
+        $fp = @fopen($copyAbs, 'xb');
+        if ($fp === false) return null;
+        @chmod($copyAbs, self::modeFor($relative));
+        $ok = fwrite($fp, $contents) === strlen($contents);
+        fclose($fp);
+        return $ok ? $copyRel : null;
     }
 
     /**
@@ -187,9 +254,7 @@ final class JsonStore
         $this->lock();
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
-        $fp = @fopen($tmp, 'wb');
-        if ($fp === false) throw new \RuntimeException('Could not write temporary file: ' . $relative);
+        [$tmp, $fp] = $this->openTemp($relative, $path) ?? throw new \RuntimeException('Could not write temporary file: ' . $relative);
         $ok = false;
         try {
             $ok = fwrite($fp, $bytes) === strlen($bytes) && fflush($fp);
@@ -201,7 +266,7 @@ final class JsonStore
             @unlink($tmp);
             throw new \RuntimeException('Could not write file: ' . $relative);
         }
-        @chmod($path, 0644);
+        @chmod($path, self::modeFor($relative));
         $this->diskWrites++;
     }
 
@@ -247,11 +312,9 @@ final class JsonStore
         // Write to tmp file in same dir, then atomic rename.
         // v2.6.0 — fflush + fsync vor dem rename: Ohne sie kann die umbenannte
         // Datei nach einem Stromausfall leer sein (je nach Dateisystem).
-        $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
-        $fp = @fopen($tmp, 'wb');
-        if ($fp === false) {
-            throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $relative);
-        }
+        // v3.12.0 — Härtung: Rechte des Ziels (0600 bei Geheimnissen) schon an der Temp-Datei
+        [$tmp, $fp] = $this->openTemp($relative, $path)
+            ?? throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $relative);
         $ok = false;
         try {
             $ok = fwrite($fp, $json) === strlen($json) && fflush($fp);
@@ -267,7 +330,8 @@ final class JsonStore
             @unlink($tmp);
             throw new \RuntimeException('Konnte Datei nicht ersetzen: ' . $relative);
         }
-        @chmod($path, 0644);
+        // v3.12.0 — Härtung: 0600 für Geheimnisse (SECRET_FILES), sonst 0644
+        @chmod($path, self::modeFor($relative));
         $this->generation++;
         $this->diskWrites++;
     }

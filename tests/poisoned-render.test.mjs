@@ -146,12 +146,12 @@ const freePort = () => new Promise((res, rej) => {
     const active = utilities.filter(u => (settings.active_utilities || utilities.map(x => x.key)).includes(u.key));
     const year = new Date().getFullYear();
     const routes = ['#/dashboard', '#/zaehlerstaende',
-      ...active.flatMap(u => [`#/utility/${u.key}`, `#/utility/${u.key}/meters`, `#/utility/${u.key}/contracts`]),
+      ...active.flatMap(u => [`#/utility/${u.key}`, `#/household/meters?art=${u.key}`, `#/utility/${u.key}/contracts`]),
       `#/utility/gas?year=${year - 1}`,
       '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
-      '#/reminders', '#/recommendations', '#/help', '#/temperatures',
-      '#/settings', '#/settings/household', '#/settings/utilities', '#/settings/data',
-      '#/settings/integrations', '#/settings/access', '#/settings/expert', '#/settings/system'];
+      '#/todo', '#/todo?art=rec', '#/todo?art=rights', '#/todo/dates', '#/todo/history', '#/todo/history/ai', '#/help',
+      '#/settings', '#/settings/region', '#/settings/display', '#/household', '#/household/people', '#/household/building', '#/household/utilities', '#/settings/data', '#/settings/calculation',
+      '#/connections', '#/connections/reading', '#/connections/homeassistant', '#/connections/homeassistant/meters', '#/connections/homeassistant/notifications', '#/connections/homeassistant/templates', '#/connections/weather', '#/connections/evcc', '#/connections/calendar', '#/connections/ai', '#/connections/ai/connect', '#/connections/keys', '#/connections/homenet', '#/settings/access', '#/settings/expert', '#/settings/system'];
     const hits = [];
     let probe = null;
     for (const r of routes) {
@@ -169,6 +169,16 @@ const freePort = () => new Promise((res, rej) => {
     const diag = w.document.querySelector('.diag-grid')?.textContent || '';
     t('System → Diagnose zeigt den Pfad als Text', diag.includes('data-xss'), diag.includes('data-xss') ? 'escaped' : 'Pfad fehlt');
     t(`${routes.length} Seiten: kein Wert aus den Daten als HTML`, hits.length === 0, hits.slice(0, 6).join(' | '));
+    // v3.12.0 (Designsprache) — rich() und das Zeichen eines Zählers mit denselben Werten
+    const Rich = await import(pathToFileURL(join(ROOT, 'public/js/lib/rich.js')).href);
+    const Icons = await import(pathToFileURL(join(ROOT, 'public/js/lib/icons.js')).href);
+    const box = w.document.createElement('div');
+    box.innerHTML = Rich.rich('setups.scene.byHand.data', { settings: PAYLOAD, weather: `**${PAYLOAD}**` });
+    t('rich(): Parameter bleiben Text, die Marke des Katalogs wirkt', !box.querySelector('[data-xss]') && box.textContent.includes('data-xss') && box.querySelectorAll('strong').length === 1, box.innerHTML.slice(0, 120));
+    box.innerHTML = Rich.richText(`**${PAYLOAD}**`);
+    t('richText(): HTML im Text bleibt Text', !box.querySelector('[data-xss]') && box.querySelectorAll('strong').length === 1);
+    box.innerHTML = Icons.meterGlyph({ icon: PAYLOAD }, { key: 'gas', icon: 'x' }) + Icons.artIcon({ key: PAYLOAD, glyph: PAYLOAD }) + Icons.icon(PAYLOAD, { title: PAYLOAD, cls: 'x' });
+    t('Grafiken: Eingetragenes am Zähler und fremde Namen bleiben Text', !box.querySelector('[data-xss]'), box.innerHTML.slice(0, 160));
   } catch (e) {
     t('Test mit präparierten Daten', false, e.stack || e.message);
   } finally {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Csv;
 use Energietracker\Support\LocalizedException;
 
 /**
@@ -172,7 +173,8 @@ final class CsvExportService
                     $this->date($r['date'] ?? ''),
                     $this->num($r['counter'] ?? null),
                     $this->num($r['price_cents'] ?? null),
-                    ((string)($r['note'] ?? '')),
+                    // v3.12.0 — eine Notiz als Objekt (gespeichert von einer älteren Version) brach den Export ab
+                    is_scalar($r['note'] ?? null) ? (string)$r['note'] : '',
                     $this->bool(!empty($r['is_estimated'])),
                     $this->bool(!empty($r['is_future'])),
                 ];
@@ -434,7 +436,9 @@ final class CsvExportService
      */
     private static function guardFormula(string $s): string
     {
-        if (!preg_match('/^[=+\-@\t\r]/', $s) || preg_match('/^-?\d+([.,]\d+)?$/', $s)) return $s;
+        // v3.12.0 — eine Regel mit der Rücknahme beim Import (Support\Csv): auch nach Leerraum oder
+        // Apostrophen, damit „'=…“ oder „ =…“ die Rundreise unverändert übersteht
+        if (!Csv::formulaLike($s) || preg_match('/^-?\d+([.,]\d+)?$/D', $s)) return $s;
         return "'" . $s;
     }
 

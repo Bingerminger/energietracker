@@ -389,7 +389,10 @@ final class WeatherModelTest extends ServiceTestCase
      */
     public function testBalanceWithoutUsableMonthsDoesNotFail(): void
     {
-        $first = date('Y-m-01');
+        // v3.12.0 — fester Stichtag: Mit dem echten Datum lag der Vertragsbeginn im Januar und Februar im
+        // Vorjahr, die laufende Abrechnungsperiode (Stichtag 01.01.) zählte dann weniger als drei Abschläge
+        $today = '2026-06-10';
+        $first = substr($today, 0, 7) . '-01';
         $start = date('Y-m-01', strtotime($first . ' -2 months'));
         $meter = $this->meters->list('strom')[0];
         $this->contracts->create('strom', [
@@ -398,7 +401,7 @@ final class WeatherModelTest extends ServiceTestCase
             'base_prices' => [['from' => $start, 'eur_per_month' => 10.0]],
             'advance_payments' => [['from' => $start, 'amount_eur' => 50.0]],
         ]);
-        $c = $this->consumption->contractStatus('strom', $meter)['contracts'][0];
+        $c = $this->consumption->contractStatus('strom', $meter, $today)['contracts'][0];
         self::assertSame('flat_average', $c['projection_method']);
         self::assertSame(0.0, $c['estimated_cost_to_date'], 'ohne Daten keine Schätzung');
         self::assertEqualsWithDelta($c['base_to_date'], $c['cost_to_date'], 0.01, 'bis heute nur der Grundpreis');
@@ -406,13 +409,13 @@ final class WeatherModelTest extends ServiceTestCase
 
         // Dasselbe mit Ablesungen, die alle vor einer Zäsur von heute liegen
         $meterId = $this->seedMonthly('gas', date('Y-m', strtotime($first . ' -14 months')), date('Y-m', strtotime($first . ' -1 month')));
-        $this->meters->update('gas', $meterId, ['baseline_events' => [['date' => date('Y-m-d'), 'label' => 'Heizungstausch']]]);
+        $this->meters->update('gas', $meterId, ['baseline_events' => [['date' => $today, 'label' => 'Heizungstausch']]]);
         $this->contracts->create('gas', [
             'meter_id' => $meterId, 'provider' => 'X', 'tariff_name' => 'T', 'start' => $start,
             'working_prices' => [['from' => $start, 'ct_per_kwh' => 10.0]],
             'advance_payments' => [['from' => $start, 'amount_eur' => 50.0]],
         ]);
-        $g = $this->consumption->contractStatus('gas', $this->meters->get('gas', $meterId))['contracts'][0];
+        $g = $this->consumption->contractStatus('gas', $this->meters->get('gas', $meterId), $today)['contracts'][0];
         self::assertSame('flat_average', $g['projection_method']);
     }
 

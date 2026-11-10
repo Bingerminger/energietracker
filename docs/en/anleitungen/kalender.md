@@ -18,8 +18,8 @@ sees, as all-day events of the next 365 days, plus anything already due:
 
 | Entry in the calendar | When |
 |---|---|
-| a date from “Reminders & maintenance” (smoke alarms, calibration deadline …) | on its next due date |
-| “Electricity: take a meter reading (…)” | when the last reading is older than set under Settings → General → “Warn after” (default 45 days); if that is already the case, the entry is today |
+| a date from “To do → Dates” (smoke alarms, calibration deadline …) | on its next due date |
+| “Electricity: take a meter reading (…)” | when the last reading is older than set under Settings → Display and reminders → “Warn after” (default 45 days); if that is already the case, the entry is today |
 | “…: last day to cancel (provider)” | on the cancellation deadline of a current or future contract — the contract needs a notice period and a fixed end for this. Since v3.4.0 no longer for contracts that renew, have no end or can be cancelled at any time: their “last day” was always today and moved through the calendar every day |
 | “…: contract ends (provider)” | on the fixed contract end; not for contracts that renew |
 | “…: price guarantee ends (provider)” | on the last day of the price guarantee |
@@ -43,7 +43,7 @@ moves along, no duplicate appears. Since v3.4.0 a **done notice** (ticked off
 by hand or by a follow-on contract without a gap) stays with the same UID, gets
 “✓ ” in front of its title and no advance reminder any more — how it works:
 [Ticking off notices](hinweise-erledigen.md). The texts are in the **default language of
-the installation** (Settings → General), because calendars send no language.
+the installation** (Settings → Region and language), because calendars send no language.
 
 **Responsible *(v3.5.0)*:** if someone is responsible for a reminder, the
 entry’s description carries the line **“Responsible: name”** (after a person
@@ -58,7 +58,7 @@ in the household; nobody is notified —
 
 ## Setting up the subscription
 
-In the app: **Reminders & tips → Reminders & maintenance → “Subscribe in your
+In the app: **To do → Dates → “Subscribe in your
 calendar”**. The window shows two addresses, each with a “Copy address” button:
 
 - `webcal://…` opens the calendar app directly on Mac and iPhone.
@@ -139,7 +139,7 @@ under Configuration → Network (for example `8095`) and replace the start up to
 - **Advance reminder.** Dates, cancellation deadlines, contract ends, price
   guarantees, price increases and *(v3.11.0)* the deadlines from “Your rights as
   a customer” (special termination, fee assessment) carry a reminder as many days before as set
-  under Settings → General → Reminders → “Reminder “due soon” from”
+  under Settings → Display and reminders → Reminders → “Reminder “due soon” from”
   (default 14). `0` switches it off. Due readings and deliveries have no advance
   reminder — they are on today’s date anyway. The deadlines of the service
   charge statement and of the CO₂ refund (v3.1.0) have none either; instead,
@@ -161,7 +161,7 @@ under Configuration → Network (for example `8095`) and replace the start up to
   a key with more rights never ends up in a calendar sync.
 - The address with the key cannot be shown again later — copy it right away.
   Every further “Create link” creates another key. **Revoke** under
-  **Settings → Access → API keys for scripts → Revoke**; after that the
+  **Connections → Keys → API keys for scripts → Revoke**; after that the
   subscription receives no new entries. For a new subscription, open the window
   again and create the link.
 - The address with the key reveals deadlines and provider names. Treat it like
@@ -179,9 +179,9 @@ Technical details (shape of the events, UIDs, access rules):
 | The calendar stays empty or outdated | The fetching device cannot reach the app: subscription in iCloud instead of “On My Mac/iPhone”, on the road outside the home network, or Google without access from the internet. |
 | Error “unauthorised” (401) | The calendar key was revoked, or the address contains a read or manage key. Get a new address via “Subscribe in your calendar”. |
 | A cancellation deadline is missing | The contract has no notice period, the deadline is more than 365 days ahead, or the contract renews, has no end or can be cancelled at any time (since v3.4.0 without a dated deadline). |
-| An entry shows “✓ ” and no longer alerts | It is done — ticked off or by a follow-on contract without a gap (v3.4.0). Undo under Reminders & tips → Done. |
+| An entry shows “✓ ” and no longer alerts | It is done — ticked off or by a follow-on contract without a gap (v3.4.0). Undo under To do → History. |
 | No advance reminder | Advance reminder set to 0, alerts removed in the subscription, or Google Calendar. |
-| The service charge deadlines are missing | Settings → Household & building says “I live: in my own home”, there is no tenancy, or the statement has no “Received on” (then there is no objection deadline). Once the statement for the last period is recorded, the reminder for it goes away. |
+| The service charge deadlines are missing | Household → Building says “I live: in my own home”, there is no tenancy, or the statement has no “Received on” (then there is no objection deadline). Once the statement for the last period is recorded, the reminder for it goes away. |
 | The deadline for the CO₂ refund is missing | No gas bill for the year recorded under Check a bill → “According to the bill”, the country is not Germany, the heating cost statement carries CO₂ details (then central heating applies and the landlord calculates), or the amount is 0 (stage 1 or reduced to 0). |
 
 ---

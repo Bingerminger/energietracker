@@ -20,8 +20,8 @@
        --widths=820,1180              Breiten (Höhe: die andere Kante des iPad)
        --login=<passwort>             vorher anmelden (Instanz mit eingeschalteter Anmeldung)
        --shots[=<ordner>]             Bildschirmfotos (Standard: Temp-Ordner), danach löschen
-     Routen ohne „#“; Standard: /settings/access /settings/general
-     /settings/household /settings/utilities /dashboard
+     Routen ohne „#“; Standard: /settings/access /settings
+     /household/people /household/utilities /dashboard
 
    Ausgabe: eine Zeile je Seite und Befund, am Ende „n Befunde“; Rückgabewert 1
    bei Befunden. Voraussetzung (einmalig, nicht Teil des Repos):
@@ -48,7 +48,7 @@ const OUT = opt('shots', join(tmpdir(), 'et-webkit'));
 const WIDTHS = opt('widths', '820,1180').split(',').map(Number);
 const LOGIN = opt('login', '');
 const ROUTES = args.filter(a => !a.startsWith('--'));
-const routes = ROUTES.length ? ROUTES : ['/settings/access', '/settings/general', '/settings/household', '/settings/utilities', '/dashboard'];
+const routes = ROUTES.length ? ROUTES : ['/settings/access', '/settings', '/household/people', '/household/utilities', '/dashboard'];
 if (SHOTS) mkdirSync(OUT, { recursive: true });
 
 const browser = await pw.webkit.launch();

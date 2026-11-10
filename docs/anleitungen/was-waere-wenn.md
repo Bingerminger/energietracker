@@ -22,12 +22,15 @@ selbst ein Bild oder eine PDF weitergibst.
 ## 1. Was du brauchst
 
 - Mindestens **sechs Monate Verbrauch** eines Zählers mit Zählerständen und
-  einem Vertrag — Gas, Strom, Wasser oder Fernwärme. Lieferarten (Heizöl,
-  Pellets) und die Einspeisung bleiben bei der [Prognose im Detail](../referenz/ansichten.md#6-prognose).
+  einem Vertrag — Gas, Strom, Wasser oder Fernwärme.
+- Seit **v3.12.0** auch **Heizöl und Pellets**: ein Tank mit Lieferungen, aus
+  denen die App sechs Monate Verbrauch verteilen kann (§ 6a).
+- Seit **v3.12.0** auch die **PV**: zwölf volle Monate mit Erzeugung,
+  Einspeisung und Netzbezug, oder ein volles Jahr Viertelstunden (§ 6b).
 - Für **Winter, Raumtemperatur und Dämmung** ein Heizmodell: Gas oder
-  Fernwärme mit Temperaturen (Wetterabgleich). Mit
-  [Klimanormal](../verstehen/09-glossar.md) sind die Heizgradtage die von 30
-  Jahren am Standort.
+  Fernwärme mit Temperaturen (Wetterabgleich), bei Heizöl und Pellets das
+  Tankbuch. Mit [Klimanormal](../verstehen/09-glossar.md) sind die
+  Heizgradtage die von 30 Jahren am Standort.
 - Für **Tarifwechsel** eingetragene Angebote (Wechsel prüfen → Angebot
   eintragen) oder einen eigenen Preis.
 
@@ -42,10 +45,16 @@ selbst ein Bild oder eine PDF weitergibst.
 | **Grundlast** (± %) | Warmwasser, Kochen, Geräte — den Teil ohne Wetterbezug | Erfahren |
 | **Maßnahmen** | je Maßnahme % auf den Heizanteil, % auf die Grundlast, Kosten | Erfahren |
 | **Prognosemodell** | witterungsbereinigt (die Prognose), wie im Vorjahr, Trend | Erfahren |
-| **Heizkurve** | das Regressionsmodell der Prognose (linear, robust …) | Experte |
+| **Heizkurve** | das Regressionsmodell der Prognose (linear, robust …), nur wo ein Heizmodell wirkt (Gas, Fernwärme) | Experte |
 | **E-Auto** | Strom: km im Jahr × kWh/100 km, gleichmäßig auf die Tage | Erfahren (seit v3.7.0, bis v3.6 Experte) |
 | **Wärmepumpe (JAZ)** | Strom eines Zählers mit der Rolle Wärmepumpe: Menge × JAZ heute ÷ JAZ im Szenario | Erfahren (seit v3.7.0, bis v3.6 Experte) |
 | **Budget** | sucht die beste Kombination der Maßnahmen (§ 7) | Experte |
+| **Brennstoffpreis** (± %) | Heizöl, Pellets: der Preis je Liter bzw. kg gegenüber dem Durchschnitt im Tank | Einsteiger (seit v3.12.0) |
+| **Heizungstausch** | Heizöl, Pellets: dieselbe Wärme mit einer Wärmepumpe oder einer Pelletheizung (§ 6a) | Erfahren (seit v3.12.0) |
+| **Anlage größer** (%) | PV: mehr Erzeugung in jedem Monat, im selben Verhältnis | Einsteiger (seit v3.12.0) |
+| **Speicher dazu** (kWh) | PV: lädt aus Sonnenstrom, der sonst ins Netz ginge | Einsteiger (seit v3.12.0) |
+| **Eigenverbrauch** (± %) | PV: Verbrauch wandert in die Sonnenstunden, etwa Wärmepumpe oder Wallbox | Einsteiger (seit v3.12.0) |
+| **Einspeisevergütung** (ct/kWh) | PV: statt der Vergütung deines Vertrags | Einsteiger (seit v3.12.0) |
 
 Die Prozente einer Maßnahme trägst du selbst ein, am besten aus deiner
 Energieberatung oder dem Angebot des Handwerkers. Die Werkstatt gibt bewusst
@@ -70,18 +79,66 @@ keine „typischen“ Werte vor — die hängen vom Haus ab.
 Unter der Werkstatt steht aufklappbar die **Prognose im Detail** wie bisher:
 Verlauf mit Band, Monatstabelle mit Kosten, Abschlag, Saldo und Methode.
 
-## 4. Beispielszenarien
+## 4. Beispielszenarien und Maßnahmen je Art
 
-| Beispiel | Was es setzt | Hinweis |
-|---|---|---|
-| **Kalter Winter** | Heizgradtage so hoch wie etwa in jedem zehnten Winter (aus der Streuung im Klimanormal) | ohne Klimanormal 10 % als Annahme |
-| **Dach gedämmt** | eine Maßnahme „Dach dämmen“ mit 15 % weniger Heizwärme | ein Beispielwert, kein Richtwert — trag deinen ein |
-| **Günstigstes Angebot** | das günstigste deiner Angebote, gerechnet mit deinem erwarteten Verbrauch | Bonus nicht eingerechnet |
-| **10 % sparen** | zehn Prozent weniger Verbrauch durch Verhalten | — |
+Wasser ist keine Fernwärme und Strom kein Gas. **Jede Art bekommt ihre eigenen
+Beispiele, Maßnahmen und Worte.** Gerechnet wird dabei mit derselben Rechnung.
 
-Ein Beispiel erscheint nur, wenn es zum Zähler passt (ohne Heizmodell kein
-Winter, ohne Angebot kein Wechsel). In der öffentlichen Demo sind Ausgangsfall
-und Beispiele vorgerechnet — ein Klick zeigt sofort ein Ergebnis.
+| Gruppe | Arten | Beispiele | Maßnahmen |
+|---|---|---|---|
+| **Wärme aus Brennstoff** | Gas | Kalter Winter, Milder Winter, 1 Grad weniger, Dach gedämmt, Fenster getauscht, Günstigstes Angebot | Dach, Fassade, Fenster, Kellerdecke, Hydraulischer Abgleich, Heizungspumpe, Thermostate, Warmwasser sparen, Andere |
+| **Wärme aus dem Netz** | Fernwärme | Kalter Winter, Milder Winter, 1 Grad weniger, Dach gedämmt, Preis steigt, Günstigstes Angebot | wie Gas, ohne Heizungspumpe |
+| **Strom im Haushalt** | Strom, Rolle Haushalt | Grundlast senken, E-Auto, Günstigstes Angebot, 10 % sparen | Geräte tauschen, Standby vermeiden, Beleuchtung tauschen, Warmwasser sparen, Andere |
+| **Strom der Wärmepumpe** | Strom, Rolle Wärmepumpe | Bessere Arbeitszahl, Günstigstes Angebot, 10 % sparen | Hydraulischer Abgleich, Dach, Fassade, Fenster, Andere |
+| **Strom der Wallbox** | Strom, Rolle Wallbox | E-Auto, Günstigstes Angebot, 10 % sparen | Andere |
+| **Wasser** | Wasser | Sparbrause, Spülkasten, 10 % sparen | Sparbrause, Spülkasten, Waschmaschine und Geschirr, Garten, Leck beheben, Andere |
+| **Wärme aus Lieferungen** (seit v3.12.0) | Heizöl, Pellets | Kalter Winter, Milder Winter, 1 Grad weniger, Dach gedämmt, Preis steigt, Wärmepumpe statt Kessel | wie Gas |
+| **PV** (seit v3.12.0) | PV-Einspeisung, PV-Erzeugung | Anlage größer, Speicher dazu, Mehr selbst nutzen, Vergütung halbiert | keine |
+
+**Alle Zahlen eines Beispiels sind angenommene Beispielwerte, keine Richtwerte
+und kein Sparversprechen.** Die Werkstatt sagt das unter dem Ergebnis dazu. Trag
+deine eigenen Werte ein, am besten aus einer Energieberatung oder vom Fahrzeug.
+
+| Beispiel | Was es setzt |
+|---|---|
+| **Kalter Winter**, **Milder Winter** | Heizgradtage wie etwa in jedem zehnten Winter (aus der Streuung im Klimanormal), ohne Klimanormal 10 % als Annahme |
+| **1 Grad weniger** | Raumtemperatur −1 °C, gerechnet mit deinem Heizmodell |
+| **Dach gedämmt**, **Fenster getauscht** | eine Maßnahme mit 15 % bzw. 10 % weniger Heizwärme |
+| **Preis steigt** | dein Arbeits- und Grundpreis, 10 % höher, als eigener Preis |
+| **Günstigstes Angebot** | das günstigste deiner Angebote, Bonus nicht eingerechnet |
+| **Grundlast senken** | Grundlast −5 % |
+| **E-Auto** | 10.000 km im Jahr mit 18 kWh je 100 km, kostet mehr Strom |
+| **Bessere Arbeitszahl** | Jahresarbeitszahl von 3 auf 3,5 |
+| **Sparbrause**, **Spülkasten** | eine Maßnahme mit 10 % bzw. 5 % weniger Wasser |
+| **10 % sparen** | zehn Prozent weniger Verbrauch durch Verhalten |
+| **Preis steigt** (Heizöl, Pellets) | 10 % mehr je Liter bzw. kg |
+| **Wärmepumpe statt Kessel** | Jahresarbeitszahl 3, Strom 30 ct/kWh, Nutzungsgrad des Kessels 90 % |
+| **Anlage größer** | 50 % mehr Leistung |
+| **Speicher dazu** | 5 kWh nutzbare Kapazität |
+| **Mehr selbst nutzen** | 10 % mehr Eigenverbrauch |
+| **Vergütung halbiert** | die Hälfte deiner heutigen Einspeisevergütung |
+
+**Ein Beispiel erscheint nur, wenn es etwas bewirken kann:**
+
+- **Ohne Heizmodell kein Winter und keine Dämmung.** Bei Gas und Fernwärme sagt das
+  ein Hinweis, „10 % sparen“ bleibt.
+- **Beim Strom gibt es kein Heizmodell, auch nicht bei der Wärmepumpe.** Darum dort
+  weder Winter noch Raumtemperatur. Die Prozente einer Maßnahme wirken auf den ganzen
+  Strom des Zählers, und Grundlast und Sparen rechnen gleich.
+- **Ohne eingetragenes Angebot kein Wechsel.** „Preis steigt“ braucht einen Preis.
+- **Beim Wasser gibt es keinen Tarif zur Wahl:** Du wechselst dort nicht den
+  Anbieter, die Werkstatt rechnet mit dem laufenden Vertrag.
+
+**Gespeicherte Szenarien rechnen gleich weiter.** Eine Maßnahme, die nicht mehr zur
+Art passt, etwa „Dach“ an einem Stromzähler, bleibt mit ihren Werten sichtbar und
+ist markiert. Der Sprung `#/forecast?preset=…` funktioniert weiter.
+
+**Heizöl, Pellets und PV rechnet die Werkstatt seit v3.12.0** (§ 6a, § 6b). Ohne
+Werkstatt bleibt nur die Heizwärme; die Seite sagt das, die Prognose im Detail
+steht dort weiter zur Verfügung.
+
+In der öffentlichen Demo sind Ausgangsfall und Beispiele vorgerechnet, ein Klick
+zeigt sofort ein Ergebnis.
 
 ## 5. Speichern, vergleichen, teilen
 
@@ -153,6 +210,76 @@ Abschlag), der letzte Monat anteilig.
 **CO₂.** Verbrauch × der Faktor, mit dem die Verbrauchsansicht der letzten
 zwölf Monate gerechnet hat.
 
+## 6a. Heizöl und Pellets (seit v3.12.0)
+
+**Ausgangsfall ist die Prognose des Tanks, unverändert.** Die Menge je Monat
+kommt aus der Prognose, die Kosten aus dem gleitenden Durchschnittspreis im
+Tank. Abschlag und Abrechnung gibt es bei Lieferungen nicht.
+
+![Werkstatt beim Heizöl mit dem Beispiel „Wärmepumpe statt Kessel“: Ergebnis, Tank und Heizungstausch](../ui/screenshots/werkstatt-heizoel.png)
+
+- **Heizanteil aus dem Tankbuch.** Die App verteilt Lieferungen mit
+  „je Heizgradtag × HGT + je Tag × Tage“ auf die Tage. Der Heizanteil eines
+  Monats ist der erste Teil durch die Summe. Winter, Raumtemperatur, Dämmung
+  und Warmwasser rechnen damit wie beim Gas.
+- **Brennstoffpreis ± %:** Kosten = Menge × Preis × (1 + %). Die Menge bleibt.
+- **Tank leer am, nachfüllen ab:** Vom Bestand heute Tag für Tag mit der Menge
+  des Szenarios. Nachfüllen heißt, die Warnschwelle des Tanks ist erreicht
+  (Einstellung `tank_warn_pct`). Künftige Lieferungen kennt die Rechnung nicht.
+- **Heizungstausch: eine zweite Rechnung über dieselbe Wärme.** Wärme =
+  Brennstoff × Nutzungsgrad des alten Kessels. Eine Wärmepumpe braucht Wärme ÷
+  Jahresarbeitszahl an Strom, eine Pelletheizung Wärme ÷ ihren Nutzungsgrad an
+  Pellets. Die Arbeitszahl gilt das ganze Jahr; im Winter ist sie in
+  Wirklichkeit kleiner, im Sommer größer. Leere Felder rechnen mit genannten
+  Beispielwerten, keinen Richtwerten. Die Kosten für den Einbau sind nicht
+  eingerechnet, mit eingetragenen Kosten nennt die Werkstatt die Amortisation.
+
+<!-- doc-claim: werkstatt-heat-pump-example (ScenarioDeliveryTest) -->
+```text
+Heizöl im Jahr   1.000 kWh
+Wärme            1.000 kWh × 0,9 = 900 kWh
+Strom            900 kWh ÷ 3 = 300 kWh
+Kosten           300 kWh × 30 ct = 90,00 €
+```
+
+## 6b. PV (seit v3.12.0)
+
+**Ein Modell des ganzen Haushalts über Erzeugung, Einspeisung und Netzbezug.**
+Grundlage ist ein gemessenes Jahr, kein Wetter-Modell. Prognose und Saldo
+ändern sich dadurch nicht.
+
+![Werkstatt bei der PV mit dem Beispiel „Speicher dazu“: Ergebnis und das Jahr Monat für Monat als Spanne](../ui/screenshots/werkstatt-pv.png)
+
+- **Mit Viertelstunden ein Wert.** Gibt es ein volles Kalenderjahr
+  Viertelstunden für Erzeugung, Einspeisung und Netzbezug, rechnet die Werkstatt
+  jede Viertelstunde nach.
+- **Ohne Viertelstunden eine Spanne.** Dann ist offen, ob Sonne und Verbrauch
+  zur selben Stunde anfallen. **Untere Grenze:** Der zusätzliche Sonnenstrom
+  geht ganz ins Netz, der Speicher bleibt leer. **Obere Grenze:** Jeder Tag ist
+  wie das Mittel des Monats, der Speicher lädt einmal am Tag. Die Zahlen nennen
+  die Mitte.
+- **Anlage größer:** Mehr Sonne deckt erst den Netzbezug, der Rest geht ins
+  Netz. Je Monat höchstens die Mehrerzeugung, der Netzbezug und
+  „% × selbst genutzt“.
+- **Eigenverbrauch ± %:** Verbrauch wandert innerhalb des Tages in die Sonne.
+  Der Bedarf bleibt gleich, höchstens Einspeisung und Netzbezug wandern.
+- **Speicher dazu:** lädt nur aus Sonnenstrom, der sonst ins Netz ginge, und
+  nie über seine Kapazität. Wirkungsgrad 90 % (genannte Annahme), mit
+  Viertelstunden dazu eine Leistung von halber Kapazität je Stunde. Ein
+  vorhandener Speicher arbeitet wie gemessen.
+- **Kosten und Erlös:** Netzbezug × Arbeitspreis des Stroms je Monat,
+  Einspeisung × Vergütung. Der Grundpreis ändert sich nicht und fehlt.
+  Autarkie wie in der PV-Übersicht.
+
+<!-- doc-claim: werkstatt-pv-month-example (ScenarioPvTest) -->
+```text
+Ein Monat mit 30 Tagen: Erzeugung 500 kWh, Einspeisung 300 kWh, Netzbezug 200 kWh
+Anlage + 50 %:  untere Grenze Einspeisung 550 kWh, Netzbezug 200 kWh
+                obere Grenze  Einspeisung 450 kWh, Netzbezug 100 kWh
+Speicher 5 kWh: obere Grenze  geladen 150 kWh, entladen 135 kWh,
+                              Einspeisung 150 kWh, Netzbezug 65 kWh
+```
+
 ## 7. Die beste Kombination unter einem Budget
 
 Trag ein **Budget** ein und bei den Maßnahmen die **Kosten**. Die Werkstatt
@@ -172,7 +299,10 @@ die gefundenen Maßnahmen ins Szenario.
 - Ein Szenario ist eine **Modellrechnung, keine Messung**. Die Werkstatt
   sagt dazu, bis wann gemessen wurde und wie groß der Heizanteil ist.
 - Die Werkstatt rechnet für Gas, Strom, Wasser und Fernwärme mit
-  Zählerständen und Vertrag; Lieferarten und die Einspeisung nicht.
+  Zählerständen und Vertrag, seit v3.12.0 auch für Heizöl, Pellets und die PV;
+  die Heizwärme nicht.
+- Die PV rechnet mit einem gemessenen Jahr. Ein anderes Wetter, das Altern der
+  Module und die Verschattung kennt sie nicht.
 - Dynamische Tarife (Börsenpreis je Monat) bietet sie nicht als Angebot an —
   die rechnet [Wechsel prüfen](../referenz/ansichten.md#wechselentscheidung).
 - Lastverschiebung gegen Viertelstundenpreise rechnet sie nicht; was das

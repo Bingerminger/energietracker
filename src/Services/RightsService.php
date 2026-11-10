@@ -212,7 +212,7 @@ final class RightsService
     /**
      * Rohbefund prüfen und ergänzen (die Befund-Form). Pflicht: check, severity, utility,
      * date, rules, title_key, text_key. Optional: meter_id, contract_id, bill_id, deadline,
-     * amount_eur, facts, params, letter, key, href. Fehler → \LogicException (ein Fehler der
+     * todo_until (v3.12.0), amount_eur, facts, params, letter, key, href. Fehler → \LogicException (ein Fehler der
      * Prüfung, kein Fehler der Daten).
      *
      * @param array<string,mixed> $raw
@@ -238,6 +238,11 @@ final class RightsService
         if (!Dates::isIsoDate($date)) throw $bad('date must be YYYY-MM-DD');
         $deadline = $raw['deadline'] ?? null;
         if ($deadline !== null && !Dates::isIsoDate($deadline)) throw $bad('deadline must be YYYY-MM-DD or null');
+        // v3.12.0 — optional: „Zu tun“ bis zu diesem Tag, auch über die Frist hinaus (Weichzone beim Gebührenbescheid)
+        $todoUntil = $raw['todo_until'] ?? null;
+        if ($todoUntil !== null && (!Dates::isIsoDate($todoUntil) || $deadline === null || $todoUntil < $deadline)) {
+            throw $bad('todo_until must be YYYY-MM-DD, not before the deadline');
+        }
         $amount = $raw['amount_eur'] ?? null;
         if ($amount !== null && (!(is_int($amount) || is_float($amount)) || !is_finite((float)$amount))) throw $bad('amount_eur must be a number or null');
 
@@ -292,7 +297,7 @@ final class RightsService
             'footer'      => $this->footer($norms, $utility),
             'help'        => $this->help($utility),
             'letter'      => $letter,
-            'todo'        => self::inWindow($deadline, $date, $today),
+            'todo'        => self::inWindow($todoUntil ?? $deadline, $date, $today),
             'href'        => $href ?? self::defaultHref($ref),
         ];
     }

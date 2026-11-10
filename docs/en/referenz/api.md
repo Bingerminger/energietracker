@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **197 routes**, v3.9.0 —
+(heat). As of: **203 routes**, v3.9.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -25,19 +25,19 @@ table below (German and English).
 
 | Code | When |
 |------|------|
-| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. Since v2.6.0 also query parameters outside their range (forecast, annual report, temperature sync). *(v3.1.0)* A receipt with the wrong content, too large, or storage full (`errors.attachment.*`) — also an upload above PHP's `post_max_size`, then with that limit in the message (`errors.attachment.size`); text recognition not set up or not in the home network (`errors.ocr.off`, `errors.ocr.notLocal`); a meter reading on a meter with consumption per period (`errors.reading.periodMeter`), overlapping periods (`errors.period.overlap`), errors in the tenancy (`errors.tenancy.*`); an invalid year for the CO₂ price (`errors.co2.yearInvalid`), errors in a supplier bill (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), a bill check for a utility without one (`errors.billCheck.unsupportedUtility`), an invalid market or metering location ID (`errors.meter.maloInvalid`, `…meloInvalid`), a capacity charge without a connected load (`errors.contract.capacityMissing`), deleting a meter that still has periods or bills (`errors.meter.hasPeriods`, `…hasBills`); a group contract on an unsuitable group or with prices for non-members (`errors.contract.targetInvalid`), a member with its own contract in the same period (`errors.contract.groupMemberOverlap`), deleting a group with contracts (`errors.meter.groupHasContracts`), a dynamic tariff as a real contract or outside electricity (`errors.contract.dynamicShadowOnly`), an unknown price model (`errors.contract.priceModelInvalid`), monthly prices without a readable line or for water and feed-in (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), wholesale prices without values (`errors.marketPrices.noRows`), a charging record without a paying contract, without a flat rate or with invalid parameters (`errors.evReport.*`), an invalid heat pump year (`errors.heatPump.yearInvalid`), a link to an electricity meter without the heat pump role (`errors.meter.heatPumpLinkInvalid`), an invalid PV value on the meter (`errors.meter.valueInvalid`), a time series with an unsuitable mapping or without a starting reading (`errors.import.mappingInvalid`, `…anchorMissing`) — all v3.1.0. *(v3.2.0)* An unknown example household (`errors.demo.personaUnknown`); a person’s name empty or too long, an unknown role, deleting your own person (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), own settings without a signed-in person, the password of a person from the proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc not set up or not in the home network, no finished charging sessions, a CSV without the required columns, an unknown choice for the meter readings, meter readings of several charging points (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). *(v3.3.0)* Invalid time windows for § 14a module 3 on an electricity contract (`errors.contract.gridTouInvalid`), an ingest timestamp without a time zone or in a form other than ISO 8601 (`errors.ingest.timestampFormat`), a year outside 2018–2100 for flexibility and for fetching quarter-hour prices (`errors.flexibility.yearInvalid`). *(v3.4.0)* A host list that does not contain the name of the request (`errors.settings.hostNotListed`); a self-chosen device ID outside letters, digits, `_` and `-` (`errors.meter.idInvalid`); a backup with identifiers made of control characters, quotes, angle brackets or backslash (problem `unsafe_id:<field>` in `detail.problems`). *(v3.4.0, F1024)* A done date that is not a calendar day or lies in the future (`errors.activity.dateInvalid`), a note over 500 characters (`errors.activity.noteInvalid`), an unknown receipt (`errors.attachment.notFound`). *(v3.5.0, F1027)* Day film: a date that is not a calendar day or lies outside 2000–2100 (`errors.energyFlow.dateInvalid`), an invalid month (`errors.energyFlow.monthInvalid`). |
+| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. Since v2.6.0 also query parameters outside their range (forecast, annual report, temperature sync). *(v3.1.0)* A receipt with the wrong content, too large, or storage full (`errors.attachment.*`) — also an upload above PHP's `post_max_size`, then with that limit in the message (`errors.attachment.size`); text recognition not set up or not in the home network (`errors.ocr.off`, `errors.ocr.notLocal`); a meter reading on a meter with consumption per period (`errors.reading.periodMeter`), overlapping periods (`errors.period.overlap`), errors in the tenancy (`errors.tenancy.*`); an invalid year for the CO₂ price (`errors.co2.yearInvalid`), errors in a supplier bill (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), a bill check for a utility without one (`errors.billCheck.unsupportedUtility`), an invalid market or metering location ID (`errors.meter.maloInvalid`, `…meloInvalid`), a capacity charge without a connected load (`errors.contract.capacityMissing`), deleting a meter that still has periods or bills (`errors.meter.hasPeriods`, `…hasBills`); a group contract on an unsuitable group or with prices for non-members (`errors.contract.targetInvalid`), a member with its own contract in the same period (`errors.contract.groupMemberOverlap`), deleting a group with contracts (`errors.meter.groupHasContracts`), a dynamic tariff as a real contract or outside electricity (`errors.contract.dynamicShadowOnly`), an unknown price model (`errors.contract.priceModelInvalid`), monthly prices without a readable line or for water and feed-in (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), wholesale prices without values (`errors.marketPrices.noRows`), a charging record without a paying contract, without a flat rate or with invalid parameters (`errors.evReport.*`), an invalid heat pump year (`errors.heatPump.yearInvalid`), a link to an electricity meter without the heat pump role (`errors.meter.heatPumpLinkInvalid`), an invalid PV value on the meter (`errors.meter.valueInvalid`), a time series with an unsuitable mapping or without a starting reading (`errors.import.mappingInvalid`, `…anchorMissing`) — all v3.1.0. *(v3.2.0)* An unknown example household (`errors.demo.personaUnknown`); a person’s name empty or too long, an unknown role, deleting your own person (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), own settings without a signed-in person, the password of a person from the proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc not set up or not in the home network, no finished charging sessions, a CSV without the required columns, an unknown choice for the meter readings, meter readings of several charging points (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). *(v3.3.0)* Invalid time windows for § 14a module 3 on an electricity contract (`errors.contract.gridTouInvalid`), an ingest timestamp without a time zone or in a form other than ISO 8601 (`errors.ingest.timestampFormat`), a year outside 2018–2100 for flexibility and for fetching quarter-hour prices (`errors.flexibility.yearInvalid`). *(v3.4.0)* A host list that does not contain the name of the request (`errors.settings.hostNotListed`); a self-chosen device ID outside letters, digits, `_` and `-` (`errors.meter.idInvalid`); a backup with identifiers made of control characters, quotes, angle brackets or backslash (problem `unsafe_id:<field>` in `detail.problems`). *(v3.4.0, F1024)* A done date that is not a calendar day or lies in the future (`errors.activity.dateInvalid`), a note over 500 characters (`errors.activity.noteInvalid`), an unknown receipt (`errors.attachment.notFound`). *(v3.5.0, F1027)* Day film: a date that is not a calendar day or lies outside 2000–2100 (`errors.energyFlow.dateInvalid`), an invalid month (`errors.energyFlow.monthInvalid`). *(v3.12.0)* **Input checked in one place:** a list or an object where text or a number belongs (`errors.common.textExpected`, up to v3.11 often `500`), text where an object belongs (`errors.common.objectExpected`), a true/false value that is neither yes nor no (`errors.common.boolExpected`, so far `"nein"` counted as true), a delivery quantity or amount that is not a number (`errors.common.numberExpected`); **a date outside the years 1900 to 2100** in a reading, meter, meter swap, contract, reminder, delivery, period, bill, tenancy, metering concept and temperature (`errors.common.dateOutOfRange`; in the metering concept `errors.concept.field`, for baseline events and tank levels their own codes; so far a reading in the year 0001 brought down the overview, “To do” and the agenda), a date with a trailing line break (so far accepted); a price per reading that is not a number of 0 or more (`errors.reading.priceInvalid`; **“12,5” is now 12.5**, so far silently 12), a meter reading above 10¹²; a body announced as JSON that is not JSON (`errors.http.bodyInvalid`, so far treated as empty); at the ingest a batch whose `readings` is not a list (`errors.ingest.bodyInvalid`, so far `errors.ingest.unknownUtility`); `PATCH` of a reading or a contract to a meter that does not exist in this utility (`errors.common.meterNotFound`, so far `200`). **The same check on the remaining routes:** a list of entries (prices, advances, bonuses, special payments, bill items) given as text, a number or an object (`errors.common.listExpected`, so far `500` or silently empty); true/false values on a contract (`is_shadow`, `auto_renews`), a reading (`is_suspect`, `is_billing_only`, `is_verified`), meter, reminder, delivery, tenancy statement, bill and settings follow **one** rule (yes/no, true/false, 1/0, on/off; `null` and empty mean no); numbers within sensible limits (settings `errors.settings.valueInvalid`, contract amounts up to 10 million, prices, standing charges and advances from 0 `errors.contract.amountOutOfRange`, deliveries, periods, temperatures); whole numbers without decimals (notice period, reminder months, digits of the register; so far “1.5” silently became 1 and 10³⁰⁸ gave `500`); a contract end that is neither empty nor a date (`[]`, `0`, `false`; so far stored despite `500`); a bill with an unknown contract (`errors.contract.notFound`) or an unknown kind, a reminder with an unknown recurrence (`errors.common.valueInvalid`), a reading import without a recognised line (`errors.import.noRows`, so far `200` with “0 imported”); at the ingest a value that is present but not a number (`errors.reading.counterInvalid`, so far `errors.ingest.valueMissing`). A backup with such values is not imported; `detail.problems` names pot, row and field (`date_range:<field>`, `bool:<field>`, `list:<field>`, `amount:<field>`, `number:<field>`, `setting:<key>`, `counter`). |
 | `401` | `/api/ingest` with a token set but a missing or wrong bearer header. *(v2.6.0)* With sign-in switched on: any non-public route without a session or API key (`errors.auth.required`); wrong password, since v3.2.0 also an unknown name (`errors.auth.wrongPassword`). *(v3.1.0)* A calendar key on any route other than `/api/calendar.ics`, a `read` or `admin` key as `?token=` in the calendar link. |
 | `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. *(v2.6.0)* Writing request with a read-only key (`errors.auth.readOnlyKey`). *(v3.2.0)* A member on a route for admins only (`errors.auth.adminOnly`) — [People in the household](#people-in-the-household-v320). |
-| `404` | Unknown route or unknown record. Since v2.6.0 consistently also for records addressed in the URL (up to v2.5.3 partly 400). *(v3.1.0)* Also an unknown period (`errors.period.notFound`), tenancy (`errors.tenancy.notFound`), statement (`errors.tenancy.statementNotFound`) or supplier bill (`errors.bill.notFound`). *(v3.2.0)* An unknown person (`errors.users.notFound`). *(v3.3.0)* An unknown quarter-hour series (`errors.intervals.notFound`). *(v3.4.0)* A page or image of the documentation outside the allowlist (`errors.docs.notFound`; for an old path with `detail.moved_to`); a history entry (`errors.activity.notFound`) or an agenda event (`errors.activity.eventNotFound`) that does not exist (any more). |
+| `404` | Unknown route or unknown record. Since v2.6.0 consistently also for records addressed in the URL (up to v2.5.3 partly 400). *(v3.1.0)* Also an unknown period (`errors.period.notFound`), tenancy (`errors.tenancy.notFound`), statement (`errors.tenancy.statementNotFound`) or supplier bill (`errors.bill.notFound`). *(v3.2.0)* An unknown person (`errors.users.notFound`). *(v3.3.0)* An unknown quarter-hour series (`errors.intervals.notFound`). *(v3.4.0)* A page or image of the documentation outside the allowlist (`errors.docs.notFound`; for an old path with `detail.moved_to`); a history entry (`errors.activity.notFound`) or an agenda event (`errors.activity.eventNotFound`) that does not exist (any more). *(v3.12.0)* `DELETE` of an unknown meter (`errors.meter.notFound`) or of a day without a temperature (`errors.temperature.notFound`); so far `200` with `deleted: true`. |
 | `405` | *(v2.6.0)* Known path, wrong method — with an `Allow` header. `HEAD` is answered like `GET`, `OPTIONS` with `204` and `Allow`. Up to v2.5.3: `404`. |
 | `409` | *(v2.6.0)* The safety snapshot before an import/restore failed (`errors.backup.snapshotFailed`) — possible anyway with `?allow_without_snapshot=1`. Password or sign-in mode are fixed by the environment. *(v3.2.0)* A person’s name is taken (`errors.users.nameTaken`), the last admin would become a member or be deleted (`errors.users.lastAdmin`), the first admin’s password is fixed by the environment (`errors.auth.passwordFixed`). *(v3.4.0)* Ticking off with an `occurrence` that no longer applies — for example after a changed contract end (`errors.activity.occurrenceChanged`). |
-| `413` | *(v3.4.0)* Body larger than allowed (`errors.http.tooLarge`) — checked against `Content-Length` before reading: routes reachable without sign-in (`POST /api/ingest`, `POST /api/session`) 1 MB, backup import, receipts and the imports (`…/import-csv`, `…/import-series`, `…/import-evcc`) 256 MB, all others 8 MB. With sign-in switched on, a request without a session comes back as `401` before that. |
+| `413` | *(v3.4.0)* Body larger than allowed (`errors.http.tooLarge`) — checked against `Content-Length` before reading: routes reachable without sign-in (`POST /api/ingest`, `POST /api/session`) 1 MB, backup import, receipts, filing into the inbox (`POST /api/inbox`) and the imports (`…/import-csv`, `…/import-series`, `…/import-evcc`) 256 MB, all others 8 MB. With sign-in switched on, a request without a session comes back as `401` before that. |
 | `421` | *(v2.6.0)* Host name not in `ET_ALLOWED_HOSTS` (only when set; IP addresses and `localhost` are always allowed). *(v3.4.0)* Likewise for the setting `allowed_hosts`; both lists apply. |
 | `422` | *(v3.1.0)* PDF annual report, CO₂ letter or charging record in a language the built-in PDF fonts cannot set (`errors.report.pdfUnsupportedLanguage`) — the print view can. *(v3.4.0)* `POST /api/agenda/done` for a kind that only the data clears — “read the meter”, “service-charge statement due”, end of the price guarantee (`errors.activity.notManual`). |
 | `429` | *(v2.6.0)* Sign-in locked for 5 minutes after five failures within 15 minutes (`errors.auth.locked`). *(v3.4.0)* The lock applies per device (client address; behind a proxy from `ET_TRUSTED_PROXIES` the one from `X-Forwarded-For`), after ten failures per name, after a hundred for everyone. |
 | `502` | A service outside the app does not answer or answers with nothing usable — a fault on the other side, not invalid input: the place search (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading` when your own text recognition service does not answer in time, cannot be reached or returns nothing usable (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard` when SMARD cannot be reached or returns no values (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc` when evcc cannot be reached or returns no list of charging sessions (`errors.evcc.unreachable`, `errors.evcc.badAnswer`); *(v3.3.0)* `POST /api/market-prices/sync-smard-intervals` when SMARD cannot be reached, a weekly package fails or there is no value for the year (`errors.marketPrices.syncQuarterHoursFailed`). |
 | `503` | *(v2.5.3)* A data file is corrupt (not valid JSON). The file stays untouched; a quarantine copy `<file>.corrupt-<checksum>` is placed next to it. Up to v2.5.2 it was read as empty and overwritten on the next write. Since v3.1.0 the message is in the language of the request (up to v3.0 always German); `code` stays `errors.storage.corrupted`. *(v2.6.0)* The data comes from a **newer** version (e.g. after rolling back the image tag): all routes except `/api/health`, nothing is written (`errors.storage.dataTooNew`). `/api/health` itself answers `503` when `status` = `error`. *(v3.4.0)* The write lock has been held for more than 15 seconds (`errors.http.busy`, header `Retry-After: 5`; `ET_LOCK_WAIT_S` changes the deadline). *(v3.5.0)* The data directory is not writable and the app would have to create or migrate on start: all routes except `/api/health` (`errors.storage.notWritable`; up to v3.4 it was `500`). `/api/health` then reports `data_dir_writable: false`. |
-| `500` | Unexpected error. Since v2.6.0 with `error_id`; the server log holds the details under the same ID. |
+| `500` | Unexpected error. Since v2.6.0 with `error_id`; the server log holds the details under the same ID. *(v3.12.0)* Also a response that cannot be written as JSON (an infinite number); so far `200` with an empty body. |
 
 Since v2.5.3 writing requests run one after another (lock on
 `data/.write.lock`): a Home Assistant push during an edit no longer loses a
@@ -72,7 +72,7 @@ Messages and labels of the API (utility names, recommendation texts, `error`)
 come in **one** language per request. It is chosen in this order:
 
 1. Header `X-ET-Language` — the interface sends the language of the device
-   with every request (Settings → General → "Language on this device").
+   with every request (Settings → For you → "Your language").
 2. Setting `language` — the default language of the installation.
 3. `Accept-Language` — only while there is no valid setting (in practice on
    first start).
@@ -88,7 +88,7 @@ languages. Up to v3.0 the setting applied to every device.
 ### Sign-in *(v2.6.0, opt-in)*
 
 Without sign-in (the default) the API stays open as before. When it is switched
-on (Settings → Access → "Sign-in & access", or `ET_AUTH`), **one** of these applies to
+on (Settings → Access and security → "Sign-in & access", or `ET_AUTH`), **one** of these applies to
 every route:
 
 | Way | For | Passed as |
@@ -97,12 +97,14 @@ every route:
 | API key | scripts, other programs, Home Assistant | `Authorization: Bearer etk_…`; scope `read` (`GET` only) or `admin` |
 | Calendar key *(v3.1.0)* | calendar apps | API key with scope `calendar`, **only** as `?token=etk_…` and **only** for `GET /api/calendar.ics` |
 | Inbox key *(v3.7.0)* | shortcut “Share → Energietracker”, Home Assistant (email) | API key with scope `inbox`, as `Authorization: Bearer etk_…`, **only** for `POST /api/inbox` (any other route `401`) |
+| AI key *(v3.12.0)* | AI assistants via MCP (for example VS Code, Cursor, LM Studio, Open WebUI) | API key with scope `mcp` (read) or `mcp_write` (read and propose), as `Authorization: Bearer etk_…`, **only** for `POST /api/mcp`; `mcp_write` also for `POST /api/inbox` (filing an original). Any other route `401`. At `/api/mcp` it is **always required**, even without sign-in and in proxy mode; sessions and other keys do not count there |
 | Proxy | behind Authelia, Authentik, Home Assistant Ingress or similar | `ET_AUTH=proxy`, only from addresses in `ET_TRUSTED_PROXIES`. Since v3.4.0: with `ET_PROXY_USER_HEADER` exactly that header; under Home Assistant Ingress only `X-Remote-User-Id`/`X-Remote-User-Name` (person by ID); otherwise as before the first of `Remote-User`/`X-Forwarded-User`/`X-Remote-User`/`X-Remote-User-Name`/`X-Remote-User-Id` (with a warning in `GET /api/diagnostics`) |
 
 Reachable without sign-in: `POST /api/ingest` (own token, **mandatory** once
 sign-in is on), `GET|HEAD /api/health` (then only `{status, version}`),
 `GET|POST|DELETE /api/session`, `GET|HEAD /api/manifest` (since v3.1.0;
-contains no data) and `OPTIONS`. Details:
+contains no data), `POST /api/mcp` (since v3.12.0; always requires its own AI
+key, [AI interface](#ai-interface-mcp-v3120)) and `OPTIONS`. Details:
 [Security](../betrieb/sicherheit.md).
 
 **Calendar subscription *(v3.1.0)*.** Calendar apps cannot send a header, so the
@@ -146,8 +148,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/update-check` | *(v3.6.0)* is there a newer version? `{enabled, current, latest, newer, url, checked_at}` — only with the setting `update_check`, otherwise `{enabled: false, current}` without any outgoing request; the server asks GitHub at most once a day |
 | GET | `/api/session` | sign-in mode, signed in?, fixed by the environment? *(v2.6.0)*; since v3.2.0 `named_login`, `user`, `role` — [People](#people-in-the-household-v320) |
 | POST | `/api/session` | sign in `{name?, password}` → session cookie *(v2.6.0; `name` since v3.2.0)* |
-| DELETE | `/api/session` | sign out *(v2.6.0)* |
-| POST | `/api/session/logout-everywhere` | *(v3.4.0)* sign out everywhere: all sessions of the signed-in person end, on every device (including this one); API keys stay — [People](#people-in-the-household-v320) |
+| DELETE | `/api/session` | sign out *(v2.6.0)*; since v3.12.0 with `Clear-Site-Data: "cache"` |
+| POST | `/api/session/logout-everywhere` | *(v3.4.0)* sign out everywhere: all sessions of the signed-in person end, on every device (including this one); API keys stay; since v3.12.0 with `Clear-Site-Data: "cache"` — [People](#people-in-the-household-v320) |
 | POST | `/api/session/password` | set/change the password `{password, current?}` — switches sign-in on *(v2.6.0)*; since v3.2.0 admins only |
 | DELETE | `/api/session/password` | switch sign-in off `{current}` *(v2.6.0)*; since v3.2.0 admins only |
 | PATCH | `/api/session/me` | *(v3.2.0)* own settings of the signed-in person `{ui_level?, language?}` — [People](#people-in-the-household-v320) |
@@ -159,17 +161,17 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/users/{id}/handover` | *(v3.6.0)* preview for “Delete person”: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — open reminders and to whom, completed history entries — admins only; *(v3.7.0)* plus `meters`, `contracts` (responsibilities that pass over). Class C |
 | DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only; since v3.4.0 `?anonymize_activity=1` replaces their name in the history with “former member” (response `activity_anonymized`); *(v3.6.0)* open reminders pass to the person deleting, completed items keep the name with “(deleted)” (response additionally `handed_over`, `handed_over_to`, `kept`) — [Register of people](#register-of-people-v360); *(v3.7.0)* meters and contracts too (`records_handed_over`, `records_kept`) — [Responsible](#responsible-for-meters-and-contracts-v370) |
 | GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)*; since v3.2.0 admins only |
-| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar\|inbox}`; plaintext once *(v2.6.0; `calendar` since v3.1.0, `inbox` since v3.7.0)*; since v3.2.0 admins only |
+| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar\|inbox\|mcp\|mcp_write}`; plaintext once *(v2.6.0; `calendar` since v3.1.0, `inbox` since v3.7.0, `mcp` and `mcp_write` since v3.12.0)*; since v3.2.0 admins only |
 | DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)*; since v3.2.0 admins only |
 | GET | `/api/diagnostics` | system status, write permissions, schema; since v3.4.0 `security` (sign-in mode, proxy header, host lists, `notices`: `proxy_header`, `open_without_hosts` with a suggested `host`); since v3.10.0 `home_tls` (own root certificates: `ca_file` `off`/`ok`/`unreadable`/`invalid`, `ca_file_certs`, `ca_settings_certs`, `system_bundle`, `insecure_local`; no path) |
 | GET | `/api/utilities` | list of utilities + configuration; since v2.13.0 each with `has_contracts`, `has_advance_payment_contracts` and `accounting_kind` (`consumption`, `feed_in`, `generation`); since v3.1.0 `meter_roles` for utilities with meter roles and `supports_bill_check` (bill check available: gas, electricity, water, district heating); since v3.5.0 `has_special_payments` (special payments on the contract: gas, electricity, water, district heating — [#34](https://github.com/Bingerminger/energietracker/issues/34)); `has_advance_payment_contracts` stays without water (balance by calendar, group contract) |
 | GET | `/api/manifest` | *(v3.1.0)* web app manifest in one language (`?lang=`, otherwise the device or installation language); reachable without sign-in, contains no data. Class C |
 | GET | `/api/docs` | *(v3.4.0)* one page of the documentation of this release: `?path=` (`README.md`, `en/anleitungen/kalender.md`, `root/CHANGELOG.md`) → `{path, lang, mirror, root_files, markdown}`; only from the allowlist — [Docs in the app](#docs-in-the-app-get-apidocs-v340). Class C |
-| GET | `/api/docs/asset` | *(v3.4.0)* one image of the documentation (`?path=ui/screenshots/…png&v=<version>`), `image/png`; cached as immutable with the version of this release. Class C |
+| GET | `/api/docs/asset` | *(v3.4.0)* one image of the documentation (`?path=ui/screenshots/…png&v=<version>`), `image/png`, since v3.12.0 also the diagrams of the setup guide (`ui/wegweiser/…svg`), `image/svg+xml`; cached as immutable with the version of this release. Class C |
 | GET | `/api/settings` | settings; *(v3.6.0)* plus `assumed_keys` — [Assumed values](#assumed-values-assumed_keys-v360) |
-| PATCH | `/api/settings` | change settings; `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint` since v3.2.0 admins only, as are `allowed_hosts` and `activity_keep_months` (v3.4.0) |
+| PATCH | `/api/settings` | change settings; `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint` since v3.2.0 admins only, as are `allowed_hosts` and `activity_keep_months` (v3.4.0), `language`, `country`, `currency` and `timezone` (v3.12.0), `update_check`, `location_name`, `latitude`, `longitude` and `weather_auto_fill` (v3.12.0) |
 | GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)*; since v3.1.0 with bill terms (`bill_terms`) and the official tariff comparison (`comparison_portal`) — see below |
-| POST | `/api/settings/country` | change the country: `{"country": "AT", "profile": true}` applies the country profile, `"profile": false` only the country; only values that differ from the defaults are stored *(v3.5.0)* — see below |
+| POST | `/api/settings/country` | change the country: `{"country": "AT", "profile": true}` applies the country profile, `"profile": false` only the country; only values that differ from the defaults are stored *(v3.5.0)* — see below; since v3.12.0 admins only |
 | GET | `/api/settings/default-updates` | corrected defaults this installation does not use yet (CO₂, water reference) *(v2.10.0)* — see below |
 | GET | `/api/temperatures` | daily temperatures (map) |
 | POST | `/api/temperatures` | upsert a day |
@@ -257,7 +259,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation; `{until?}`, otherwise 30 days — since v3.4.0 with a deadline (`evidence.deadline`) at least until then; the response also has `until` and `activity_id` |
 | DELETE | `/api/recommendations/{id}/dismiss` | undo hiding (v2.12.0); an ID that is not hidden is not an error |
 | GET | `/api/rights` | *(v3.11.0)* notes on your rights as a customer: all findings of the checks, also outside the window; `?utility=`, `?meter_id=`, `?contract_id=`, `?bill_id=`, `?check=`, `?todo=1` — [Customer rights](#customer-rights-v3110) |
-| POST | `/api/letters/render` | *(v3.11.0)* letter for a finding from a fixed template, always in German: `{finding_id, kind?, format: text\|pdf, sender, recipient, place, refs, extra}` → text (`{subject, lines, text, gaps, …}`) or PDF (DIN 5008, window envelope); writes nothing, also with a read-only key — [see below](#letter-for-a-finding-v3110) |
+| POST | `/api/letters/render` | *(v3.11.0)* letter for a finding from a fixed template, always in German: `{finding_id, kind?, format: text\|pdf, sender, recipient, place, refs, extra}`; *(v3.12.0)* instead of the finding `utility` and `contract_id` → text (`{subject, lines, text, gaps, …}`) or PDF (DIN 5008, window envelope); writes nothing, also with a read-only key — [see below](#letter-for-a-finding-v3110) |
 | GET | `/api/reminders` | appointments + due status; since v3.4.0 `last_done_by` (who did it last, from the history); since v3.5.0 per reminder `assignee`, `assignee_id`, `assignee_former` — [Responsible](#responsible-for-reminders-v350); *(v3.7.0)* `assignee_inherited` (the meter’s person when the reminder has none of its own) |
 | POST | `/api/reminders` | create; since v3.5.0 optional `assignee` (name) and `assignee_id` (person); *(v3.7.0)* `utility` and `meter_id` (reminder on a meter) |
 | PATCH | `/api/reminders/{id}` | change; since v2.12.0 also `last_done` (date or `null`) — for "Undo" after "Done"; since v3.5.0 `assignee`/`assignee_id` |
@@ -339,6 +341,12 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/auth/token` | generate a token (one-time plaintext), F1009; since v3.2.0 admins only |
 | DELETE | `/api/auth/token` | revoke the token → API open again, F1009; since v3.2.0 admins only |
 | **POST** | **`/api/ingest`** | **idempotent meter-reading push for Home Assistant (F1009); since v3.1.0 also as a batch of up to 500 readings; since v3.3.0 with `timestamp` for consumption per quarter hour** |
+| POST | `/api/mcp` | *(v3.12.0, F1037)* AI interface (MCP, JSON-RPC over Streamable HTTP, JSON only, no session): version 2026-07-28 (`server/discover`, `_meta`) and the older ones with `initialize` (2025-11-25, 2025-06-18). Off by default (`mcp_enabled`, `ET_MCP=off` locks it) → `403`; always with an AI key (`mcp`/`mcp_write`), otherwise `401` with `WWW-Authenticate`; any other key `403`; too many requests or an address locked after wrong keys `429` with `Retry-After`. Notification → `202`; `GET`/`DELETE` → `405`. Apache and Synology: `…/api.php/api/mcp` — [AI interface](#ai-interface-mcp-v3120) |
+| GET | `/api/mcp/journal` | *(v3.12.0)* access log of the AI interface `[{at, key_id, key_name, client, method, name, result, status, code, error_id, version, ms}]`, newest first, `?limit=` 1 to 500 (default 100), without arguments and contents; admins only — [Access log](#access-log) |
+| GET | `/api/mcp/proposals` | *(v3.12.0)* open proposals of the AI `[{id, kind, summary, key_name, status, created_at, expires_at}]` (without payload), admins only |
+| DELETE | `/api/mcp/proposals/{id}` | *(v3.12.0)* reject an open proposal in the app (card “AI assistants”), whichever key created it → `{rejected: true}`; afterwards `apply_proposal` reports `errors.mcp.proposal.rejected` and applies nothing. Unknown, expired, applied or already rejected → `404` `errors.mcp.proposal.gone`. Admins only. Accepts no key: `Authorization: Bearer` → `403` `errors.mcp.proposal.noKey`, even without sign-in (this applies to all routes under `/api/mcp/`). Only from the app’s own interface (`Sec-Fetch-Site: same-origin` or own `Origin`), otherwise `403` `errors.mcp.proposal.appOnly` |
+| POST | `/api/mcp/proposals/{id}/apply` | *(v3.12.0)* apply an open proposal in the app (card “AI assistants”): the same write lock and the same checks as `apply_proposal`, whichever still valid key created it → `{proposal_id, kind, status: "applied", applied, skipped, failed, activity_ids, document?}`. `apply_proposal` then returns this result with `repeated: true`. Unknown, expired, already applied or rejected, key revoked → `404` `errors.mcp.proposal.gone`; data changed → `409` (`errors.mcp.proposal.stale`, `errors.inbox.proposalStale`, `errors.mcp.reading.sameDay`); interface off → `403`. Admins only, CSRF like the interface. Key and origin as for reject: `403` `errors.mcp.proposal.noKey` or `errors.mcp.proposal.appOnly`. Without sign-in a program can imitate a browser’s headers; only sign-in helps against that |
+| GET | `/api/mcp/status` | *(v3.12.0)* state for the card “AI assistants” `{enabled, setting, locked_by_env, share_identifiers, share_documents, apply_in_app, login_active}`: `setting` = the switch `mcp_enabled`, `locked_by_env` = `ET_MCP=off`, `enabled` = both together. Admins only |
 
 ---
 
@@ -522,7 +530,7 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 | `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types; up to v3.7 only with meter readings, since v3.9.0 also tanks and groups); `null` or empty removes it, then the setting applies |
 | `monthly[]` | `heat_adjusted_basis` | why `heat_adjusted` is what it is: `model`, `summer`, `base_load`, `normal_is_actual` (or `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | with `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
-| `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` or `null`; then `suggested_advance` is `null`. `factor_part`: which factor is clamped (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}` when the range uses the measured summer base load; `suggested_range` is `null` if both ends would be equal |
+| `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit \| group_readings_differ], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` or `null`; then `suggested_advance` is `null`. `factor_part`: which factor is clamped (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}` when the range uses the measured summer base load; `suggested_range` is `null` if both ends would be equal |
 | `…/contract-status` | `projection_factor_base`, `projection_factor_heat` | calibration separately for base load and heating share (0.5–1.5; `projection_factor_heat` `null` without a heating model); since v3.7.0 `projection_factor` is the effective factor |
 | `…/contract-status` | `superseded_on` | last day before the follow-up contract that supersedes this contract (otherwise `null`); `end` stays the stored end |
 | `…/contract-status`, `…/billing-periods` | `price_missing` | contract without a unit price: costs and balance without consumption costs |
@@ -572,7 +580,7 @@ Empty for periods, groups and delivery types.
     "suggested": [ { "id": "r1", "date": "2025-01-01", "counter": 4210.0, "suggested": 4460.0 } ] } ],
   "duplicates": [ { "uid": "reading_duplicate-gas-m_gas_main-2025-03-01", "date": "2025-03-01",
     "counter": 4890.0, "unit": "m³", "keep_id": "r7", "delete_ids": ["r8"] } ],
-  "level_shift": null, "basis": "heat_model", "unit": "m³", "billing_only": [] }
+  "level_shift": null, "basis": "heat_model", "unit": "m³", "billing_only": [], "skipped": [] }
 ```
 
 | Field | Meaning |
@@ -582,6 +590,7 @@ Empty for periods, groups and delivery types.
 | `duplicates[]` | the same reading on the same day more than once: `keep_id` (with a photo, otherwise with a note, otherwise the first), `delete_ids` |
 | `level_shift` | note on the baseline date or `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` means: from `from` to `date` consumption was consistently `factor` times today’s. `basis` here is `heat_model` or `mean_rate` (also when the check uses other years) |
 | `billing_only` | IDs of the readings “only for the bill” (`is_billing_only`) |
+| `skipped[]` | *(v3.12.0)* readings the consumption calculation passes over: `{type, reading_id, date, counter}`, `type` `suspect` (marked as suspect) or `outlier` (a trapped outlier, with `kind`: `spike` too high, `dip` too low). The agenda does not report them as events |
 
 The agenda reports each finding as an event with `due_now` (and so also in
 [`/api/todo`](#get-apitodo-v390) and to Home Assistant): `reading_check`,
@@ -613,7 +622,7 @@ is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-
 | `…/consumption`, `monthly[]` | `advance_dates` | only with an advance rhythm (every 2 or 3 months, due dates from the bill): the month's installments `[{date, amount_eur, contract_id}]`. Partial periods (billing year, “Check bill”, measured days, rest of the month in the workshop) count each on its day like the card's balance, not pro rata over the month's days |
 | `…/consumption`, `interpolation` | `estimated_by_year` | estimated readings per year, next to `readings_by_year` (they measure nothing but appear in the list) |
 | `…/contract-status` | `settle_on` | **last day** of the billing period (inclusive): one rule for balance card, Costs & contracts, annual report, “Where does my money go?” and workshop |
-| `…/contract-status` | `billing_period` | `{from, until, open_from, source, bill_id}`: the running one of the [billing periods](#billing-periods-v360) the balance is calculated over; `open_from` is the day after the last bill when the cut-off date does not match it. `null` for contracts outside the running period and for feed-in |
+| `…/contract-status` | `billing_period` | `{from, until, open_from, source, bill_id}`: the running one of the [billing periods](#billing-periods-v360) the balance is calculated over; `open_from` is the day after the last bill when the cut-off date does not match it. `null` for contracts outside the running period. *(v3.12.0)* Feed-in too: the cut-off grid around today (`source` `anchor`, cut-off date `billing_cycle_anchor_pv_einspeisung`); up to v3.11 `null`, the balance ran since the contract start |
 | `…/contract-status` | `months_left`, `advance_ongoing`, `suggestion_withheld` | advance payments left until the bill; advance that fits going forward (estimated cost of the twelve months after it ÷ 12, whole euros, `null` when the estimate is uncertain); `"short"` when with fewer than 3 payments left no catch-up amount is suggested (`suggested_advance` is then `null`) |
 | `…/contract-status` | `successor_switch` | the recorded successor contract is with another supplier: instead of “Cancel or switch by …” the app asks “Cancellation confirmed?” |
 | `…/forecast` | `blend_effective` | effective share of the heating curve in the first twelve forecast months (0 … 1); `blend_weight` stays the weight by model quality |
@@ -876,7 +885,12 @@ the contract with the most days in the month; new are `contract_assumed`
 with more than one contract in the month — `contract_parts[]`, each entry with
 `contract_id`, `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`,
 `bonus_eur`, `cost`, `assumed`. The totals of the monthly row are the sums of the
-parts. Water stays with the contract of the first of the month. *(v3.7.0,
+parts. *(v3.12.0)* Water likewise: contract and the prices of all three
+components apply from their day, a month with two contracts carries
+`contract_parts[]` (plus per part `m3` and `trinkwasser`, `schmutzwasser`,
+`niederschlagswasser` with quantity and cost); up to v3.11 water stayed with
+the contract and price of the first of the month. `trinkwasser.ct_per_m3` is
+then the month's average price (cost ÷ quantity). *(v3.7.0,
 additive)* Months with a bonus carry `bonus_items[]` — per bonus
 `credit_date`, `amount_eur`, `type` (`sofort`, `wechsel`, `neukunde`,
 `sonstige`) and `label` (note); their sum is `bonus_eur`. `monthly_total` of
@@ -1043,8 +1057,8 @@ where the rule applies:
 | Where | Field | Meaning |
 |---|---|---|
 | monthly row of the parent meter (`…/consumption`, also of a group) | `billed_kwh` | amount of its contracts (remainder, never below zero); `kwh` stays the measurement |
-| group (monthly row, `…/contract-status`, group `bill-check`), since v3.10.0 | `rest_of.registers` | per register (member) `{meter_id, name, obis, measured, deducted, rest}`, `short_kwh` only with a remainder below zero. Billing is per register (HT − HT, NT − NT, each at its own price); a register below zero does not count against another. The group’s blended price (forecast, balance estimate, tariff comparison) is weighted with this amount per register |
-| there, `…/contract-status` (per contract), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, plus only where present `estimated_kwh` (the submeter’s latest daily rate carried forward, at most 92 days), `open_days` (days without a submeter reading), `short_kwh` (remainder below zero, not billed) |
+| group (monthly row, `…/contract-status`, group `bill-check`), since v3.10.0 | `rest_of.registers` | per register (member) `{meter_id, name, obis, measured, deducted, rest, billed}` (`billed` since v3.12.0), `short_kwh` only with a remainder below zero. Billing is per register (HT − HT, NT − NT, each at its own price); a register below zero does not count against another. The group’s blended price (forecast, balance estimate, tariff comparison) is weighted with this amount per register |
+| there, `…/contract-status` (per contract), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest, billed}` — `rest` = measured − submeters (signed), *(v3.12.0)* `billed` = the quantity the contract bills: never below zero per section or month, i.e. `rest + short_kwh` (the note names it). Plus only where present `estimated_kwh` (the submeter’s latest daily rate carried forward, at most 92 days), `open_days` (days without a submeter reading), `short_kwh` (remainder below zero, not billed) |
 | `…/bill-check`, rows and `totals` | `measured_kwh`, `submeter_kwh` | measurement and deduction per section; there `kwh` is the contract’s amount |
 | `…/forecast`, forecast months | `billed_kwh`, `deducted_kwh`, `rest_of` | costs and advance use `billed_kwh`; `kwh` stays the forecast of the measurement |
 
@@ -1334,7 +1348,7 @@ lists shortened:
 | `meters[]` | per electricity meter with a consumption series for the year: `meter_id`, `name`, `role`, `controllable` (role `heat_pump` or `ev_charger` — consumption that can be shifted), `coverage` (share of quarter hours with consumption). Without prices `months: []` and `total: null` |
 | `months[]` | per month with consumption: `month` (1–12), `kwh` (the month’s consumption), `priced_kwh` (of that in quarter hours with a price), `coverage` (share of the month’s quarter hours with consumption and price), `cheap_kwh`, `negative_kwh`, `own_ct`, `market_ct`, `profile_factor`, `advantage_eur` — `own_ct`, `profile_factor` and `advantage_eur` are `null` without a quarter hour with consumption and price, `market_ct` without a price in the month |
 | `total` | over the months with an own price and a market average: the same figures without `month`, `kwh` and `coverage`, plus `cheap_share` (share of `cheap_kwh` in `priced_kwh`); `null` if no quarter hour has consumption and price |
-| `battery` | battery: per month and in total `charged_kwh`, `discharged_kwh`, `charge_ct` and `discharge_ct` (wholesale price, weighted by quantity; `null` without quantity) and `value_eur`. Needs one PV generation consumption series each with the role `battery_charge` (“Battery – charging”) and `battery_discharge` (“Battery – discharging”) and prices, otherwise `null` |
+| `battery` | battery: per month and in total `charged_kwh`, `discharged_kwh`, `charge_ct` and `discharge_ct` (wholesale price, weighted by quantity; `null` without quantity) and `value_eur`. Needs one PV generation consumption series each with the role `battery_charge` (“Battery (charging)”) and `battery_discharge` (“Battery (discharging)”) and prices, otherwise `null` |
 | `module3[]` | per electricity meter with a consumption series whose real contract carries `grid_tou` on at least one first of a month in the year ([module 3](#contracts-time-variable-grid-fee-module-3-v330-additive)): per month and in total `low_kwh`, `high_kwh`, `standard_kwh` (consumption in the low, high and standard tariff) and `saving_eur`. Needs no wholesale prices |
 
 ```text
@@ -1537,11 +1551,17 @@ and method: [What if?](../anleitungen/was-waere-wenn.md)
 | `measures[]` | at most 10: `id` (A–Z, a–z, 0–9, `_`, `-`), `kind`, `label`, `heat_pct` (0…90), `base_pct` (0…90), `cost_eur` (0…10,000,000 or `null`), `active` (`true`) |
 | `tariff` | `{"kind":"current"}`, `{"kind":"contract","contract_id":…}` (contract or offer of the meter), `{"kind":"custom","working_price_ct":…,"base_eur_month":…}`, `{"kind":"cheapest"}` |
 | `budget_eur` | with a value: best combination of measures within this budget (0…10,000,000) |
+| `price_pct` | *(v3.12.0)* heating oil, pellets: fuel price ± % (−50…100; 0) |
+| `replace` | *(v3.12.0)* heating oil, pellets: heating replacement `{"to":"heat_pump"\|"pellets", "efficiency_old", "efficiency_new" (0.5…1), "jaz" (1…8), "power_ct", "pellet_ct" (0…200), "invest_eur"}`; empty assumptions use stated example values |
+| `pv_size_pct`, `pv_kwp_now` | *(v3.12.0)* solar: system larger by % (0…300; 0), optionally today’s capacity in kWp (0.1…1,000) |
+| `battery_kwh` | *(v3.12.0)* solar: add a battery, usable kWh (0…100; 0) |
+| `self_use_pct` | *(v3.12.0)* solar: self-consumption ± % (−50…50; 0) |
+| `feed_in_ct` | *(v3.12.0)* solar: feed-in tariff in ct/kWh (0…100) instead of the contract’s |
 
 Invalid → `400` `errors.forecast.paramInvalid` with the field and the allowed
-range. Utilities without the workshop (deliveries, feed-in, utilities without
-contracts) answer with `supported: false`, a short history with
-`valid: false`, `reason_code: "too_few_months"`.
+range. Utilities without the workshop (since v3.12.0 only heat output) answer
+with `supported: false`, a short history with `valid: false`,
+`reason_code: "too_few_months"` (solar without twelve full months: `pv_incomplete`).
 
 The response has the same shape as in the German reference (shortened example
 there): `months[]` (`ym`, `base_qty`, `scen_qty`, `base_cost`, `scen_cost`,
@@ -1571,6 +1591,44 @@ there): `months[]` (`ym`, `base_qty`, `scen_qty`, `base_cost`, `scen_cost`,
   `trend_unavailable`, `model_filled` (with `months`), `ev_unsupported`,
   `jaz_unsupported`, `no_heat_model`, `tariff_unsupported` (water),
   `tariff_no_price`, `no_offers`.
+- `profile` *(v3.12.0, F1040, additive)*: examples, measures and words of the
+  group, one source for the interface and MCP; it calculates nothing. `null` for
+  utilities without a workshop. `group`: `heat_fuel`, `heat_grid`, `power_household`,
+  `power_heat_pump`, `power_ev`, `water`. `presets[]`: only what has an effect here,
+  each with `id`, `direction` (`more`, `less`), `apply` (the inputs of this endpoint)
+  and `assumed` (the assumed example values, not guide values). `measures[]`: `kind`
+  and `levers` (`heat`, `base`). `kind_aliases`: old kind → new kind.
+  `preset_redirects`: old identifier for `?preset=` → new one. `levers`: `winter`,
+  `room_temp`, `saving`, `baseload`, `tariff`, `ev`, `jaz`. `base_word`: `baseload`,
+  `hot_cook`, `hot_water`, `usage`. `no_heat_model`: gas or district heating without
+  a heating model. Without enough months (`too_few_months`) `presets` is empty.
+- *(v3.12.0, F1040 phase 2, additive)* `calc`: `delivery` (heating oil, pellets) or
+  `pv`; the other utilities have no such field, their response is unchanged. New
+  groups `heat_delivery` and `pv`, new levers in `profile.levers`: `measures`,
+  `model`, `budget`, `price`, `replacement`, `pv_size`, `battery`, `self_use`,
+  `feed_in`; `profile.replace_targets` (what the heating can be replaced with).
+  `capabilities.regression`: the choice of heating curve has an effect (only with a
+  heating model).
+- **`calc: "delivery"`:** `advance` and `billing` are `null`, `tariff` stays
+  `current`. `delivery`: `unit`, `kwh_per_unit`, `base_units`, `scen_units`,
+  `base_ct_per_unit`, `scen_ct_per_unit` (price per litre or kg), `assumed_replace`.
+  `tank`: `stock`, `capacity`, `as_of`, `refill_level` (from `tank_warn_pct`), `base`
+  and `scenario` each `{empty_on, refill_on}` (a date or `null` within the horizon;
+  `scenario: null` after a heating replacement). `replacement` (with `replace`):
+  `to`, `assumed`, `heat_kwh`, `energy_kwh`, `energy_units`, `cost`, `fuel_cost`,
+  `saving_eur`, `co2_kg`, `fuel_co2_kg`, `payback_years`. With `replace` the scenario
+  is the new heating (`totals.scenario.qty` = its final energy). New
+  `ranking[].kind`: `price`, `replacement`; `warnings[].code`: `no_price`,
+  `tariff_delivery`, `replace_same`.
+- **`calc: "pv"`:** the whole household; `months[].base_qty`/`scen_qty` are grid
+  import, `base_cost`/`scen_cost` the net electricity cost (import − revenue), plus
+  per month `pv: {base, scenario, scenario_low, scenario_high}`. `pv`: `source`
+  (`intervals` or `months`), `year`, `kwp`, `battery_kwh`, `assumed`, `prices`,
+  `base`, `scenario`, `scenario_low`, `scenario_high`, each with `generation`,
+  `feed_in`, `import`, `self_use`, `autarky`, `import_cost`, `feed_revenue`,
+  `net_cost`. Without quarter-hours `scenario` is the midpoint of the range. New
+  `ranking[].kind`: `pv_size`, `battery`, `self_use`, `feed_in`;
+  `warnings[].code`: `pv_range`, `no_price`, `no_feed_price`, `feed_above_generation`.
 
 In addition, since v3.6.0 `GET …/forecast` carries per month `heat_share`
 (heating share from the heating model or `null`), `fixed_eur` and `unit_eur`
@@ -2093,11 +2151,13 @@ that are not stored themselves:
 Unknown tenancy → `404` `errors.tenancy.notFound`, unknown statement → `404`
 `errors.tenancy.statementNotFound`.
 
+<!-- doc-claim: budget-as-of (StichtagReadingsTest) -->
 **Budget — `GET /api/tenancies/{id}/budget[?as_of=YYYY-MM-DD]`.** The
 prepayment against the costs the current billing period is likely to bring — an
 estimate from your own meters and the prices of the last statement; what the
 landlord bills may differ. `as_of` is the reference date (missing or not a
-date: today).
+date: today). *(v3.12.0)* The calculation **uses what was known on that date**:
+meter readings after `as_of` do not count.
 
 - **Period:** one year from the `billing_anchor` that `as_of` falls into,
   limited to the start and end of the tenancy — the first period starts on
@@ -2535,12 +2595,14 @@ but is no longer sent (**deprecated**). Unknown meter → `404`.
 Section boundaries:
 
 - **Gas:** start, end, every reading, every change of calorific value or
-  volume correction factor — as before. If the price changes inside a section,
-  the cost calculation splits it internally by days; no row of its own is
-  created.
+  volume correction factor and *(v3.12.0)* every effective date of the
+  contracts as for electricity (`reason` `price`, on the same day as a factor
+  change `factor+price`). Up to v3.11 a section with a price change stayed one
+  row with the old price.
 - **Electricity, water, district heating:** start, end, every reading and every
   effective date of the contracts (start, day after the end, working, base,
-  capacity and metering prices, advances) — `reason` then `price`, with a
+  capacity and metering prices, advances; for water *(v3.12.0)* also the prices
+  of drinking, waste and rain water) — `reason` then `price`, with a
   reading on the same day `reading+price`. Consumption per section in `kwh`
   (water: `m3`).
 
@@ -2574,8 +2636,12 @@ reading), `reading_estimated` (recorded as estimated), `interpolated`
 `null` (no enclosing interval). Across a meter swap the substitute value is
 `null` with `kind = interpolated`. `m3`/`kwh` are `null` when
 no reading interval encloses the section (before the first, after the last
-reading); `totals.gaps` counts those sections, they are missing from the
-sums. `m3` per section is the linear interpolation of the enclosing
+reading) or the reading falls within the reading interval; `totals.gaps`
+counts those sections, they are missing from the sums. *(v3.12.0)* A row
+without a quantity carries `gap_reason`: `no_reading` (no enclosing interval)
+or `decrease` (both ends read, the reading falls: meter swap or rollover not
+recorded?); `totals.decreases` counts the decreases, and `warnings` names them
+as the consumption view does (`type: decrease`). `m3` per section is the linear interpolation of the enclosing
 interval — the supplier estimates at the very same places.
 
 **Costs *(v3.1.0, additive)*.** Every row also carries the section’s costs,
@@ -2585,8 +2651,8 @@ shadow contracts do not count):
 
 | Field | Meaning |
 |---|---|
-| `ct_per_kwh` | working price of the section (ct per kWh; not for water) |
-| `energy_cost` | consumption cost: quantity × working price, split by days when the price changes inside the section; `null` if a price is missing |
+| `ct_per_kwh` | working price of the section (ct per kWh; not for water). Since v3.12.0 every section has exactly one, gas included |
+| `energy_cost` | consumption cost: quantity × working price (`kwh × ct_per_kwh / 100`); `null` if a price is missing |
 | `fixed_cost` | fixed costs: base price, for district heating plus capacity and metering charges ([Contracts](#contracts-district-heating-fixed-costs-warnings-v310-additive)) |
 | `fixed_days` | days over which the fixed costs run |
 | `contract_id` | the section’s contract |
@@ -2675,6 +2741,7 @@ not split it.
 | `periods[].invoice` | only for `bill`: `amount_eur`, `advances_paid_eur`, `result_eur`, `energy_kwh` or `volume_m3` of the bill |
 | `periods[].months[]` | only with `?months=1`: calendar months, the first and last as partial months (`ym`, `from`, `until`, `days`, quantity, `cost`, `kwh_cost`, `base_price_eur`, `bonus_eur`, `advance_eur`, `co2_kg`) |
 | `periods[].assumed` | *(v3.11.0, additive, GitHub #54)* parts of the period that a contract only bills by being continued beyond its end, while another contract of the same target claims them by its entry (`coverage.claimed_by`, [contracts](#contracts-phase-values_on-v340-additive)): `[{contract_id, name, from, until, claimed_by, claimed_name, claimed_until}]`, `from`/`until` inclusive and within the period, `name` “supplier · tariff”, `claimed_until` the entered end of the other one. Empty if nothing is assumed; the calculation stays the same |
+| `periods[].no_contract` | *(v3.12.0, additive)* `true` if no contract bills in the period: a 0 is then not a settled balance. The AI interface gives no amount and no sentence there |
 | `periods[].advance_vs_cost` | *(v3.11.0, additive)* `{factor}` (one decimal) if in a closed period (complete, past, with prices, costs above 0) the advance payments are at least `ContractService::ADVANCE_COST_FACTOR` (2) times the costs, otherwise `null` — data plausibility, not a legal finding |
 | `periods[].prev_same_span` | *(v3.10.0, additive, GitHub #36)* only on the latest period with data: the comparison for the trend arrow in billing years (`from`, `until` inclusive, `days`, quantity as above, `cost`, `bonus`, `price_missing`, `whole`, `basis`). `basis: "period"`: the same span of the period before, the same number of days from its start; `whole: true` if the period is calculated to its end, then the whole period before. If the period before gives no fair comparison (it is missing, only part of one, starts more than 31 days away from “one year earlier”, for example after a change of supplier in the middle of the year, or is shorter than the span), `basis: "calendar"` applies: the same calendar days a year earlier, regardless of periods and supplier; a 29 February becomes 28 February there. `null` under 14 days or if the data only start after the first of these calendar days. The overview shows the trend arrow in billing years from it |
 
@@ -2759,7 +2826,7 @@ the bill check (`period_to` inclusive) and sets both side by side:
 | `ours` | recalculated: quantity (`kwh` or `m3`), `energy_cost`, `fixed_cost`, `bonus`, `items_total` (sum of the other items), `total` = consumption cost + fixed costs − bonus + other items, `advances` (advances in the period per payment plan, pro rata by days; `null` without advances) |
 | `delta` | bill − recalculated: quantity absolute and in % (`kwh_pct` or `m3_pct`), amount in € and % |
 | `verdict` | `ok` if the quantity differs by at most 1 % and the amount by at most 1 % **or** 2 €; *(v3.7.0)* `no_prices` if the quantity matches (or is missing) but the contract lacks a price (or there is no contract) for part of the period, so the amount cannot be recalculated; otherwise `check` (a differing quantity stays `check`). `null` if the bill states neither quantity nor amount |
-| `reasons` | possible reasons: `estimated_reading_at_boundary` (estimated or interpolated reading at an edge of the period; *since v3.7.0* only there, and a reading on the last day or on the day before the first counts as a boundary reading, as on the bill), `price_change_inside`, `factor_change_inside` (gas: the gas conversion changes within the period, the bill does not state its values), *(v3.7.0)* `factor_mismatch` (calorific value or correction factor on the bill differ from the gas conversion), `items_not_modelled` (other items taken over, not recalculated), `price_missing`, `gaps` (sections without readings; not the single day after a boundary reading on the last day) |
+| `reasons` | possible reasons: `estimated_reading_at_boundary` (estimated or interpolated reading at an edge of the period; *since v3.7.0* only there, and a reading on the last day or on the day before the first counts as a boundary reading, as on the bill), `price_change_inside`, `factor_change_inside` (gas: the gas conversion changes within the period, the bill does not state its values), *(v3.7.0)* `factor_mismatch` (calorific value or correction factor on the bill differ from the gas conversion), `items_not_modelled` (other items taken over, not recalculated), `price_missing`, `gaps` (sections without readings; not the single day after a boundary reading on the last day), *(v3.12.0)* `decrease` (the meter reading falls within the period; those sections do not count as `gaps`) |
 | `boundaries` | *(v3.7.0)* kind of reading at the edges `{start, end}`: `reading` (reading on the first day or on the day after the last), `reading_adjacent` (on the day before or on the last day), `reading_estimated`, `interpolated` or `null` (no reading before or after); for a group the weakest member |
 | `price_missing_at` | *(v3.7.0)* where the price is missing: `[{from, to, contract_id, provider?, meter_id?}]`, `to` inclusive, `contract_id` `null` without a contract — with every verdict, so also with `check` when the quantity differs (the page then shows the same notice with the jump to the contracts) |
 | `factor_mismatches` | *(v3.7.0, gas)* per day with differing values `{from, invoice: {zustandszahl, brennwert, kwh_per_m3}, list: {…}}`; empty when the gas conversion knows the change as the bill does |
@@ -2839,7 +2906,10 @@ of gas, heating oil and district heating (CALC-27). **Shown, not added**:
 Stages (kg CO₂ per m² and year, upper limit exclusive → landlord’s share):
 < 12 → 0 %, < 17 → 10 %, < 22 → 20 %, < 27 → 30 %, < 32 → 40 %, < 37 → 50 %,
 < 42 → 60 %, < 47 → 70 %, < 52 → 80 %, above 95 %. For a period shorter than a
-year the limits are shortened pro rata.
+year the limits are shortened pro rata. *(v3.12.0)* With `wohnverhaeltnis: miete`
+this also applies when the tenancy starts or ends during the year:
+`per_m2.days` and (self-contained heating) `days` in `/api/co2-split` are the
+days of the tenancy in the calendar year, otherwise the days of the year.
 
 **`GET /api/co2-split?year=2025`** — the landlord’s share of the CO₂ costs
 (MKT-15). Only with `wohnverhaeltnis: miete` and a CO₂ scheme, otherwise
@@ -3139,8 +3209,8 @@ The exports (`/api/export/{u}/monthly.csv`, `…/readings.csv`,
 | `format=local`, optionally `lang=xx` | **Spreadsheet in one language** | Excel, LibreOffice, Numbers |
 
 Any other value for `format` → 400 with `code` `errors.export.formatInvalid`.
-The interface offers both under Settings → Data → Data export ("Spreadsheet in
-the default language — recommended" and "CSV format 1 — stable, for scripts")
+The interface offers both under Settings → Data and backup → Data export ("Spreadsheet in
+the default language — recommended" and "CSV format 1 (stable, for scripts)")
 and remembers the choice in the browser.
 
 #### Format 1
@@ -3159,7 +3229,8 @@ to it would be a new format, no longer format 1.
 - **Formula guard:** free text (meter name, note, supplier) that starts with
   `=`, `+`, `-`, `@`, tab or carriage return gets a leading `'` — spreadsheets
   then do not evaluate it as a formula. Numbers stay untouched, negative ones
-  too.
+  too. *(v3.12.0)* Likewise when whitespace or apostrophes come first (` =1`,
+  `'=1`); the import removes exactly this one `'` again.
 
 The headers, verbatim:
 
@@ -3233,6 +3304,14 @@ Readings (`…/readings/import-csv`) and temperatures
 (`/api/temperatures/import-csv`) read their exports (`readings.csv`,
 `temperatures.csv`) back in — format 1 and "local" in every language
 (`CsvLocalFormatTest`):
+
+- *(v3.12.0)* **Without loss:** exporting and importing a reading gives the same
+  reading (`CsvReadingsRoundtripTest`): a **multi-line note** stays whole (line
+  breaks inside quotes no longer split a record; up to v3.11 the note ended after
+  the first line and “Estimated” flipped to no), the **guard apostrophe** of the
+  formula guard is removed, and the **price** (`Preis (ct)`) comes along when the
+  header names it. An empty price cell leaves the price as it is. The same holds for
+  the notes of periods (`…/periods/import-csv`).
 
 - **Dates** ISO `YYYY-MM-DD` or day before month with a four-digit year:
   `D.M.YYYY`, `D/M/YYYY`, `D-M-YYYY`, day and month with one or two digits.
@@ -3718,7 +3797,7 @@ recommendations page says so. Stability class B.
 | `title_key`, `text_key`, `title`, `text` | catalogue keys and texts in the language of the request (days, amounts and percentages in its format) |
 | `footer`, `help` | “Note, not legal advice. Basis: … (checked …).” with the oldest retrieval of the sources named; `help`: where to get help (for electricity and gas including the energy arbitration board) |
 | `letter` | letter template the finding offers (`special_termination`, `advance_adjustment`, `estimate_query`, `complaint`, `objection`) or `null`. A letter is only drafted at the push of a button |
-| `todo` | within the window: a deadline is still running, or the occasion is at most 120 days ago. Only then recommendation and “To do” |
+| `todo` | within the window: a deadline is still running, or the occasion is at most 120 days ago. Only then recommendation and “To do”. *(v3.12.0)* For a fee assessment without service until 7 days after the earliest end, with a later receipt until the latest end (the month from the fourth day after the receipt; `facts.soft_until`, also `params.soft_until`); during that time `facts.maybe_expired: true`, the letter stays, `facts.expired` only becomes `true` afterwards. `facts.known_basis`: `post` (fourth day after the notice date), `received` (“Received on” of the bill, after the fourth day) or `served` (service) |
 | `href` | where to jump to in the app |
 
 `failed` names checks that stopped with an error (`{check, error}`); the other
@@ -3732,7 +3811,10 @@ of the finding, `evidence` with the reference, `check`, `finding_id`, `date`,
 `deadline`, `amount_eur`, `letter`, `norms`, `footer`, `help`, `href`) and an
 event of the [agenda](#get-apiagendadays90-v310) (`kind: rights`, `uid` = ID,
 `ref` with the reference, `check`, `deadline`, `letter`, `amount_eur` and, as
-long as the recommendation stands, `recommendation_id`). Hiding removes a
+long as the recommendation stands, `recommendation_id`; then, since v3.12.0,
+`href` is the jump mark `#/todo?art=rec&rec=<id>`, otherwise the finding’s
+target). Within the same `severity` the recommendations of the category `recht`
+come first since v3.12.0. Hiding removes a
 finding without a deadline from “To do”; for one with a deadline it holds at
 least until the deadline, and the deadline stays in the calendar. Ticking off
 (`POST /api/agenda/done`) applies to the occurrence on the occasion `date`.
@@ -3760,19 +3842,46 @@ recipient); the route is also allowed with a read-only key. Stability class B.
 |---|---|
 | `finding_id` | ID of the finding (`GET /api/rights`); unknown → `404` (`errors.letter.findingNotFound`) |
 | `kind` | template; without it the finding’s. Another one → `422` (`errors.letter.notOffered`), unknown → `400` |
+| `utility`, `contract_id` | *(v3.12.0)* instead of `finding_id`: a letter from the contract ([see below](#letter-from-the-contract-without-a-finding-v3120)) |
 | `format` | `text` (default): JSON with `kind`, `subject`, `lines`, `text`, `gaps` (missing details), `form` (`text` text form is enough, `written` sign it), `norms`, `refs`, `paragraphs`, `defaults` (prefilled from contract, meter and finding), `finding` (title, text, footer, deadline in the request’s language). `pdf`: the file, DIN 5008 form B for a window envelope |
-| `sender`, `recipient` | at most 6 lines of 60 characters each (list or text with line breaks); without `recipient` the contract’s supplier |
-| `place` | town before the date |
-| `refs` | details for reference: `customer_number`, `contract_number`, `meter_serial`, `malo_id`, `supply_address`, `invoice_number`, `file_number`; without them from contract and meter, `""` leaves one out |
-| `extra` | per template: `special_termination` `reading_value`, `reading_date`; `advance_adjustment` `amount_eur`, `reasons`; `estimate_query` `attach_photo`; `complaint` `note`; `objection` `confirm_objection` (required, otherwise `422` `errors.letter.confirmRequired`), `levy`, `reason`, `suspend` |
+| `sender`, `recipient` | at most 6 lines of 60 characters each (list or text with line breaks); without `recipient` the contract’s supplier, *since v3.12.0* with its address `provider_address`; without `sender` *(v3.12.0)* the sender from the household (`letter_sender_name`, `letter_sender_address`), `[]` leaves it empty |
+| `place` | town before the date; without it *(v3.12.0)* from the last line of the address of the sender in the letter (from `sender`, otherwise from the household) if it starts with a postcode. `sources.sender` names where the sender comes from: `household` (also when sent back unchanged), `request` (a different one from the request) or `null` (none) |
+| `refs` | details for reference: `customer_number`, `contract_number`, `meter_serial`, `malo_id`, `supply_address`, `invoice_number`, `file_number`; without them from contract, meter and *(v3.12.0)* household (`letter_supply_address`), `""` leaves one out |
+| `extra` | per template: `special_termination` `reading_value`, `reading_date`; `advance_adjustment` `amount_eur`, `reasons`; `estimate_query` `attach_photo`; `complaint` `note`; `objection` `confirm_objection` (required, otherwise `422` `errors.letter.confirmRequired`), `levy`, `reason`, `suspend`; `termination` `term_date`, `reading_value`, `reading_date` |
 
 Templates: `special_termination` (termination because of a price change),
 `advance_adjustment` (request to adjust the advance payment), `estimate_query`
 (question about an estimate), `complaint` (bill came late, bonus missing,
 metering charge), `objection` (objection to a fee assessment, only if the
 notice of legal remedies names “Widerspruch”). Invalid input → `400`
-(`errors.letter.fieldInvalid`, `errors.letter.formatInvalid`). The Pages demo
-writes no letters.
+(`errors.letter.fieldInvalid`, `errors.letter.formatInvalid`). In the Pages demo
+only the first draft is precomputed.
+
+#### Letter from the contract, without a finding *(v3.12.0)*
+
+`POST /api/letters/render` also takes `utility` and `contract_id` instead of
+`finding_id`; `kind` is then required. Rights as for a finding, nothing is stored.
+There are two templates: `advance_adjustment` (request to adjust the advance
+payment) and `termination` (termination at the next possible date, with no
+provision and no legal statement; `form: written` only for district heating,
+review no. 30). `GET /api/utility/{u}/contracts` and `…/contracts/{id}` name per
+contract in `letters` what it offers:
+
+| Contract | `letters` |
+|---|---|
+| electricity, gas, district heating, running | `advance_adjustment` (only in a country with legal rules), `termination` |
+| water, running | `advance_adjustment`, without a provision (only in a country with legal rules) |
+| starts later | `termination` (water: nothing) |
+| offer, ended, other utilities | nothing |
+
+Any other template → `422` (`errors.letter.notOffered`), explicitly for
+`special_termination`, `complaint`, `estimate_query` and `objection`: they claim
+something and only come from a finding. Unknown contract or utility → `404`
+(`errors.letter.contractNotFound`). `model` carries `finding_id: null`,
+`contract_id` and `rules` (are there legal rules for the country?).
+`extra.amount_eur` is prefilled with the suggestion of the balance card if it shows
+one, `extra.term_date` with the date according to the contract; otherwise a gap
+remains.
 
 #### New fields *(v3.11.0, additive)*
 
@@ -3849,7 +3958,7 @@ VERSION:2.0
 PRODID:-//Energietracker//Kalender//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:Energietracker — deadlines and dates
+X-WR-CALNAME:Energietracker: deadlines and dates
 REFRESH-INTERVAL;VALUE=DURATION:PT12H
 X-PUBLISHED-TTL:PT12H
 BEGIN:VEVENT
@@ -3873,8 +3982,8 @@ END:VCALENDAR
 API key in the header; for calendar apps a key with scope `calendar` in the
 link — `…/api.php/api/calendar.ics?token=etk_…`. Only this scope counts in the
 link (see [Sign-in](#sign-in-v260-opt-in)). The interface creates it under
-Reminders & tips → Reminders & maintenance → “Subscribe in your calendar”; it can be revoked under
-Settings → Access.
+To do → Dates → “Subscribe in your calendar”; it can be revoked under
+Connections → Keys.
 
 ### `GET /api/summary` *(v3.1.0)*
 
@@ -3977,16 +4086,16 @@ combines them in one line). Stability class A with its own version number
   "count": 2,
   "overdue": 1,
   "next": { "uid": "reminder-r_1a2b", "kind": "reminder", "title": "Check smoke detectors",
-            "date": "2026-11-01", "severity": "overdue", "href": "#/reminders" },
+            "date": "2026-11-01", "severity": "overdue", "href": "#/todo/dates" },
   "items": [
     { "uid": "reminder-r_1a2b", "kind": "reminder", "title": "Check smoke detectors",
-      "date": "2026-11-01", "severity": "overdue", "href": "#/reminders" },
+      "date": "2026-11-01", "severity": "overdue", "href": "#/todo/dates" },
     { "uid": "reading-strom-m_strom_main", "kind": "reading_due", "title": "Electricity: take a meter reading (Main meter)",
       "date": "2026-11-03", "severity": "due", "href": "#/zaehlerstaende?meter=m_strom_main" }
   ],
   "soon": 1,
   "next_upcoming": { "uid": "reminder-r_3c4d", "kind": "reminder", "title": "Boiler service",
-                     "date": "2026-11-05", "severity": "upcoming", "href": "#/reminders" }
+                     "date": "2026-11-05", "severity": "upcoming", "href": "#/todo/dates" }
 }}
 ```
 
@@ -4346,8 +4455,9 @@ linked again. Files in `data/attachments/` without an index entry also go after
 
 **Fetch — `GET /api/attachments/{id}`.** Returns the file itself, no JSON
 envelope: `Content-Type` from the index, `Content-Disposition: inline`,
-`Cache-Control: private, max-age=31536000, immutable` (a receipt never changes —
-new file, new ID), `X-Content-Type-Options: nosniff`, for PDFs also
+`Cache-Control: private, no-cache` with an `ETag` (since v3.12.0: the browser
+asks again before every display, unchanged it gets `304` without content, after
+signing out `401`; up to v3.11 a year `immutable`), `X-Content-Type-Options: nosniff`, for PDFs also
 `Content-Security-Policy: sandbox`: a PDF runs without scripts and without
 access to the app. Unknown ID → `404`.
 
@@ -4406,7 +4516,8 @@ as a data URI. An address that is already complete stays as it is.
 `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10` (Tailscale,
 CGNAT) and IPv6 ULA (`fc00::/7`). Link-local (`169.254.0.0/16`, `fe80::/10`)
 no longer counts since v3.4.0 (on rented servers that is where the providers'
-metadata services answer), nor does `fd00:ec2::254`. The response may be at
+metadata services answer), nor do the metadata services `fd00:ec2::254` and
+(since v3.12.0) `100.100.100.200`. The response may be at
 most 20 MB.
 Checked on every call; the connection goes to exactly the checked address
 (protection against DNS rebinding), redirects are not followed. There is no
@@ -4773,7 +4884,10 @@ before keep their reading; only reading again asks for the new fields.
 **Change — `PATCH /api/inbox/{id}`** with `assignment`, `edits`
 (`{field: value}` confirmed or corrected; `null` takes it back), `type`
 (another type: the reading is discarded), `status` (`filed` file away, `new`
-back) or `note`. Answer like the preview.
+back; *(v3.12.0)* `failed` only with `reason: "pdf_unreadable"`: the browser
+could not read the PDF, the entry is then “failed” with the error
+`errors.inbox.pdfUnreadable`; a done or filed document stays) or `note`. Answer
+like the preview.
 
 **Read — `POST /api/inbox/{id}/classify`, then `…/extract`** with
 `{pages: [text per page], consent?, fresh?}`. The browser reads the text layer
@@ -4804,7 +4918,8 @@ When a cloud service reads, its messages come on top
 **Take over — `POST /api/inbox/{id}/apply`** with `{proposals: [id, …]}`. Only
 those, through the same services as manual entry. An unknown ID →
 `400 errors.inbox.proposalStale` (nothing happens). Answer: `applied`,
-`skipped` (already there), `failed` (error per proposal), `entry`, `proposals`.
+`skipped` (already there), `failed` (error per proposal), `entry`, `proposals`,
+*(v3.12.0)* `activity_id` (history entry, `null` without anything applied).
 
 **Queue — `POST /api/inbox/queue`** (`{ids?}`; without, all new and failed
 documents) and **`DELETE /api/inbox/queue`** (queued ones become new again).
@@ -4943,7 +5058,7 @@ also before anything is written. If a bill's contract is missing while taking
 over (it failed), the bill is listed in `failed` with this code and is not
 created; up to 3.7 it was created without a contract and booked its result on
 the contract that ran at the time. First the server makes a
-backup `pre-inbox-…` (Settings → Data, reason “before household from
+backup `pre-inbox-…` (Settings → Data and backup, reason “before household from
 documents”). Answer: `applied` (per entry `ref`), `failed` (per entry or field
 with `error`, `code`), `created` (`meters`, `meter_changes`, `contracts`,
 `rows`, `readings`, `bills`, `booked`, `gas_factors`, `reminders`), `bills`
@@ -5288,6 +5403,341 @@ token is stored only as a SHA-256 hash in `data/auth.json` and returned in
 plaintext **once** on creation. Since v2.6.0 `GET` also reports `last_used_at`
 (accurate to the hour) — useful for the question "is anything arriving at all?".
 
+### AI interface (MCP) *(v3.12.0)*
+
+`POST /api/mcp` speaks the Model Context Protocol: JSON-RPC 2.0 over
+Streamable HTTP, one message per request, the answer always `application/json`
+(no SSE), without a session (no `Mcp-Session-Id`). Versions: `2026-07-28`
+(version per request in `params._meta["io.modelcontextprotocol/protocolVersion"]`
+and in the header `MCP-Protocol-Version`, `server/discover`, every result with
+`resultType: "complete"`) and `2025-11-25`, `2025-06-18` and `2025-03-26` with
+`initialize`; without header and without `_meta`, `2025-03-26` applies. A key
+with scope `mcp` only sees the reading tools in `tools/list`.
+
+#### Versions and headers
+
+- **2026-07-28:** Every request carries the version
+  (`io.modelcontextprotocol/protocolVersion`) and the client’s capabilities
+  (`io.modelcontextprotocol/clientCapabilities`) in `_meta`, plus the headers
+  `MCP-Protocol-Version` (equal to the version in `_meta`) and `Mcp-Method`
+  (equal to `method`). `tools/call` and `prompts/get` also send `Mcp-Name`
+  with `params.name`, `resources/read` with `params.uri`. A value that is not
+  plain ASCII (umlauts, whitespace at the edges) comes as `=?base64?…?=`
+  (UTF-8 in Base64); the server decodes it before comparing. If one of these
+  headers is missing, does not match the body or contains characters that are
+  not allowed: `400` with `-32020` (`errors.mcp.headerMissing`,
+  `errors.mcp.headerMismatch` or `errors.mcp.headerInvalid`; `data.header`
+  names the header, never its value). `initialize` and `ping` no longer exist
+  in this version (`404`, `-32601`).
+- **Older versions:** `initialize` answers with the client’s version if the
+  server knows it (`2025-11-25`, `2025-06-18`, `2025-03-26`), otherwise with
+  `2025-11-25`. After that the header `MCP-Protocol-Version` names the
+  version. `Mcp-Method` and `Mcp-Name` are optional there; if they come, the
+  same check applies.
+- If the header names `2026-07-28` but `_meta` has no version: `400`,
+  `-32020`. An unknown version (header or `_meta`): `400`, `-32022` with
+  `data.supported` and `data.requested`.
+- **Caching** (2026-07-28 only): `server/discover`, `tools/list`,
+  `prompts/list` and `resources/templates/list` carry `ttlMs: 300000`
+  (5 minutes), `resources/list` `ttlMs: 60000` and `resources/read`
+  `ttlMs: 0` (stale at once; a resource may bring its own values), always with
+  `cacheScope: "private"`: every answer depends on the key and must not be
+  cached across keys.
+
+Checked before the message, in this order:
+
+| Check | Answer |
+|---|---|
+| switched off (`mcp_enabled`) or `ET_MCP=off` | `403`, `errors.mcp.disabled` or `errors.mcp.lockedByEnv` |
+| `Origin` set and not the own address | `403`, `errors.mcp.origin`. Websites in a browser have no access (no allow list, no CORS); a foreign website is already rejected by the CSRF guard in front. Programs such as VS Code or LM Studio send no `Origin` |
+| address locked after wrong keys | `429`, `errors.mcp.keyLocked`, `Retry-After` |
+| no key | `401`, `errors.mcp.keyRequired`, `WWW-Authenticate: Bearer realm="energietracker"` |
+| unknown key | `401`, `errors.mcp.keyRequired`, `WWW-Authenticate: Bearer realm="energietracker", error="invalid_token"`; a failed attempt of the address |
+| key without an AI scope (`read`, `admin`, `calendar`, `inbox`) | `403`, `errors.mcp.keyScope`, `WWW-Authenticate` with `error="insufficient_scope", scope="mcp"` |
+| more requests than the key may make | `429`, `errors.mcp.rateLimited`, `Retry-After` |
+| body over 1 MB | `413` |
+
+The key only counts in the header `Authorization`; one in the address
+(`?token=…`) does not.
+
+#### Rate limits
+
+Fixed limits per key, without a setting. A window starts with the first
+request after the end of the previous one; rejected requests do not count. The
+answer is `429` with `-31005`, `data.retry_after` and the header `Retry-After`
+(seconds until the end of the window).
+
+| Bucket | Limit |
+|---|---|
+| every request to `/api/mcp` | 120 per minute |
+| `tools/call` with a reading tool | 60 per minute |
+| `propose_*` and `read_document` | 30 per hour |
+| `apply_proposal` | 30 per hour |
+| `POST /api/inbox` with an AI key | 30 per hour |
+
+`cancel_proposal` counts in the bucket of the reading tools: discarding changes
+nothing in the household and still works when the bucket of proposals is full.
+
+Wrong keys: after 20 unknown keys within 10 minutes the address is locked for
+5 minutes (behind a proxy from `ET_TRUSTED_PROXIES` the one from
+`X-Forwarded-For` counts). Every request to `/api/mcp` from there then gets
+`429` `errors.mcp.keyLocked`, even with a valid key. A request without any key
+does not count as a failed attempt. Only a key with an AI scope (`mcp`,
+`mcp_write`) resets the count; any other valid key (`403`) leaves it unchanged
+*(v3.12.0)*.
+
+#### Access log
+
+`GET /api/mcp/journal` (admins only) returns the latest entries, newest
+first; `?limit=` from 1 to 500, default 100.
+
+```jsonc
+[{ "at": "2026-11-03T10:15:00+01:00", "key_id": "k_1a2b3c4d", "key_name": "AI on the laptop",
+   "client": { "name": "Example client", "version": "1.2" }, "method": "tools/call",
+   "name": "list_meters", "result": "ok", "status": 200, "version": "2026-07-28", "ms": 12 }]
+```
+
+`result` is `ok`, `tool_error` (business error of a tool), `error` (protocol
+error), `denied` (origin, key, scope) or `rate_limited`; `code` then names the
+error code (`errors.*`), an unexpected error also `error_id`. Fields without a
+value are left out. The log never contains arguments, contents, meter
+readings, document texts or keys; the client’s name is its own statement,
+cleaned. Requests of a locked address are not in it, only the attempt that
+triggers the lock. Stored in `data/mcp/journal.jsonl`: from 1 MB the file
+becomes `journal.1.jsonl` (the previous one is dropped), entries older than
+90 days are dropped. Not in the backup; nothing is created while switched off.
+
+Errors come as JSON-RPC errors `{jsonrpc, id, error: {code, message, data: {code, …}}}`:
+`message` translated (German for a German installation, otherwise English),
+`data.code` the stable key `errors.mcp.*`.
+
+| `error.code` | HTTP | Meaning |
+|---|---|---|
+| `-32700` | 400 | not JSON |
+| `-32600` | 400 | not a valid JSON-RPC message, also a batch (array) |
+| `-32601` | 404 for 2026-07-28, otherwise 200 | unknown method (for 2026-07-28 also `initialize` and `ping`) |
+| `-32602` | 200; 400 when a required field in `_meta` is missing | invalid parameters, unknown tool, unknown prompt, unknown resource |
+| `-32603` | 500 | unexpected error, only with `data.error_id` (details in the server log) |
+| `-32020` | 400 | header `MCP-Protocol-Version`, `Mcp-Method` or `Mcp-Name` missing, not matching the body or containing characters that are not allowed; `data.header` |
+| `-32022` | 400 | version not supported; `data.supported`, `data.requested` |
+| `-31001` | 403 | switched off or locked by `ET_MCP` |
+| `-31002` | 401 | no valid key |
+| `-31003` | 403 | foreign origin, key without an AI scope |
+| `-31004` | 403 | the tool needs `mcp_write` (`WWW-Authenticate` with `scope="mcp_write"`) |
+| `-31005` | 429 | too many requests (`errors.mcp.rateLimited`) or address locked (`errors.mcp.keyLocked`); `data.retry_after`, header `Retry-After` |
+| `-31006` | 413 | body over 1 MB (without a length header) |
+
+The own codes lie outside the range that JSON-RPC and MCP reserve for
+themselves (`-32768` to `-32000`). Business errors of a tool (unknown meter,
+input does not match the schema) are not protocol errors but a result with
+`isError: true`: text for the model and `structuredContent.error`
+`{code, message}`, with schema errors also `errors` `[{path, rule, expected}]`.
+Every figure carries its basis as a number object
+`{value, unit, basis, range?, as_of?, parts?, uncertain?, derived?, sign?}`
+with `basis` from `measured`, `entered`, `distributed`, `assumed`, `estimated`;
+text that someone typed in or that a document brought along (names, notes,
+quotes) only appears in the field `untrusted`.
+
+#### Tools, prompts and resources
+
+`tools/list` describes the input and output of every tool as JSON Schema
+(`inputSchema`, `outputSchema`); names and inputs belong to class A, outputs
+to class B of the stability promise. Setup and examples:
+[Connect an AI assistant](../anleitungen/ki-assistent.md); basis and sign:
+[Where a figure comes from](../verstehen/18-herkunft.md).
+
+<!-- mcp-tools -->
+| Tool | Scope | Purpose |
+|---|---|---|
+| `get_overview` | `mcp` | start here: state per meter, balance, deadlines, warnings |
+| `list_meters` | `mcp` | resolve meters and groups with their IDs |
+| `get_deadlines` | `mcp` | deadlines and appointments |
+| `get_contracts` | `mcp` | contracts with prices, cancellation date and balance |
+| `get_consumption` | `mcp` | consumption and costs per month, year or billing year |
+| `get_forecast` | `mcp` | forecast per month with range |
+| `run_scenario` | `mcp` | what if, against the base case |
+| `list_readings` | `mcp` | readings of a meter |
+| `list_bills` | `mcp` | recorded bills |
+| `check_bill` | `mcp` | recalculate a bill: verdict, reasons, difference |
+| `get_insights` | `mcp` | pointers and recommendations |
+| `get_yearly_report` | `mcp` | yearly report as data |
+| `list_documents` | `mcp` | documents in the inbox |
+| `get_document` | `mcp` | one document: type, fields with quote, proposals |
+| `get_document_schema` | `mcp` | fields a document type needs when it is read |
+| `read_document` | `mcp_write` | the AI reads a document itself (fields with quote and page, checked against the text) |
+| `propose_reading` | `mcp_write` | propose a reading (writes only the proposal) |
+| `propose_document` | `mcp_write` | propose taking over a document |
+| `apply_proposal` | `mcp_write` | apply a proposal with its ID and summary |
+| `cancel_proposal` | `mcp_write` | discard a proposal |
+<!-- /mcp-tools -->
+
+A proposal is valid for 15 minutes, once, only for the key that created it; at
+most 50 open per key. With `mcp_apply_in_app` (on by default) `apply_proposal` writes
+nothing: the person confirms in the app, and the proposal is then valid for 24 hours.
+
+Every balance (`balance_today`, `balance_measured`, `expected_balance`,
+`settle_balance`, billing year, bill result) carries next to `sign` the fields `meaning`
+(`credit`, `back_payment`, `balanced`, `payout`, `reclaim`, `no_price`) and `text`, a ready
+sentence in the server’s language (“Credit of €828.01”). An answer with a balance also has
+a second text block in `content`, one line per balance: some programs pass on only
+`content`. Money is `cost` for consumption, `revenue` for feed-in (`accounting_kind:
+feed_in`), and absent for generation. If no contract applies, the amount is missing
+(`no_contract: true`, on a sub-meter also `included_in_parent: true`). Month rows: `bonus`,
+partial months `complete: false` and `covered_until`. Billing years: `reading_on` is the day of
+the reading (`as_of` the last day counted before it). `list_readings`: `skipped: true` if the
+consumption calculation leaves the reading out. `measured_until` and `balance_measured` reach
+only to the last real reading; an estimated reading after it counts as the estimated part.
+
+<!-- mcp-prompts -->
+| Prompt | Arguments (all optional) |
+|---|---|
+| `monthly_report` | `month` (YYYY-MM), `utility` |
+| `yearly_report` | `year` (YYYY), `billing_period` (`true`/`false`) |
+| `bill_review` | `document_id`, `bill_id`, `utility` |
+| `deadlines_check` | `days` (1 to 366) |
+<!-- /mcp-prompts -->
+
+`prompts/get` returns a `user` message with steps, outline and rules in the
+server’s language. An unsuitable argument → `-32602` with `data.code`
+`errors.mcp.promptArgument` and `data.argument`.
+
+<!-- mcp-resources -->
+| Resource | MIME | Content |
+|---|---|---|
+| `energietracker://hilfe/glossar` | `text/markdown` | glossary and formulas (server’s language) |
+| `energietracker://hilfe/herkunft` | `text/markdown` | where a figure comes from |
+| `energietracker://hilfe/{path}` | `text/markdown` | template: every page that `GET /api/docs` also serves (`LICENSE` as `text/plain`) |
+| `energietracker://dokument/{id}.pdf` | `application/pdf` | template: original from the inbox as `blob`, only with `mcp_share_documents`, at most 5 MB |
+<!-- /mcp-resources -->
+
+`resources/list` names the fixed ones, `resources/templates/list` the
+templates; the document template only when originals are shared. Switched off,
+a read answers with `-32602` and `errors.mcp.documentsNotShared`, over 5 MB with
+`errors.mcp.documentTooLarge`.
+
+#### Read tools *(v3.12.0)*
+
+Scope `mcp`, all with `readOnlyHint: true`, inputs with
+`additionalProperties: false`. `utility` is a utility from `GET /api/utilities`,
+`meter` the ID of a meter or group or an alias (`external_id`). Each tool calls
+the same service as the endpoint named, on the day of the request, and returns
+the same values.
+
+| Tool | Inputs | Returns | Like |
+|---|---|---|---|
+| `list_meters` | `utility`, `include_inactive` | meters and groups, last reading | `GET /api/utility/{u}/meters` |
+| `get_overview` | `utility`, `meter` | per meter the last reading, year and month up to the last reading, twelve-month forecast, current contract (prices, balance to date, balance at the last reading, expected balance, suggested advance payment), tank; deadlines, suspect readings | `GET /api/summary` |
+| `get_deadlines` | `days` (1 to 366, 60), `include_done`, `utility` | entries from “To do” with `date_source` (`entered` or `derived`), at most 100 | `GET /api/agenda` |
+| `list_readings` | `utility`, `meter`, `from`, `to`, `limit` (up to 100, 50), `include_planned` | readings with `basis` (`measured` or `estimated`), the most recent | `GET /api/utility/{u}/readings` |
+| `get_insights` | `category` | recommendations, each with `basis: estimated`, figures under `figures`, at most 30 | `GET /api/recommendations` |
+| `get_yearly_report` | `year` (default: previous year), `utilities`, `billing_period` | consumption, costs and CO₂ per utility, months per meter, on request the billing years that end in the year | `GET /api/reports/yearly` |
+| `get_contracts` | `utility`, `meter`, `include_past` | contracts per meter or group with phase, deadlines (`notice_source`, `renewal_term`), successor (`gap_days`, `gap_covered`), prices, status and rights notes; contract and customer number only with `mcp_share_identifiers`, under `untrusted` | `GET /api/utility/{u}/meters/{id}/contract-status` |
+| `get_consumption` | `utility`, `meter`, `granularity` (`month`, `year`, `billing_period`), `from`, `to` (YYYY-MM), `heat_adjusted` | rows with `basis` per row, at most 60 (the most recent), total as a number object | `GET /api/utility/{u}/[meters/{id}/]consumption`, `…/billing-periods` |
+| `get_forecast` | `utility`, `meter`, `months` (1 to 60, 12) | months with band, total, annual value with range, model and quality, warnings; all `estimated` | `GET /api/utility/{u}/meters/{id}/forecast` |
+| `run_scenario` | `utility`, `meter` (instead of `meter_id`), otherwise like the forecast workshop: `winter_pct`, `room_temp_delta`, `saving_pct`, `baseload_pct`, `ev_km`, `jaz_from`, `jaz_to`, `measures`, `tariff`, `budget_eur`, *(v3.12.0)* `price_pct`, `replace`, `pv_size_pct`, `pv_kwp_now`, `battery_kwh`, `self_use_pct`, `feed_in_ct` … | baseline, scenario and difference, months, advance payment, balance at settlement, ranking; all `estimated`. *(v3.12.0)* `profile`: the group’s examples with `arguments` (path, value, `basis: assumed`), measures, levers; `calc`; for deliveries `delivery`, `tank`, `replacement` (assumptions `assumed`), for solar `pv` (measured year `measured`, scenario `estimated` with a `range` without quarter-hours) | `POST /api/forecast/scenario` |
+| `list_bills` | `utility`, `meter` | recorded bills, amounts `entered`, at most 50; `reading_estimated`, `estimated_end_reading` (`estimated`); invoice number only with `mcp_share_identifiers`, under `untrusted` | `GET /api/utility/{u}/bills` |
+| `check_bill` | `utility`, `bill_id` | verdict, reasons with text, the bill against the own calculation, edges with their basis, difference, missing prices, gas factors, findings “Your rights as a customer” (deadline `deadline`; if it moved to the next working day, also `nominal_end`); invoice number as in `list_bills` | `GET /api/utility/{u}/bills/{id}/check` |
+
+Basis per value:
+
+- **Month:** `measured` from reading intervals of up to 45 days, `distributed`
+  for longer intervals like the “≈” mark in the app, `estimated` at an estimated
+  reading or after the last known tank level.
+- **Total** (year to date, billing year, total of a query): shares per basis
+  (`parts`), `basis` the weakest. If a reading lies at both edges, distributing
+  evens out: the distributed share is then measured.
+- **Contract:** prices and advance payment `entered`, after the end of the price
+  guarantee or for a contract that continues without an entry `assumed`; a price
+  that only starts after that is entered (`entered`). Balance
+  to date from its parts (energy costs up to the last reading, estimated ones
+  after it, standing charge and advance payments entered; `bonus_to_date` by the
+  day of the credit), balance at the last
+  reading with the basis of its months, expected balance and suggested advance
+  payment `estimated` with `range` and `uncertain`. Every balance carries
+  `sign: positive_is_back_payment` (feed-in: `positive_is_payout`).
+- **Deadline:** `notice_source` says where it comes from: `entered` from the end
+  and notice period of the entry, `assumed` by law without an entered notice
+  period (`notice_basis: basic_supply`; district heating with `renewal_term
+  {until, cancel_by, basis: assumed}`); a different contract takes precedence.
+- **Check bill:** the bill `entered`, the own quantity as good as the readings at
+  its edges (`reading` measured, `interpolated` distributed, `reading_estimated`
+  or no reading estimated), costs the weaker of quantity and price.
+- Only counts and calendar gaps go without a basis (`count`, `days`,
+  `days_since_reading`, `months_left`, `gap_days`, `bills_recorded`, years).
+
+`get_insights` also names `rights_check {enabled, bills_recorded}`: no rights
+notes do not mean “all clear”, without a recorded bill the bill checks do not run
+at all. Rows of the billing year carry `advance_vs_cost {factor, basis,
+contract_id}` if the advance payments were at least twice the costs.
+
+#### Changing data: proposal and apply *(v3.12.0)*
+
+An AI never changes anything directly. With an `mcp_write` key it creates a
+proposal (`propose_reading`, `propose_document`); that writes nothing in the
+household and returns `{proposal_id, expires_at, summary, …}`. The server
+builds the summary from structured data (utility, figures, days), never from
+names, notes or document text; meter name and note stand beside it as foreign
+text (`untrusted`). It is applied with
+`apply_proposal {proposal_id, summary}`:
+
+<!-- doc-claim: mcp-proposal-limits -->
+- **bound** to the key that created the proposal (another key gets
+  `errors.mcp.proposal.notFound`),
+- valid for **24 hours** (default, confirmation in the app, below) or **15 minutes**
+  (switch off, `errors.mcp.proposal.expired`), at most **50**
+  open per key (`errors.mcp.proposal.limit`),
+- **once only**: a second call returns the same result with
+  `repeated: true` and writes nothing,
+- only with the **summary word for word** (whitespace does not count,
+  otherwise `errors.mcp.proposal.summaryMismatch`),
+- the definition asks the client in `_meta` to check back before every call
+  (`requiresUserInteraction: true`); whether programs honour it has not been checked,
+  and the server cannot check it.
+
+**Confirmation in the app (`mcp_apply_in_app`, on by default).** `apply_proposal` writes
+nothing and answers as a normal result, not an error: `{proposal_id, kind, status:
+"awaiting_confirmation", repeated: false, summary, expires_at, confirm_in: "app", message}`.
+`message` tells the person where to confirm. The proposal is then valid for **24 hours**
+(`errors.mcp.proposal.expiredHours`). Once applied in the app, a further call returns
+`status: "applied"` and its result with `repeated: true`; if rejected or expired, the errors
+above. With the switch off `apply_proposal` writes (`status: "applied"`), and even a proposal
+with a longer validity only goes through MCP for 15 minutes. `propose_*` states in
+`confirm_in` (`app`, `client`) who confirms, with `app` also `message`.
+
+Applying takes the write lock first, then reads again and writes through the
+same services as the interface. A reading carries `source: "mcp"` and
+`client_ref` = the proposal’s ID; the history gets an entry
+(`subject.kind: "reading"` or `"inbox"`) with `by: {type: "key", name, via:
+"mcp"}`, when confirmed in the app also `confirmed_by`, and `changes` with the confirmed
+sentence. If a question arises on applying that the sentence does not state, nothing is
+written (`errors.mcp.proposal.stale`). `POST /api/activity/{id}/undo` refuses such entries
+(`409` `errors.activity.undoNotPossible`): the data would otherwise stay.
+`cancel_proposal` discards an open proposal.
+
+Readings through the AI are stricter than the form: no day in the future, no
+second reading on the same day (`errors.mcp.reading.sameDay`), no moving the
+first device back (`errors.reading.noDevice`). The questions of the entry form
+(lower than the previous reading, unusual jump, decimal point forgotten, higher than the
+next reading) are in `checks.issues` and at the end of the summary; they do not block. A
+reading above 9,999,999,999 is an input error. `read_document` refuses a document that a
+person has corrected or that was applied (`errors.mcp.document.alreadyChecked`), and otherwise
+writes a history entry.
+
+**Documents** only arrive through the inbox (interface, shortcut, folder,
+e-mail or `curl` with the `mcp_write` key to `POST /api/inbox`); no tool
+accepts a PDF. `read_document` lets the AI read a document itself: type, text
+per page (at most **40 pages** and **200,000 characters**) and fields with
+value, verbatim quote and page. The server checks every quote against that
+text as when reading in the app and stores the reading with
+`extraction.provider: "mcp_client"`; no provider is asked, nothing goes to the
+cloud. Without a selection, `propose_document` takes the inbox’s pre-selected
+proposals; it refuses a proposal with a review mark
+(`errors.mcp.document.needsReview`), which the person checks in the app.
+Identifiers from documents (customer, contract, invoice and meter number,
+market location, file reference) only come out of `get_document` with
+`mcp_share_identifiers`, the original PDF only with `mcp_share_documents`
+(resource `energietracker://dokument/{id}.pdf`, up to 5 MB).
+
 ### `/api/session`, `/api/session/password`, `/api/auth/keys` *(v2.6.0)*
 
 ```jsonc
@@ -5359,7 +5809,11 @@ backup. Guide:
   be embedded or block names; since v3.4.0 also `activity_keep_months`, which
   shortens the history. Without these keys, members may change settings too;
 - *(v3.4.0)* `DELETE /api/activity` — clearing the history
-  ([Done with history](#done-with-history-v340)).
+  ([Done with history](#done-with-history-v340));
+- *(v3.12.0)* `GET /api/mcp/journal`, `GET /api/mcp/proposals`, `GET /api/mcp/status` and
+  `DELETE /api/mcp/proposals/{id}`, and
+  `PATCH /api/settings` with `mcp_enabled`,
+  `mcp_share_identifiers` or `mcp_share_documents` when the value changes.
 
 The role applies to signed-in people. Without sign-in and with an API key there
 is no person; a request may then do what it could before (a `read` key still
@@ -5420,7 +5874,8 @@ missing) the first admin with the installation password applies. The name
 counts regardless of upper and lower case and only for people with
 `source: "password"`. An unknown name and a wrong password answer the same:
 `401` `errors.auth.wrongPassword`. The lock after five failures (`429`) applies
-to the whole installation, not per person. Outside mode `password` → `400`
+per device, not per person; ten failures for one name lock that name, a hundred
+in total lock everyone (see above, `429`). Outside mode `password` → `400`
 `errors.auth.notPasswordMode`.
 
 | Route | Body | Response | Errors |
@@ -5447,9 +5902,15 @@ current device right away. The other people stay signed in.
     "created_at": "2026-09-25T00:04:38+02:00", "reason": "restore" } ]
 ```
 
-`reason` ∈ `manual` (own snapshot), `restore` (before import/restore),
-`migration`, `demo`, `v09`. **Retention:** of your own the last ten; automatic
-ones 30 days, keeping at least the three newest per occasion.
+`reason` ∈ `manual` (own snapshot, `backup_…`), `restore` (before import/restore),
+`migration`, `demo`, `v09`, `inbox` (before “take over household from documents”),
+since v3.12.0 `concept` (before the metering concept, `concept_…`) and `auto` (any other
+prefix). **Retention:** of your own the last ten; automatic
+ones 30 days, keeping at least the three newest per occasion. **Since v3.12.0 no
+automatic snapshot pushes out one of your own:** up to v3.11 the snapshots before the
+metering concept counted as your own, and after ten runs of the assistant a backup you
+made yourself was deleted. If several are made in the same second, the running number
+in the name decides (`…-12` is newer than `…-9`).
 
 Since v2.6.0 `POST /api/backup/import` **checks everything first**: every pot
 must be a list of objects with mandatory fields and valid dates. A faulty
@@ -5589,7 +6050,9 @@ on GitHub, as of this release — and renders it itself
   directory, symbolic links are not on the list. A redirect (old path since
   v2.14.0) names its target in `detail.moved_to`; the app follows it.
 - `GET /api/docs/asset?path=ui/screenshots/dashboard.png&v=<version>` serves
-  only PNG under `docs/ui/screenshots/`, with `Content-Type: image/png` and
+  only PNG under `docs/ui/screenshots/`, with `Content-Type: image/png`, and since
+  v3.12.0 the generated SVG under `docs/ui/wegweiser/`, with `image/svg+xml` and a
+  `Content-Security-Policy` with `sandbox`; both with
   `X-Content-Type-Options: nosniff`. With the version of this release in `v`,
   `Cache-Control: private, max-age=31536000, immutable` applies, otherwise
   `private, no-cache`.
@@ -5612,10 +6075,16 @@ on GitHub, as of this release — and renders it itself
     "schema":            { "ok": true, "level": "ok" },
     "files":             { "ok": true, "level": "ok", "corrupt": [] },
     "disk":              { "ok": true, "level": "ok", "free_mb": 736175 },
-    "temp_files":        { "ok": true, "level": "ok", "removed": 0 } } }
+    "temp_files":        { "ok": true, "level": "ok", "removed": 0 },
+    "restore":           { "ok": true, "level": "ok" } } }
 ```
 
-`status` ∈ `ok` · `degraded` (pending migration, less than 50 MB free) ·
+*(v3.12.0)* `checks.restore`: If an import (backup, snapshot, example household) stopped halfway because the
+process ended (killed, memory or time limit), the household may consist of old and new files. Then
+`{ "ok": false, "level": "degraded", "interrupted_at": "…", "snapshot": "pre-restore-….json" }`: the snapshot
+from before is restored by `POST /api/backup/snapshots/{name}/restore`; a complete import clears the report too.
+
+`status` ∈ `ok` · `degraded` (pending migration, less than 50 MB free, interrupted import) ·
 `error` (not writable, corrupt file, data newer than the app, less than 5 MB
 free) — with HTTP `503` on `error`, so Docker HEALTHCHECK and monitors detect
 the fault. Since v2.6.0 `migrations_pending` counts the pending migration steps

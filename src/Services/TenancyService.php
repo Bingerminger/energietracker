@@ -317,6 +317,8 @@ final class TenancyService
     {
         $isNew = $old === null;
         $out = [];
+        // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
+        \Energietracker\Support\Input::assertTexts($in, ['label', 'landlord', 'notes', 'billing_anchor', 'co2_restriction']);
         if ($isNew || array_key_exists('start', $in)) $out['start'] = $this->date($in['start'] ?? null, 'errors.tenancy.dateInvalid');
         if (array_key_exists('end', $in)) $out['end'] = ($in['end'] ?? '') === '' ? null : $this->date($in['end'], 'errors.tenancy.dateInvalid');
         $start = $out['start'] ?? $old['start'];
@@ -411,6 +413,7 @@ final class TenancyService
             $pos = [];
             foreach ((array)($in['positions'] ?? []) as $p) {
                 if (!is_array($p)) throw new LocalizedException('errors.tenancy.listInvalid', ['field' => 'positions'], 'positions');
+                \Energietracker\Support\Input::assertTexts($p, ['label', 'category', 'unit']);   // v3.12.0
                 $cat = (string)($p['category'] ?? 'other');
                 if (!in_array($cat, self::CATEGORIES, true)) $cat = 'other';
                 $e = [
@@ -453,8 +456,12 @@ final class TenancyService
             }
             $out['co2'] = $co2 === [] ? null : $co2;
         }
-        if ($isNew || array_key_exists('booked', $in)) $out['booked'] = !empty($in['booked']);
-        if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)($in['note'] ?? ''), 0, 2000);
+        // v3.12.0 — „gebucht“ als Wahrheitswert (Support\Input::bool); bisher war „nein“ gebucht
+        if ($isNew || array_key_exists('booked', $in)) {
+            $out['booked'] = \Energietracker\Support\Input::bool($in['booked'] ?? false)
+                ?? throw new \Energietracker\Support\LocalizedException('errors.common.boolExpected', ['field' => 'booked'], 'statement booked: bool expected');
+        }
+        if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)\Energietracker\Support\Input::text($in, 'note'), 0, 2000);
         if ($isNew) $out['attachment_ids'] = [];
         return $out;
     }
@@ -481,6 +488,7 @@ final class TenancyService
     {
         $s = is_string($v) ? trim($v) : '';
         if (!Dates::isIsoDate($s)) throw new LocalizedException($key, ['date' => $s], 'tenancy date');
+        \Energietracker\Support\Input::assertDateInRange($s);   // v3.12.0 — 1900 bis 2100
         return $s;
     }
 

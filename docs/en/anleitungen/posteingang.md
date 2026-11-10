@@ -81,7 +81,9 @@ Every field comes with a quote from the document. A field is marked **“check�
   differences in white space, hyphenation and upper/lower case, also when the
   text layer delivers umlauts as two characters (“Ã¤” or “√§” instead of “ä”)
   *(v3.7.0)* or “Š”, “š”, “Ÿ” instead of “ä”, “ö”, “ü”,
-- the value is not in its own quote,
+- the value is not in its own quote; a number must stand there as a number of
+  its own, **digits of an identifier do not count** (the “0002” in the meter
+  number “ABC-K-0002” is no evidence for a reading of 2) *(v3.12.0)*,
 - a market location ID does not have its form: 11 digits with a valid check
   digit as defined by the BDEW *(v3.7.0)*,
 - an abbreviation with an asterisk stands in front of a meter number
@@ -99,6 +101,10 @@ advance payments made itself, and the result must be the total minus the
 advance payments — if it does not add up, *(v3.7.0)* every amount involved is
 flagged, because the app does not know which one was misread. Date and title
 of a document are exempt from “every field” as long as no proposal needs them.
+**A credit equal to the result is flagged** *(v3.12.0)*: usually it is the
+credit balance itself, not a line of its own; taken over unchecked as an item,
+“Check bill” counted it twice. “Enter the bill” names the credits that go into
+the bill as items.
 
 **No flag, only a hint** *(v3.7.0)*:
 
@@ -169,8 +175,8 @@ recorded version and one of these applies: it names an earlier invoice, it has a
 different invoice number than the document of the recorded one, it was issued
 later, or its title or file name says “Korrektur”. Then “Take over the corrected
 bill … instead of …” is ticked in advance, with the badge “replaces”, and the
-gist at the top says so right away: “Corrected bill … to …: it replaces the
-recorded bill, the result becomes … instead of …” (if it was booked, also that the
+gist at the top says so right away: “Corrected bill … to …: the result becomes
+… instead of …. It replaces the recorded bill” (if it was booked, also that the
 booking changes with it). If
 the recorded bill was already booked, “Replace the booking: … instead of …”
 replaces the old special payment with the new result (at €0 it goes away). The
@@ -201,6 +207,13 @@ field stays flagged until you confirm it.
 
 You **confirm** a flagged field (“Correct”) or **change** it. Tapping “p. 2”
 next to the quote turns the document on the left to that page.
+
+- **Lists** (unit prices, advance payments made, credits) do not have these
+  buttons: a flagged entry does not go into the proposal, you enter it in the
+  contract or the bill yourself *(as of v3.12.0)*.
+- **A price without a tax rate read** counts as a gross price after “Correct”;
+  if the bill shows it net, change it to gross *(v3.12.0: the note is at the
+  field)*. A “net/gross” detail without a quote carries no tick.
 
 ---
 
@@ -272,7 +285,7 @@ meter reading” reminder leads straight to entering that meter’s reading, in
 tips and in reminders.
 
 Afterwards the document is attached as a **receipt** to the bill or contract,
-and the history (Reminders & tips → Done) notes “Taken over from a document”. Taking
+and the history (To do → History) notes “Taken over from a document”. Taking
 over the same document again shows everything as “already there” — nothing
 comes in twice.
 
@@ -405,7 +418,7 @@ nothing is guessed that the app does not already know.
 
 | Document | Sentence and figure | Button |
 |---|---|---|
-| Price change | extra or lower cost **per year**: difference in unit price × expected consumption of the next twelve months (the same forecast as in the [tariff comparison](../referenz/ansichten.md)) + difference in standing charge × 12. The old price comes from the letter, otherwise from the contract on the day before. *(v3.11.0)* Also the range depending on weather and consumption (from the annual band of the forecast), what one year at the new prices costs and how much that is per month, and, visible in the card, your rights: deadline of the special right to cancel, announcement, tax change ([Price change: your rights](#price-change-your-rights-v3110)). Without a legal deadline (another country, district heating) the deadline of the special right to cancel, if the letter names it. | If a saved offer saves money according to the switching decision: **“Switching saves about … – compare tariffs”**; otherwise “Take over the new prices” |
+| Price change | extra or lower cost **per year**: difference in unit price × expected consumption of the next twelve months (the same forecast as in the [tariff comparison](../referenz/ansichten.md)) + difference in standing charge × 12. The old price comes from the letter, otherwise from the contract on the day before. *(v3.11.0)* Also the range depending on weather and consumption (from the annual band of the forecast), what one year at the new prices costs and how much that is per month, and, visible in the card, your rights: deadline of the special right to cancel, announcement, tax change ([Price change: your rights](#price-change-your-rights-v3110)). Without a legal deadline (another country, district heating) the deadline of the special right to cancel, if the letter names it. | If a saved offer saves money according to the switching decision: **“Switching saves about …: compare tariffs”**; otherwise “Take over the new prices” |
 | Bill | before taking over, the additional payment or credit according to the bill; **after taking over, “Check bill” runs by itself**: “matches your data”, “is … higher/lower than your own calculation” or *(v3.7.0)* “the contract lacks prices” with the sections without a price, plus the reasons (for example an estimated reading at the boundary) | “Take over and check”, afterwards “Check bill” when it differs, without prices “Add prices to the contract” |
 | Advance payment change | new advance payment against the advance payment that brings the current billing period to zero (advance payment as planned + expected final balance ÷ months until the bill): **fits**, **too high** or **too low** by about … a month. “Fits” means the rest at the end would stay below €50 or one advance payment — the same threshold as in the [annual report](jahresbericht-lesen.md). *(v3.9.0)* With a rhythm the instalments until the bill count instead of the months, and the verdict applies per due date. | “Take over the advance payment” |
 | Cancellation | end of supply; without a follow-up contract “there is no follow-up contract yet” and the reminder from the proposals | “Find a follow-up contract” (tariff comparison) |
@@ -471,8 +484,8 @@ Reading works as usual in the preview or with “Read all”.
 With a shortcut the Energietracker appears in the **share sheet**: share a PDF
 in Mail, Files or Safari, tap “Energietracker”, done.
 
-**Which key?** Without sign-in (Settings → Access) the shortcut needs none. With
-sign-in, create a key under **Settings → Access → API keys for scripts** with
+**Which key?** Without sign-in (Settings → Access and security) the shortcut needs none. With
+sign-in, create a key under **Connections → Keys → API keys for scripts** with
 the scope **“inbox only (file PDFs)”**. It can do exactly one thing: put a PDF
 into the inbox — neither read nor change nor delete. If the phone gets lost,
 you revoke only that key. A “Manage” key would work too, but can do anything.
@@ -644,7 +657,7 @@ kind and the search field by name and text.
 
 ## Setting up reading
 
-**Settings → Expert → 📥 Reading documents** — one card for both paths. The
+**Connections → Reading mail and photos** — one card for both paths. The
 switch **Local | Cloud** decides who reads the post (`inbox_provider`); there is
 no second place for it, and the server checks the same. Only people who manage
 the installation may change it ([Users in the household](benutzer.md)). The card
@@ -851,6 +864,9 @@ The settings in detail:
   document goes to …” (for the queue once for the documents of that run, with
   their number) and sends nothing without your consent.
 - Without a service set up the inbox makes no connection.
+- **Details for letters** *(v3.12.0)*: the inbox never sends the sender, the
+  supply address or the supplier’s address along, neither to the service in
+  the home network nor to the cloud. Only what is in the document goes out.
 
 More: [Security → Inbox](../betrieb/sicherheit.md#inbox-v370).
 
@@ -860,11 +876,12 @@ More: [Security → Inbox](../betrieb/sicherheit.md#inbox-v370).
 
 | Message | Cause and fix |
 |---|---|
-| “No service is set up for reading …” | Enter the address under Expert → Reading documents → Local; “Check connection” shows whether the service answers. |
+| “No service is set up for reading …” | Enter the address under Connections → Reading mail and photos → Local; “Check connection” shows whether the service answers. |
 | “The service does not have the model “qwen3.8” …” | `ollama pull qwen3.8` on the computer running the service, or enter an existing one under “Text model” (`ollama list`). |
 | “Text recognition did not answer within 300 seconds.” | The first reading after a pause loads the model into memory first. Try again; too little memory makes it very slow. |
 | “The service did not give a usable answer …” | Usually a model with thinking mode on or one that does not deliver JSON. Try again or use qwen3.8. |
 | “The document has no text layer (a scan) …” | Enter it by hand; the PDF stays as a receipt. |
+| “The file is damaged or not a readable PDF …” *(v3.12.0)* | The file starts like a PDF but is cut off or broken; the entry is “Failed”. Download the original again and file it, otherwise enter it by hand. |
 | Many fields yellow | Look at the quotes: if the value is different there, change it; if it is right, “Correct”. |
 
 Technical: [API reference → Inbox](../referenz/api.md#inbox-v370),

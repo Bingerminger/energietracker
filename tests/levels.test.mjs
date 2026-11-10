@@ -64,10 +64,10 @@ t('Ereignis nur bei echtem Wechsel', events === 1, `${events}`);
 const allowed = (level, view) => { L.applyLevel(level); return L.viewAllowed(view); };
 t('Einsteiger: Übersicht und Verträge ja, Wechsel und Analyse nein',
   allowed('beginner', 'dashboard') && allowed('beginner', 'contracts-overview')
-  && !allowed('beginner', 'tariffs') && !allowed('beginner', 'analysis') && !allowed('beginner', 'meters'));
+  && !allowed('beginner', 'tariffs') && !allowed('beginner', 'analysis') && allowed('beginner', 'household:meters'));
 t('Erfahren: Wechsel, Rechnung prüfen, Zähler — Experten-Einstellungen nicht',
-  allowed('advanced', 'tariffs') && allowed('advanced', 'bill-check') && allowed('advanced', 'meters')
-  && !allowed('advanced', 'settings:expert') && !allowed('advanced', 'settings:access'));
+  allowed('advanced', 'tariffs') && allowed('advanced', 'bill-check') && allowed('advanced', 'household:meters')
+  && !allowed('advanced', 'settings:calculation') && !allowed('advanced', 'settings:access'));
 t('Experte: alles', Object.keys(L.VIEW_LEVEL).every(v => allowed('expert', v)));
 // v3.6.0 — die Seite lenkt Verhalten: für alle; was sie je Stufe zeigt, prüft der Render-Test
 t('Flexibilität für alle Stufen (seit v3.6.0)', allowed('beginner', 'flexibility') && allowed('advanced', 'flexibility') && allowed('expert', 'flexibility'));
@@ -75,10 +75,10 @@ t('nächste Stufe', L.nextLevel('beginner') === 'advanced' && L.nextLevel('advan
 
 L.applyLevel('beginner');
 const costs = sectionPages('costs', { utilities: [{ key: 'strom', label: 'Strom', supports_bill_check: true }], tenant: true }).map(p => p.view);
-t('Navigation folgt der Stufe (Einsteiger: nur Verträge)', costs.join() === 'contracts-overview', costs.join());
+t('Navigation folgt der Stufe (Einsteiger: Verträge und Frühere Verträge)', costs.join() === 'contracts-overview,contracts-past', costs.join());
 L.applyLevel('expert');
 const costsX = sectionPages('costs', { utilities: [{ key: 'strom', label: 'Strom', supports_bill_check: true }], tenant: true }).map(p => p.view);
-t('… Experte: alle vier', costsX.join() === 'contracts-overview,tariffs,bill-check,tenancy', costsX.join());
+t('… Experte: alle fünf', costsX.join() === 'contracts-overview,contracts-past,tariffs,bill-check,tenancy', costsX.join());
 
 L.applyLevel('beginner');
 L.dismiss('battery');
@@ -97,8 +97,11 @@ const routerSrc = src('public/js/router.js');
 const viewBlock = routerSrc.slice(routerSrc.indexOf('const VIEWS = {'), routerSrc.indexOf('};', routerSrc.indexOf('const VIEWS = {')));
 const routerViews = [...viewBlock.matchAll(/^\s*'([a-z-]+)':\s*\{\s*section:/gm)].map(m => m[1]);
 const settingsPages = JSON.parse((src('public/js/views/settings.js').match(/export const PAGES = (\[[^\]]+\])/)?.[1] || '[]').replace(/'/g, '"'));
-const pageKeys = [...routerViews.filter(v => v !== 'settings'), ...settingsPages.map(p => 'settings:' + p)];
-t('Router-Ansichten und Einstellungsseiten gelesen', routerViews.length >= 20 && settingsPages.length >= 8, `${routerViews.length} + ${settingsPages.length}`);
+// v3.12.0 (M2) — Verbindungen: die Unterseiten tragen die Stufe, das Menü bleibt
+const connectionPages = JSON.parse((src('public/js/views/connections.js').match(/export const CONNECTION_PAGES = (\[[^\]]+\])/)?.[1] || '[]').replace(/'/g, '"'));
+const householdPages = JSON.parse((src('public/js/views/household.js').match(/export const HOUSEHOLD_PAGES = (\[[^\]]+\])/)?.[1] || '[]').replace(/'/g, '"'));
+const pageKeys = [...routerViews.filter(v => v !== 'settings'), ...settingsPages.map(p => 'settings:' + p), ...householdPages.map(p => 'household:' + p), ...connectionPages.map(p => 'connections:' + p)];
+t('Router-Ansichten und Einstellungsseiten gelesen', routerViews.length >= 20 && settingsPages.length >= 7 && connectionPages.length >= 7, `${routerViews.length} + ${settingsPages.length}`);
 const missingLevel = pageKeys.filter(k => !(k in L.VIEW_LEVEL));
 const staleLevel = Object.keys(L.VIEW_LEVEL).filter(k => !pageKeys.includes(k));
 t('jede Seite des Routers hat eine Stufe in VIEW_LEVEL (keine gewachsene Zuordnung)', !missingLevel.length,
@@ -156,17 +159,16 @@ const ELEMENTS = {
     [V + 'contracts.js', re('<fieldset class="fgroup"§LV§><legend>\\$\\{t\\(\'contracts\\.revenue\\.title\'\\)')],
     [V + 'contracts.js', re('<label class="btn btn--sm btn--ghost"§LV§>\\$\\{t\\(\'contracts\\.priceImport\\.button\'\\)')],
     [V + 'contracts.js', re('<span class="contract-card__counts"§LV§>')]] },
-  'level-el-meter-plant': { page: 'meters', at: [[V + 'meters.js', re('data-role="pv-plant"§LV§')], [V + 'meters.js', re('data-role="hp-link"§LV§')]] },
-  'level-el-meter-expert': { page: 'meters', at: [
+  'level-el-meter-plant': { page: 'household:meters', at: [[V + 'meters.js', re('data-role="pv-plant"§LV§')], [V + 'meters.js', re('data-role="hp-link"§LV§')]] },
+  'level-el-meter-expert': { page: 'household:meters', at: [
     [V + 'meters.js', re('<div class="field"§LV§>\\s*<label>\\$\\{t\\(\'meters\\.modal\\.group\'\\)')],
     [V + 'meters.js', re('data-section="baseline"§LV§')],
     [V + 'meters.js', re('<button class="btn btn--sm btn--ghost"§LV§ data-import-series=')]] },
-  'level-el-dash-explainers': { page: 'dashboard', at: [[V + 'dashboard.js', /atLeast\('(\w+)'\) \? `<section class="card dash-explainers"/]] },
   'level-el-utility-advanced': { page: 'utility', at: [
-    [V + 'utility.js', re('<div class="card"§LV§>\\s*<div class="card__title">\\$\\{t\\(\'utility\\.cards\\.monthlyTable\'')],
+    [V + 'utility.js', re('<div class="card"§LV§>\\s*<div class="card__title">\\$\\{icon\\(\'klemmbrett\'\\)\\} \\$\\{t\\(\'utility\\.cards\\.monthlyTable\'')],
     [V + 'utility.js', re('<span class="card__title-action seg"§LV§ role="group"')],
-    [V + 'utility.js', re('<div class="kpi c-violet"§LV§>\\s*<div class="kpi__label">\\$\\{t\\(\'utility\\.kpi\\.co2Avoided\'')],
-    [V + 'utility.js', re('<div class="kpi c-violet"§LV§>\\s*<div class="kpi__label">\\$\\{t\\(\'utility\\.kpi\\.co2\', ')],
+    [V + 'utility.js', re('<div class="kpi"§LV§>\\s*<div class="kpi__label">\\$\\{t\\(\'utility\\.kpi\\.co2Avoided\'')],
+    [V + 'utility.js', re('<div class="kpi"§LV§>\\s*<div class="kpi__label">\\$\\{t\\(\'utility\\.kpi\\.co2\', ')],
     [V + 'utility.js', re('\\$\\{pvFlowRows\\.length \\? `<div§LV§>\\$\\{pvFlowHtml')]] },
   'level-el-pv-extras': { page: 'utility', at: [[V + 'utility.js', re('data-role="pv-extras"§LV§')]] },
   'level-el-heat-pump': { page: 'utility', at: [[V + 'utility.js', re('data-role="heat-pump"§LV§')]] },
@@ -199,10 +201,10 @@ const ELEMENTS = {
   'level-el-flex-expert': { page: 'flexibility', at: [
     [V + 'flexibility.js', re('<section class="flex-check"§LV§>')],
     [V + 'flexibility.js', re('<div class="card"§LV§>\\s*<h2 class="card__title">\\$\\{esc\\(t\\(\'flex\\.series\\.title\'')]] },
-  'level-el-settings-general': { page: 'settings:general', at: ['dashboard', 'contractReminders'].map(g => [V + 'settings.js', group(g)]) },
-  'level-el-settings-household': { page: 'settings:household', at: ['reference', 'water'].map(g => [V + 'settings.js', group(g)]) },
-  'level-el-settings-utilities': { page: 'settings:utilities', at: ['physical', 'delivery', 'flex', 'pv'].map(g => [V + 'settings.js', group(g)]) },
-  'level-el-settings-co2': { page: 'settings:utilities', at: [[V + 'settings.js', group('co2')]] },
+  'level-el-settings-display': { page: 'settings:display', at: ['dashboard', 'contractReminders'].map(g => [V + 'settings-fields.js', group(g)]) },
+  'level-el-settings-household': { page: 'household:building', at: ['reference', 'water'].map(g => [V + 'settings-fields.js', group(g)]) },
+  'level-el-settings-utilities': { page: 'household:utilities', at: ['physical', 'delivery', 'flex', 'pv'].map(g => [V + 'settings-fields.js', group(g)]) },
+  'level-el-settings-co2': { page: 'settings:calculation', at: [[V + 'settings-fields.js', group('co2')]] },
 };
 function group(gkey) { return new RegExp(`\\{ gkey: '${gkey}',[^\\n]*?(?:level: '(\\w+)'[^\\n]*?)?fields: \\[`); }
 
@@ -234,7 +236,7 @@ t('Funktionstabelle: Deutsch und Englisch mit denselben Sprungmarken und Stufen'
   JSON.stringify(Object.entries(de).sort()) === JSON.stringify(Object.entries(en).sort()));
 const docsJs = src('public/js/lib/docs.js');
 t('Handbuch-Verweis „levels“ auf die Funktionstabelle (Einstellungen, Assistent)', /levels:\s*\['docs\/referenz\/stufen\.md',\s*'docs\/en\/referenz\/stufen\.md'\]/.test(docsJs)
-  && /docUrl\('levels'\)/.test(src('public/js/views/settings.js')) && /docUrl\('levels'\)/.test(src('public/js/components/setup-wizard.js')));
+  && /docUrl\('levels'\)/.test(src('public/js/views/settings-access.js')) && /docUrl\('levels'\)/.test(src('public/js/components/setup-wizard.js')));
 t('Einstieg verlinkt die Funktionstabelle', /\.\.\/referenz\/stufen\.md/.test(src('docs/einstieg/einrichtung.md')) && /\.\.\/referenz\/stufen\.md/.test(src('docs/en/einstieg/einrichtung.md')));
 
 // Vorschlag aus dem Haushalt
@@ -268,12 +270,11 @@ t('gezeigt = nicht noch einmal (je Stufe)', !L.isDismissed('pv') && (L.markShown
 
 // ── v3.4.0 (F1024) — Hinweise › Erledigt ────────────────────────────────
 console.log('Erledigt mit Verlauf');
-t('Tab „Erledigt" ab Erfahren', !allowed('beginner', 'activity') && allowed('advanced', 'activity'));
+t('Tab „Verlauf“ ab Einsteiger (Freigabe v3.12.0)', allowed('beginner', 'activity'));
 L.applyLevel('beginner');
-const hintsB = sectionPages('hints').map(p => p.view);
+const hintsB = sectionPages('todo').map(p => p.view);
 L.applyLevel('advanced');
-const hintsA = sectionPages('hints').map(p => p.view);
-t('… Navigation: Einsteiger ohne, Erfahren mit', !hintsB.includes('activity') && hintsA.join() === 'reminders,recommendations,activity', hintsA.join());
+t('… Zu tun: dieselben Reiter in jeder Stufe', hintsB.join() === 'todo,reminders,activity', hintsB.join());
 const A = await import(`${JS}/lib/activity.js`);
 const entry = { title_key: 'calendar.event.cancelBy', params: { label: 'Strom', provider: 'Testwerk' }, title: 'alt' };
 t('Titel in der Sprache der Oberfläche (title_key), nicht die Momentaufnahme', A.entryTitle(entry).includes('Kündigung') && !A.entryTitle(entry).includes('alt'));

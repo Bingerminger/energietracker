@@ -159,13 +159,16 @@ final class TariffSwitchService
         }
 
         // ── Erwarteter Verbrauch je Kalendermonat ───────────────────────
-        $seasonal = $this->seasonalExpectation($utility, $meter);
+        $seasonal = $this->seasonalExpectation($utility, $meter, $today);
         if ($seasonal === null) {
             return $this->unsupported($utility, $meterId, $unit, $today,
                 $this->i18n->t('errors.forecast.tooFewMonths'));
         }
 
         $window = $this->buildWindow($switchDate, $seasonal['by_month']);
+        // v3.12.0 — „ab 2. Jahr“: die Monate 13 bis 24 nach dem Wechsel, gleiche Menge je Kalendermonat,
+        // die Preise, die dann gelten (Preisstaffel ab dem 13. Monat)
+        $window2 = $this->buildWindow(ContractService::addMonthsClamped(substr($switchDate, 0, 7) . '-01', self::WINDOW_MONTHS), $seasonal['by_month']);
         $expectedConsumption = array_sum(array_column($window, 'consumption'));
 
         // ── Kandidaten ──────────────────────────────────────────────────
@@ -174,10 +177,10 @@ final class TariffSwitchService
         // dem Tarif rechnen, der dann gilt.
         $candidates = [];
         if ($chain) {
-            $candidates[] = $this->evaluateChain($chain, $window, true);
+            $candidates[] = $this->evaluateChain($chain, $window, $window2, true);
         }
         foreach ($shadow as $s) {
-            $candidates[] = $this->evaluate($s, $window, $unit, false)
+            $candidates[] = $this->evaluate($s, $window, $window2, $unit, false)
                 + (($s['price_model'] ?? '') === 'dynamic' ? ['price_model' => 'dynamic', 'dynamic_assumed_months' => count($s['dynamic_assumed'] ?? [])] : []);
         }
 
@@ -187,7 +190,7 @@ final class TariffSwitchService
         }
 
         foreach ($candidates as &$c) {
-            $c = $this->compareToReference($c, $reference, $window, $expectedConsumption);
+            $c = $this->compareToReference($c, $reference, $window, $expectedConsumption, Utilities::isFeedIn($utility));
         }
         unset($c);
 
@@ -270,9 +273,10 @@ final class TariffSwitchService
      *
      * @return array{by_month: array<int,float>, quality: array<string,mixed>}|null
      */
-    private function seasonalExpectation(string $utility, array $meter): ?array
+    private function seasonalExpectation(string $utility, array $meter, string $today): ?array
     {
-        $fc = $this->forecast->forMeter($utility, $meter, ['forecast_months' => self::WINDOW_MONTHS]);
+        // v3.12.0 — die Prognose am Stichtag des Vergleichs (bis v3.11 am echten Datum)
+        $fc = $this->forecast->forMeter($utility, $meter, ['forecast_months' => self::WINDOW_MONTHS, 'today' => $today]);
         if (empty($fc['valid']) || empty($fc['forecast'])) {
             return null;
         }
@@ -392,59 +396,44 @@ final class TariffSwitchService
     }
 
     /**
-     * Kosten der Bindungskette über das Fenster.
+     * v3.12.0 — Kosten eines Vertrags (oder der Bindungskette) über die Monate eines Fensters: je Monat Menge ×
+     * Arbeitspreis + Grundpreis, mit den Preisen, die in diesem Monat gelten. Eine Rechnung für Jahr 1 und Jahr 2.
+     * Mit `$chain` gilt je Monat der Vertrag der Kette, der dann läuft, sonst ihr letzter (fortgeschrieben).
+     * Null, wenn ein Monat keinen Arbeitspreis hat.
      *
-     * Für jeden Monat gilt der Vertrag, der dann läuft. Reicht die Kette nicht
-     * bis ans Fensterende — der Normalfall, denn das Fenster beginnt ja nach
-     * ihrem Ablauf —, wird der letzte Vertrag fortgeschrieben. Das ist die
-     * konservative Annahme „nichts tun": bestehende Preise laufen weiter.
-     *
-     * @param array<int,array<string,mixed>> $chain
      * @param array<int,array<string,mixed>> $window
-     * @return array<string,mixed>
+     * @param array<int,array<string,mixed>>|null $chain
+     * @return array{total:float,consumption:float,monthly:list<array<string,mixed>>,beyond:bool,used:array<string,bool>}|null
      */
-    private function evaluateChain(array $chain, array $window, bool $isReference): array
+    private function costOver(array $c, array $window, ?array $chain = null): ?array
     {
-        $last = $chain[count($chain) - 1];
-
-        $monthly     = [];
-        $total       = 0.0;
-        $consumption = 0.0;
-        $beyondAny   = false;
-        $usedIds     = [];
-
+        $out = ['total' => 0.0, 'consumption' => 0.0, 'monthly' => [], 'beyond' => false, 'used' => []];
         foreach ($window as $m) {
             $first = sprintf('%04d-%02d-01', $m['year'], $m['month']);
-            // Der in diesem Monat gültige Vertrag der Kette, sonst der letzte.
-            $c = $this->contracts->findActiveForDate($chain, $first) ?? $last;
-            $usedIds[(string)$c['id']] = true;
-
-            $wp = $this->priceForWindow($c, 'working_prices', 'ct_per_kwh', $m['year'], $m['month']);
-            if ($wp === null) {
-                return [
-                    'contract_id'      => (string)$last['id'],
-                    'label'            => $this->labelFor($last),
-                    'is_shadow'        => false,
-                    'is_reference'     => $isReference,
-                    'computable'       => false,
-                    'note'             => $this->i18n->t('errors.tariff.noWorkingPrice'),
-                    'year1_eur'        => null,
-                    'year2_eur'        => null,
-                    'signup_bonus_eur' => null,
-                    'monthly'          => [],
-                ];
+            // v3.12.0 — tagesgenau wie Prognose und Rechnung: der Monat geteilt an den Preisstufen (und mit `$chain` an
+            // den Vertragsgrenzen), die Menge gleich je Tag, Grundpreis tagesanteilig. Bis dahin galten Vertrag und
+            // Preis des Monatsersten; eine Preisstufe zum 15. wirkte erst im Folgemonat.
+            $wpDays = 0.0; $cost = 0.0; $k0 = null;
+            foreach ($this->monthSegments($chain ?? [$c], $first, $chain !== null) as [$from, $days, $dim]) {
+                $k = $chain !== null ? ($this->contracts->findActiveForDate($chain, $from) ?? $c) : $c;
+                $k0 ??= $k;
+                $out['used'][(string)$k['id']] = true;
+                $p = $this->priceOnDay($k, 'working_prices', 'ct_per_kwh', $from);
+                if ($p === null) return null;
+                $b = $this->priceOnDay($k, 'base_prices', 'eur_per_month', $from) ?? 0.0;
+                $cost += $m['consumption'] * $days / $dim * $p / 100.0 + $b * $days / $dim;
+                $wpDays += $p * $days / $dim;
             }
-            $bp = $this->priceForWindow($c, 'base_prices', 'eur_per_month', $m['year'], $m['month']) ?? 0.0;
-
-            $cost   = $m['consumption'] * $wp / 100.0 + $bp;
-            $total += $cost;
-            $consumption += $m['consumption'];
-
-            $guarantee = $c['price_guarantee_until'] ?? null;
-            $beyond    = $guarantee !== null && ($m['ym'] . '-01') > $guarantee;
-            if ($beyond) $beyondAny = true;
-
-            $monthly[] = [
+            // Preis des Monats nach Tagen: Menge × Preis bleibt der Arbeitspreisanteil (costAtScale, Werkstatt)
+            $wp = $wpDays;
+            $out['total'] += $cost;
+            $out['consumption'] += $m['consumption'];
+            // Nach Ablauf der Preisgarantie ist der Preis eine Annahme. Der Wert wird trotzdem fortgeschrieben —
+            // er wird nur markiert, damit die Oberfläche ihn als unsicher darstellen kann.
+            $guarantee = ($k0 ?? $c)['price_guarantee_until'] ?? null;
+            $beyond = $guarantee !== null && ($m['ym'] . '-01') > $guarantee;
+            if ($beyond) $out['beyond'] = true;
+            $out['monthly'][] = [
                 'ym'               => $m['ym'],
                 'consumption'      => round($m['consumption'], 1),
                 'cost'             => round($cost, 2),
@@ -452,6 +441,43 @@ final class TariffSwitchService
                 'beyond_guarantee' => $beyond,
             ];
         }
+        return $out;
+    }
+
+    /**
+     * Kosten der Bindungskette über das Fenster.
+     *
+     * Für jeden Monat gilt der Vertrag, der dann läuft. Reicht die Kette nicht
+     * bis ans Fensterende — der Normalfall, denn das Fenster beginnt ja nach
+     * ihrem Ablauf —, wird der letzte Vertrag fortgeschrieben. Das ist die
+     * konservative Annahme „nichts tun": bestehende Preise laufen weiter.
+     * v3.12.0 — Jahr 2 sind die Monate 13 bis 24 mit den Preisen, die dann gelten (`$window2`).
+     *
+     * @param array<int,array<string,mixed>> $chain
+     * @param array<int,array<string,mixed>> $window
+     * @param array<int,array<string,mixed>> $window2
+     * @return array<string,mixed>
+     */
+    private function evaluateChain(array $chain, array $window, array $window2, bool $isReference): array
+    {
+        $last = $chain[count($chain) - 1];
+        $y1 = $this->costOver($last, $window, $chain);
+        $y2 = $y1 !== null ? $this->costOver($last, $window2, $chain) : null;
+        if ($y1 === null || $y2 === null) {
+            return [
+                'contract_id'      => (string)$last['id'],
+                'label'            => $this->labelFor($last),
+                'is_shadow'        => false,
+                'is_reference'     => $isReference,
+                'computable'       => false,
+                'note'             => $this->i18n->t('errors.tariff.noWorkingPrice'),
+                'year1_eur'        => null,
+                'year2_eur'        => null,
+                'signup_bonus_eur' => null,
+                'monthly'          => [],
+            ];
+        }
+        $usedIds = $y1['used'];
 
         // Deckt das Fenster mehrere Verträge ab, muss das Label das sagen —
         // sonst steht dort ein Tarif, der nur einen Teil der Zahlen erklärt.
@@ -472,63 +498,40 @@ final class TariffSwitchService
             'computable'   => true,
             'note'         => null,
 
-            'year1_eur'        => round($total, 2),
-            'year2_eur'        => round($total, 2),
+            'year1_eur'        => round($y1['total'], 2),
+            'year2_eur'        => round($y2['total'], 2),
             'signup_bonus_eur' => null,
 
-            'consumption'        => round($consumption, 1),
-            'unit_cost_ct_year1' => $consumption > 0 ? round($total * 100.0 / $consumption, 3) : null,
-            'unit_cost_ct_year2' => $consumption > 0 ? round($total * 100.0 / $consumption, 3) : null,
+            'consumption'        => round($y1['consumption'], 1),
+            'unit_cost_ct_year1' => $y1['consumption'] > 0 ? round($y1['total'] * 100.0 / $y1['consumption'], 3) : null,
+            'unit_cost_ct_year2' => $y2['consumption'] > 0 ? round($y2['total'] * 100.0 / $y2['consumption'], 3) : null,
 
             'guarantee_until'          => $last['price_guarantee_until'] ?? null,
-            'guarantee_ends_in_window' => $beyondAny,
+            'guarantee_ends_in_window' => $y1['beyond'],
 
-            'chain_length' => count($usedIds),
-            'monthly'      => $monthly,
+            'chain_length'  => count($usedIds),
+            'monthly'       => $y1['monthly'],
+            'monthly_year2' => $y2['monthly'],   // v3.12.0 — die Monate 13 bis 24 (additiv)
         ];
     }
 
     /**
      * Kosten eines Kandidaten über das Fenster — einmal für das erste Jahr
      * (mit Neukundenbonus) und einmal dauerhaft (ohne).
+     * v3.12.0 — dauerhaft heißt: die Monate 13 bis 24 mit den Preisen, die dann gelten. Bis v3.11 war es dasselbe
+     * Fenster wie Jahr 1 ohne Bonus; eine Preisstaffel ab dem 13. Monat fiel weg, das Lockangebot stand vorn.
      *
      * @param array<int,array<string,mixed>> $window
+     * @param array<int,array<string,mixed>> $window2
      * @return array<string,mixed>
      */
-    private function evaluate(array $c, array $window, string $unit, bool $isReference): array
+    private function evaluate(array $c, array $window, array $window2, string $unit, bool $isReference): array
     {
         $guaranteeUntil = $c['price_guarantee_until'] ?? null;
-        $monthly        = [];
-        $total          = 0.0;
-        $consumption    = 0.0;
-        $beyondAny      = false;
-        $computable     = true;
+        $y1 = $this->costOver($c, $window);
+        $y2 = $y1 !== null ? $this->costOver($c, $window2) : null;
 
-        foreach ($window as $m) {
-            $wp = $this->priceForWindow($c, 'working_prices', 'ct_per_kwh', $m['year'], $m['month']);
-            if ($wp === null) { $computable = false; break; }
-            $bp = $this->priceForWindow($c, 'base_prices', 'eur_per_month', $m['year'], $m['month']) ?? 0.0;
-
-            $cost   = $m['consumption'] * $wp / 100.0 + $bp;
-            $total += $cost;
-            $consumption += $m['consumption'];
-
-            // Nach Ablauf der Preisgarantie ist der Preis eine Annahme. Der
-            // Wert wird trotzdem fortgeschrieben — er wird nur markiert, damit
-            // die Oberfläche ihn als unsicher darstellen kann.
-            $beyond = $guaranteeUntil !== null && ($m['ym'] . '-01') > $guaranteeUntil;
-            if ($beyond) $beyondAny = true;
-
-            $monthly[] = [
-                'ym'               => $m['ym'],
-                'consumption'      => round($m['consumption'], 1),
-                'cost'             => round($cost, 2),
-                'working_price_ct' => round($wp, 4),
-                'beyond_guarantee' => $beyond,
-            ];
-        }
-
-        if (!$computable) {
+        if ($y1 === null || $y2 === null) {
             return [
                 'contract_id'      => (string)$c['id'],
                 'label'            => $this->labelFor($c),
@@ -555,19 +558,20 @@ final class TariffSwitchService
             'computable'   => true,
             'note'         => null,
 
-            // Jahr 1 mit Bonus, Jahr 2 ohne — beide über dieselbe Menge.
-            'year1_eur'        => round($total - $bonus, 2),
-            'year2_eur'        => round($total, 2),
+            // Jahr 1 mit Bonus, Jahr 2 ohne, mit den Preisen der Monate 13 bis 24 — beide über dieselbe Menge je Monat.
+            'year1_eur'        => round($y1['total'] - $bonus, 2),
+            'year2_eur'        => round($y2['total'], 2),
             'signup_bonus_eur' => $bonus > 0 ? round($bonus, 2) : null,
 
-            'consumption'        => round($consumption, 1),
-            'unit_cost_ct_year1' => $consumption > 0 ? round(($total - $bonus) * 100.0 / $consumption, 3) : null,
-            'unit_cost_ct_year2' => $consumption > 0 ? round($total * 100.0 / $consumption, 3) : null,
+            'consumption'        => round($y1['consumption'], 1),
+            'unit_cost_ct_year1' => $y1['consumption'] > 0 ? round(($y1['total'] - $bonus) * 100.0 / $y1['consumption'], 3) : null,
+            'unit_cost_ct_year2' => $y2['consumption'] > 0 ? round($y2['total'] * 100.0 / $y2['consumption'], 3) : null,
 
             'guarantee_until'          => $guaranteeUntil,
-            'guarantee_ends_in_window' => $beyondAny,
+            'guarantee_ends_in_window' => $y1['beyond'],
 
-            'monthly' => $monthly,
+            'monthly'       => $y1['monthly'],
+            'monthly_year2' => $y2['monthly'],   // v3.12.0 — die Monate 13 bis 24 (additiv)
         ];
     }
 
@@ -578,27 +582,74 @@ final class TariffSwitchService
      */
     public function offerPrice(array $c, string $group, string $field, int $year, int $month): ?float
     {
-        return $this->priceForWindow($c, $group, $field, $year, $month);
+        // v3.12.0 — der Preis des Monats nach Tagen (eine Stufe zum 15. zählt ab dem 15.), wie in costOver()
+        $first = sprintf('%04d-%02d-01', $year, $month);
+        $sum = 0.0;
+        foreach ($this->monthSegments([$c], $first, false) as [$from, $days, $dim]) {
+            $p = $this->priceOnDay($c, $group, $field, $from);
+            if ($p === null) return null;
+            $sum += $p * $days / $dim;
+        }
+        return $sum;
     }
 
     /**
-     * Arbeits- bzw. Grundpreis eines Kandidaten für einen Fenstermonat.
+     * v3.12.0 — Abschnitte eines Monats [Beginn, Tage, Tage des Monats], geteilt an jedem Stichtag der Arbeits- und
+     * Grundpreise der Verträge und mit `$contractCuts` an ihrem Beginn und am Tag nach ihrem Ende (Bindungskette).
      *
-     * Gilt für den Monat ein gepflegter Preis, wird er genommen. Sonst greift
+     * @param array<int,array<string,mixed>> $contracts
+     * @return list<array{0:string,1:int,2:int}>
+     */
+    private function monthSegments(array $contracts, string $first, bool $contractCuts): array
+    {
+        $next = date('Y-m-d', (int)strtotime($first . ' +1 month'));
+        $dim  = (int)date('t', (int)strtotime($first));
+        $cuts = [$first => true];
+        foreach ($contracts as $x) {
+            $dates = [];
+            foreach (['working_prices', 'base_prices'] as $g) {
+                foreach ((array)($x[$g] ?? []) as $e) if (is_array($e)) $dates[] = (string)($e['from'] ?? '');
+            }
+            if ($contractCuts) {
+                $dates[] = (string)($x['start'] ?? '');
+                if (!empty($x['end']) && is_string($x['end'])) $dates[] = date('Y-m-d', (int)strtotime($x['end'] . ' +1 day'));
+            }
+            foreach ($dates as $d) if ($d > $first && $d < $next) $cuts[$d] = true;
+        }
+        $list = array_keys($cuts);
+        sort($list);
+        $list[] = $next;
+        $out = [];
+        for ($i = 0; $i < count($list) - 1; $i++) {
+            $days = (int)round((strtotime($list[$i + 1] . ' 12:00') - strtotime($list[$i] . ' 12:00')) / 86400);
+            if ($days > 0) $out[] = [(string)$list[$i], $days, $dim];
+        }
+        return $out;
+    }
+
+    /**
+     * Arbeits- bzw. Grundpreis eines Kandidaten an einem Tag.
+     *
+     * Gilt an dem Tag ein gepflegter Preis, wird er genommen. Sonst greift
      * der früheste Eintrag: Ein eingetragenes Angebot beschreibt einen Tarif,
      * der ab dem Wechsel gelten soll — sein Startdatum liegt beim Anlegen
      * naturgemäß noch nicht auf dem Wechseltermin.
+     * v3.12.0 — je Tag statt je Monat (bis dahin der Preis des Monatsersten).
      */
-    private function priceForWindow(array $c, string $group, string $field, int $year, int $month): ?float
+    private function priceOnDay(array $c, string $group, string $field, string $date): ?float
     {
         $entries = $c[$group] ?? [];
         if (!is_array($entries) || !$entries) return null;
 
-        $v = $this->contracts->valueValidOn($entries, $field, $year, $month);
-        if ($v !== null) return $v;
-
-        $sorted = $entries;
+        $sorted = array_values(array_filter($entries, 'is_array'));
         usort($sorted, fn($a, $b) => strcmp((string)($a['from'] ?? ''), (string)($b['from'] ?? '')));
+        $v = null;
+        foreach ($sorted as $e) {
+            if (((string)($e['from'] ?? '9999')) <= $date) {
+                if (isset($e[$field]) && is_numeric($e[$field])) $v = (float)$e[$field];
+            } else break;
+        }
+        if ($v !== null) return $v;
         foreach ($sorted as $e) {
             if (isset($e[$field]) && is_numeric($e[$field])) return (float)$e[$field];
         }
@@ -621,13 +672,14 @@ final class TariffSwitchService
      * @param array<int,array<string,mixed>> $window
      * @return array<string,mixed>
      */
-    private function compareToReference(array $cand, ?array $reference, array $window, float $expected): array
+    private function compareToReference(array $cand, ?array $reference, array $window, float $expected, bool $higherIsBetter = false): array
     {
         $cand['vs_reference_year1_eur'] = null;
         $cand['vs_reference_year2_eur'] = null;
         $cand['vs_reference_year2_pct'] = null;
         $cand['break_even_consumption'] = null;
         $cand['break_even_delta_pct']   = null;
+        $cand['break_even_direction']   = null;   // v3.12.0 — above | below (additiv)
         $cand['sensitivity']            = null;
 
         if (empty($cand['computable'])) return $cand;
@@ -666,6 +718,11 @@ final class TariffSwitchService
             if ($s > 0 && $s < 10) {
                 $cand['break_even_consumption'] = round($s * $expected, 0);
                 $cand['break_even_delta_pct']   = round(($s - 1.0) * 100.0, 1);
+                // v3.12.0 — in welche Richtung das Angebot gewinnt: Steigt es je kWh langsamer als der Vertrag (bei
+                // der Einspeisung: schneller), ist es oberhalb der Menge besser („lohnt ab“), sonst nur darunter
+                // („lohnt bis“). Bisher stand die Menge immer unter „Lohnt ab“, auch bei einem höheren Arbeitspreis
+                // mit niedrigerem Grundpreis, der nur bei wenig Verbrauch günstiger ist.
+                $cand['break_even_direction'] = ($higherIsBetter ? $slopeC > $slopeR : $slopeC < $slopeR) ? 'above' : 'below';
             }
         }
 
@@ -675,14 +732,14 @@ final class TariffSwitchService
     /**
      * Kosten des Kandidaten, wenn der Verbrauch jedes Monats mit `$scale`
      * skaliert wird. Bonus bleibt außen vor — verglichen wird der dauerhafte
-     * Preis (Jahr 2).
+     * Preis (Jahr 2). v3.12.0 — über die Monate von Jahr 2 (`monthly_year2`), wie `year2_eur`.
      *
      * @param array<int,array<string,mixed>> $window
      */
     private function costAtScale(array $cand, array $window, float $scale): float
     {
         $sum = 0.0;
-        foreach ($cand['monthly'] as $i => $m) {
+        foreach ($cand['monthly_year2'] ?? $cand['monthly'] as $i => $m) {
             $base = $window[$i] ?? null;
             if ($base === null) continue;
             // cost = consumption * wp/100 + bp  →  der Grundpreisanteil ist

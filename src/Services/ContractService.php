@@ -68,6 +68,19 @@ final class ContractService
     public const NOTICE_MODES = ['term_end', 'month_end', 'any_day'];
 
     /**
+     * v3.12.0 — Felder eines Vertrags, die Text sein müssen (Anlegen und Ändern): Eine Liste oder
+     * ein Objekt ergab bisher 500 („Array to string conversion“), s. Support\Input.
+     */
+    private const TEXT_FIELDS = ['meter_id', 'meter_group_id', 'provider', 'tariff_name', 'notes', 'shadow_label',
+        'min_term_end', 'price_guarantee_until', 'notice_mode',
+        // v3.12.0 — auch Beginn, Ende und die Nummern: `end: []` wurde bisher mit 500 trotzdem gespeichert und
+        // legte danach Übersicht, Zu tun und Jahresbericht lahm; eine Kundennummer als Liste fiel still weg
+        'start', 'end', 'contract_number', 'customer_number'];
+
+    /** v3.12.0 — Obergrenze jedes Betrags am Vertrag (Preis, Abschlag, Bonus, Sonderzahlung): nie 10³⁰⁸. */
+    public const AMOUNT_MAX = 10000000;
+
+    /**
      * v3.1.0 (Paket H5, CALC-31) — Felder eines Fernwärmevertrags: Anschluss-
      * leistung in kW, Leistungspreis €/kW·a, Mess-/Verrechnungspreis €/a (beide
      * datiert), Emissionsfaktor des Netzes in g CO₂/kWh laut Versorger und der
@@ -199,13 +212,15 @@ final class ContractService
                 $this->i18n->t('errors.contract.noContracts', ['label' => Utilities::get($utility)['label']])
             );
         }
+        // v3.12.0 — Liste, Objekt oder Zahl statt Text: 400 statt 500 (Support\Input)
+        \Energietracker\Support\Input::assertTexts($input, self::TEXT_FIELDS);
         // v3.1.0 (H6, #17) — Vertrag für eine Zählergruppe statt für einen Zähler
         $groupId = self::groupTarget($input);
         if ($groupId !== null) {
             $this->assertGroupTarget($utility, $groupId);
             $meterId = null;
         } else {
-            $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
+            $meterId = \Energietracker\Support\Input::text($input, 'meter_id', null) ?? $this->meters->defaultId($utility);
             if (!$this->meters->get($utility, $meterId)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
             }
@@ -221,7 +236,8 @@ final class ContractService
             'bonuses'      => $input['bonuses'] ?? [],
             // v1.3.0 — Schattenvertrag: rein hypothetisch, fließt NICHT in
             // Saldo/Forecast/contractStatus ein, nur in den Tarifvergleich.
-            'is_shadow'    => (bool)($input['is_shadow'] ?? false),
+            // v3.12.0 — als Wahrheitswert geprüft in normalizeSwitchFields (bisher machte (bool)"false" daraus true)
+            'is_shadow'    => $input['is_shadow'] ?? false,
             'shadow_label' => isset($input['shadow_label']) ? (string)$input['shadow_label'] : null,
             // v2.3.0 — Wechselplanung. Diese drei entscheiden, ab wann ein
             // neuer Tarif überhaupt greifen kann; ohne sie lässt sich ein
@@ -246,7 +262,7 @@ final class ContractService
         ];
         // v3.7.0 (Posteingang) — Kennungen für die Zuordnung von Versorgerpost
         // und Belege (das Dokument, aus dem der Vertrag stammt); nur, wenn gesetzt
-        foreach (self::DOCUMENT_FIELDS as $f) {
+        foreach ([...self::DOCUMENT_FIELDS, ...self::LETTER_FIELDS] as $f) {   // v3.12.0 (m4b) — auch die Anschrift des Anbieters
             if (array_key_exists($f, $input)) $base[$f] = $input[$f];
         }
         // v3.11.0 (F1035) — Grundversorgung oder Sondervertrag, nur wenn gesetzt
@@ -318,6 +334,13 @@ final class ContractService
      */
     public const DOCUMENT_FIELDS = ['contract_number', 'customer_number', 'attachment_ids'];
 
+    /**
+     * v3.12.0 (m4b) — optionale Angaben für Briefe am Vertrag: die Anschrift des Anbieters (ohne den Namen,
+     * der steht in `provider`). Der Brief-Dialog füllt damit den Empfänger vor. KI (MCP) und Posteingang
+     * bekommen sie nie (ContractTools nennt Felder einzeln, der Posteingang liest sie nicht).
+     */
+    public const LETTER_FIELDS = ['provider_address'];
+
     /** v3.7.0 — Belege verknüpfen wie BillService: entfernte lösen, alle übrigen auf diesen Vertrag zeigen lassen. */
     private function linkAttachments(string $utility, string $id, array $old, array $new): void
     {
@@ -342,6 +365,7 @@ final class ContractService
         $switchFields = ['notice_period_months', 'min_term_end', 'price_guarantee_until',
                          'signup_bonus_eur', 'auto_renews', 'notice_period_days', 'notice_mode',
                          ...self::DOCUMENT_FIELDS,    // v3.7.0 (Posteingang)
+                         ...self::LETTER_FIELDS,      // v3.12.0 (m4b)
                          'supply_kind'];              // v3.11.0 (F1035)
         $standardFields = array_merge($isFeedIn
             ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
@@ -366,14 +390,29 @@ final class ContractService
             $waterFields[]    = 'special_payments';
         }
 
+        // v3.12.0 — wie beim Anlegen: Textfelder als Text, und umhängen nur an einen Zähler dieser Art
+        // (bisher nahm PATCH auch einen unbekannten Zähler an; der Vertrag hing danach an nichts)
+        \Energietracker\Support\Input::assertTexts($input, self::TEXT_FIELDS);
+        if (!empty($input['meter_id']) && $this->meters->get($utility, (string)$input['meter_id']) === null) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => (string)$input['meter_id']]));
+        }
+
         $oldAttachments = [];
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;
             $oldAttachments = (array)($c['attachment_ids'] ?? []);   // v3.7.0
             $c = $this->withAssignee($c, $input, is_string($c['assignee_id'] ?? null) ? $c['assignee_id'] : null);   // v3.7.0
             $fields = $utility === 'wasser' ? $waterFields : $standardFields;
+            $oldSpecial = is_array($c['special_payments'] ?? null) ? $c['special_payments'] : [];
             foreach ($fields as $f) {
                 if (array_key_exists($f, $input)) $c[$f] = $input[$f];
+            }
+            // v3.12.0 — Sonderzahlungen ohne Kennung (ältere Oberfläche, Skripte) bekommen die Kennung der
+            // unveränderten Zeile zurück. Bisher vergab jedes Speichern im Vertragsdialog neue Kennungen;
+            // eine gebuchte Rechnung (special_payment_id) fand ihre Buchung danach nicht mehr, und eine
+            // Rechnungskorrektur buchte doppelt.
+            if (in_array('special_payments', $fields, true) && is_array($input['special_payments'] ?? null)) {
+                $c['special_payments'] = self::keepSpecialPaymentIds($input['special_payments'], $oldSpecial);
             }
             // v3.1.0 (H6, #17) — Ziel wechseln: Gruppe oder Zähler
             if (($gid = self::groupTarget($input)) !== null) {
@@ -515,6 +554,12 @@ final class ContractService
         $this->validateMeta($c);
 
         // ── Trinkwasser ─────────────────────────────────────────────
+        // v3.12.0 — ein Block als Text oder Zahl ist ein Fehler (bisher still leer)
+        foreach (['trinkwasser', 'schmutzwasser', 'niederschlagswasser'] as $block) {
+            if (isset($c[$block]) && $c[$block] !== '' && (!is_array($c[$block]) || ($c[$block] !== [] && array_is_list($c[$block])))) {
+                throw \Energietracker\Support\Input::objectExpected($block);
+            }
+        }
         $tw = is_array($c['trinkwasser'] ?? null) ? $c['trinkwasser'] : [];
         $tw['working_prices'] = $this->normalizePriceList(
             $tw['working_prices'] ?? [], 'from', 'ct_per_m3', $this->i18n->t('contracts.priceGroup.twWorking')
@@ -547,6 +592,7 @@ final class ContractService
         $deduct = [];
         if ($basis === 'trinkwasser_minus_abzug') {
             foreach ((array)($sw['abzug_meter_ids'] ?? []) as $id) {
+                if (!is_scalar($id)) throw \Energietracker\Support\Input::textExpected('abzug_meter_ids');
                 $id = trim((string)$id);
                 if ($id !== '' && !in_array($id, $deduct, true)) $deduct[] = $id;
             }
@@ -574,10 +620,11 @@ final class ContractService
 
         // ── Niederschlagswasser ────────────────────────────────────
         $nw = is_array($c['niederschlagswasser'] ?? null) ? $c['niederschlagswasser'] : [];
-        $rawRates = is_array($nw['rates'] ?? null) ? $nw['rates'] : [];
+        $rawRates = self::entryList($nw['rates'] ?? [], 'niederschlagswasser.rates');
         $cleanedRates = [];
         foreach ($rawRates as $i => $r) {
-            $from = isset($r['from']) ? trim((string)$r['from']) : '';
+            if (!is_array($r)) continue;
+            $from = $this->entryDate($r, 'from', $this->i18n->t('errors.contract.fields.date') . ' #' . ($i + 1));
             $rate = $r['eur_per_m2_year']         ?? null;
             $area = $r['versiegelte_flaeche_m2']  ?? null;
             $filled = fn($v) => $v !== null && $v !== '' && $v !== false;
@@ -596,8 +643,8 @@ final class ContractService
             $this->assertDate($from, $this->i18n->t('errors.contract.fields.date') . ' #' . ($i + 1));
             $cleanedRates[] = [
                 'from'                   => $from,
-                'eur_per_m2_year'        => $this->parseAmount($rate, $this->i18n->t('errors.contract.fields.ratePerM2'), $i + 1),
-                'versiegelte_flaeche_m2' => $this->parseAmount($area, $this->i18n->t('errors.contract.fields.sealedArea'), $i + 1),
+                'eur_per_m2_year'        => $this->parseAmount($rate, $this->i18n->t('errors.contract.fields.ratePerM2'), $i + 1, true),
+                'versiegelte_flaeche_m2' => $this->parseAmount($area, $this->i18n->t('errors.contract.fields.sealedArea'), $i + 1, true),
             ];
         }
         usort($cleanedRates, fn($a, $b) => strcmp($a['from'], $b['from']));
@@ -627,7 +674,10 @@ final class ContractService
         // v2.5.3 — Vertragsdaten kalendergültig. Ein beliebiger String landete
         // bisher unverändert in der Datei und von dort ungefiltert im DOM.
         $this->assertDate($c['start'], $this->i18n->t('errors.contract.fields.start'));
-        if (!empty($c['end'])) {
+        // v3.12.0 — offen ist nur null oder leer; jeder andere Wert muss ein Datum sein. Bisher galt alles
+        // „Leere“ als offen: `[]`, `{}`, `0` und `false` landeten in der Datei (und `[]` legte danach jede
+        // Ansicht mit 500 lahm).
+        if (array_key_exists('end', $c) && $c['end'] !== null && $c['end'] !== '') {
             $this->assertDate($c['end'], $this->i18n->t('errors.contract.fields.end'));
         }
         if (!empty($c['end']) && $c['end'] < $c['start']) {
@@ -650,14 +700,16 @@ final class ContractService
         if ($notice === null || $notice === '' || $notice === false) {
             $c['notice_period_months'] = null;
         } else {
-            if (!is_numeric($notice)) {
+            // v3.12.0 — eine ganze Zahl im Bereich, geprüft vor dem Umwandeln: „1.5“ wurde still 1,
+            // 10³⁰⁸ ergab unter PHP 8.5 einen Fehler (500)
+            $f = is_bool($notice) ? null : \Energietracker\Support\Input::decimal($notice);
+            if ($f === null || $f != floor($f)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeNotNumeric'));
             }
-            $n = (int)$notice;
-            if ($n < 0 || $n > 24) {
+            if ($f < 0 || $f > 24) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeOutOfRange'));
             }
-            $c['notice_period_months'] = $n;
+            $c['notice_period_months'] = (int)$f;
         }
 
         // v2.9.0 — Frist in Tagen (Wochen speichert die Oberfläche als Tage).
@@ -666,14 +718,14 @@ final class ContractService
         if ($days === null || $days === '' || $days === false) {
             $c['notice_period_days'] = null;
         } else {
-            if (!is_numeric($days)) {
+            $f = is_bool($days) ? null : \Energietracker\Support\Input::decimal($days);
+            if ($f === null || $f != floor($f)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeNotNumeric'));
             }
-            $d = (int)$days;
-            if ($d < 0 || $d > 730) {
+            if ($f < 0 || $f > 730) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeDaysOutOfRange'));
             }
-            $c['notice_period_days'] = $d;
+            $c['notice_period_days'] = (int)$f;
         }
 
         $mode = $c['notice_mode'] ?? null;
@@ -684,12 +736,12 @@ final class ContractService
         }
 
         // null = nicht angegeben (verlängert sich, der gesetzliche Normalfall)
+        // v3.12.0 — eine Regel für Wahrheitswerte (Support\Input::bool): „nein“ und „off“ heißen nein,
+        // Unlesbares ist ein Fehler; bisher wurde jeder andere Text (auch „nein“) und eine Liste zu ja
         $renews = $c['auto_renews'] ?? null;
-        $c['auto_renews'] = match (true) {
-            $renews === null || $renews === '' => null,
-            $renews === false || $renews === 0 || $renews === '0' || $renews === 'false' => false,
-            default => true,
-        };
+        $c['auto_renews'] = $renews === null || $renews === '' ? null : self::boolField($renews, 'auto_renews');
+        $c['is_shadow'] = self::boolField($c['is_shadow'] ?? false, 'is_shadow');
+        if (($c['end'] ?? null) === '') $c['end'] = null;   // offen ist null (validateMeta)
 
         foreach (['min_term_end', 'price_guarantee_until'] as $field) {
             $v = $c[$field] ?? null;
@@ -708,7 +760,7 @@ final class ContractService
         if ($bonus === null || $bonus === '' || $bonus === false) {
             $c['signup_bonus_eur'] = null;
         } else {
-            if (!is_numeric($bonus)) {
+            if (is_bool($bonus) || !is_numeric($bonus) || !is_finite((float)$bonus) || (float)$bonus > self::AMOUNT_MAX) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNotNumeric'));
             }
             if ((float)$bonus < 0) {
@@ -724,6 +776,17 @@ final class ContractService
             $v = is_scalar($c[$f]) ? trim((string)$c[$f]) : '';
             if ($v === '') unset($c[$f]);
             else $c[$f] = mb_substr($v, 0, 64);
+        }
+        // v3.12.0 (m4b) — Anschrift des Anbieters für Briefe: bis zu vier Zeilen wie die Anschrift im
+        // Haushalt (SettingsService::cleanLetterValue), leer entfernt; zu lang ist ein Fehler, nicht gekürzt
+        foreach (self::LETTER_FIELDS as $f) {
+            if (!array_key_exists($f, $c)) continue;
+            $v = SettingsService::cleanLetterValue('letter_sender_address', $c[$f]);
+            if ($v === null) {
+                throw new LocalizedException('errors.settings.letterLines', ['lines' => SettingsService::LETTER_ADDRESS_LINES,
+                    'chars' => SettingsService::LETTER_LINE_MAX], $f);
+            }
+            if ($v === '') unset($c[$f]); else $c[$f] = $v;
         }
         if (array_key_exists('attachment_ids', $c)) {
             $ids = array_values(array_unique(array_filter(array_map('strval', (array)$c['attachment_ids']), fn($x) => $x !== '')));
@@ -1081,28 +1144,72 @@ final class ContractService
                 $this->i18n->t('errors.contract.dateInvalid', ['field' => $field, 'value' => is_scalar($value) ? (string)$value : gettype($value)])
             );
         }
+        \Energietracker\Support\Input::assertDateInRange($value, $field);   // v3.12.0 — 1900 bis 2100
     }
 
     /**
      * v2.5.3 — Beträge müssen Zahlen sein. `(float)"12,5"` ergab bisher still
      * 12, `(float)"abc"` still 0 — ein Tarif „0 ct ab Stichtag" (Lektion 24).
      */
-    private function parseAmount(mixed $value, string $label, int $n): float
+    private function parseAmount(mixed $value, string $label, int $n, bool $nonNegative = false): float
     {
         if (is_bool($value) || !is_numeric($value) || !is_finite((float)$value)) {
             throw new \InvalidArgumentException(
                 $this->i18n->t('errors.contract.amountInvalid', ['label' => $label, 'n' => $n, 'value' => is_scalar($value) ? (string)$value : gettype($value)])
             );
         }
+        // v3.12.0 — Grenzen: nie über AMOUNT_MAX (10³⁰⁸ legte Ansichten lahm), Preise und Abschläge nie negativ
+        // (−1 ct/kWh oder −1 €/Monat wurden bisher angenommen)
+        if (abs((float)$value) > self::AMOUNT_MAX || ($nonNegative && (float)$value < 0)) {
+            throw new LocalizedException('errors.contract.amountOutOfRange', [
+                'label' => $label, 'n' => $n, 'value' => (string)$value, 'min' => $nonNegative ? '0' : (string)-self::AMOUNT_MAX, 'max' => (string)self::AMOUNT_MAX,
+            ], "contract amount out of range");
+        }
         return (float)$value;
     }
 
-    private function normalizePriceList(array $entries, string $dateKey, string $amountKey, string $label): array
+    /**
+     * v3.12.0 — eine Liste von Einträgen (Preise, Abschläge, Boni, Sonderzahlungen): Text, Zahl, Wahrheitswert
+     * oder ein Objekt statt der Liste und ein Eintrag, der kein Objekt ist, ergeben 400. Bisher brach ein Text
+     * mit TypeError ab (500), ein Objekt wurde still zur leeren Liste.
+     */
+    private static function entryList(mixed $v, string $field): array
+    {
+        if ($v === null || $v === '') return [];
+        if (!is_array($v) || !array_is_list($v)) {
+            throw new LocalizedException('errors.common.listExpected', ['field' => $field], "field $field: list expected");
+        }
+        foreach ($v as $e) {
+            if ($e !== null && !is_array($e)) throw new LocalizedException('errors.common.listExpected', ['field' => $field], "field $field: entries must be objects");
+        }
+        return $v;
+    }
+
+    /** v3.12.0 — Datum eines Listeneintrags als Text (eine Liste als Datum ergab bisher 500). */
+    private function entryDate(array $e, string $key, string $label): string
+    {
+        if (!isset($e[$key])) return '';
+        if (!is_string($e[$key])) {
+            if (is_int($e[$key])) return (string)$e[$key];   // die Datumsprüfung meldet es
+            throw new \InvalidArgumentException($this->i18n->t('errors.contract.dateInvalid', ['field' => $label, 'value' => gettype($e[$key])]));
+        }
+        return trim($e[$key]);
+    }
+
+    /** v3.12.0 — Wahrheitswert am Vertrag (Support\Input::bool), sonst 400 `errors.common.boolExpected`. */
+    private static function boolField(mixed $v, string $field): bool
+    {
+        $b = \Energietracker\Support\Input::bool($v);
+        if ($b === null) throw new LocalizedException('errors.common.boolExpected', ['field' => $field], "field $field: bool expected");
+        return $b;
+    }
+
+    private function normalizePriceList(mixed $entries, string $dateKey, string $amountKey, string $label, bool $nonNegative = true): array
     {
         $cleaned = [];
-        foreach ($entries as $i => $e) {
+        foreach (self::entryList($entries, $label) as $i => $e) {
             if (!is_array($e)) continue;
-            $date   = isset($e[$dateKey])   ? trim((string)$e[$dateKey]) : '';
+            $date   = $this->entryDate($e, $dateKey, $label . ' #' . ($i + 1));
             $amount = $e[$amountKey] ?? null;
             $amountFilled = $amount !== null && $amount !== '' && $amount !== false;
             $dateFilled   = $date !== '';
@@ -1116,12 +1223,12 @@ final class ContractService
             $this->assertDate($date, $label . ' #' . ($i + 1));
             $row = [
                 $dateKey   => $date,
-                $amountKey => $this->parseAmount($amount, $label, $i + 1),
+                $amountKey => $this->parseAmount($amount, $label, $i + 1, $nonNegative),
             ];
             // v3.11.0 (F1035, A3/C, Entscheidung 8a) — Herkunft eines Preises, nur wenn gesetzt:
             // `announced_on` (Datum des Schreibens: eine einseitige Preisänderung, kein Stufenpreis)
             // und `vat_pct` (Steuersatz, den der Preis enthält: reine Steueränderung erkennen)
-            $ann = isset($e['announced_on']) ? trim((string)$e['announced_on']) : '';
+            $ann = $this->entryDate($e, 'announced_on', $label . ' #' . ($i + 1));
             if ($ann !== '') {
                 $this->assertDate($ann, $label . ' #' . ($i + 1));
                 $row['announced_on'] = $ann;
@@ -1136,7 +1243,7 @@ final class ContractService
             }
             // v3.11.0 (F1035, Paket vertrag, A3, Entscheidung 7c) — „Kündigung bis …“ laut Schreiben, nur
             // wenn gesetzt: Liegt das Datum vor dem gesetzlichen Termin, gilt es als Termin (beide im Text)
-            $until = isset($e['special_termination_until']) ? trim((string)$e['special_termination_until']) : '';
+            $until = $this->entryDate($e, 'special_termination_until', $label . ' #' . ($i + 1));
             if ($until !== '') {
                 $this->assertDate($until, $label . ' #' . ($i + 1));
                 $row['special_termination_until'] = $until;
@@ -1161,13 +1268,13 @@ final class ContractService
      * Ein anderer Rhythmus oder ein ungültiger Termin ist ein Fehler, kein
      * stiller Rückfall auf „monatlich“ (Lektion 4).
      */
-    private function normalizeAdvancePayments(array $entries, string $label): array
+    private function normalizeAdvancePayments(mixed $entries, string $label): array
     {
         $cleaned = [];
-        foreach ($entries as $i => $e) {
+        foreach (self::entryList($entries, $label) as $i => $e) {
             if (!is_array($e)) continue;
             $n = $i + 1;
-            $date   = isset($e['from']) ? trim((string)$e['from']) : '';
+            $date   = $this->entryDate($e, 'from', $label . ' #' . $n);
             $amount = $e['amount_eur'] ?? null;
             $amountFilled = $amount !== null && $amount !== '' && $amount !== false;
             if ($date === '' && !$amountFilled) continue; // silent drop
@@ -1178,7 +1285,7 @@ final class ContractService
                 );
             }
             $this->assertDate($date, $label . ' #' . $n);
-            $row = ['from' => $date, 'amount_eur' => $this->parseAmount($amount, $label, $n)];
+            $row = ['from' => $date, 'amount_eur' => $this->parseAmount($amount, $label, $n, true)];
             $every = $e['every_months'] ?? null;
             if ($every !== null && $every !== '' && $every !== false) {
                 if (!is_numeric($every) || (float)$every != (int)$every || !in_array((int)$every, self::ADVANCE_EVERY, true)) {
@@ -1188,7 +1295,8 @@ final class ContractService
             }
             $dates = [];
             foreach ((array)($e['due_dates'] ?? []) as $d) {
-                $d = trim((string)$d);
+                if (!is_string($d)) throw new \InvalidArgumentException($this->i18n->t('errors.contract.dateInvalid', ['field' => $label . ' #' . $n, 'value' => gettype($d)]));
+                $d = trim($d);
                 if ($d === '') continue;
                 $this->assertDate($d, $label . ' #' . $n);
                 if ($d < $date) throw new LocalizedException('errors.contract.advanceDueBeforeStart', ['n' => $n, 'date' => $d], 'advance due date');
@@ -1353,12 +1461,13 @@ final class ContractService
         return ($p['monthly'] ?? 0.0) + array_sum(array_column($p['rates'], 'amount_eur'));
     }
 
-    private function normalizeBonuses(array $bonuses): array
+    private function normalizeBonuses(mixed $bonuses): array
     {
         $cleaned = [];
-        foreach ($bonuses as $i => $b) {
+        foreach (self::entryList($bonuses, 'bonuses') as $i => $b) {
             if (!is_array($b)) continue;
-            $cd = isset($b['credit_date']) ? trim((string)$b['credit_date']) : '';
+            \Energietracker\Support\Input::assertTexts($b, ['type', 'label']);   // v3.12.0
+            $cd = $this->entryDate($b, 'credit_date', $this->i18n->t('errors.contract.fields.creditDate') . ' #' . ($i + 1));
             $am = $b['amount_eur'] ?? null;
             $amFilled = $am !== null && $am !== '' && $am !== false;
             $cdFilled = $cd !== '';
@@ -1434,6 +1543,35 @@ final class ContractService
     ];
 
     /**
+     * v3.12.0 — Kennungen der Sonderzahlungen über das Speichern hinweg: Eine Zeile ohne `id`, die
+     * einer bisherigen gleicht (Datum, Art, Betrag), bekommt deren Kennung; jede bisherige höchstens
+     * einmal. Mitgeschickte Kennungen bleiben, wie sie sind.
+     *
+     * @param list<mixed> $new  Zeilen aus der Eingabe
+     * @param list<mixed> $old  gespeicherte Zeilen
+     * @return list<mixed>
+     */
+    private static function keepSpecialPaymentIds(array $new, array $old): array
+    {
+        $key = fn(array $e): string => trim(is_string($e['date'] ?? null) ? $e['date'] : '') . '|' . (is_string($e['kind'] ?? null) ? $e['kind'] : '')
+            . '|' . (is_numeric($e['amount_eur'] ?? null) ? sprintf('%.2f', abs((float)$e['amount_eur'])) : '');
+        $used = [];
+        foreach ($new as $e) if (is_array($e) && is_string($e['id'] ?? null) && $e['id'] !== '') $used[$e['id']] = true;
+        foreach ($new as &$e) {
+            if (!is_array($e) || (isset($e['id']) && $e['id'] !== '' && $e['id'] !== null)) continue;
+            foreach ($old as $o) {
+                $oid = is_array($o) && is_string($o['id'] ?? null) ? $o['id'] : '';
+                if ($oid === '' || isset($used[$oid]) || $key($o) !== $key($e)) continue;
+                $e['id'] = $oid;
+                $used[$oid] = true;
+                break;
+            }
+        }
+        unset($e);
+        return array_values($new);
+    }
+
+    /**
      * F4-analoge Validierung/Normalisierung der Sonderzahlungen.
      *
      *   - Zeile komplett leer (kein Datum, kein Betrag) → still verworfen
@@ -1444,11 +1582,12 @@ final class ContractService
      *   - Beträge werden als positiv erzwungen (das Vorzeichen ergibt
      *     sich aus `kind`, nicht aus der Eingabe)
      */
-    private function normalizeSpecialPayments(array $entries): array
+    private function normalizeSpecialPayments(mixed $entries): array
     {
         $cleaned = [];
-        foreach ($entries as $i => $e) {
+        foreach (self::entryList($entries, 'special_payments') as $i => $e) {
             if (!is_array($e)) continue;
+            \Energietracker\Support\Input::assertTexts($e, ['date', 'kind', 'note', 'advance_from']);   // v3.12.0
             $date   = isset($e['date']) ? trim((string)$e['date']) : '';
             $amount = $e['amount_eur'] ?? null;
             $amountFilled = $amount !== null && $amount !== '' && $amount !== false;
@@ -1471,9 +1610,15 @@ final class ContractService
             $this->assertDate($date, $spLabel . ' #' . $n);
             $amt = abs($this->parseAmount($amount, $spLabel, $n)); // Vorzeichen kommt aus kind
 
+            // v3.12.0 — eine mitgeschickte Kennung bleibt (der Vertragsdialog schickt sie seitdem mit),
+            // nur aus sicheren Zeichen; eine Liste statt Text ist ein Fehler, keine neue Kennung
+            $spId = \Energietracker\Support\Input::text($e, 'id', null);
+            if ($spId !== null && $spId !== '' && !preg_match(MeterService::ID, $spId)) {
+                throw new LocalizedException('errors.meter.idInvalid', ['id' => mb_substr($spId, 0, 40)], 'unsafe special payment id');
+            }
             $row = [
-                'id'         => isset($e['id']) && $e['id'] !== ''
-                                ? (string)$e['id']
+                'id'         => $spId !== null && $spId !== ''
+                                ? $spId
                                 : 'sp_' . bin2hex(random_bytes(5)),
                 'date'       => $date,
                 'kind'       => $kind,
@@ -1899,6 +2044,27 @@ final class ContractService
 
     /** v3.4.0 (N1021) — Phasen eines Vertrags für die Anzeige, in der Rangfolge der Listen. */
     public const PHASES = ['future', 'current', 'renewed', 'past', 'shadow'];
+
+    /**
+     * v3.4.0 (N1021), v3.12.0 aus ConsumptionController hierher (eine Stelle für
+     * `…/contract-status` und das KI-Werkzeug `get_contracts`): additiv `phase`
+     * je Vertragszeile des Vertragsstatus ({@see phase()}).
+     *
+     * @param array<string,mixed> $status Ergebnis von ConsumptionService::contractStatus()
+     * @return array<string,mixed>
+     */
+    public function withPhases(string $utility, array $status, ?string $today = null): array
+    {
+        if (!is_array($status['contracts'] ?? null)) return $status;
+        $all = $this->list($utility);
+        $byId = array_column($all, null, 'id');
+        foreach ($status['contracts'] as &$row) {
+            $c = $byId[$row['contract_id'] ?? ''] ?? null;
+            if ($c !== null) $row['phase'] = $this->phase($c, $all, $today);
+        }
+        unset($row);
+        return $status;
+    }
 
     /**
      * v3.4.0 (N1021) — Phase eines Vertrags an einem Tag: eine Quelle für
@@ -2438,6 +2604,11 @@ final class ContractService
             foreach ((array)($c['working_prices_by_meter'] ?? []) as $list) {
                 foreach ((array)$list as $e) $dates[] = (string)($e['from'] ?? '');
             }
+            // v3.12.0 — Wasser: die Preise der drei Sparten (tagesgenau wie Strom, auch in „Rechnung prüfen“)
+            foreach ([['trinkwasser', 'working_prices'], ['trinkwasser', 'base_prices'], ['schmutzwasser', 'working_prices'],
+                      ['schmutzwasser', 'base_prices'], ['niederschlagswasser', 'rates']] as [$part, $group]) {
+                foreach ((array)($c[$part][$group] ?? []) as $e) if (is_array($e)) $dates[] = (string)($e['from'] ?? '');
+            }
             foreach ($this->effectiveAdvanceSchedule($c) as $e) $dates[] = $e['from'];
             foreach ($dates as $d) $cuts[$d] = true;
         }
@@ -2721,6 +2892,7 @@ final class ContractService
      * der Folgevertrag, und bis v2.5.2 fiel der Bonus deshalb aus Saldo und
      * Tarifvergleich heraus (im Test 120 €). Jetzt zählt eine Gutschrift nach
      * dem Ende im letzten Vertragsmonat, eine vor dem Beginn im ersten.
+     * v3.12.0 (Skeptiker H5) — „Ende“ heißt der letzte Tag, an dem der Vertrag rechnet: {@see bonusDay()}.
      */
     public function bonusForMonth(array $contract, int $year, int $month): float
     {
@@ -2743,6 +2915,10 @@ final class ContractService
         $out = [];
         foreach ($contract['bonuses'] ?? [] as $b) {
             if (!is_array($b) || empty($b['credit_date'])) continue;
+            if (array_key_exists('runs_until', $contract)) {
+                if (substr(self::bonusDay($contract, (string)$b['credit_date']), 0, 7) === $ym) $out[] = self::bonusItem($b);
+                continue;
+            }
             $bYm = substr((string)$b['credit_date'], 0, 7);
             if ($endYm !== null && $bYm > $endYm) $bYm = $endYm;
             if ($startYm !== '' && $bYm < $startYm) $bYm = $startYm;
@@ -2761,17 +2937,50 @@ final class ContractService
      */
     public static function bonusBetween(array $contract, string $from, string $toExcl): float
     {
-        $start = (string)($contract['start'] ?? '');
-        $end   = (string)($contract['end'] ?? '');
         $sum = 0.0;
         foreach ($contract['bonuses'] ?? [] as $b) {
             if (!is_array($b) || !Dates::isIsoDate($b['credit_date'] ?? null)) continue;
-            $d = (string)$b['credit_date'];
-            if ($end !== '' && $d > $end) $d = $end;
-            if ($start !== '' && $d < $start) $d = $start;
+            $d = self::bonusDay($contract, (string)$b['credit_date']);
             if ($d >= $from && $d < $toExcl) $sum += (float)($b['amount_eur'] ?? 0);
         }
         return $sum;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker H5) — der Tag, an dem ein Bonus zählt, die eine Regel für Monate, Saldo-Karte
+     * und Abrechnungsjahre: der Gutschriftstag, solange der Vertrag an dem Tag noch rechnet; nach
+     * seinem letzten Tag dieser (Schlussrechnung, v2.5.3), vor dem Beginn der Beginn.
+     * Der letzte Tag ist `runs_until` ({@see withRunsUntil()}): Ein verlängerter Vertrag rechnet über
+     * sein eingetragenes Ende hinaus, bis zum Folgevertrag oder offen. Bis v3.11 wurde jeder Bonus nach
+     * dem eingetragenen Ende zurückdatiert: Ein Neukundenbonus nach zwölf Monaten Belieferung, Vertrag
+     * läuft weiter, stand im Monat des Endes, aber in keinem Saldo und in einem anderen Abrechnungsjahr.
+     * Ohne `runs_until` (Liste unbekannt): das eingetragene Ende.
+     */
+    public static function bonusDay(array $contract, string $credit): string
+    {
+        $start = (string)($contract['start'] ?? '');
+        $last = array_key_exists('runs_until', $contract) ? $contract['runs_until'] : ($contract['end'] ?? null);
+        if (is_string($last) && $last !== '' && $credit > $last) $credit = $last;
+        if ($start !== '' && $credit < $start) $credit = $start;
+        return $credit;
+    }
+
+    /**
+     * v3.12.0 (Skeptiker H5) — die Verträge eines Ziels mit `runs_until`: letzter Tag, an dem jeder
+     * rechnet ({@see coverage()}, null = offen). Rechnet einer nie, bleibt er ohne Angabe. Nur zum
+     * Rechnen, nicht zum Speichern.
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return array<int,array<string,mixed>>
+     */
+    public function withRunsUntil(array $contracts): array
+    {
+        $cov = $this->coverage($contracts);
+        foreach ($contracts as $i => $c) {
+            $o = $cov[(string)($c['id'] ?? '')] ?? null;
+            if ($o !== null && $o['from'] !== null) $contracts[$i]['runs_until'] = $o['to'];
+        }
+        return $contracts;
     }
 
     /** v3.7.0 (#35) — die Bonusarten; unbekannte zeigt die Oberfläche als „Bonus“. */

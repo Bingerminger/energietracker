@@ -163,6 +163,41 @@ final class BillServiceTest extends ServiceTestCase
             'Preisstichtag teilt den Abschnitt');
     }
 
+    /**
+     * v3.12.0 — Ein sinkender Zählerstand ist keine Lücke ohne Ablesung: Der Abschnitt hat an beiden Enden einen
+     * Stand, nur geht es rückwärts (Zählertausch oder Überlauf nicht erfasst). Stände 2026 (Zähler ohne Stellenzahl):
+     *   01.01. 80.000 · 01.02. 80.300 · 01.03. 25 · 01.04. 320 · 01.05. 600
+     *   Abschnitte: Jan 300 kWh; Feb fällt (80.300 → 25): Menge fehlt, Grund `decrease`; Mär 295; Apr 280;
+     *   Mai (nach der letzten Ablesung bis 01.06.): Menge fehlt, Grund `no_reading`.
+     * Summen: zwei Abschnitte ohne Menge (`gaps` 2, wie bisher für Urteil und Abrechnungsjahr), davon einer
+     * ein Rückgang (`decreases` 1); dieselbe Warnung `decrease` wie die Verbrauchsansicht.
+     */
+    public function testADecreaseIsNamedAsSuchNotAsAGap(): void
+    {
+        $this->setReadings('strom', $this->meterId, [
+            ['date' => '2026-01-01', 'counter' => 80000.0, 'device_id' => 'd1'], ['date' => '2026-02-01', 'counter' => 80300.0, 'device_id' => 'd1'],
+            ['date' => '2026-03-01', 'counter' => 25.0, 'device_id' => 'd1'], ['date' => '2026-04-01', 'counter' => 320.0, 'device_id' => 'd1'],
+            ['date' => '2026-05-01', 'counter' => 600.0, 'device_id' => 'd1']]);
+        $meter = $this->meters->get('strom', $this->meterId);
+        $bd = $this->consumption->billBreakdown('strom', $meter, '2026-01-01', '2026-06-01');
+        self::assertSame([300.0, null, 295.0, 280.0, null], array_column($bd['rows'], 'kwh'));
+        self::assertSame([null, 'decrease', null, null, 'no_reading'], array_map(fn($r) => $r['gap_reason'] ?? null, $bd['rows']));
+        self::assertSame([80300.0, 25.0], [$bd['rows'][1]['counter_from'], $bd['rows'][1]['counter_to']], 'der Abschnitt hat beide Stände');
+        self::assertSame([2, 1], [$bd['totals']['gaps'], $bd['totals']['decreases']]);
+        $dec = array_values(array_filter($bd['warnings'], fn($w) => ($w['type'] ?? null) === 'decrease'));
+        self::assertCount(1, $dec);
+        self::assertSame(['2026-03-01', 25.0, ['date' => '2026-02-01', 'counter' => 80300.0]], [$dec[0]['date'], $dec[0]['counter'], $dec[0]['previous']]);
+        // dieselbe Warnung wie die Verbrauchsansicht (GET …/consumption)
+        $types = array_column($this->consumption->readingWarnings('strom', $meter), 'type');
+        self::assertContains('decrease', $types);
+        // die Rechnung prüfen: eigener Grund statt „Im Zeitraum fehlen Zählerstände“
+        $b = $this->bills()->create('strom', ['meter_id' => $this->meterId, 'period_from' => '2026-01-01', 'period_to' => '2026-04-30',
+            'invoice' => ['energy_kwh' => 900]]);
+        $c = $this->bills()->compare('strom', (string)$b['id']);
+        self::assertContains('decrease', $c['reasons']);
+        self::assertNotContains('gaps', $c['reasons'], 'die einzige Lücke ist der Rückgang');
+    }
+
     public function testDistrictHeatingFixedCosts(): void
     {
         $mid = $this->setMeterDevices('fernwaerme', [[

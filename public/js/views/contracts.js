@@ -22,9 +22,11 @@ import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
+import { contractLetterButton, bindContractLetters, LETTER_UTILITIES } from '../lib/letter.js';   // v3.12.0 — „Brief schreiben“ an der Karte; m4b Angaben für Briefe
 import { ADVANCE_EVERY, advanceAmountText, zeroAdvanceSpan, zeroAdvanceText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus; R2-8 Hinweis zur 0-€-Zeile
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 import { subContractHint, deductingSubNames } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
+import { icon, artIcon } from '../lib/icons.js';
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -87,7 +89,7 @@ export async function render(container, params) {
   const utilityKey = params[0];
   const u = await getUtility(utilityKey);
   if (!u) {
-    container.innerHTML = `<div class="banner banner--error">${t('contracts.unknown', { key: escapeHtml(utilityKey) })}</div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler">${t('contracts.unknown', { key: escapeHtml(utilityKey) })}</div>`;
     return;
   }
   container.setAttribute('data-utility', u.key);
@@ -100,16 +102,16 @@ export async function render(container, params) {
     container.innerHTML = `
       <div data-utility="${u.key}">
         <div class="section-head">
-          <h1>${u.icon} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
+          <h1>${artIcon(u, { size: 24 })} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
           <div class="section-actions">
             <a class="btn btn--ghost" href="#/utility/${u.key}">${t('contracts.toOverview')}</a>
           </div>
         </div>
-        <div class="banner banner--info">
+        <div class="infobox infobox--info">
           <strong>${t('contracts.delivery.bannerTitle', { label: escapeHtml(u.label) })}</strong>
           ${t('contracts.delivery.bannerText', { unit: escapeHtml(u.volume_unit || ''), label: escapeHtml(u.label) })}
           <div style="margin-top: var(--sp-3)">
-            <a class="btn btn--util" href="#/utility/${u.key}">${t('contracts.delivery.toDeliveries')}</a>
+            <a class="btn btn--primary" href="#/utility/${u.key}">${t('contracts.delivery.toDeliveries')}</a>
           </div>
         </div>
       </div>
@@ -148,25 +150,26 @@ async function refresh(container, u) {
   container.innerHTML = `
     <div data-utility="${u.key}">
       <div class="section-head">
-        <h1>${u.icon} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
+        <h1>${artIcon(u, { size: 24 })} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
         <div class="section-actions">
           <a class="btn btn--ghost" href="#/utility/${u.key}">${t('contracts.toOverview')}</a>
-          <button type="button" class="btn btn--util" data-action="new-contract" ${meters.length ? '' : 'disabled'}>${t('contracts.newContract')}</button>
+          <button type="button" class="btn btn--primary" data-action="new-contract" ${meters.length ? '' : 'disabled'}>${t('contracts.newContract')}</button>
         </div>
       </div>
 
       ${meters.length === 0 ? `
-        <div class="banner banner--warning">${t('contracts.metersWarning')} <a href="#/utility/${u.key}/meters">${t('contracts.manageMeters')}</a></div>
+        <div class="infobox infobox--achtung">${t('contracts.metersWarning')} <a href="#/household/meters?art=${u.key}">${t('contracts.manageMeters')}</a></div>
       ` : ''}
 
       <div id="contracts-list">
-        ${contracts.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
+        ${contracts.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--primary" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
         ${grouped.map(g => renderContractGroup(g, meters, u, groups, docNames)).join('')}
       </div>
     </div>
   `;
 
   wireDossiers(container);   // v3.7.0 (Paket betrieb) — Akte je Vertrag
+  bindContractLetters(container, u.key, contracts);   // v3.12.0
 
   container.querySelectorAll('[data-action="new-contract"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -235,7 +238,7 @@ async function refresh(container, u) {
   });
 }
 
-function dispatchContractModal(u, meters, existing, contracts = [], groups = []) {
+export function dispatchContractModal(u, meters, existing, contracts = [], groups = []) {   // v3.12.0 (M4) — auch von den Zeilen unter Kosten
   return u.key === 'wasser'
     ? openWaterContractModal(u, meters, existing, contracts)
     : openContractModal(u, meters, existing, contracts, groups);
@@ -462,7 +465,7 @@ function conflictHtml(c) {
     const fix = r.fix_end && r.other_id && byId.has(r.other_id)
       ? `<button type="button" class="btn btn--sm btn--ghost" data-conflict-fix="${escapeHtml(r.other_id)}" data-fix-end="${escapeHtml(r.fix_end)}">${escapeHtml(t('contracts.conflict.fixEnd', { name: name(byId.get(r.other_id)), date: fmt.date(r.fix_end) }))}</button>`
       : '';
-    return `<div class="banner banner--warning small" data-role="contract-conflict" data-kind="${escapeHtml(r.kind)}">
+    return `<div class="infobox infobox--achtung small" data-role="contract-conflict" data-kind="${escapeHtml(r.kind)}">
         <strong>${escapeHtml(r.title || '')}</strong> ${escapeHtml(r.detail || '')}
         <div class="section-actions" style="margin-top:var(--sp-2)">${fix}
           <button type="button" class="btn btn--sm btn--ghost" data-conflict-dismiss="${escapeHtml(r.recommendation_id)}">${escapeHtml(t('contracts.conflict.bothRight'))}</button>
@@ -509,6 +512,7 @@ function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
           ${phasePill(c)}
           <span class="contract-card__years muted">${escapeHtml(yrs.since ? t('contracts.card.since', { year: yrs.since }) : yrs.span)}</span>${chipHtml(c)}</h3>
         <div class="section-actions">
+          ${contractLetterButton(c)}
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
           ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost" data-min-level="expert">${t('contracts.priceImport.button')}
             <input type="file" accept=".csv,text/csv,text/plain" class="sr-only" data-import-prices="${escapeHtml(c.id)}"></label>` : ''}
@@ -523,6 +527,7 @@ function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
           : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
         <span class="contract-card__counts" data-min-level="expert">· ${summary}</span>
       </div>
+      ${forLettersHtml(c, u)}
       ${coverageHtml(c)}
       ${conflictHtml(c)}
       ${restHintHtml(c, u, meter, group)}
@@ -685,6 +690,8 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         ${hasSpecialPayments(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
         ${u?.accounting_kind === 'feed_in' ? renderRevenueSection(initial.revenue_statements || []) : ''}
 
+        ${letterFieldsHtml(u, initial)}
+
         <div class="fgrid">
           <div class="field field--full">
             <label>${t('contracts.modal.notes')}</label>
@@ -700,7 +707,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
       size: 'lg',
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
-        <button type="button" class="btn btn--util" data-act="save">${t('contracts.modal.save')}</button>
+        <button type="button" class="btn btn--primary" data-act="save">${t('contracts.modal.save')}</button>
       `,
       onMount({ modalEl, close }) {
         // Cancel/Save ZUERST binden — selbst wenn die Sub-Handler unten
@@ -929,7 +936,7 @@ function gasFactorNoteHtml() {
     : t('contracts.gasFactor.direct', { factor: fmt.num(factor, 3) });
   const since = e.from ? t('contracts.gasFactor.since', { date: fmt.date(e.from) }) : t('contracts.gasFactor.undated');
   return `<p class="muted small gas-factor-note" data-role="gas-factor-note">${escapeHtml(t('contracts.gasFactor.now', { value, since }))}${infoNote(t('contracts.gasFactor.term'), t('contracts.gasFactor.why'))}
-    <a href="#/settings/utilities" data-role="gas-factor-link">${escapeHtml(t('contracts.gasFactor.link'))}</a></p>`;
+    <a href="#/household/utilities" data-role="gas-factor-link">${escapeHtml(t('contracts.gasFactor.link'))}</a></p>`;
 }
 
 function renderPerM3() {
@@ -1017,6 +1024,53 @@ function amountInput(role, value, digits = 6) {
 const SUPPLY_KIND_UTILITIES = ['strom', 'gas'];
 /** v3.11.0 (Paket vertrag) — Preislisten, deren Zeilen „Schreiben vom“ und Steuersatz zeigen (Prüfung A3). */
 const ORIGIN_GROUPS = ['working_prices', 'base_prices'];
+
+/**
+ * v3.12.0 (m4b) — Angaben für Briefe am Vertrag (freiwillig): Kunden- und Vertragsnummer, Anschrift des Anbieters.
+ * Nur bei Arten mit Briefen am Vertrag (lib/letter.js LETTER_UTILITIES). Der Brief-Dialog füllt damit vor.
+ */
+export function letterFieldsHtml(u, c = {}) {
+  if (!LETTER_UTILITIES.includes(u?.key)) return '';
+  return `<fieldset class="fgroup" data-section="letters">
+          <legend>${escapeHtml(t('contracts.modal.section.letters'))}</legend>
+          <p class="fgroup__hint">${escapeHtml(t('contracts.modal.lettersHint'))}</p>
+          <div class="fgrid">
+            <div class="field field--m">
+              <label for="cf-customer-number">${escapeHtml(t('contracts.modal.customerNumber'))}</label>
+              <input class="input input--text" id="cf-customer-number" name="customer_number" maxlength="64" autocomplete="off" value="${escapeHtml(c.customer_number || '')}">
+            </div>
+            <div class="field field--m">
+              <label for="cf-contract-number">${escapeHtml(t('contracts.modal.contractNumber'))}</label>
+              <input class="input input--text" id="cf-contract-number" name="contract_number" maxlength="64" autocomplete="off" value="${escapeHtml(c.contract_number || '')}">
+            </div>
+            <div class="field field--full">
+              <label for="cf-provider-address">${escapeHtml(t('contracts.modal.providerAddress'))}</label>
+              <textarea class="input input--text" id="cf-provider-address" name="provider_address" rows="3" autocomplete="off" aria-describedby="cf-provider-address-hint">${escapeHtml(c.provider_address || '')}</textarea>
+              <span class="settings-field__hint" id="cf-provider-address-hint">${escapeHtml(t('contracts.modal.providerAddressHint'))}</span>
+            </div>
+          </div>
+        </fieldset>`;
+}
+
+/** v3.12.0 (m4b) — Vertragskarte: die Angaben für Briefe in einer Zeile, sobald eine da ist. */
+export function forLettersHtml(c, u) {
+  if (!LETTER_UTILITIES.includes(u?.key)) return '';
+  const items = [
+    c.customer_number ? `${t('contracts.modal.customerNumber')} ${c.customer_number}` : '',
+    c.contract_number ? `${t('contracts.modal.contractNumber')} ${c.contract_number}` : '',
+    c.provider_address ? String(c.provider_address).split('\n').join(', ') : '',
+  ].filter(Boolean);
+  return items.length ? `<p class="muted small contract-card__letters" data-role="contract-for-letters">${escapeHtml(t('contracts.card.forLetters', { items: items.join(', ') }))}</p>` : '';
+}
+
+/** v3.12.0 (m4b) — die Angaben für Briefe aus dem Formular (leer = entfernen, der Server löscht das Feld). */
+export function collectLetterFields(form, payload) {
+  for (const f of ['customer_number', 'contract_number', 'provider_address']) {
+    const el = form?.querySelector?.(`[name="${f}"]`);
+    if (el) payload[f] = el.value.trim();
+  }
+  return payload;
+}
 
 function supplyKindHtml(value) {
   return `<div class="field field--m" data-role="supply-kind">
@@ -1304,8 +1358,10 @@ function renderSpecialPaymentRow(s = {}) {
   // v2.5.3 (UI-11) — Datum | Betrag | Art | ✕, darunter Notiz und
   // Abschlagsanpassung. v3.4.0 (N1021) — im Listenraster wie alle Zeilen;
   // Notiz und Anpassung bleiben in jeder Zeile beschriftet (rowlist__sub).
+  // v3.12.0 — die Kennung reist mit (data-sp-id): Ohne sie vergab jedes Speichern neue, und eine
+  // gebuchte Rechnung fand ihre Sonderzahlung nicht mehr (Rechnungskorrektur buchte doppelt)
   return `
-    <div class="entry-row special-row rowlist__row" data-kind="${escapeHtml(kind)}">
+    <div class="entry-row special-row rowlist__row" data-kind="${escapeHtml(kind)}"${s.id ? ` data-sp-id="${escapeHtml(String(s.id))}"` : ''}>
       <div class="field">
         <label>${t('contracts.special.date')}</label>
         <input class="input" type="date" data-role="date" value="${escapeHtml(s.date || '')}">
@@ -1401,6 +1457,7 @@ function collectSpecialPayments(root) {
       kind,
       note,
     };
+    if (row.dataset.spId) entry.id = row.dataset.spId;   // v3.12.0 — Kennung behalten
     if (SPECIAL_KIND_AFFECTS_ADVANCE.has(kind)) {
       const na = row.querySelector('[data-role="new-advance"]')?.value.trim() || '';
       const af = row.querySelector('[data-role="advance-from"]')?.value.trim() || '';
@@ -1556,6 +1613,7 @@ function collectPayload(form, u = null) {
       payload[k] = raw === '' ? null : amountValue(raw);
     }
   }
+  collectLetterFields(form, payload);   // v3.12.0 (m4b)
   return payload;
 }
 
@@ -1687,7 +1745,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
 
       <!-- Trinkwasser -->
       <details open style="margin-top:var(--sp-4);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.tw')}</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${artIcon('wasser', { size: 16 })} ${t('contracts.water.tw')}</summary>
         <div style="margin-top:12px">
           ${renderWaterEntryGroup('tw-working', t('contracts.water.twWorking'), c.trinkwasser?.working_prices || [], ['from', 'ct_per_m3'], [t('contracts.water.colDate'), t('contracts.water.colCtM3')])}
           ${renderWaterEntryGroup('tw-base', t('contracts.water.twBase'), c.trinkwasser?.base_prices || [], ['from', 'eur_per_month'], [t('contracts.water.colDate'), t('contracts.water.colEurMonth')])}
@@ -1696,7 +1754,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
 
       <!-- Schmutzwasser -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.sw')}</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${icon('hahn', { size: 16 })} ${t('contracts.water.sw')}</summary>
         <div style="margin-top:12px">
           <div class="field">
             <label>${t('contracts.water.basis')}</label>
@@ -1735,7 +1793,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
 
       <!-- Niederschlagswasser -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.nw')}</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${icon('regen', { size: 16 })} ${t('contracts.water.nw')}</summary>
         <div style="margin-top:12px">
           ${renderWaterEntryGroup('nw-rates', t('contracts.water.nwRates'), c.niederschlagswasser?.rates || [], ['from', 'eur_per_m2_year', 'versiegelte_flaeche_m2'], [t('contracts.water.colDate'), t('contracts.water.colEurM2Year'), t('contracts.water.colSealedM2')])}
         </div>
@@ -1743,7 +1801,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
 
       <!-- Abschläge -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.advances')}</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${icon('abschlag', { size: 16 })} ${t('contracts.water.advances')}</summary>
         <div style="margin-top:12px">
           ${/* v3.9.0 (F1034) — Abschlagsplan mit Rhythmus: Betrag je Termin */ ''}
           ${renderWaterEntryGroup('ap', t('contracts.water.apPlan'), c.advance_payments || [], ['from', 'amount_eur', 'every_months'], [t('contracts.water.colDate'), t('contracts.water.colEurDue'), t('contracts.advance.every')])}
@@ -1752,7 +1810,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
 
       <!-- Bonuses -->
       <details style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.bonuses')}</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${icon('bonus', { size: 16 })} ${t('contracts.water.bonuses')}</summary>
         <div style="margin-top:12px">
           ${renderWaterBonusGroup(c.bonuses || [])}
         </div>
@@ -1761,6 +1819,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
       <!-- v3.5.0 (GitHub #34) — Sonderzahlungen: derselbe Abschnitt wie im
            Standardvertrag (Raster N1021), nach den Boni -->
       ${hasSpecialPayments(u) ? `<div style="margin-top:var(--sp-3)">${renderSpecialPaymentSection(c.special_payments || [])}</div>` : ''}
+      ${letterFieldsHtml(u, c)}
     </form>
   `;
 }
@@ -2011,6 +2070,7 @@ function collectWaterForm(modalEl) {
   };
   // v3.5.0 (GitHub #34) — Sonderzahlungen, sofern der Abschnitt da ist
   if (form.querySelector('[data-section="special"]')) payload.special_payments = collectSpecialPayments(form);
+  collectLetterFields(form, payload);   // v3.12.0 (m4b)
 
   if (!payload.start) throw new Error(t('contracts.water.startRequired'));
   return payload;

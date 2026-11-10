@@ -32,16 +32,22 @@ final class TemperatureController
     {
         $body = (array)$req->body;
         if (empty($body['date'])) Response::error($this->i18n->t('errors.temperature.dateMissing'));
+        \Energietracker\Support\Input::assertTexts($body, ['date']);   // v3.12.0 — Liste statt Text: 400
         // v2.5.3 — kalendergültig; ein ungültiger Schlüssel in
         // temperatures.json bräche sonst die Heizgradtag-Rechnung.
         if (!Dates::isIsoDate((string)$body['date'])) {
             Response::error($this->i18n->t('errors.common.dateInvalid', ['date' => (string)$body['date']]));
         }
+        \Energietracker\Support\Input::assertDateInRange((string)$body['date']);   // v3.12.0
         // v2.6.0 — fehlende Werte wurden zu 0 °C (Lektion 24) und verfälschten
         // die Heizgradtage. Wie beim CSV-Import sind alle drei Pflicht.
         foreach (['avg', 'min', 'max'] as $k) {
             if (!isset($body[$k]) || is_bool($body[$k]) || !is_numeric($body[$k])) {
                 Response::error($this->i18n->t('errors.temperature.valuesMissing'));
+            }
+            // v3.12.0 — eine Lufttemperatur zwischen −90 und 60 °C; 10³⁰⁸ ging bisher durch
+            if (!is_finite((float)$body[$k]) || (float)$body[$k] < -90 || (float)$body[$k] > 60) {
+                Response::error($this->i18n->t('errors.common.valueInvalid', ['field' => $k, 'value' => (string)$body[$k]]), 400, null, 'errors.common.valueInvalid');
             }
         }
         $this->temps->upsert((string)$body['date'], (float)$body['avg'], (float)$body['min'], (float)$body['max']);
@@ -101,7 +107,9 @@ final class TemperatureController
 
     public function delete(Request $req): never
     {
-        $this->temps->delete($req->param('date'));
+        if (!$this->temps->delete((string)$req->param('date'))) {
+            Response::error($this->i18n->t('errors.temperature.notFound', ['date' => mb_substr((string)$req->param('date'), 0, 40)]), 404, null, 'errors.temperature.notFound');
+        }
         Response::json(['deleted' => true]);
     }
 }

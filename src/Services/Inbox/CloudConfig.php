@@ -312,7 +312,7 @@ final class CloudConfig
             $this->store->delete(self::KEY_FILE);
             return;
         }
+        // nur der Webserver-Benutzer liest ihn: 0600 setzt JsonStore (SECRET_FILES, v3.12.0)
         $this->store->write(self::KEY_FILE, $keys);
-        @chmod($this->store->path(self::KEY_FILE), 0600);   // nur der Webserver-Benutzer liest ihn
     }
 }

@@ -62,6 +62,29 @@ export function deviceChangedBetween(meter, fromDate, toDate) {
 }
 
 /**
+ * v3.12.0 — voriger und nächster Stand zum gewählten Datum: eine Regel für den Dialog „+ Ablesung“ und die
+ * Seite „Zählerstände“. Bis dahin prüfte die Seite nur gegen den letzten Stand; ein Nachtrag zwischen zwei
+ * Ständen hatte dort weder Vorgänger noch Nachfolger und ging ohne Rückfrage durch. Geplante Stände zählen
+ * nicht, ein verdächtiger nicht als nächster (er zählt bis zur Bestätigung nicht).
+ *
+ * @param {Array<{date:string, counter:number, is_future?:boolean, is_suspect?:boolean}>} readings  Stände des Zählers
+ * @param {?{devices?: Array}} meter  Zähler mit Geräten (für einen Tausch dazwischen)
+ * @param {string} date  gewähltes Datum (YYYY-MM-DD)
+ * @returns {{prev: ?object, next: ?object, deviceChanged: boolean, nextDeviceChanged: boolean}}
+ */
+export function neighbours(readings, meter, date) {
+  const real = (readings || []).filter(r => r && !r.is_future && /^\d{4}-\d{2}-\d{2}$/.test(r.date || ''))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const prev = real.filter(r => r.date < date).at(-1) || null;
+  const next = real.find(r => !r.is_suspect && r.date > date) || null;
+  return {
+    prev, next,
+    deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
+    nextDeviceChanged: next ? deviceChangedBetween(meter, date, next.date) : false,
+  };
+}
+
+/**
  * Rückfragen zu einem neuen Stand.
  *
  * @param {object} p
@@ -72,9 +95,11 @@ export function deviceChangedBetween(meter, fromDate, toDate) {
  * @param {number|null} p.typical   typischer Tagesverbrauch
  * @param {{date:string, counter:number}|null} p.sameDay  vorhandener Stand am selben Tag
  * @param {boolean} [p.deviceChanged]  Gerätetausch zwischen prev und date
+ * @param {{date:string, counter:number}|null} [p.next]  v3.12.0 (Skeptiker M7) — nächster Stand (nach `date`)
+ * @param {boolean} [p.nextDeviceChanged]  Gerätetausch zwischen date und next
  * @returns {Array<{type:string, [k:string]:any}>}
  */
-export function checkReading({ value, date, today, prev = null, typical = null, sameDay = null, deviceChanged = false }) {
+export function checkReading({ value, date, today, prev = null, typical = null, sameDay = null, deviceChanged = false, next = null, nextDeviceChanged = false }) {
   const issues = [];
   if (date > today) issues.push({ type: 'future' });
   if (sameDay) issues.push({ type: 'sameDay', reading: sameDay });
@@ -89,6 +114,10 @@ export function checkReading({ value, date, today, prev = null, typical = null, 
       issues.push({ type: 'magnitude', last });
     }
   }
+  // v3.12.0 (Skeptiker M7) — über dem nächsten Stand: die Rechnung ließe ihn sonst still aus
+  if (next && date < next.date && !nextDeviceChanged && value > Number(next.counter)) {
+    issues.push({ type: 'higher_than_next', next: Number(next.counter) });
+  }
   return issues;
 }
 
@@ -100,6 +129,7 @@ export function issueText(issue, { unit = '', date = '' } = {}) {
     case 'lower':     return t('readingCheck.lower', { last: fmt.dec(issue.last, 3), unit });
     case 'jump':      return t('readingCheck.jump', { perDay: fmt.dec(issue.perDay, 1), typical: fmt.dec(issue.typical, 1), unit });
     case 'magnitude': return t('readingCheck.magnitude', { last: fmt.dec(issue.last, 3), unit });
+    case 'higher_than_next': return t('readingCheck.higher_than_next', { next: fmt.dec(issue.next, 3), unit });
     default:          return '';
   }
 }
@@ -114,10 +144,11 @@ export function issueText(issue, { unit = '', date = '' } = {}) {
 export function confirmIssues(issues, { unit = '', date = '', utility = null, title = null } = {}) {
   const onlySameDay = issues.every(i => i.type === 'sameDay');
   const swapLink = utility && issues.some(i => i.type === 'lower')
-    ? `<p><a href="#/utility/${encodeURIComponent(utility)}/meters">${escapeHtml(t('utility.warnings.gotoMeters'))}</a></p>`
+    ? `<p><a href="#/household/meters?art=${encodeURIComponent(utility)}">${escapeHtml(t('utility.warnings.gotoMeters'))}</a></p>`
     : '';
   return openModal({
-    title: title || t('readingCheck.title'),
+    // v3.12.0 — ohne eigenen Titel mit dem Datum (bis dahin stand „{date}“ wörtlich im Titel)
+    title: title || t('readingCheck.title', { date: fmt.date(date) }),
     body: `<ul class="check-list">${issues.map(i => `<li>${escapeHtml(issueText(i, { unit, date }))}</li>`).join('')}</ul>${swapLink}`,
     footer: `
       <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>

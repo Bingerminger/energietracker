@@ -8,15 +8,15 @@
 .setup-docs { margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-1); border-radius: var(--r-sm); background: var(--bg-2); }
 .setup-docs__title { margin: 0 0 var(--sp-1); font-weight: 600; font-size: var(--fs-sm); }
 .setup-docs ul { margin: 0; padding-left: var(--sp-5); font-size: var(--fs-sm); display: grid; gap: var(--sp-1); }
-.setup-docs .banner { margin: var(--sp-2) 0 0; }
+.setup-docs .infobox { margin: var(--sp-2) 0 0; }
 
 .inbox-draft-entry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-4); }
 
 .draft-summary, .draft-utility, .draft-missing, .draft-docs, .draft-result { margin-bottom: var(--sp-4); }
-.draft-summary__text { font-size: var(--fs-md, 1.05rem); color: var(--text-1); margin: 0 0 var(--sp-1); }
+.draft-summary__text { font-size: var(--fs-md); color: var(--text-1); margin: 0 0 var(--sp-1); }
 .draft-queue { margin-bottom: var(--sp-4); }
 
-.draft-findings { list-style: none; margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--warning);
+.draft-findings { list-style: none; margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3);
   background: var(--warning-soft); border-radius: var(--r-sm); display: grid; gap: var(--sp-1); font-size: var(--fs-sm); color: var(--text-1); }
 
 .draft-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
@@ -68,6 +68,6 @@
 /* Übernehmen bleibt erreichbar, auch am iPhone über der Tab-Leiste */
 .draft-applybar { position: sticky; bottom: calc(var(--tabbar-h, 0px) + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; flex-wrap: wrap;
   align-items: center; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3); margin-top: var(--sp-4);
-  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: var(--r-md); box-shadow: 0 -2px 12px rgba(0, 0, 0, .12); }
+  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: var(--r-md); }
 @media (min-width: 900px) { .draft-applybar { bottom: var(--sp-3); } }
 @media print { .draft-applybar { display: none; } }

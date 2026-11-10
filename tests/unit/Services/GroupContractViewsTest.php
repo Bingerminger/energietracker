@@ -60,7 +60,9 @@ final class GroupContractViewsTest extends ServiceTestCase
     public function testMembersCarryTheGroupContractAndItsBalanceCountsOnce(string $persona, string $gid, array $members): void
     {
         $this->importPersona($persona);
-        $model = $this->reportServices()['model']->build((int)date('Y'));
+        // v3.12.0 — fester Stichtag kurz nach dem Stand der Beispieldaten (31.05.2026): Mit dem echten Jahr
+        // war der Bericht ab 2027 leer, der Gruppenvertrag stand nicht mehr darin
+        $model = $this->reportServices()['model']->build(2026, ['today' => '2026-06-15']);
         $today = (string)$model['today'];
         $group = $this->meters->groupTarget('strom', $gid);
         self::assertNotNull($group);

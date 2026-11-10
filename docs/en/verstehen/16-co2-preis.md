@@ -24,12 +24,26 @@ Emissions Trading Act (BEHG)**. They pass it on to their customers through the
 unit price. Up to 2025 the price was fixed per year; for 2026 a corridor of
 55 to 65 € per tonne applies (§ 10(2) BEHG).
 
-**2027 (as of 13 Oct 2026).** The draft Third Act amending the BEHG (Bundestag
-printed paper 21/7869, Art. 1 no. 4) extends the 55 to 65 € corridor to 2027.
-Without this change, the 2027 price under the BEHG in force would follow the
-auction prices of the European emissions trading system for industry and
-energy (EU ETS 1). The draft has not been passed yet; the second and third
-reading in the Bundestag is scheduled for 15 Oct 2026.
+**2027 (as of 9 Nov 2026).**
+
+- **The Bundestag passed the Third Act amending the BEHG on 15 Oct 2026**
+  (102nd sitting, in the version of the committee recommendation, Bundestag
+  printed paper 21/8626; draft 21/7869). It extends the 55 to 65 € per tonne
+  corridor to 2027: “Für die Jahre 2026 und 2027 wird ein Preiskorridor mit einem
+  Mindestpreis von 55 Euro pro Emissionszertifikat und einem Höchstpreis von 65
+  Euro pro Emissionszertifikat festgelegt.” (§ 10(2) sentence 4 BEHG as passed,
+  Art. 1 no. 4 letter a).
+- **Not yet in force.** The Bundesrat is dealing with the act in its second
+  passage (Bundesrat printed paper 624/26 of 30 Oct 2026, deadline 20 Nov 2026);
+  it has not been promulgated yet. Until then, the 2027 price under the BEHG in
+  force would follow the auction prices of the European emissions trading system
+  for industry and energy (EU ETS 1).
+- **So the app does not change anything yet:** for 2027 it keeps using the last
+  known value as an assumption ([§ 4](#4-price-per-year)).
+
+Sources: [Bundestag text archive, 15 Oct 2026](https://www.bundestag.de/dokumente/textarchiv/2026/kw42-de-brennstoffemissionshandelsgesetz-1223608),
+[act as passed, Bundesrat printed paper 624/26](https://dserver.bundestag.de/brd/2026/0624-26.pdf)
+(retrieved 9 Nov 2026).
 
 The **European emissions trading system for buildings and road transport
 (ETS2)** starts in 2028: Art. 2 of Regulation (EU) 2026/667 postpones it by one
@@ -137,7 +151,7 @@ can differ from the value under the CO2KostAufG. The app keeps one value per
 year for both; if your bill shows a different CO₂ amount, enter the bill (it
 takes precedence) or the price under “CO₂ price per year”.
 
-You enter your own values under **Settings → Expert → calculation parameters →
+You enter your own values under **Settings → Calculation →
 “CO₂ price” → “CO₂ price per year”** (year and € per tonne). They take
 precedence over the country profile and replace the assumption — for instance
 once the German Environment Agency has published the 2027 price or if your
@@ -171,7 +185,7 @@ amount in 2023 (30 €/t, VAT 7 %): 54.42 € net × 1.07 = 58.23 €.
 **Per m² of floor area.** The API also works out the emissions of all rows per
 m² of floor area and the **stage under the CO2KostAufG** (ten stages, rounded
 to one decimal place). The area comes from the tenancy when you rent, otherwise
-from Settings → Household & building. What the stage is for:
+from Household → Building. What the stage is for:
 [Share CO₂ costs with the landlord](../anleitungen/co2-aufteilung.md).
 
 ## 6. Where you see it
@@ -184,7 +198,7 @@ heating oil, district heating and heat, for the year selected there:
 - **Emissions (BEHG)** in kg,
 - **CO₂ price** in € per tonne.
 
-Below it a line: “Already part of the unit price – not a surcharge. Net …,
+Below it a line: “Already part of the unit price, so not a surcharge. Net …,
 shown above including VAT.”, plus the source (standard factor, supplier bill or
 the heat network’s emission factor), for heat the note on the approximation and,
 for an assumed price, a note on that. Without consumption in the year or without
@@ -205,7 +219,7 @@ Example gas:              (150 − 60) × 0.18139 / 10 × 1.19 = 1.94 ct/kWh
 
 - The scenario is **shown next to the forecast only**; it does not change the
   forecast’s costs.
-- It applies from the year under **Settings → Expert → calculation parameters
+- It applies from the year under **Settings → Calculation
   → “CO₂ price” → “Scenario from year”** (default 2028), to every forecast month
   from that year on. The app counts the amount “over the next 12 months” only
   over months from that year: if the forecast does not reach it, no line

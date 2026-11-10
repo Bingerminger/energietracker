@@ -14,7 +14,8 @@ Thanks for joining in! What helps most:
   issue first, so that migration and the stability promise are thought through.
 
 Please do **not** report security issues as an issue, but as described in
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](SECURITY.md). The [code of conduct](CODE_OF_CONDUCT.md) applies to
+everyone: kind, on topic, no real data.
 
 Working with an AI coding agent? [AGENTS.md](AGENTS.md) sums up what it needs
 to know: running the tests, conventions, no user data, no third-party packages.
@@ -22,8 +23,8 @@ to know: running the tests, conventions, no user data, no third-party packages.
 ## Ideas, plans and status
 
 - **Ideas and wishes** go to
-  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas);
-  everyone can vote with 👍 there. Bugs go into an issue (form “Report a bug”).
+  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas),
+  with a short form; everyone can vote with 👍 there. Bugs go into an issue (form “Report a bug”).
 - **What is planned** shows on the
   [project board](https://github.com/users/Bingerminger/projects/1) and in the
   [milestones](https://github.com/Bingerminger/energietracker/milestones), one

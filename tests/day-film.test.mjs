@@ -250,10 +250,10 @@ t('Bild an Ort und Stelle (dasselbe SVG-Element)', fig.querySelector('svg.ef') =
 slider().value = '60'; slider().dispatchEvent(new window.Event('input', { bubbles: true }));
 t('Lücke 15:00: „–“ statt 0 in den Knoten', txt('v-pv') === '–' && txt('v-house') === '–');
 t('… und im Text genannt', fig.querySelector('.explainer__text').textContent.startsWith(tr('explainer.energy.day.gapAt', { time: '15:00' })));
-t('… Hinweis zählt die Lücken', fig.querySelector('.ef-note').textContent.includes('2 Viertelstunden ohne Messwerte'));
+t('… Hinweis zählt die Lücken', fig.querySelector('.fussnote').textContent.includes('2 Viertelstunden ohne Messwerte'));
 slider().value = '70'; slider().dispatchEvent(new window.Event('input', { bubbles: true }));
 t('fehlender Börsenpreis wird gesagt, nicht 0', fig.querySelector('.ef-price').textContent === tr('explainer.energy.day.noPrice', { time: '17:30' }));
-t('Hinweis: kW in den Knoten, gerechnet je Viertelstunde', fig.querySelector('.ef-note').textContent.includes('(kW)') && fig.querySelector('.ef-note').textContent.includes(tr('explainer.energy.day.calcNote')));
+t('Hinweis: kW in den Knoten, gerechnet je Viertelstunde', fig.querySelector('.fussnote').textContent.includes('(kW)') && fig.querySelector('.fussnote').textContent.includes(tr('explainer.energy.day.calcNote')));
 const dateSel = fig.querySelector('.ef-day-date');
 t('Tagesauswahl: nur Tage des Monats mit Daten, Lücken gekennzeichnet', dateSel && dateSel.options.length === 2 && dateSel.value === '2025-06-14'
   && dateSel.options[1].textContent.includes('mit Lücken') && !dateSel.options[0].textContent.includes('mit Lücken'));
@@ -282,7 +282,7 @@ fig.querySelector('[data-ef-mode="typical"]').click();
 await wait(10);
 t('Typischer Tag des gewählten Monats', calls.some(u => u.includes('typical-day?month=2025-10')) && label() === tr('explainer.energy.day.typicalPeriod', { month: 'Oktober 2025' }), label());
 t('… ohne Tagesauswahl, mit Monat und Erklärung (ⓘ)', !fig.querySelector('.ef-day-date') && !!fig.querySelector('.ef-day-month') && !!fig.querySelector('.ef-day [data-glossary="typicalDay"]'));
-t('… Hinweis: Mittel aus wie vielen Tagen', fig.querySelector('.ef-note').textContent.includes(tr('explainer.energy.day.typicalDays.one', { count: 1 })));
+t('… Hinweis: Mittel aus wie vielen Tagen', fig.querySelector('.fussnote').textContent.includes(tr('explainer.energy.day.typicalDays.one', { count: 1 })));
 t('… Modus-Knöpfe mit aria-pressed', fig.querySelector('[data-ef-mode="typical"]').getAttribute('aria-pressed') === 'true' && fig.querySelector('[data-ef-mode="single"]').getAttribute('aria-pressed') === 'false');
 fig.querySelector('[data-ef-step="-1"]').click();
 await wait(10);

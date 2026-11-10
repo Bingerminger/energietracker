@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Support\Dates;
+use Energietracker\Support\LocalizedException;
 
 /**
  * v1.3.0 — Termin- und Wartungserinnerungen.
@@ -364,12 +365,17 @@ final class ReminderService
         return $r['assignee_former'] ? ['former' => true] : null;
     }
 
+    /** v3.12.0 — Textfelder eines Termins (Liste oder Objekt statt Text: 400, s. Support\Input) */
+    private const TEXT_FIELDS = ['title', 'category', 'next_due', 'recurrence', 'notes', 'last_done'];
+
     public function create(array $input): array
     {
+        \Energietracker\Support\Input::assertTexts($input, self::TEXT_FIELDS);
         $category = (string)($input['category'] ?? 'custom');
-        $rec = (string)($input['recurrence'] ?? 'none');
-        $recMonths = $input['recurrence_months'] ?? null;
-        if ($rec === 'custom-months' && ($recMonths === null || (int)$recMonths <= 0)) {
+        $checked = $this->checkFields($input);   // v3.12.0
+        $rec = $checked['recurrence'] ?? 'none';
+        $recMonths = $checked['recurrence_months'] ?? null;
+        if ($rec === 'custom-months' && $recMonths === null) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.recurrenceMonths'));
         }
         if (empty($input['title'])) {
@@ -378,6 +384,7 @@ final class ReminderService
         if (empty($input['next_due']) || !Dates::isIsoDate((string)$input['next_due'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
+        \Energietracker\Support\Input::assertDateInRange((string)$input['next_due'], 'next_due');   // v3.12.0
         $assignee = $this->assigneeInput($input) ?? [];   // v3.5.0 (F1028)
         $meter = $this->meterInput($input) ?? [];         // v3.7.0 — Termin am Zähler
 
@@ -386,11 +393,11 @@ final class ReminderService
             'title'             => (string)$input['title'],
             'category'          => $category,
             'next_due'          => (string)$input['next_due'],
-            'recurrence'        => in_array($rec, ['none','yearly','semi-yearly','custom-months'], true) ? $rec : 'none',
-            'recurrence_months' => $recMonths !== null ? (int)$recMonths : null,
-            'last_done'         => null,
+            'recurrence'        => $rec,
+            'recurrence_months' => $recMonths,
+            'last_done'         => $checked['last_done'] ?? null,   // v3.12.0 — angegeben und geprüft, bisher still null
             'notes'             => (string)($input['notes'] ?? ''),
-            'active'            => true,
+            'active'            => $checked['active'] ?? true,
         ] + $assignee + $meter;
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
@@ -399,19 +406,70 @@ final class ReminderService
         return $this->withAssignee($reminder);
     }
 
+    /** v3.12.0 — Rhythmen, die markDone() fortschreibt. */
+    public const RECURRENCES = ['none', 'yearly', 'semi-yearly', 'custom-months'];
+
+    /**
+     * v3.12.0 — Felder eines Termins mit festem Typ, eine Prüfung für Anlegen und Ändern. Bisher wurde ein
+     * unbekannter Rhythmus beim Anlegen still „none“ und beim Ändern roh gespeichert, `recurrence_months`
+     * aus einer Liste 0, aus „12,5“ 12 und aus 10³⁰⁸ ein Fehler (500), „aktiv: nein“ war aktiv, ein
+     * Erledigt-Datum im Jahr 0001 ging durch.
+     *
+     * @param array<string,mixed> $in
+     * @return array<string,mixed> nur die Felder, die in `$in` stehen, geprüft
+     */
+    private function checkFields(array $in): array
+    {
+        $out = [];
+        if (array_key_exists('recurrence', $in)) {
+            $rec = $in['recurrence'] ?? 'none';
+            if ($rec === '') $rec = 'none';
+            if (!in_array($rec, self::RECURRENCES, true)) {
+                throw new LocalizedException('errors.common.valueInvalid', ['field' => 'recurrence', 'value' => is_scalar($rec) ? (string)$rec : ''], 'reminder recurrence');
+            }
+            $out['recurrence'] = $rec;
+        }
+        if (array_key_exists('recurrence_months', $in)) {
+            $v = $in['recurrence_months'];
+            if ($v === null || $v === '') $out['recurrence_months'] = null;
+            else {
+                $n = is_bool($v) ? null : \Energietracker\Support\Input::decimal($v);
+                if ($n === null || $n != floor($n) || $n < 1 || $n > 1200) {
+                    throw new \InvalidArgumentException($this->i18n->t('errors.reminder.recurrenceMonths'));
+                }
+                $out['recurrence_months'] = (int)$n;
+            }
+        }
+        if (array_key_exists('active', $in)) {
+            $out['active'] = \Energietracker\Support\Input::bool($in['active'])
+                ?? throw new LocalizedException('errors.common.boolExpected', ['field' => 'active'], 'reminder active: bool expected');
+        }
+        if (array_key_exists('last_done', $in)) {
+            $d = $in['last_done'];
+            if ($d === null || $d === '') $out['last_done'] = null;
+            else {
+                if (!Dates::isIsoDate((string)$d)) throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
+                \Energietracker\Support\Input::assertDateInRange((string)$d, 'last_done');
+                $out['last_done'] = (string)$d;
+            }
+        }
+        return $out;
+    }
+
     public function update(string $id, array $patch): array
     {
+        \Energietracker\Support\Input::assertTexts($patch, self::TEXT_FIELDS);   // v3.12.0
         // v2.5.3 — dieselbe Datumsregel wie beim Anlegen; vorher nahm das
         // Ändern jeden String als Fälligkeit an.
         if (array_key_exists('next_due', $patch) && !Dates::isIsoDate((string)$patch['next_due'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
+        if (array_key_exists('next_due', $patch)) \Energietracker\Support\Input::assertDateInRange((string)$patch['next_due'], 'next_due');
         // v2.12.0 (Review UI-22) — `last_done` änderbar, damit „Erledigt"
         // rückgängig gemacht werden kann: null oder ein Datum
-        if (array_key_exists('last_done', $patch) && $patch['last_done'] !== null
-            && !Dates::isIsoDate((string)$patch['last_done'])) {
-            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
-        }
+        // v3.12.0 — wie beim Anlegen geprüft (checkFields): Rhythmus nur aus der Liste, Monate ganzzahlig
+        // 1 bis 1200, „aktiv“ als Wahrheitswert, erledigt am im Jahresbereich
+        $patch = array_merge($patch, $this->checkFields($patch));
         $assignee = $this->assigneeInput($patch);   // v3.5.0 (F1028) — null: unverändert
         $meter = $this->meterInput($patch);         // v3.7.0 — null: unverändert, []: ohne Zähler
         $all = $this->store->read('reminders.json', []);
@@ -420,12 +478,7 @@ final class ReminderService
         foreach ($all as &$r) {
             if (($r['id'] ?? null) !== $id) continue;
             foreach (['title','category','next_due','recurrence','recurrence_months','notes','active','last_done'] as $f) {
-                if (array_key_exists($f, $patch)) {
-                    $r[$f] = $f === 'active' ? (bool)$patch[$f]
-                        : ($f === 'recurrence_months'
-                            ? ($patch[$f] !== null ? (int)$patch[$f] : null)
-                            : $patch[$f]);
-                }
+                if (array_key_exists($f, $patch)) $r[$f] = $patch[$f];   // geprüft in checkFields
             }
             if ($assignee !== null) $r = self::applyAssignee($r, $assignee);
             if ($meter !== null) {
@@ -464,6 +517,7 @@ final class ReminderService
         if (!Dates::isIsoDate($done)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
         }
+        \Energietracker\Support\Input::assertDateInRange($done, 'done_date');   // v3.12.0 — 1900 bis 2100
         // erst prüfen, dann ändern (Notiz zu lang, Beleg unbekannt → 400 ohne Folgen)
         $this->activity?->checkInput(['done_on' => $done, 'note' => $note, 'attachment_id' => $attachmentId]);
         $all = $this->store->read('reminders.json', []);

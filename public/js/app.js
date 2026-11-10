@@ -5,11 +5,11 @@
 import { startRouter } from './router.js';
 import { getUtilities, getSettings, getCountries } from './state.js';
 import { toastErr, toastOk, showPendingToast } from './components/toast.js';
-import { mountThemeToggle, refreshThemeToggle } from './lib/theme.js';
+import { mountThemeToggle, refreshThemeToggle, reapplyStoredTheme } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
 // v2.11.0 — Tab-Leiste, Menü und Erfassen-Blatt (hängen sich an die Ereignisse)
 import './lib/mobile-nav.js';
-import { initI18n, t, tp, getLocale, getLanguages, setCurrencyParams, deviceLanguage, presetLocale } from './lib/i18n.js';
+import { initI18n, t, tp, getLocale, getLanguages, setCurrencyParams, deviceLanguage, presetLocale, resolveLanguage } from './lib/i18n.js';
 import { startOutbox } from './lib/outbox.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
@@ -17,13 +17,20 @@ import { showLogin, logout } from './components/login.js';
 import { intlLocale, setCountry, fmt } from './lib/format.js';
 import { installInfoPopovers, setBillContext } from './components/info.js';
 // v3.0.0 — öffentliche Demo: Sprache vom Browser, Kennzeichen und Hinweisleiste
-import { DEMO, demoLanguage, mountDemoUi, mountEnvBadge } from './lib/demo-mode.js';
+import { DEMO, demoFreshStart, demoLanguage, mountDemoUi, mountEnvBadge } from './lib/demo-mode.js';
 // v3.2.0 (F1019, F1023) — Nutzungsstufe und Person dieser Sitzung
 import { setSession, resolveLevel, applyLevel } from './lib/levels.js';
 import { mountLevelSwitch, refreshLevelSwitch } from './lib/level-switch.js';
 import { maybeStartSetup } from './components/setup-wizard.js';
 import { showReleaseNotices } from './lib/release-notice.js';
+import { startFitGrids } from './lib/fit-grid.js';
+import { startTableStack } from './lib/table-stack.js';   // v3.12.0 (M4)
 import { scanFolder } from './lib/inbox-folder.js';   // v3.7.0 (Paket betrieb)
+import { mountIconSprite } from './lib/icons.js';
+
+// v3.12.0 — öffentliche Demo: Nach jedem Release beginnt sie bei null. Vor allem anderen,
+// denn alles darunter liest Haushalt, Stufe und Sprache aus dem Browser. Eine Installation wartet hier nicht.
+if (DEMO && await demoFreshStart()) reapplyStoredTheme();
 
 // v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
 installInfoPopovers();
@@ -36,6 +43,11 @@ mountThemeToggle(document.getElementById('theme-toggle'));
 // Server-gerenderte Shell-Strings (index.php) nach i18n-Init lokalisieren.
 // index.php rendert sie bereits in der gewählten Sprache; hier halten wir
 // sie synchron, falls der aktive Katalog davon abweicht (z.B. Fallback).
+// v3.12.0 — Grafiken und Raster gelten ab dem ersten Bild
+mountIconSprite();
+startFitGrids();
+startTableStack();
+
 function applyShellStrings() {
   // <html lang> an den tatsächlich geladenen Katalog angleichen.
   document.documentElement.setAttribute('lang', getLocale());
@@ -44,6 +56,9 @@ function applyShellStrings() {
   refreshLevelSwitch();
   // v2.11.0 — weitere Shell-Texte tragen ihren Schlüssel in data-shell
   document.querySelectorAll('[data-shell]').forEach(el => { el.textContent = t(el.getAttribute('data-shell')); });
+  // v3.12.0 (M6) — Knöpfe nur aus Grafik (Stern, Herz): Beschriftung für Maus und Vorleser; Logo: nur Tooltip
+  document.querySelectorAll('[data-shell-label]').forEach(el => { const s = t(el.getAttribute('data-shell-label')); el.setAttribute('aria-label', s); el.setAttribute('title', s); });
+  document.querySelectorAll('[data-shell-title]').forEach(el => { el.setAttribute('title', t(el.getAttribute('data-shell-title'))); });
   document.getElementById('tabbar')?.setAttribute('aria-label', t('nav.tabbar'));
   const skip = document.querySelector('.skip-link');
   if (skip) skip.textContent = t('app.skipToContent');
@@ -140,7 +155,7 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
     setBillContext(countries.find(c => c.code === s?.country) || null);
     // v3.1.0 — eigene Sprache des Geräts vor der Standardsprache der Installation;
     // v3.2.0 (F1023) — mit Anmeldung zuerst die Sprache der Person
-    return initI18n(DEMO ? demoLanguage() : (session?.user?.prefs?.language || deviceLanguage() || s?.language))
+    return initI18n(DEMO ? demoLanguage() : resolveLanguage({ person: session?.user?.prefs?.language, device: deviceLanguage(), installation: s?.language }).lang)
       // v3.2.0 (F1019) — Stufe vor dem ersten Rendern (CSS blendet nach ihr aus).
       // v3.5.0 (N1022) — erst NACH der Sprache: Eine andere Stufe als „Experte“
       // baut die Seitenleiste neu und holt dabei die Verbrauchsarten, deren

@@ -44,7 +44,13 @@ final class SummaryService
      */
     public function build(?string $utility = null, ?string $meterRef = null, ?string $today = null): array
     {
-        $today ??= date('Y-m-d');
+        // v3.12.0 — mit Stichtag rechnen Verbrauch, Prognose und Tank an ihm (bis v3.11 am echten Datum)
+        return $this->consumption->atDate($today, fn() => $this->buildOn($utility, $meterRef, $today ?? date('Y-m-d')));
+    }
+
+    /** @return array<string,mixed> */
+    private function buildOn(?string $utility, ?string $meterRef, string $today): array
+    {
         $alertDays = max(1, (int)$this->settings->get('alert_days_since_reading', 45));
         $overview = [];
         foreach ($this->readings->overview($this->activeUtilities()) as $row) {

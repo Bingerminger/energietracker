@@ -32,6 +32,7 @@ import { t, tp, getCurrencySymbol } from '../lib/i18n.js';
 import { copyText } from '../lib/clipboard.js';
 import { info, billPortal } from '../components/info.js';
 import { bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
+import { icon } from '../lib/icons.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -54,7 +55,7 @@ export async function render(container) {
   try {
     [utilities, settings] = await Promise.all([getUtilities(), getSettings()]);
   } catch (e) {
-    container.innerHTML = `<div class="banner banner--error">${esc(e.message || e)}</div>`;
+    container.innerHTML = `<div class="infobox infobox--fehler">${esc(e.message || e)}</div>`;
     return;
   }
 
@@ -70,7 +71,7 @@ export async function render(container) {
     u.has_contracts !== false);
 
   if (usable.length === 0) {
-    container.innerHTML = `<div class="banner banner--info">${esc(t('tariff.noUsable'))}</div>`;
+    container.innerHTML = `<div class="infobox infobox--info">${esc(t('tariff.noUsable'))}</div>`;
     return;
   }
   if (!sel.utility || !usable.find(u => u.key === sel.utility)) {
@@ -114,7 +115,7 @@ export async function render(container) {
         <select class="select" id="t-meter">${meters.map(m =>
           `<option value="${esc(m.id)}" ${m.id === sel.meterId ? 'selected' : ''}>${esc(m.name || m.id)}</option>`).join('')}</select>
       </label>
-      <button class="btn btn--util" id="t-addshadow">${esc(t('tariff.addShadow'))}</button>
+      <button class="btn btn--primary" id="t-addshadow">${esc(t('tariff.addShadow'))}</button>
     </div>
 
     <section id="t-switch" aria-live="polite">
@@ -239,7 +240,7 @@ async function loadSwitch(container) {
   const box = container.querySelector('#t-switch');
   if (!box) return;
   if (!sel.meterId) {
-    box.innerHTML = `<div class="banner banner--info">${esc(t('tariff.noMeter'))}</div>`;
+    box.innerHTML = `<div class="infobox infobox--info">${esc(t('tariff.noMeter'))}</div>`;
     return;
   }
   box.innerHTML = `<div class="loading" role="status">${esc(t('tariff.loadingComparison'))}</div>`;
@@ -248,13 +249,13 @@ async function loadSwitch(container) {
   try {
     d = await api.tariffSwitch(sel.utility, sel.meterId, sel.switchDate);
   } catch (e) {
-    box.innerHTML = `<div class="banner banner--error">${esc(e.message || e)}</div>`;
+    box.innerHTML = `<div class="infobox infobox--fehler">${esc(e.message || e)}</div>`;
     return;
   }
   lastSwitch = d;
 
   if (!d.supported) {
-    box.innerHTML = `<div class="banner banner--info">${esc(d.note || t('tariff.notSupported'))}</div>`;
+    box.innerHTML = `<div class="infobox infobox--info">${esc(d.note || t('tariff.notSupported'))}</div>`;
     return;
   }
 
@@ -270,9 +271,9 @@ async function loadSwitch(container) {
     </div>
 
     ${offers.length === 0
-      ? `<div class="banner banner--info switch-empty">
+      ? `<div class="infobox infobox--info switch-empty">
            <p>${esc(t('tariff.switch.noOffers', { value: f.int(d.expected_consumption), unit }))}</p>
-           <button class="btn btn--util" id="t-addshadow-2">${esc(t('tariff.switch.addOffer'))}</button>
+           <button class="btn btn--primary" id="t-addshadow-2">${esc(t('tariff.switch.addOffer'))}</button>
          </div>`
       : `
         <div class="table-wrap">
@@ -291,7 +292,7 @@ async function loadSwitch(container) {
         <!-- v2.13.0 (Review UI-27) — die Spaltenerklärung sichtbar statt nur
              als Tooltip, den es auf dem Telefon nicht gibt -->
         <p class="muted small">${esc(t('tariff.switch.col.year1'))}: ${esc(t('tariff.switch.year1Title'))} · ${esc(t('tariff.switch.col.year2'))}: ${esc(t('tariff.switch.year2Title'))}. ${esc(t('tariff.switch.rankingHint'))}</p>
-        ${d.dynamic_missing_market ? `<p class="banner banner--info">${esc(t('tariff.dynamic.missingMarket'))}</p>` : ''}
+        ${d.dynamic_missing_market ? `<p class="infobox infobox--info">${esc(t('tariff.dynamic.missingMarket'))}</p>` : ''}
 
         <div class="card" style="margin-top: var(--sp-4)">
           <div class="card__title">${esc(t('tariff.switch.chartTitle'))}</div>
@@ -326,7 +327,7 @@ function consumptionCardHtml(d, unit) {
         <strong>${f.int(d.expected_consumption)}</strong> <span class="unit">${esc(unit)}</span>
       </p>
       <p class="muted small">${esc(t('tariff.switch.expectedHint'))}</p>
-      ${billPortal() ? `<p class="small"><a href="${esc(billPortal().url)}" target="_blank" rel="noopener" data-role="portal">${esc(t('tariff.switch.portal', { country: billPortal().country }))}</a></p>` : ''}
+      ${billPortal() ? `<p class="small"><a href="${esc(billPortal().url)}" target="_blank" rel="noopener" data-role="portal">${icon('extern', { size: 16 })} ${esc(t('tariff.switch.portal', { country: billPortal().country }))}</a></p>` : ''}
       <button class="btn btn--sm btn--ghost" id="t-copy-consumption">
         <span aria-hidden="true">⧉</span> ${esc(t('tariff.switch.copy'))}
       </button>
@@ -350,7 +351,7 @@ export function timingCardHtml(d) {   // v3.11.0 (Nachprüfung) — exportiert f
   let cancelLine = '';
   if (c && c.cancel_by) {
     const days = c.days_to_cancel;
-    const cls = days == null ? '' : (days < 0 ? 'danger-text' : (days <= 45 ? 'warning-text' : ''));
+    const cls = days == null ? '' : (days < 0 ? 'ton-fehler' : (days <= 45 ? 'ton-warn' : ''));
     const note = days == null ? ''
       : days < 0 ? t('tariff.switch.cancelPassed')
       : tp('tariff.switch.cancelIn', days, { days });
@@ -394,7 +395,7 @@ export function timingCardHtml(d) {   // v3.11.0 (Nachprüfung) — exportiert f
         <input class="input" type="date" id="t-switch-date" value="${esc(d.switch_date || '')}"
                aria-label="${esc(t('tariff.switch.switchDate'))}">
         ${src ? `<span class="badge badge--info">${esc(src)}</span>` : ''}
-        ${sel.switchDate ? `<button class="btn btn--xs btn--ghost" id="t-switch-reset">${esc(t('tariff.switch.reset'))}</button>` : ''}
+        ${sel.switchDate ? `<button class="btn btn--sm btn--ghost" id="t-switch-reset">${esc(t('tariff.switch.reset'))}</button>` : ''}
       </div>
       ${c ? `<p class="muted small">${esc(t('tariff.switch.currentContract', { label: c.label }))}
              ${esc(runs)}</p>` : ''}
@@ -404,6 +405,13 @@ export function timingCardHtml(d) {   // v3.11.0 (Nachprüfung) — exportiert f
       <p class="muted small">${esc(tp('tariff.switch.window', d.window.months, {
         from: f.month(d.window.from), to: f.month(d.window.to), months: d.window.months }))}</p>
     </div>`;
+}
+
+/** v3.12.0 — „ab 900“ bzw. „bis 600“ (Spalte „Lohnt sich“), ohne Richtung nur die Menge. */
+export function breakEvenLabel(direction, value) {
+  if (direction === 'below') return t('tariff.switch.breakEvenUpTo', { value });
+  if (direction === 'above') return t('tariff.switch.breakEvenFrom', { value });
+  return String(value);
 }
 
 function candidateRowHtml(c, unit, d) {
@@ -419,7 +427,7 @@ function candidateRowHtml(c, unit, d) {
   // v2.10.0 (CALC-17) — Einspeisung: Beträge sind Erlöse, mehr ist besser
   const better = d?.higher_is_better ? diff > 0 : diff < 0;
   const worse  = d?.higher_is_better ? diff < 0 : diff > 0;
-  const diffCls = diff == null ? '' : (better ? 'success-text' : (worse ? 'danger-text' : ''));
+  const diffCls = diff == null ? '' : (better ? 'ton-ok' : (worse ? 'ton-fehler' : ''));
   const diffStr = c.is_reference
     ? `<span class="muted">${esc(t('tariff.switch.reference'))}</span>`
     : diff == null ? '<span class="dim">–</span>'
@@ -429,10 +437,12 @@ function candidateRowHtml(c, unit, d) {
   // Der Break-even sagt mehr als eine Ersparnis auf den Euro: Liegt er weit
   // vom erwarteten Verbrauch weg, trägt die Entscheidung auch dann, wenn die
   // Prognose danebenliegt. Deshalb steht der Abstand in Prozent dabei.
+  // v3.12.0 — mit Richtung: „ab“ (darüber günstiger) oder „bis“ (nur darunter günstiger, etwa ein höherer
+  // Arbeitspreis mit niedrigerem Grundpreis); bis dahin stand jede Menge unter „Lohnt ab“
   const be = c.break_even_consumption;
   const beStr = c.is_reference ? '<span class="dim">–</span>'
     : be == null ? `<span class="dim" title="${esc(t('tariff.switch.breakEvenNone'))}">–</span>`
-    : `${f.int(be)} <span class="muted">${esc(unit)}</span>${c.break_even_delta_pct != null
+    : `${esc(breakEvenLabel(c.break_even_direction, f.int(be)))} <span class="muted">${esc(unit)}</span>${c.break_even_delta_pct != null
         ? `<div class="muted small">${esc(t('tariff.switch.breakEvenDelta', {
              pct: (c.break_even_delta_pct > 0 ? '+' : '') + f.num(c.break_even_delta_pct, 0) }))}</div>` : ''}`;
 
@@ -441,7 +451,7 @@ function candidateRowHtml(c, unit, d) {
     : '';
 
   const guaranteeLine = c.guarantee_ends_in_window
-    ? `<div class="muted small warning-text">${esc(t('tariff.switch.guaranteeEnds', {
+    ? `<div class="muted small ton-warn">${esc(t('tariff.switch.guaranteeEnds', {
          date: f.date(c.guarantee_until) }))}</div>`
     : '';
 
@@ -470,10 +480,10 @@ function badgeFor(c) {
 function rowActionsHtml(c) {
   if (!c.is_shadow) return '';
   return `
-    <button class="btn btn--xs btn--ghost" data-edit-shadow="${esc(c.contract_id)}"
-            title="${esc(t('tariff.action.edit'))}" aria-label="${esc(t('tariff.action.editNamed', { name: c.label || '' }))}"><span aria-hidden="true">✎</span></button>
-    <button class="btn btn--xs btn--ghost" data-delete-shadow="${esc(c.contract_id)}" data-name="${esc(c.label || '')}"
-            title="${esc(t('tariff.action.delete'))}" aria-label="${esc(t('tariff.action.deleteNamed', { name: c.label || '' }))}"><span aria-hidden="true">🗑</span></button>`;
+    <button class="btn btn--sm btn--ghost" data-edit-shadow="${esc(c.contract_id)}"
+            title="${esc(t('tariff.action.edit'))}" aria-label="${esc(t('tariff.action.editNamed', { name: c.label || '' }))}">${icon('stift')}</button>
+    <button class="btn btn--sm btn--ghost" data-delete-shadow="${esc(c.contract_id)}" data-name="${esc(c.label || '')}"
+            title="${esc(t('tariff.action.delete'))}" aria-label="${esc(t('tariff.action.deleteNamed', { name: c.label || '' }))}">${icon('eimer')}</button>`;
 }
 
 /**
@@ -589,7 +599,7 @@ async function loadRetro(container) {
   try {
     data = await api.tariffComparison(sel.utility, sel.meterId, sel.year);
   } catch (e) {
-    box.innerHTML = `<div class="banner banner--error">${esc(e.message || e)}</div>`;
+    box.innerHTML = `<div class="infobox infobox--fehler">${esc(e.message || e)}</div>`;
     return;
   }
   lastRetro = data;
@@ -665,7 +675,7 @@ function retroRowHtml(r, unit, higherIsBetter = false) {
   const vs = r.vs_real_eur;
   const good = higherIsBetter ? vs > 0 : vs < 0;
   const bad  = higherIsBetter ? vs < 0 : vs > 0;
-  const vsCls = vs == null ? '' : (good ? 'success-text' : (bad ? 'danger-text' : ''));
+  const vsCls = vs == null ? '' : (good ? 'ton-ok' : (bad ? 'ton-fehler' : ''));
   const vsStr = vs == null
     ? '<span class="dim">–</span>'
     : `${vs > 0 ? '+' : ''}${f.eur(vs)}${r.vs_real_pct != null

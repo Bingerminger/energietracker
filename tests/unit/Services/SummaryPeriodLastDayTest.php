@@ -30,7 +30,9 @@ final class SummaryPeriodLastDayTest extends ServiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->today = date('Y-m-d');
+        // v3.12.0 — fester Stichtag (an build() übergeben): Mit dem echten Datum lag das Vertragsende
+        // (heute + 40) ab Ende November hinter dem Stichtag 01.01., die Periode endete dann am 01.01.
+        $this->today = '2026-06-15';
     }
 
     private function day(int $offset): string
