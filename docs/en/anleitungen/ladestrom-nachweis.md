@@ -35,7 +35,7 @@ line.
 
 ## 2. Set up the wall box as a meter
 
-**Consumption → Electricity → ⚙️ Meters → “+ New meter”**:
+**Consumption → Electricity → Meters → “+ New meter”**:
 
 1. **Name**, e.g. “Wall box”.
 2. **Role: “Wallbox (EV charger)”.** Only with this role does the card

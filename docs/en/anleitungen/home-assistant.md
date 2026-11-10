@@ -138,7 +138,7 @@ sign-in is on, the push needs a **token** (step 1) and the sensors a **read
 key** (step 5).
 
 **Moving from a Docker installation.** In the old installation, download the
-JSON backup under Settings → Data and backup → 💾 Backup & restore and import it in the
+JSON backup under Settings → Data and backup → Backup & restore and import it in the
 app at the same place (up to 256 MB through Ingress; the app streams uploads).
 Persons, token and keys are not part of the backup: create the token and read
 key again in the app and change the address in the `rest_command` and the
@@ -1102,7 +1102,7 @@ Assistant sidebar), the following applies since v3.1.0. The
 | Symptom (HA log) | Cause & fix |
 |------------------|-------------|
 | `401` | Token set, but the header is missing/wrong. `!secret` only works as the **whole** value: `Authorization: !secret energietracker_auth`, with `"Bearer et_…"` in `secrets.yaml`. A `"Bearer !secret …"` sends the text literally. Otherwise regenerate the token. Since v2.6.0 also: sign-in switched on but no token generated yet. |
-| The value arrives but does not count | It is lower than the previous reading and therefore **marked as suspect** (since v2.6.0; response `"suspect": true`). The view of the utility shows a notice and the reading carries "CHECK" — confirm it (✅), correct it or record a meter swap. |
+| The value arrives but does not count | It is lower than the previous reading and therefore **marked as suspect** (since v2.6.0; response `"suspect": true`). The view of the utility shows a notice and the reading carries "CHECK" — confirm it (“Confirm reading” in the row), correct it or record a meter swap. |
 | `400 No meter found for "…"` | The alias/ID does not match the meter. Check the alias in the settings. |
 | `400 … works with deliveries` | Heating oil/pellets are not supported via ingest. |
 | `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. **Skip** the push then, never replace it with 0: condition `has_value(…)` as in step 4. `| float(0)` trades the visible error for a silent wrong booking. |

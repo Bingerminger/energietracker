@@ -139,7 +139,7 @@ richtigen Namen ein. Weil die Anmeldung an ist, braucht der Push einen
 **Token** (Schritt 1) und die Sensoren einen **Lese-Schlüssel** (Schritt 5).
 
 **Umzug von einer Docker-Installation.** In der alten Installation unter
-Einstellungen → Daten und Sicherung → 💾 Backup & Wiederherstellung das JSON-Backup
+Einstellungen → Daten und Sicherung → Backup & Wiederherstellung das JSON-Backup
 herunterladen, in der App an derselben Stelle einspielen (über Ingress bis
 256 MB, die App streamt Uploads). Personen, Token und Schlüssel gehören nicht
 zum Backup: Token und Lese-Schlüssel in der App neu erzeugen und die Adresse
@@ -1114,7 +1114,7 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0 das Folgende. Die
 | Symptom (HA-Log) | Ursache & Lösung |
 |------------------|------------------|
 | `401` | Token gesetzt, aber Header fehlt/falsch. `!secret` wirkt nur als **ganzer** Wert: `Authorization: !secret energietracker_auth`, und in der `secrets.yaml` steht `"Bearer et_…"`. Ein `"Bearer !secret …"` schickt den Text wörtlich. Sonst Token ggf. neu erzeugen. Seit v2.6.0 auch: Anmeldung eingeschaltet, aber noch kein Token erzeugt. |
-| Wert kommt an, zählt aber nicht | Er ist kleiner als der vorige Stand und deshalb **als Verdacht markiert** (seit v2.6.0; Antwort `"suspect": true`). In der Ansicht der Verbrauchsart steht ein Hinweis, der Stand trägt „PRÜFEN" — bestätigen (✅), korrigieren oder einen Zählertausch erfassen. |
+| Wert kommt an, zählt aber nicht | Er ist kleiner als der vorige Stand und deshalb **als Verdacht markiert** (seit v2.6.0; Antwort `"suspect": true`). In der Ansicht der Verbrauchsart steht ein Hinweis, der Stand trägt „PRÜFEN" — bestätigen („Stand bestätigen“ in der Zeile), korrigieren oder einen Zählertausch erfassen. |
 | `400 Kein Zähler für „…" gefunden` | Alias/ID stimmt nicht mit dem Zähler überein. In den Einstellungen den Alias prüfen. |
 | `400 … arbeitet mit Lieferungen` | Heizöl/Pellets werden nicht per Ingest unterstützt. |
 | `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Den Push dann **auslassen**, nie durch 0 ersetzen: Bedingung `has_value(…)` wie in Schritt 4. `| float(0)` tauscht den sichtbaren Fehler gegen eine stille Falschbuchung. |

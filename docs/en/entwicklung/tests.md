@@ -283,7 +283,10 @@ to it, `ReleaseConsistencyTest` keeps checking the API reference against the
 routes and, since v3.4.0, that the frontend links to GitHub only for bug
 reports, the project page and the source code of the version.
 `DocsEndpointTest` (over HTTP) and `DocsServiceTest` secure the allowlist of
-`/api/docs`.
+`/api/docs`. **`DocsNoEmojiTest`** keeps the docs free of emoji:
+outside code blocks there is no character of the class `Extended_Pictographic`,
+except a short, justified list of plain text characters (↔ between terms,
+© ® ™). Buttons and menus are named there as in the app.
 
 **Calculation cores with synthetic data (v2.8.0).** `WeatherModelTest` generates
 temperatures and consumption according to a known formula

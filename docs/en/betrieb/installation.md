@@ -172,7 +172,7 @@ converted on the first start.
 ## 6. Taking over existing data
 
 Old readings are best brought into the app as **CSV**: per meter through
-⚙️ Meters → **CSV import** (date and reading, semicolon or comma, with a preview
+Household → Meters → **CSV import** (date and reading, semicolon or comma, with a preview
 before writing); temperatures under Connections → Weather data. From Excel: save the
 sheet as CSV.
 

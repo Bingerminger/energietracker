@@ -199,7 +199,7 @@ shows them
 
 - in the **ⓘ explanation** and in the **glossary of the help**: "On your bill
   (Austria): “Teilbetrag”",
-- in the **tariff switch** as the link "Official tariff comparison (country) ↗",
+- in the **tariff switch** as the link "Official tariff comparison (country)" (with the arrow for an outside page),
   where the country has one.
 
 The terms are quoted as on the bill, i.e. in the country's language, whatever

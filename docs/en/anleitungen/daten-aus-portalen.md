@@ -56,7 +56,7 @@ Plus the unit: kWh, Wh or MWh. Water and gas meters count in m³.
 
 ## 3. Step by step
 
-**Consumption → *utility* → ⚙️ Meters**, on the meter you want, **“Import time
+**Consumption → *utility* → Meters**, on the meter you want, **“Import time
 series”** (for every utility with meter readings, not for heating oil and
 pellets). Create the meter beforehand, with the right role and recording.
 

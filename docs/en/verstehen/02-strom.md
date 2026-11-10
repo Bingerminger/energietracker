@@ -46,7 +46,7 @@ billed under **one** contract with one standing charge and two unit prices.
 Since v3.1.0 the app models it like this:
 
 1. Create both registers as meters of their own and combine them into a group
-   under ⚙️ Meters with **“Group meters”**
+   under Household → Meters with **“Group meters”**
    ([Meter topology](13-meter-topologie.md)).
 2. In the contract dialog, choose the group under **“Meter”** — it is listed
    under “Meter groups (one contract for all)”.

@@ -239,7 +239,7 @@ endet mit „Einen Beispielhaushalt „…“ gibt es nicht.“
 <a id="case-levels"></a>
 ## 3. Nutzungsstufen
 
-Drei Stufen: **🌱 Einsteiger**, **🌿 Erfahren** und **🌳 Experte**. Sie
+Drei Stufen: **Einsteiger**, **Erfahren** und **Experte**. Sie
 bestimmen, was du siehst — nicht, was die App rechnet. Seit v3.7.0 entscheiden
 drei Sätze: Einsteiger wollen wissen, was sie verbrauchen, was es kostet und ob
 der Abschlag reicht, und lassen die Post vom Versorger auslesen. Erfahrene
@@ -248,7 +248,7 @@ Wärmepumpe oder Wallbox hat, sieht deren Seiten in jeder Stufe. Jede Funktion
 einzeln, mit drei Haushalten zum Wählen:
 **[Was kann ich auf welcher Stufe?](../referenz/stufen.md)**
 
-| Bereich | 🌱 Einsteiger | 🌿 Erfahren | 🌳 Experte |
+| Bereich | Einsteiger | Erfahren | Experte |
 |---|---|---|---|
 | Übersicht | drei Antworten: Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Was ist zu tun? — mit einem Schaubild | dazu Kacheln je Art und Zahlen; die Karten und „Schaubilder“ unter Auswertungen › Kennzahlen | wie Erfahren |
 | Zählerstände | erfassen, Foto als Beleg | dazu CSV-Import | dazu Zeitreihen aus Portalen |

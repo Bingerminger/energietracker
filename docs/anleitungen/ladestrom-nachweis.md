@@ -36,7 +36,7 @@ mit Zählerständen und Unterschriftszeile.
 
 ## 2. Wallbox als Zähler einrichten
 
-**Verbrauch → Strom → ⚙️ Zähler → „+ Neuer Zähler“**:
+**Verbrauch → Strom → Zähler → „+ Neuer Zähler“**:
 
 1. **Name**, etwa „Wallbox“.
 2. **Rolle: „Wallbox“.** Erst mit dieser Rolle erscheint die Karte

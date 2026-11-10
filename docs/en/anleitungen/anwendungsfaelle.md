@@ -53,7 +53,7 @@ to keep their share cleanly separate.
 
 1. Create a `strom` main meter: *"shared-flat house connection"*.
 2. Create a second `strom` meter: *"study (server)"*.
-3. On the second meter, under **⚙️ Meters → Edit**, set the **parent meter** to
+3. On the second meter, under **Household → Meters → Edit**, set the **parent meter** to
    *"shared-flat house connection"* → it becomes a **sub-meter**.
 
 **What happens.** The house connection also measures the server. So the
@@ -61,8 +61,8 @@ sub-meter does not count again in the total, it only breaks it down:
 
 <!-- doc-claim: shared-meters-example (SubmeterRestDocsTest) -->
 ```text
-⚡ Shared-flat house connection .. 612 kWh   (measured, with server)
-   ↳ Study (server) .............. 188 kWh   (breakdown)
+Shared-flat house connection .... 612 kWh   (measured, with server)
+  ↳ Study (server) .............. 188 kWh   (breakdown)
 Electricity total ............... 612 kWh
 ```
 
@@ -204,7 +204,7 @@ separately and prepare the later utility bill.
    plus `wasser` *"common/garden"*.
 2. Maintain contracts per meter (each flat has its own supply contract).
 3. If a unit has several meters **of the same type** (such as peak/off-peak or a
-   wallbox), a **group** combines them (⚙️ Meters → "Group meters").
+   wallbox), a **group** combines them (Household → Meters → "Group meters").
    Groups apply per utility — electricity and water of one flat cannot be
    bundled into one group. Since v3.1.0 a contract can belong to the whole
    group, e.g. a peak/off-peak contract with one standing charge and two unit

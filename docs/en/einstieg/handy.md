@@ -40,7 +40,7 @@ home indicator and shows the most recently loaded data even without a network.
   field, from the last one to "Save all".
 - **Photograph the register:** tap the field → "Scan Text" (Live Text) — the
   digits land in the field.
-- **Photo as a receipt (since v3.1.0):** every card has **“📷 Photo”**; on a
+- **Photo as a receipt (since v3.1.0):** every card has **“Photo”**; on a
   phone it opens the camera. The browser scales the picture down to at most
   1600 pixels and saves it again as JPEG — the EXIF data including the GPS
   location are dropped along the way. The photo is saved with the reading; in
@@ -72,8 +72,8 @@ home indicator and shows the most recently loaded data even without a network.
 
 If saving in “Meter readings” fails for lack of a connection — no network, or
 the server does not answer in time — the reading is not lost. It goes into a
-queue in the browser of this device. The card shows ⏳ “Waiting for a
-connection”, the list **“Not saved yet”** appears at the top of the view, and a
+queue in the browser of this device. The card shows “Waiting for a
+connection” with an hourglass, the list **“Not saved yet”** appears at the top of the view, and a
 number on the “Meter readings” menu item and on the ＋ in the tab bar keeps
 count.
 

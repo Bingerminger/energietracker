@@ -243,10 +243,10 @@ At the top the choice **Winter half-year · Summer half-year · Whole year**
 (the current half-year is preselected).
 
 - **A typical day** (all levels): 24 hours as a band. Per hour the average
-  wholesale price; **green ✔** the cheapest third, **yellow ▲** the middle,
-  **red ✖** the most expensive — the level always as colour **and** symbol, for
+  wholesale price; **green with a tick** the cheapest third, **yellow with a warning
+  triangle** the middle, **red with a cross** the most expensive — the level always as colour **and** symbol, for
   screen readers as a sentence (“13:00: cheap, 8.3 ct, plenty of sun”). Above
-  it **☀**, when the system generates strongly (at least half of the strongest
+  it **a sun**, when the system generates strongly (at least half of the strongest
   hour; faint from 15 %). Below it a sentence: “Cheapest: on Sundays
   12:00–15:00. Most expensive: 17:00–20:00.” and the price range.
 - **The week** (from “Experienced”): the same levels per weekday and hour,
@@ -456,7 +456,7 @@ Sources:
 
 ### Enter the time windows on the contract
 
-**Consumption → Electricity → “⚙️ Manage contracts”**, edit the contract of
+**Consumption → Electricity → “Manage contracts”**, edit the contract of
 the meter whose quarter hours you have — for example the heat pump’s. In the
 field group **“§ 14a module 3: time-variable grid fee”** (level “Expert”):
 
@@ -538,7 +538,7 @@ unit price                   = wholesale price × (1 + VAT) + mark-up
 The card **“Quarter-hour series”** at the bottom of the page (level “Expert”)
 lists every series: utility · meter ID or “Wholesale prices DE-LU”, year,
 coverage (share of quarter hours with a value) and source — “File”, “Home
-Assistant” or “SMARD”. 🗑️ **“Delete series”** with the question “Delete this
+Assistant” or “SMARD”. **“Delete series”** with the question “Delete this
 series? Meter readings and daily values stay.” removes only the quarter hours.
 Importing or loading again creates the series anew.
 
@@ -676,7 +676,7 @@ the battery value and the amounts of the check in the report’s “Flexibility�
 topic. The notes also name the
 basis of the car’s charging windows (plug-in times from evcc or sample value),
 and the car’s sentence carries it as a tag. In the PDF the sun is a dot above the
-hour (the PDF has no ☀). Without wholesale prices, module 3 time windows and
+hour (the PDF has no sun symbol). Without wholesale prices, module 3 time windows and
 generation per quarter hour the page is left out
 ([Reading the annual report](jahresbericht-lesen.md)).
 

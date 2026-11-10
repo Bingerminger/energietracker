@@ -177,7 +177,7 @@ occur half-yearly.
 
 ### 6.3 Electricity balance — the most important figure
 
-In the main dashboard the tile **"⚡ Electricity balance {year}"** appears:
+In the main dashboard the tile **"Electricity balance {year}"** appears:
 
 ```
 import (grid)          − feed-in (PV)           = net electricity balance

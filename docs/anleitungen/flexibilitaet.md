@@ -245,10 +245,10 @@ Oben die Wahl **Winterhalbjahr · Sommerhalbjahr · Ganzes Jahr** (vorgewählt
 das laufende Halbjahr).
 
 - **Ein typischer Tag** (alle Stufen): 24 Stunden als Band. Je Stunde der
-  mittlere Börsenpreis; **grün ✔** das günstigste Drittel, **gelb ▲** das
-  mittlere, **rot ✖** das teuerste — die Stufe immer als Farbe **und** Symbol,
+  mittlere Börsenpreis; **grün mit Häkchen** das günstigste Drittel, **gelb mit
+  Warndreieck** das mittlere, **rot mit Kreuz** das teuerste — die Stufe immer als Farbe **und** Symbol,
   für Screenreader als Satz („13:00 Uhr: günstig, 8,3 ct, viel Sonne“). Darüber
-  **☀**, wann die Anlage kräftig erzeugt (mindestens die Hälfte der stärksten
+  **eine Sonne**, wann die Anlage kräftig erzeugt (mindestens die Hälfte der stärksten
   Stunde; blass ab 15 %). Darunter ein Satz: „Am günstigsten: sonntags
   12:00–15:00 Uhr. Am teuersten: 17:00–20:00 Uhr.“ und die Spanne der Preise.
 - **Die Woche** (ab „Erfahren“): dieselben Stufen je Wochentag und Stunde,
@@ -461,7 +461,7 @@ Mehr, auch zu Modul 1 und 2, in den
 
 ### Zeitfenster am Vertrag eintragen
 
-**Verbrauch → Strom → „⚙️ Verträge verwalten“**, den Vertrag des Zählers
+**Verbrauch → Strom → „Verträge verwalten“**, den Vertrag des Zählers
 bearbeiten, dessen Viertelstunden du hast — etwa den der Wärmepumpe. In der
 Feldgruppe **„§ 14a Modul 3: zeitvariables Netzentgelt“** (Stufe „Experte“):
 
@@ -543,7 +543,7 @@ Arbeitspreis           = Börsenpreis × (1 + USt) + Aufschlag
 Die Karte **„Viertelstundenreihen“** unten auf der Seite (Stufe „Experte“)
 listet jede Reihe: Verbrauchsart · Zähler-ID bzw. „Börsenpreise DE-LU“, Jahr,
 Abdeckung (Anteil der Viertelstunden mit Wert) und Quelle — „Datei“, „Home
-Assistant“ oder „SMARD“. Mit 🗑️ **„Reihe löschen“** und der Rückfrage „Diese
+Assistant“ oder „SMARD“. Mit **„Reihe löschen“** und der Rückfrage „Diese
 Reihe löschen? Zählerstände und Tageswerte bleiben.“ verschwinden nur die
 Viertelstunden. Neu einlesen oder neu laden legt die Reihe wieder an.
 
@@ -677,7 +677,7 @@ Spalte „Ø Börsenpreis (netto)“, eigener Hinweis), ebenso im Thema „Flexi
 des Berichts der Wert des Speichers und die Beträge der Nachrechnung. Die Hinweise nennen auch die
 Grundlage der Ladefenster des Autos (Steckzeiten aus evcc oder Beispielwert),
 der Satz zum Auto trägt sie als Schild. Im PDF ist die Sonne ein Punkt über der
-Stunde (das PDF kennt kein ☀). Ohne Börsenpreise, Zeitfenster für Modul 3 und
+Stunde (ein Sonnensymbol gibt es im PDF nicht). Ohne Börsenpreise, Zeitfenster für Modul 3 und
 Erzeugung je Viertelstunde entfällt die Seite
 ([Jahresbericht lesen](jahresbericht-lesen.md)).
 

@@ -6,22 +6,25 @@
 > is the authoritative version and English its complete mirror; the other
 > interface languages have the help inside the app.
 >
-> **New here?** → [Getting started](einstieg/erste-schritte.md) — one example
+> **New here?** → [Getting started](einstieg/erste-schritte.md): one example
 > all the way from installation to the first forecast.
 
-The Energietracker is a self-hosted web app for a household's energy and water
-consumption: nine utilities, contracts and billing, weather adjustment,
-forecast and switch decision — without a database, everything as JSON files on
-your own server. It talks only to Open-Meteo (weather data), on request to
-SMARD (wholesale electricity prices) — and, if you set them up, to your own
-text recognition service and to evcc in the home network. Reading in the inbox
-through a cloud service (Claude at `api.anthropic.com`, OpenAI, Mistral,
-OpenRouter, Google Gemini or your own OpenAI-compatible address; experimental)
-only happens with an opt-in.
+**What the Energietracker is:**
+
+- **A self-hosted web app** for a household's energy and water consumption.
+- **Nine utilities** with contracts and billing, weather adjustment, forecast
+  and switch decision.
+- **No database:** everything is stored as JSON files on your own server.
+- **Outside contact only with Open-Meteo** for weather data, and with SMARD
+  for wholesale electricity prices when you ask for them. If you set them up,
+  also your own text recognition service and evcc in the home network.
+- **Cloud only with an opt-in:** reading in the inbox through a cloud service
+  is experimental (Claude at `api.anthropic.com`, OpenAI, Mistral, OpenRouter,
+  Google Gemini or your own OpenAI-compatible address).
 
 ---
 
-## 🚀 Getting started — *get going*
+## Getting started: *get going*
 
 | Document | Contents |
 |---|---|
@@ -32,7 +35,7 @@ only happens with an opt-in.
 | [Questions and answers](einstieg/faq.md) | The most common questions, answered briefly |
 | [Use on your phone](einstieg/handy.md) | Open it on the home network, install it as an app, photo as a receipt, offline queue |
 
-## 🧭 Guides — *get a task done*
+## Guides: *get a task done*
 
 | Document | Contents |
 |---|---|
@@ -57,7 +60,7 @@ only happens with an opt-in.
 | [Valuing flexibility](anleitungen/flexibilitaet.md) | When power is cheap and what shifting brings: traffic light, “Your lever” per appliance, action sentences, result card as an image, page in the annual report (v3.6.0); plus profile factor and advantage per electricity meter, battery, § 14a module 3 with time windows on the contract, dynamic tariff check with your own load profile |
 | [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant, *since v3.9.0* cascade with heat pump, HT/NT and solar |
 
-## 📚 Concepts — *how things are calculated*
+## Concepts: *how things are calculated*
 
 | Document | Contents |
 |---|---|
@@ -76,19 +79,19 @@ only happens with an opt-in.
 | [Where a figure comes from](verstehen/18-herkunft.md) | *New in v3.12.0:* measured, entered, distributed, assumed, estimated; the figure object of the AI interface and the sign of a balance |
 | [Glossary & formulas](verstehen/09-glossar.md) | All terms and formulas in brief |
 
-## 📖 Reference — *look things up*
+## Reference: *look things up*
 
 | Document | Contents |
 |---|---|
 | [Views](referenz/ansichten.md) | Every view explained, with real screenshots |
-| [What can I do at each level?](referenz/stufen.md) | *New in v3.7.0:* every feature with 🌱 Beginner · 🌿 Experienced · 🌳 Expert, ordered by task; which level suits your household (checked against the code by a test) |
+| [What can I do at each level?](referenz/stufen.md) | *New in v3.7.0:* every feature with Beginner · Experienced · Expert, ordered by task; which level suits your household (checked against the code by a test) |
 | [Settings](referenz/einstellungen.md) | Every key with default, place in the interface and effect |
 | [API reference](referenz/api.md) | All routes with status codes and stability promise (checked against the code by a test) |
 | [API examples](referenz/api-beispiele.md) | Detailed requests and responses of the most used endpoints |
 | [Data model](referenz/datenmodell.md) | JSON schemas, storage, schema migration |
 | [Legal basis](referenz/rechtsgrundlagen.md) | *New in v3.11.0:* every legal statement of the app with norm, source, date checked and status, plus deadlines and price caps for metering (checked against the code by a test) |
 
-## 🛠️ Operation — *install and keep it running*
+## Operation: *install and keep it running*
 
 | Document | Contents |
 |---|---|
@@ -98,7 +101,7 @@ only happens with an opt-in.
 | [Security & network operation](betrieb/sicherheit.md) | Sign-in, API keys, proxy, HTTPS, checklist before going live |
 | [Troubleshooting](betrieb/fehlersuche.md) | Symptom → cause → fix |
 
-## 🧑‍💻 Development — *work on the code*
+## Development: *work on the code*
 
 | Document | Contents |
 |---|---|
@@ -131,3 +134,5 @@ Planning: [roadmap](../../roadmap.en.md)
   page and its mirror always sit at the same relative path.
 - A test checks every link and anchor, the mirror of every page and that this
   index lists every page.
+- **No emoji:** buttons, menus and cards appear with their labels, states as
+  words. A test checks this outside code blocks.

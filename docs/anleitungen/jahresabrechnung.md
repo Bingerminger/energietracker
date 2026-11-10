@@ -81,7 +81,7 @@ die Einheit um. Ohne eigene Einträge rechnet die App mit dem Standard 11,5 kWh/
 
 ## 3. Vertrag
 
-**Verbrauch → Gas → „⚙️ Verträge verwalten“** → **„+ Neuer Vertrag“** bzw. den
+**Verbrauch → Gas → „Verträge verwalten“** → **„+ Neuer Vertrag“** bzw. den
 laufenden Vertrag bearbeiten:
 
 - **Anbieter** und **Tarif**, **Beginn**, das Ende oder
@@ -105,7 +105,7 @@ je mit Stichtag, und in der Feldgruppe „Fernwärme: Anschluss und Kennwerte“
 
 **Hoch- und Niedertarif (seit v3.1.0).** Rechnet die Stromrechnung zwei
 Zählwerke mit einem Grundpreis ab, legst du beide als Zähler an, fasst sie zu
-einer **Gruppe** zusammen (⚙️ Zähler → „Zu Gruppe zusammenfassen“) und den
+einer **Gruppe** zusammen (Haushalt → Zähler → „Zu Gruppe zusammenfassen“) und den
 Vertrag für die Gruppe an: unter „Zähler“ die Gruppe, unter **„Arbeitspreis je
 Zähler (z. B. HT/NT)“** je Zählwerk sein Preis. Grundpreis und Abschlag zählen
 einmal ([Strom](../verstehen/02-strom.md#hoch--und-niedertarif-ein-vertrag-für-eine-zählergruppe-v310)).
@@ -221,7 +221,7 @@ Liste der erfassten Rechnungen. Seit v3.4.0 gilt dort der Zeitraum von oben
 | Weitere Posten | Umlagen, Gebühren, Gutschriften mit Bezeichnung und Betrag (Gutschrift negativ) — die App rechnet sie nicht nach, sondern zählt sie zur eigenen Summe. Seit v3.11.0 mit Art (Umlage, Gebühr, Gutschrift, Messstellenbetrieb, Sonstiges), netto/brutto und Steuersatz. Eine Gutschrift, die der Vertrag schon als datierten Bonus abzieht, zählt nicht doppelt |
 | Gebührenbescheid | *(v3.11.0, nur Wasser)* ist die Rechnung ein Bescheid einer Behörde oder Gemeinde mit Rechtsbehelfsbelehrung: Haken, Bescheiddatum, „Zugestellt am“ nur bei einer Zustellungsurkunde, der Rechtsbehelf laut Belehrung (Widerspruch oder Klage) und das Aktenzeichen |
 | Emissionen (kg CO₂), CO₂-Kosten laut Rechnung | nur bei Gas: die CO₂-Angaben der Rechnung, den Betrag so, wie er dort steht (mit Umsatzsteuer, CO2KostAufG § 3 Abs. 3). Sie gehen dem Standardfaktor vor ([CO₂-Preis](../verstehen/16-co2-preis.md)) und setzen zur Miete die Frist für die Erstattung ([CO₂-Kosten teilen](co2-aufteilung.md)) |
-| Rechnung anhängen (PDF oder Foto) | der Beleg; die Liste zeigt ihn als 📄 |
+| Rechnung anhängen (PDF oder Foto) | der Beleg; die Liste zeigt ihn als Dokument-Symbol |
 
 **„Rechnung speichern“** legt sie an und zeigt gleich den Vergleich.
 
@@ -265,7 +265,7 @@ nichts. Den neuen Abschlag trägst du als Abschlagszeile am Vertrag ein
 (Schritt 6). Ohne Ergebnis oder ohne Vertrag für den Zeitraum lehnt die App ab
 und sagt warum.
 
-**Löschen** (🗑️) fragt nach. Eine schon gebuchte Sonderzahlung bleibt im
+**Löschen** fragt nach. Eine schon gebuchte Sonderzahlung bleibt im
 Vertrag; sie löschst du dort, wenn sie weg soll.
 
 **Bei einem Gruppenvertrag** erfasst du „Laut Rechnung“ an einem der

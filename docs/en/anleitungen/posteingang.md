@@ -23,7 +23,7 @@ all its documents.
 
 ## Filing
 
-Open **Inbox** (📥 in the sidebar, on the iPhone under “More” and in the capture
+Open **Inbox** (in the sidebar, on the iPhone under “More” and in the capture
 sheet as “File supplier mail”) and drag the PDF onto the area, or tap it and
 choose one. On the iPad the picker opens the **Files app**: save a PDF from
 the mail there and pick it here — iPadOS does not offer a “Share” target for
@@ -641,7 +641,7 @@ running Home Assistant yet; Energietracker’s side is tested
 ## File per contract and meter
 
 Below every contract (Contracts & advance payments) and every meter (Manage
-meters), **📁 File** unfolds all its documents, newest first:
+meters), **File** unfolds all its documents, newest first:
 
 - **taken-over or filed mail** from the inbox assigned to this meter or
   contract — with its key message and the link to the preview,

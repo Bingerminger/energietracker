@@ -33,7 +33,7 @@ immer — oder der **Abruf** direkt bei evcc im Heimnetz.
 
 ## 2. Wallbox-Zähler anlegen
 
-**Verbrauch → Strom → ⚙️ Zähler → „+ Neuer Zähler“**, wie beim
+**Verbrauch → Strom → Zähler → „+ Neuer Zähler“**, wie beim
 [Ladestrom-Nachweis](ladestrom-nachweis.md):
 
 1. **Name**, etwa „Wallbox“.

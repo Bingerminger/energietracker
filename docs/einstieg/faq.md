@@ -38,7 +38,7 @@ und Grenzen: [Auf dem Handy nutzen](handy.md#die-warteschlange-noch-nicht-gespei
 ### Liest die App den Zählerstand vom Foto?
 
 Wenn du einen eigenen Texterkennungsdienst im Heimnetz betreibst (Ollama,
-LM Studio), ja: „📷 Foto“ an der Karte, dann schlägt die App den Stand vor
+LM Studio), ja: „Foto“ an der Karte, dann schlägt die App den Stand vor
 („Erkannt: … – Übernehmen“); gespeichert wird erst mit deinem Klick. Ohne
 solchen Dienst bleibt das Foto ein Beleg am Stand, und am iPhone übernimmt
 Live Text („Text scannen“ im Feld) die Ziffern. Einen Cloud-Dienst nutzt die
@@ -48,7 +48,7 @@ App bewusst nicht — [Texterkennung im Heimnetz](../anleitungen/texterkennung.m
 
 Ja: Auf der leeren Übersicht **„Mit Beispieldaten ausprobieren“**, später unter
 Einstellungen → Daten und Sicherung → „Demo-Daten laden“. Vorher sichert die App den jetzigen
-Stand; zurück geht es über Einstellungen → Daten und Sicherung → Gespeicherte Snapshots (↩️).
+Stand; zurück geht es über Einstellungen → Daten und Sicherung → Gespeicherte Snapshots, dort **„Einspielen …“**.
 
 ### Ich wohne zur Miete — hilft mir die App?
 
@@ -68,7 +68,7 @@ für Schritt: [Als Mieter](../anleitungen/mieter.md).
 
 ### Kann ich alte Werte aus Excel übernehmen?
 
-Ja, als CSV: Zählerstände je Zähler über **⚙️ Zähler → CSV-Import** — Datum
+Ja, als CSV: Zählerstände je Zähler über **Haushalt → Zähler → CSV-Import** — Datum
 (`TT.MM.JJJJ`, `TT/MM/JJJJ`, `TT-MM-JJJJ` oder `JJJJ-MM-TT`) und Stand,
 getrennt durch Semikolon oder Komma, Notiz und „geschätzt“ optional. Die
 Spaltennamen dürfen in jeder Sprache der App stehen. Eine Vorschau zeigt jede
@@ -173,7 +173,7 @@ Abgerechnet wird ein dynamischer Tarif nur mit einem intelligenten Messsystem
 ### Ich habe einen Zähler mit Hoch- und Niedertarif — wie trage ich das ein?
 
 Seit v3.1.0 so: beide Zählwerke als eigene Zähler anlegen, zu einer Gruppe
-zusammenfassen (⚙️ Zähler → „Zu Gruppe zusammenfassen“) und **einen** Vertrag
+zusammenfassen (Haushalt → Zähler → „Zu Gruppe zusammenfassen“) und **einen** Vertrag
 für die Gruppe anlegen — mit einem Grundpreis und unter „Arbeitspreis je
 Zähler (z. B. HT/NT)“ dem Preis je Zählwerk. Saldo, Prognose und Wechsel
 rechnen dann für beide zusammen
@@ -227,7 +227,7 @@ heraus.
 
 ### Kann ich Werte aus dem Portal meines Netzbetreibers übernehmen?
 
-Ja, als Datei: **⚙️ Zähler → „Zeitreihe importieren“** liest
+Ja, als Datei: **Haushalt → Zähler → „Zeitreihe importieren“** liest
 Viertelstunden-, Stunden- oder Tageswerte aus Portalen von Netzbetreiber,
 Messstellenbetreiber, Wechselrichter oder Wärmepumpe. Du sagst, in welcher
 Spalte Datum und Wert stehen, ob es Zählerstände oder Verbrauchswerte sind und

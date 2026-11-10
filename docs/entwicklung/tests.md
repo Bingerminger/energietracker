@@ -295,7 +295,11 @@ die Doku reist im Docker-Image mit. `ReleaseConsistencyTest` prüft daneben
 weiter die API-Referenz gegen die Routen und seit v3.4.0, dass das Frontend
 GitHub nur für Fehlermeldung, Projektseite und Quellcode der Version verlinkt.
 `DocsEndpointTest` (über HTTP) und `DocsServiceTest` sichern die
-Freigabeliste von `/api/docs`.
+Freigabeliste von `/api/docs`. **`DocsNoEmojiTest`** hält die Doku
+frei von Emoji: Außerhalb von Codeblöcken steht kein Zeichen der Klasse
+`Extended_Pictographic`, ausgenommen eine kurze, begründete Liste reiner
+Textzeichen (↔ zwischen Begriffen, © ® ™). Knöpfe und Menüs heißen dort so wie
+in der App.
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](release-prozess.md)).

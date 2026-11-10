@@ -57,7 +57,7 @@ dashboard (the data is kept in case you switch them back on later).
 
 ## 2. Set up the first meter
 
-In the sidebar go to **Gas** and then, top right, to **⚙️ Meters**.
+In the sidebar go to **Gas** and then, top right, to **Meters**.
 
 1. Click the existing *"main meter"* and rename it if you like (e.g. *"gas boiler
    basement"*).

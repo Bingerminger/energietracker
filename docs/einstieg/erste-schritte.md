@@ -58,7 +58,7 @@ einschaltest).
 
 ## 2. Ersten Zähler einrichten
 
-Gehe in der Sidebar auf **Gas** und dann oben rechts auf **⚙️ Zähler**.
+Gehe in der Sidebar auf **Gas** und dann oben rechts auf **Zähler**.
 
 1. Den vorhandenen *„Hauptzähler"* anklicken und ggf. umbenennen (z. B.
    *„Gas-Therme Keller"*).

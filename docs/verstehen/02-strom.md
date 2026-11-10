@@ -47,7 +47,7 @@ Ein Doppeltarifzähler hat zwei Zählwerke — Hochtarif (HT) und Niedertarif
 (NT) —, abgerechnet wird aber **ein** Vertrag mit einem Grundpreis und zwei
 Arbeitspreisen. Seit v3.1.0 bildet die App das so ab:
 
-1. Beide Zählwerke als eigene Zähler anlegen und unter ⚙️ Zähler **„Zu Gruppe
+1. Beide Zählwerke als eigene Zähler anlegen und unter Haushalt → Zähler **„Zu Gruppe
    zusammenfassen“** zu einer Gruppe bündeln
    ([Meter-Topologie](13-meter-topologie.md)).
 2. Im Vertragsdialog unter **„Zähler“** die Gruppe wählen — sie steht unter

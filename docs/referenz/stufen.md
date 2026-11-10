@@ -4,8 +4,8 @@
 
 [← Kompendium-Index](../README.md)
 
-Die Nutzungsstufe bestimmt, was die Oberfläche zeigt: **🌱 Einsteiger**,
-**🌿 Erfahren** oder **🌳 Experte**. Diese Seite sagt, was du auf jeder Stufe
+Die Nutzungsstufe bestimmt, was die Oberfläche zeigt: **Einsteiger**,
+**Erfahren** oder **Experte**. Diese Seite sagt, was du auf jeder Stufe
 tun kannst, und hilft beim Wählen. Wie du umstellst und wer welche Stufe hat,
 steht unter [Einrichten und Nutzungsstufen](../einstieg/einrichtung.md#3-nutzungsstufen).
 
@@ -13,9 +13,9 @@ Seit **v3.7.0** ist die Zuordnung neu durchdacht. Drei Sätze entscheiden:
 
 | Stufe | Der Satz dazu |
 |---|---|
-| 🌱 Einsteiger | „Ich will wissen, was ich verbrauche, was es kostet und ob der Abschlag reicht. Die Post vom Versorger soll die App für mich lesen.“ |
-| 🌿 Erfahren | „Ich will vergleichen und prüfen.“ |
-| 🌳 Experte | „Ich will alles sehen und anbinden.“ |
+| Einsteiger | „Ich will wissen, was ich verbrauche, was es kostet und ob der Abschlag reicht. Die Post vom Versorger soll die App für mich lesen.“ |
+| Erfahren | „Ich will vergleichen und prüfen.“ |
+| Experte | „Ich will alles sehen und anbinden.“ |
 
 Der **Haushalt** bestimmt, welche Seiten du brauchst, nicht die Stufe. Wer PV,
 einen Speicher, eine Wärmepumpe oder eine Wallbox hat, sieht deren Seiten auch
@@ -39,28 +39,28 @@ braucht mehr Seiten als eine Mietwohnung mit Strom, aber nicht mehr Fachwissen.
 
 ## 1. Welche Stufe passt zu mir?
 
-**Mieterin, nur Strom.** 🌱 Einsteiger reicht. Die Übersicht beantwortet
+**Mieterin, nur Strom.** Die Stufe „Einsteiger“ reicht. Die Übersicht beantwortet
 „Bekomme ich Geld zurück?“, „Mehr oder weniger als im Vorjahr?“ und „Was ist zu
 tun?“. Den Zählerstand trägt sie unter Zählerstände ein, die Jahresrechnung und
 eine Preisänderung legt sie in den Posteingang. Mit der Prognose-Werkstatt
 spielt sie durch, was ein kalter Winter oder ein anderer Tarif kostet. Will
 sie die Jahresrechnung nachrechnen oder einen Wechsel prüfen, stellt sie auf
-🌿 Erfahren.
+„Erfahren“.
 
-**Wohnung mit Fernwärme.** 🌱 Einsteiger reicht für den Alltag. Seit v3.7.0
+**Wohnung mit Fernwärme.** „Einsteiger“ reicht für den Alltag. Seit v3.7.0
 zeigt der Vertrag schon dort Leistungspreis, Messpreis und Anschlussleistung,
 die auf jeder Fernwärmerechnung stehen. Die Verbrauchsansicht erklärt mit
 „Kälter oder mehr verbraucht?“, ob der Winter oder das eigene Heizen den
-Unterschied macht. 🌿 Erfahren lohnt sich für „Rechnung prüfen“ und die
+Unterschied macht. „Erfahren“ lohnt sich für „Rechnung prüfen“ und die
 Monatstabelle mit witterungsbereinigten Werten.
 
-**Eigenheim mit Gas, PV und Wallbox.** 🌱 Einsteiger zeigt alle Verbrauchsarten,
+**Eigenheim mit Gas, PV und Wallbox.** „Einsteiger“ zeigt alle Verbrauchsarten,
 die PV mit dem Schaubild „Energiefluss im Haus“, die Wallbox als eigenen
 Zähler und auf der Seite Flexibilität das Ergebnis mit „Dein Hebel“. Weil der
-Haushalt PV und Wallbox hat, schlägt die App einmal 🌿 Erfahren vor (§ 3).
+Haushalt PV und Wallbox hat, schlägt die App einmal „Erfahren“ vor (§ 3).
 Erfahren zeigt dazu den Energiefluss je Monat, Speicher und Amortisation, den
 Ladestrom-Nachweis, die Ladevorgänge aus evcc, „Wechsel prüfen“ für Gas und
-Strom und den Zähler-Aufbau. 🌳 Experte braucht dieser Haushalt erst mit
+Strom und den Zähler-Aufbau. Die Stufe „Experte“ braucht dieser Haushalt erst mit
 Viertelstundenwerten, etwa aus Home Assistant oder dem Portal des
 Netzbetreibers: Dann rechnet die Flexibilität je Zähler nach.
 
@@ -74,7 +74,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Erfassen
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-readings-entry"></a>**Zählerstände** — alle Zähler in einem Durchgang, Foto als Beleg, ohne Netz in der Warteschlange | ✓ | ✓ | ✓ | den Stand eintragen; mit eingerichteter Texterkennung schlägt das Foto ihn vor |
 | <a id="level-contracts-overview"></a><a id="level-contracts"></a>**Verträge & Abschläge** — Anbieter, Laufzeit, Arbeits- und Grundpreis, Abschlag | ✓ | ✓ | ✓ | was es kostet, ob der Abschlag reicht |
@@ -86,14 +86,14 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-contract-expert"></a>Vertrag: Kennwerte der Fernwärme (CO₂, Primärenergie), Preise je Zähler einer Gruppe, § 14a Modul 1 und Modul 3, Gutschriften des Direktvermarkters, „Monatspreise importieren“, Zählungen je Vertrag | – | – | ✓ | Sonderfälle von Tarif und Netzentgelt |
 | Ablesung: **„Nur für die Abrechnung“** und **„Stand ist richtig“** im Bearbeiten-Dialog *(v3.9.0)* | ✓ | ✓ | ✓ | ein Stand, mit dem der Versorger abgerechnet hat, der aber die Monate verzieht |
 | Vertrag: **Abschlag im Rhythmus** (alle 2 oder 3 Monate, Termine laut Rechnung) *(v3.9.0)* | ✓ | ✓ | ✓ | wie der Versorger abbucht; Saldo und Vorschlag zählen je Termin |
-| <a id="level-household"></a><a id="level-household-meters"></a>Haushalt → **Zähler** — alle Zähler an einem Ort: Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | ✓ | ✓ | ✓ | Zähler einer Art verwalten (Link „⚙️ Zähler“ in der Verbrauchsansicht) |
+| <a id="level-household"></a><a id="level-household-meters"></a>Haushalt → **Zähler** — alle Zähler an einem Ort: Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | ✓ | ✓ | ✓ | Zähler einer Art verwalten (Knopf „Zähler“ oben in der Verbrauchsansicht) |
 | Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Haushalt → Verbrauchsarten und die Ersteinrichtung; der Knopf auf der Zählerseite ab Erfahren |
 | <a id="level-el-meter-plant"></a>Zähler: **PV-Anlage** (Investition, Inbetriebnahme, Speicher, Balkonkraftwerk), **Stromzähler der Wärmepumpe** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Grundlage für Amortisation und Jahresarbeitszahl |
 | <a id="level-el-meter-expert"></a>Zähler: Zählergruppe, Analyse-Zäsuren, „Zeitreihe importieren“ | – | – | ✓ | Gruppenvertrag, Rechnen ab einer Sanierung, Viertelstunden aus Portalen |
 
 ### Verstehen
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-dashboard"></a>**Übersicht** | drei Antworten | alle Kennzahlen | alle Kennzahlen | Geld zurück? Mehr als im Vorjahr? Was ist zu tun? Zur Miete dazu „Reicht die Vorauszahlung?“ |
 | <a id="level-utility"></a>**Verbrauch je Art** — Kennzahlen, Monatsverlauf, Saldo, Schaubilder; bei Heizöl und Pellets Tank und Lieferungen | ✓ | ✓ | ✓ | auch PV, Wallbox und Wärmepumpe haben ihre Seite in jeder Stufe |
@@ -113,7 +113,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Prüfen und vergleichen
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-tariffs"></a>**Wechsel prüfen** — Angebote, Wechseltermin, Break-even | – | ✓ | ✓ | lohnt sich ein anderer Tarif? Die Empfehlungen verweisen auch Einsteiger dorthin |
 | <a id="level-el-market"></a>Wechsel prüfen: dynamischer Tarif und „Börsenstrompreise“ | – | – | ✓ | Börsenpreise je Viertelstunde |
@@ -125,7 +125,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Planen
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-forecast"></a><a id="level-scenario-print"></a>**Prognose-Werkstatt** — Winter, Sparen, Tarif; Ergebnis drucken oder als Bild | ✓ | ✓ | ✓ | was wäre, wenn … |
 | <a id="level-el-ws-advanced"></a>Werkstatt: „Mehr Stellschrauben“ — Raumtemperatur, Grundlast, Prognosemodell, Maßnahmen, E-Auto, Jahresarbeitszahl | – | ✓ | ✓ | E-Auto und Wärmepumpe *seit v3.7.0 ab Erfahren*, wenn der Haushalt sie hat |
@@ -138,7 +138,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Post vom Versorger
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-inbox"></a>**Posteingang** — PDF ablegen, auslesen lassen, jede Angabe mit Belegstelle prüfen, übernehmen; von Hand neben dem Dokument | ✓ | ✓ | ✓ | die Post vom Versorger liest die App |
 | <a id="level-inbox-draft"></a>Entwurf aus Dokumenten — den Haushalt aus vielen Dokumenten auf einmal anlegen *(v3.7.0)* | ✓ | ✓ | ✓ | Erstbefüllung ohne Tippen |
@@ -148,7 +148,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Haushalt und Personen
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-reminders"></a>**Zu tun → Termine** — mit Zuständigen, als Kalender-Abo | ✓ | ✓ | ✓ | nichts verpassen |
 | <a id="level-activity"></a><a id="level-activity-ai"></a>**Zu tun → Verlauf** — wer was wann erledigt hat; für Verwalter die Zugriffe der KI *(seit v3.12.0 ab Einsteiger)* | ✓ | ✓ | ✓ | nachsehen und zurücknehmen |
@@ -167,7 +167,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 
 ### Anbinden
 
-| Funktion | 🌱 | 🌿 | 🌳 | Wofür |
+| Funktion | Einsteiger | Erfahren | Experte | Wofür |
 |---|---|---|---|---|
 | <a id="level-settings-data"></a>Einstellungen → **Daten und Sicherung** — Export, Sicherung, Wiederherstellung, Beispieldaten; Belege ab Experte | ✓ | ✓ | ✓ | deine Daten gehören dir |
 | <a id="level-connections"></a>**Verbindungen** — die Liste steht in jeder Stufe, was darüber liegt, zeigt „Weitere Verbindungen zeigen“ *(v3.12.0)* | ✓ | ✓ | ✓ | was mit der App spricht |
@@ -190,9 +190,9 @@ es ein.“ Darunter steht der Anlass.
 
 | Stufe | Anlass | Vorschlag | Was dazukommt |
 |---|---|---|---|
-| 🌱 Einsteiger | PV-Anlage, Speicher, Wärmepumpe oder Wallbox | 🌿 Erfahren | Energiefluss je Monat, Speicher und Amortisation, Jahresarbeitszahl, Ladestrom-Nachweis, Ladevorgänge aus evcc |
-| 🌱 Einsteiger | Subzähler, mehrere Zähler einer Verbrauchsart, Werte von Home Assistant | 🌿 Erfahren | Zähler-Aufbau, Integrationen |
-| 🌿 Erfahren | Viertelstundenwerte | 🌳 Experte | Nachrechnung je Zähler, Speicher und § 14a Modul 3 in der Flexibilität, Viertelstundenreihen |
+| Einsteiger | PV-Anlage, Speicher, Wärmepumpe oder Wallbox | Erfahren | Energiefluss je Monat, Speicher und Amortisation, Jahresarbeitszahl, Ladestrom-Nachweis, Ladevorgänge aus evcc |
+| Einsteiger | Subzähler, mehrere Zähler einer Verbrauchsart, Werte von Home Assistant | Erfahren | Zähler-Aufbau, Integrationen |
+| Erfahren | Viertelstundenwerte | Experte | Nachrechnung je Zähler, Speicher und § 14a Modul 3 in der Flexibilität, Viertelstundenreihen |
 
 - **Höchstens einmal je Anlass.** Hast du einen Anlass gesehen, kommt er auf
   diesem Gerät in dieser Stufe nicht wieder — gleich ob du umstellst, „Nicht

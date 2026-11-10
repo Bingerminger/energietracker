@@ -41,7 +41,7 @@ Home-Balken und zeigt die zuletzt geladenen Daten auch ohne Netz.
   springt ins nächste Feld, beim letzten auf „Alle speichern“.
 - **Zählwerk abfotografieren:** Feld antippen → „Text scannen“ (Live Text) —
   die Ziffern landen im Feld.
-- **Foto als Beleg (seit v3.1.0):** Jede Karte hat **„📷 Foto“**; am Handy
+- **Foto als Beleg (seit v3.1.0):** Jede Karte hat **„Foto“**; am Handy
   öffnet das die Kamera. Der Browser verkleinert das Bild auf höchstens
   1600 Pixel und speichert es neu als JPEG — dabei fallen die EXIF-Daten samt
   GPS-Ort weg. Das Foto wird mit dem Stand gespeichert; in der Ablesetabelle der
@@ -76,7 +76,7 @@ Home-Balken und zeigt die zuletzt geladenen Daten auch ohne Netz.
 Scheitert das Speichern in „Zählerstände“ an der Verbindung — kein Netz, oder
 der Server antwortet nicht in der Zeit —, geht der Stand nicht verloren. Er
 landet in einer Warteschlange im Browser dieses Geräts. Die Karte zeigt
-⏳ „Wartet auf Verbindung“, oben in der Ansicht steht die Liste **„Noch nicht
+„Wartet auf Verbindung“ mit einer Sanduhr, oben in der Ansicht steht die Liste **„Noch nicht
 gespeichert“**, und eine Zahl am Menüpunkt „Zählerstände“ und am ＋ der
 Tab-Leiste zählt mit.
 

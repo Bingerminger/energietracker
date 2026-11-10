@@ -180,7 +180,7 @@ Aufbau von v0.9.0 wandelt die App beim ersten Start weiterhin um.
 ## 6. Bestandsdaten übernehmen
 
 Alte Zählerstände kommen am besten als **CSV** in die App: je Zähler über
-⚙️ Zähler → **CSV-Import** (Datum und Stand, Semikolon oder Komma, mit
+Haushalt → Zähler → **CSV-Import** (Datum und Stand, Semikolon oder Komma, mit
 Vorschau vor dem Schreiben); Temperaturen unter Verbindungen → Wetterdaten.
 Aus Excel: Blatt als CSV speichern.
 

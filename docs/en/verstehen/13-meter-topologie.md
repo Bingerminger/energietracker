@@ -181,7 +181,7 @@ meters remain visible.
 
 ### Group meters
 
-The fastest way to bundle is via **Consumption → *utility* → ⚙️ Meters → "Group
+The fastest way to bundle is via **Consumption → *utility* → Meters → "Group
 meters"**: select several existing meters, give a group name, done. In the
 background the dialog sets `meter_group_id` on all selected meters
 (`POST …/meter-groups/merge`).

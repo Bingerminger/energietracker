@@ -387,7 +387,7 @@ um rund 300 m³ zu niedrig“). In der Liste der Ablesungen trägt der Stand die
 
 | Knopf | was passiert |
 |---|---|
-| **Stand ist richtig** | Die App fragt bei diesem Stand nicht mehr. In der Liste steht **GEPRÜFT**. Ändert jemand später den Stand, fragt sie wieder. Auch in der Liste (✅ in der Zeile). |
+| **Stand ist richtig** | Die App fragt bei diesem Stand nicht mehr. In der Liste steht **GEPRÜFT**. Ändert jemand später den Stand, fragt sie wieder. Auch in der Liste (Knopf „Stand ist richtig“ in der Zeile). |
 | **Nur für die Abrechnung** | Der Stand bleibt für Rechnung und Saldo, die Monatswerte und das Heizmodell überspringen ihn: Der Verbrauch dazwischen wird nach dem Wetter verteilt. Das passt, wenn der Versorger mit einem geschätzten oder falschen Stand abgerechnet hat. In der Liste steht **NUR ABRECHNUNG**; im Bearbeiten-Dialog lässt sich das Häkchen wieder entfernen. |
 | **Korrigieren** | öffnet den Bearbeiten-Dialog der Ablesung mit dem Stand, der passen würde („Einsetzen“). Gespeichert wird erst mit „Speichern“. |
 

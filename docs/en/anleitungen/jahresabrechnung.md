@@ -81,7 +81,7 @@ switches the unit. Without entries of your own the app uses the default
 
 ## 3. Contract
 
-**Consumption → Gas → “⚙️ Manage contracts”** → **“+ New contract”**, or edit
+**Consumption → Gas → “Manage contracts”** → **“+ New contract”**, or edit
 the running contract:
 
 - **Provider** and **tariff**, **start**, the end or **“Renews unless
@@ -106,7 +106,7 @@ app turns these into fixed costs per month
 
 **Peak and off-peak (since v3.1.0).** If the electricity bill charges two
 registers with one standing charge, create both as meters, combine them into a
-**group** (⚙️ Meters → "Group meters") and create the contract for the group:
+**group** (Household → Meters → "Group meters") and create the contract for the group:
 under “Meter” the group, under **“Unit price per meter (e.g. peak/off-peak)”**
 each register’s price. Standing charge and advance payment count once
 ([Electricity](../verstehen/02-strom.md#peak-and-off-peak-one-contract-for-a-meter-group-v310)).
@@ -221,7 +221,7 @@ and recording.
 | Other items | levies, fees, credits with description and amount (credit negative) — the app does not recalculate them but adds them to its own total. Since v3.11.0 with kind (levy, fee, credit, metering, other), net/gross and VAT rate. A credit the contract already deducts as a dated bonus does not count twice |
 | Fee assessment | *(v3.11.0, water only)* if the bill is an assessment by an authority or municipality with instructions on legal remedies: tick it, the assessment date, “Served on” only with a certificate of service, the remedy named in the instructions (objection or court action) and the file reference |
 | Emissions (kg CO₂), CO₂ cost on the bill | gas only: the bill’s CO₂ details, the amount as stated there (including VAT, CO2KostAufG § 3(3)). They take precedence over the standard factor ([CO₂ price](../verstehen/16-co2-preis.md)) and, for tenants, set the deadline for the refund ([Share CO₂ costs](co2-aufteilung.md)) |
-| Attach bill (PDF or photo) | the receipt; the list shows it as 📄 |
+| Attach bill (PDF or photo) | the receipt; the list shows it as a document icon |
 
 **“Save bill”** creates it and shows the comparison straight away.
 
@@ -261,7 +261,7 @@ period)*. Afterwards the bill shows “booked”; booking again changes nothing.
 the new advance as an advance row on the contract (step 6). Without a result or
 without a contract for the period the app refuses and says why.
 
-**Delete** (🗑️) asks first. A special payment already booked stays in the
+**Delete** asks first. A special payment already booked stays in the
 contract; delete it there if you want it gone.
 
 **With a group contract** you record “According to the bill” on one of the
