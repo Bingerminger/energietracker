@@ -1759,7 +1759,7 @@ der Einträge je Monat.
   Anmeldung nur der Tag), bei automatischen Einträgen das Kennzeichen
   „automatisch“ und „Grund: Folgevertrag … ab …“, „ausgeblendet“ bei einer
   Empfehlung, Notiz und der Link „Beleg“.
-- **✎** ändert die Notiz, **„Rückgängig“** streicht den Eintrag durch
+- **Der Stift** („Notiz bearbeiten“) ändert die Notiz, **„Rückgängig“** streicht den Eintrag durch
   („Rückgängig gemacht am … von …“) und stellt zurück, was er geändert hat.
   Automatische Einträge haben kein „Rückgängig“ — sie folgen den Daten.
 - **„Verlauf verwalten“** (nur Verwaltung): Aufbewahrung in Monaten

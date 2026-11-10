@@ -1709,7 +1709,7 @@ entries per month.
   only the day), for automatic entries the badge “automatic” and “Reason:
   Follow-on contract … from …”, “hidden” for a recommendation, note and
   the link “Receipt”.
-- **✎** changes the note, **“Undo”** strikes the entry through (“Undone on …
+- **The pencil** (“Edit note”) changes the note, **“Undo”** strikes the entry through (“Undone on …
   by …”) and restores what it changed. Automatic entries have no “Undo” —
   they follow the data.
 - **“Manage history”** (admins only): retention in months

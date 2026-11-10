@@ -98,7 +98,7 @@ that was done, by month, newest first:
   it restores the due date and “Last done”, for a cancellation “renews without
   cancellation”, for a recommendation it shows it again — as long as nobody
   has changed it differently in the meantime.
-- A **note** (✎) can be added and changed later.
+- A **note** can be added and changed later (the pencil button, “Edit note”).
 - Since v3.5.0 a done reminder shows **who was responsible** (a snapshot,
   [section 8](#8-responsible-for-reminders-v350)), and a **changed
   service-charge statement** appears with the badge “changed” — as proof only,

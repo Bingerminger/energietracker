@@ -98,7 +98,7 @@ erledigt wurde, nach Monaten, das Neueste oben:
   einem Termin stellt es Fälligkeit und „Zuletzt erledigt“ zurück, bei der
   Kündigung „verlängert sich ohne Kündigung“, bei einer Empfehlung blendet es
   sie wieder ein — solange niemand das inzwischen anders geändert hat.
-- **Notiz** (✎) lässt sich nachtragen und ändern.
+- **Notiz** lässt sich nachtragen und ändern (Knopf mit dem Stift, „Notiz bearbeiten“).
 - Seit v3.5.0 steht bei einem erledigten Termin, **wer zuständig war**
   (Momentaufnahme, [Abschnitt 8](#8-zuständig-an-terminen-v350)), und eine
   **geänderte Nebenkostenabrechnung** erscheint mit dem Kennzeichen
