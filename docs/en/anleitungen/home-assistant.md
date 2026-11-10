@@ -800,8 +800,16 @@ same endpoints as the templates above (`/api/summary` and `/api/todo`) and needs
 (the attributes for the expected and the measured balance, “due soon” and the next appointment from 3.10.0) and
 Home Assistant 2026.3 or later.
 
-**Install:** HACS → menu **⋮ → Custom repositories** → `https://github.com/Bingerminger/energietracker-integration`,
-type **Integration** → download **Energietracker** → restart Home Assistant. Then **Settings → Devices &
+**Install:** as the custom repository `https://github.com/Bingerminger/energietracker-integration`, type
+**Integration**, until the integration is in the HACS default list.
+
+- **From Home Assistant 2026.11,** HACS is built in as the **Marketplace**. Connect the Marketplace to GitHub
+  once (it shows a code for `https://github.com/login/device`; the connection only reads public information),
+  then add the repository → download **Energietracker** → restart Home Assistant.
+- **Up to 2026.10** with HACS: menu **⋮ → Custom repositories** → add the repository → download
+  **Energietracker** → restart Home Assistant.
+
+Then **Settings → Devices &
 services → Add integration → Energietracker**: the address at which you open Energietracker and, only when
 sign-in is switched on, a read key (scope “Read”, as in step 5). For the app in Home Assistant, the address is
 shown under Connections → Home Assistant.

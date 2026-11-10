@@ -810,9 +810,17 @@ dieselben Endpunkte wie die Vorlagen oben (`/api/summary` und `/api/todo`) und b
 oder neuer (die Attribute zu erwartetem und gemessenem Saldo, „bald fällig“ und dem nächsten Termin ab 3.10.0)
 sowie Home Assistant 2026.3 oder neuer.
 
-**Installieren:** HACS → Menü **⋮ → Benutzerdefinierte Repositories** →
-`https://github.com/Bingerminger/energietracker-integration`, Typ **Integration** → **Energietracker** herunterladen →
-Home Assistant neu starten. Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
+**Installieren:** als benutzerdefiniertes Repository
+`https://github.com/Bingerminger/energietracker-integration`, Typ **Integration**, bis die Integration in der
+Standardliste von HACS steht.
+
+- **Ab Home Assistant 2026.11** ist HACS als **Marketplace** eingebaut. Den Marketplace einmal mit GitHub
+  verbinden (er zeigt einen Code für `https://github.com/login/device`, die Verbindung liest nur Öffentliches),
+  dann das Repository hinzufügen → **Energietracker** herunterladen → Home Assistant neu starten.
+- **Bis 2026.10** mit HACS: Menü **⋮ → Benutzerdefinierte Repositories** → Repository eintragen →
+  **Energietracker** herunterladen → Home Assistant neu starten.
+
+Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
 Energietracker**: die Adresse, unter der du den Energietracker öffnest, und nur bei eingeschalteter Anmeldung
 einen Lese-Schlüssel (Bereich „Lesen“, wie in Schritt 5). Bei der App in Home Assistant steht die Adresse unter
 Verbindungen → Home Assistant.
