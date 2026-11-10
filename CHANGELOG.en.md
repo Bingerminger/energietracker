@@ -598,6 +598,9 @@ and the Docker environment only grow additively; where a status code or an addre
 - **Check of the public demo** (`tests/demo.test.mjs`): it turns red from mid-January, because the showcase has no
   measured part yet at the start of its billing year, and green again from early February. The check is affected,
   not the demo. **Known bug, fixed with v3.13.**
+- **Interface tests against the sample data** (browser render, views): they use the real clock and tip over from
+  the end of December 2026 as the sample data ages. The tests are affected, not the app. **Fixed with v3.13**
+  through sample data that keeps up.
 
 **v3.13.0 is planned for Tuesday, 17 November 2026.** Focus: the forecast for heat pump, PV, battery and electric
 car, consistent terms in the translations and length limits for free text.
@@ -638,8 +641,7 @@ permissions on the first request after the update; for rootless Docker with a ch
   by hand), `ScenarioPvTest` (range and quarter-hours), `BillingWindowTest`; a comparison old against new keeps
   forecast and balance byte-identical.
 - **Reference date:** `StichtagReadingsTest`; the whole round runs locally with the clock moved (+3 to +365 days,
-  29 February, New Year’s Eve, clock change) with `zeitreise.sh`. In CI the browser render and views suites run on
-  a fixed day that matches the sample data (libfaketime for server, Node and browser, `RenderClockTest`).
+  29 February, New Year’s Eve, clock change) with `zeitreise.sh`.
 - **Rights, letters, inbox:** `LetterContractTest`, `LetterDataTest`, `LetterShowcaseTest`,
   `McpLetterDocumentsTest`, `McpFindingMaskTest`, `HomeAssistantNotifyForeignTextTest`, `RightsBillChecksTest`
   (receipt, soft zone, limits of the metering charge), `InboxEvidenceBoundaryTest`, `InboxBillRightsTest`,
@@ -651,7 +653,7 @@ permissions on the first request after the update; for rootless Docker with a ch
   `setup-guide` with `build-setup-guide --check`, `demo-start`, `router` (reload after an update);
   `CatalogStyleTest::testNoDashAsConnector`, `ShellFooterTest`, `ReadmeClaimsTest` (every number in the README tied
   to a test).
-- 2,667 test methods (+579). Every new rule has a counter-probe that breaks it: 1,416 in 33 files, all red; the 419
+- 2,665 test methods (+577). Every new rule has a counter-probe that breaks it: 1,416 in 33 files, all red; the 419
   from v3.11 stay red.
 
 ### Lessons learned
