@@ -15,6 +15,7 @@
 //                 (die Instanz ist danach gesperrt) und nimmt Anmeldung und „Zugang und Sicherheit“ auf
 // Ein Bild, das Daten ändert (ablesung-pruefen senkt einen Stand der Beispieldaten), stellt sie danach
 // wieder her.
+//   --dunkel      dieselben Aufnahmen im dunklen Thema als <name>-dunkel.png (für die Projektseite)
 // =====================================================================
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
@@ -24,6 +25,8 @@ const pw = require('playwright');
 const FLAGS = process.argv.slice(2).filter(a => a.startsWith('--'));
 const [BASE0, LANG = 'de', OUT = '.', ONLY = ''] = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const MODE = FLAGS.includes('--leer') ? 'leer' : FLAGS.includes('--anmeldung') ? 'anmeldung' : 'normal';
+// --dunkel: dieselben Aufnahmen im dunklen Thema, Name mit Endung „-dunkel“ (für die Projektseite)
+const DARK = FLAGS.includes('--dunkel');
 const BASE = BASE0.replace(/\/$/, '');
 const only = ONLY ? new Set(ONLY.split(',')) : null;
 const PASSWORD = 'beispiel-passwort-2026';   // nur für die Wegwerf-Instanz der Aufnahme
@@ -246,14 +249,15 @@ const failures = [];
 for (const [name, route, w, h, o] of SHOTS) {
   if (only && !only.has(name)) continue;
   if ((o.mode || 'normal') !== MODE) continue;
+  const theme = DARK || o.theme === 'dark' ? 'dark' : 'light';
   const ctx = await browser.newContext({
     viewport: { width: w, height: h }, deviceScaleFactor: o.mobile ? 2 : 1, isMobile: !!o.mobile, hasTouch: !!o.mobile,
     locale: LANG === 'de' ? 'de-DE' : 'en-GB', timezoneId: 'Europe/Berlin', serviceWorkers: 'block',
-    colorScheme: o.theme === 'dark' ? 'dark' : 'light',
+    colorScheme: theme,
   });
   await ctx.addInitScript(([theme, lang]) => {
     try { localStorage.setItem('et-theme', theme); localStorage.setItem('et-language', lang); } catch {}
-  }, [o.theme === 'dark' ? 'dark' : 'light', LANG]);
+  }, [theme, LANG]);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e.message || e)));
@@ -285,7 +289,7 @@ for (const [name, route, w, h, o] of SHOTS) {
       await page.waitForTimeout(600);
     }
     if (o.clip) clip = await o.clip(page);
-    await page.screenshot({ path: `${OUT}/${name}.png`, clip });
+    await page.screenshot({ path: `${OUT}/${name}${DARK ? '-dunkel' : ''}.png`, clip });
     if (errors.length) failures.push(`${name}: ${errors.join(' | ')}`);
     console.log('ok', name, clip ? `${clip.width}×${clip.height}` : `${w}×${h}`);
   } catch (e) {
