@@ -1505,6 +1505,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('billCheck ohne Parameter: letzte abgeschlossene Periode, bis einschließlich',
       view.querySelector('#bc-from')?.value === `${y}-01-01` && view.querySelector('#bc-until')?.value === `${y}-12-31`,
       `${view.querySelector('#bc-from')?.value} – ${view.querySelector('#bc-until')?.value}`);
+    // v3.12.0 — „Erfassen“ entsteht nach dem Ergebnis; unter der festen Uhr der CI dauert das länger
+    for (let i = 0; i < 60 && !view.querySelector('details[data-role="bills"] #bi-form'); i++) await new Promise(r => setTimeout(r, 100));
     const cap = view.querySelector('details[data-role="bills"]');
     t('billCheck ohne Parameter: Erfassen eingeklappt unter dem Ergebnis', !!cap && !cap.open && !!cap.querySelector('#bi-form'));
   } catch (e) { t('billCheck ohne Parameter: render', false, e.message); }
