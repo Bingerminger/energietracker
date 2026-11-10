@@ -179,8 +179,8 @@ die Werbebilder. Das Verzeichnis gehört nicht ins Docker-Image
 
 | Datei | Vorlage | Größe | Sprache |
 |---|---|---|---|
-| `banner.png` | `promo.html` | 1720 × 860 | Englisch, im README mit `width="860"` |
-| `banner.de.png` | `promo.html?lang=de` | 1720 × 860 | Deutsch, in README.de.md |
+| `banner.png` | `promo.html` | 1720 × 860 | Englisch, für Beiträge (seit v3.12.0 nicht mehr im README) |
+| `banner.de.png` | `promo.html?lang=de` | 1720 × 860 | Deutsch, für Beiträge (seit v3.12.0 nicht mehr im README) |
 | `social-preview.png` | `social-preview.html` | 1280 × 640 | Englisch |
 
 1. **Statisch ausliefern**, damit die relativen Pfade (Screenshots, Schrift

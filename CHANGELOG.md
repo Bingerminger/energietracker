@@ -34,7 +34,7 @@ bestehende Installationen“.
   geprüft nach einer Regel**, auch im Backup-Import. Beispiele alt → neu unter „Changed“. Dateien mit
   Zugangsgeheimnissen liest nur noch der Webserver.
 
-### ⚠️ Für bestehende Installationen
+### Für bestehende Installationen
 
 - **PHP 8.3 ist jetzt die Mindestversion** (bisher 8.2). Betrifft nur den Betrieb auf einem eigenen Webserver;
   Docker-Image und Home-Assistant-App bringen ihr PHP mit (8.5). PHP 8.2 bekommt nur noch Sicherheitsupdates
@@ -652,7 +652,7 @@ UID siehe oben.
   gerechnet), `ScenarioPvTest` (Spanne und Viertelstunden), `BillingWindowTest`; ein Vergleich alt gegen neu hält
   Prognose und Saldo byte-gleich.
 - **Stichtag:** `StichtagReadingsTest`; die ganze Runde läuft lokal unter verstellter Uhr (+3 bis +365 Tage,
-  29. Februar, Silvester, Zeitumstellung) mit `zeitreise.sh`.
+  29. Februar, Silvester, Zeitumstellung) mit libfaketime.
 - **Rechte, Briefe, Posteingang:** `LetterContractTest`, `LetterDataTest`, `LetterShowcaseTest`,
   `McpLetterDocumentsTest`, `McpFindingMaskTest`, `HomeAssistantNotifyForeignTextTest`, `RightsBillChecksTest`
   (Zugang, Weichzone, Grenzen des Messentgelts), `InboxEvidenceBoundaryTest`, `InboxBillRightsTest`,

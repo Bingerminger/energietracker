@@ -14,7 +14,7 @@ body:
     attributes:
       label: Version
       description: Einstellungen → System / Settings → System
-      placeholder: "2.14.0"
+      placeholder: "3.12.0"
     validations:
       required: true
   - type: dropdown

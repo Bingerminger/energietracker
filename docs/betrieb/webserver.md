@@ -80,7 +80,7 @@ relativ.
 
 ### Synology Web Station
 
-- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-Profil ab 8.2 (8.4,
+- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-Profil ab 8.3 (8.4,
   wenn angeboten); den Ordner
   unter `web/` ablegen. Die `.htaccess` greift dort.
 - Der Benutzer `http` braucht Schreibrecht auf `data/` (File Station →

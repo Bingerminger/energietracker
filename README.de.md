@@ -43,7 +43,7 @@ Niederländisch. Dazu Zählertausch, Subzähler, Messkonzepte mit Wärmepumpe un
 Heizgradtagen, Mietverhältnis und eine Hilfe in der App mit Glossar und ⓘ neben Fachbegriffen.
 → [Alle Funktionen](docs/einstieg/funktionen.md) · [Alle Ansichten mit Bildern](docs/referenz/ansichten.md)
 
-<p align="center"><img src="docs/ui/screenshots/gas-view.png" alt="Gas: Saldo, Verbrauch und Kosten mit Trend und Monatsdiagramm" width="560"> <img src="docs/assets/promo/screens/iphone.de.png" alt="Übersicht am iPhone" width="200"></p>
+<p align="center"><img src="docs/ui/screenshots/gas-view.png" alt="Gas: Saldo, Verbrauch und Kosten mit Trend und Monatsdiagramm" width="560"> <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/iphone-dunkel.de.png"><img src="docs/assets/promo/screens/iphone.de.png" alt="Übersicht am iPhone" width="200"></picture></p>
 
 ## Schnellstart
 

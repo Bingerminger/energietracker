@@ -33,7 +33,7 @@ and the Docker environment only grow additively; where a status code or an addre
   rule**, in the backup import too. Examples old → new under “Changed”. Files holding access secrets are readable
   by the web server only.
 
-### ⚠️ For existing installations
+### For existing installations
 
 - **PHP 8.3 is now the minimum version** (was 8.2). This only affects running on your own web server; the
   Docker image and the Home Assistant app bring their own PHP (8.5). PHP 8.2 only receives security updates
@@ -641,7 +641,7 @@ permissions on the first request after the update; for rootless Docker with a ch
   by hand), `ScenarioPvTest` (range and quarter-hours), `BillingWindowTest`; a comparison old against new keeps
   forecast and balance byte-identical.
 - **Reference date:** `StichtagReadingsTest`; the whole round runs locally with the clock moved (+3 to +365 days,
-  29 February, New Year’s Eve, clock change) with `zeitreise.sh`.
+  29 February, New Year’s Eve, clock change) with libfaketime.
 - **Rights, letters, inbox:** `LetterContractTest`, `LetterDataTest`, `LetterShowcaseTest`,
   `McpLetterDocumentsTest`, `McpFindingMaskTest`, `HomeAssistantNotifyForeignTextTest`, `RightsBillChecksTest`
   (receipt, soft zone, limits of the metering charge), `InboxEvidenceBoundaryTest`, `InboxBillRightsTest`,

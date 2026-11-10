@@ -514,9 +514,9 @@ This exact sequence runs automated in the **CI pipeline**
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),
 **test** (migration smoke + frontend API shape + browser render via `router.php`)
 and **docker** (build image + container smoke against `/api/health`). Since
-v3.1.0 **lint-php** and **phpunit** each run under PHP 8.2, 8.3 and 8.4 — the
-minimum version, the version in Ubuntu 24.04 and the one in the Docker image;
-since v3.4.0 also under 8.5 (the Docker image). Since v3.4.0 the **docker** job
+v3.12.0 **lint-php** and **phpunit** each run under PHP 8.3, 8.4 and 8.5: the
+minimum version (also the one in Ubuntu 24.04), 8.4 as in Synology Web Station,
+for example, and 8.5 as in the Docker image. Since v3.4.0 the **docker** job
 also checks that php-fpm is only reachable inside the container and starts the
 image hardened (example from [Docker operation](../betrieb/docker.md#hardened-operation-v340)),
 since v3.5.0 also the variant without root (`--target rootless`: no

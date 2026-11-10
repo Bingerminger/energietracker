@@ -535,10 +535,10 @@ Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
 **phpunit** (Service-Suite), **test** (Migrations-Smoke +
 Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
-(Image bauen + Container-Smoke gegen `/api/health`). Seit v3.1.0 laufen
-**lint-php** und **phpunit** je unter PHP 8.2, 8.3 und 8.4 — der
-Mindestversion, der Version von Ubuntu 24.04 und der im Docker-Image; seit
-v3.4.0 auch unter 8.5 (dem Docker-Image). Der Job **docker** prüft seit v3.4.0
+(Image bauen + Container-Smoke gegen `/api/health`). **lint-php** und
+**phpunit** laufen seit v3.12.0 je unter PHP 8.3, 8.4 und 8.5: der
+Mindestversion (auch die von Ubuntu 24.04), 8.4 wie etwa in der Synology Web
+Station und 8.5 wie im Docker-Image. Der Job **docker** prüft seit v3.4.0
 zusätzlich, dass php-fpm nur im Container erreichbar ist, und startet das Image
 gehärtet (Beispiel aus [Docker-Betrieb](../betrieb/docker.md#gehärteter-betrieb-v340)),
 seit v3.5.0 auch die Variante ohne root (`--target rootless`: ohne

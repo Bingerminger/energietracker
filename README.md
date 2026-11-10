@@ -43,7 +43,7 @@ swaps, sub-meters, metering concepts with heat pump and peak/off-peak, weather a
 tenancy and in-app help with a glossary and an ⓘ next to technical terms.
 → [All features](docs/en/einstieg/funktionen.md) · [All views with pictures](docs/en/referenz/ansichten.md)
 
-<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance, consumption and cost with trend and monthly chart" width="560"> <img src="docs/assets/promo/screens/iphone.en.png" alt="Overview on the iPhone" width="200"></p>
+<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance, consumption and cost with trend and monthly chart" width="560"> <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/iphone-dunkel.en.png"><img src="docs/assets/promo/screens/iphone.en.png" alt="Overview on the iPhone" width="200"></picture></p>
 
 ## Quick start
 
