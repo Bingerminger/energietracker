@@ -800,7 +800,7 @@ same endpoints as the templates above (`/api/summary` and `/api/todo`) and needs
 (the attributes for the expected and the measured balance, “due soon” and the next appointment from 3.10.0) and
 Home Assistant 2026.3 or later.
 
-**Install:** HACS → menu **⋮ → Custom repositories** → `https://github.com/Bingerminger/energietracker-hacs`,
+**Install:** HACS → menu **⋮ → Custom repositories** → `https://github.com/Bingerminger/energietracker-integration`,
 type **Integration** → download **Energietracker** → restart Home Assistant. Then **Settings → Devices &
 services → Add integration → Energietracker**: the address at which you open Energietracker and, only when
 sign-in is switched on, a read key (scope “Read”, as in step 5). For the app in Home Assistant, the address is
@@ -820,7 +820,7 @@ shown under Connections → Home Assistant.
 The integration asks every 15 minutes. A new meter appears after reloading the integration. When sign-in is
 switched on or the key is revoked, Home Assistant asks for a new key; when Energietracker is older than 3.9.0, a
 notice appears under Settings → Repairs. More in the
-[README of the integration](https://github.com/Bingerminger/energietracker-hacs#readme).
+[README of the integration](https://github.com/Bingerminger/energietracker-integration#readme).
 
 The templates from step 5 and the “To do” sensor stay valid, for instance for values the integration does not
 create (days to the cancellation date, PV figures).

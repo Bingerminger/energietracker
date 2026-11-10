@@ -61,7 +61,7 @@ your own data is not lost.
 
   [![Add the Energietracker app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
 - **Sensors in Home Assistant without YAML:** the integration through HACS,
-  [energietracker-hacs](https://github.com/Bingerminger/energietracker-hacs).
+  [energietracker-integration](https://github.com/Bingerminger/energietracker-integration).
 - **Without Docker,** PHP 8.3 or later is enough: `git clone`, then `php -S 127.0.0.1:8080 router.php`.
 - **For permanent use:** [Installation](docs/en/betrieb/installation.md) ·
   [Docker, also on Synology](docs/en/betrieb/docker.md) · [Apache and nginx](docs/en/betrieb/webserver.md) ·

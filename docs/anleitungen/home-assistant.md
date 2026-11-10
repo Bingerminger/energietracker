@@ -811,7 +811,7 @@ oder neuer (die Attribute zu erwartetem und gemessenem Saldo, „bald fällig“
 sowie Home Assistant 2026.3 oder neuer.
 
 **Installieren:** HACS → Menü **⋮ → Benutzerdefinierte Repositories** →
-`https://github.com/Bingerminger/energietracker-hacs`, Typ **Integration** → **Energietracker** herunterladen →
+`https://github.com/Bingerminger/energietracker-integration`, Typ **Integration** → **Energietracker** herunterladen →
 Home Assistant neu starten. Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
 Energietracker**: die Adresse, unter der du den Energietracker öffnest, und nur bei eingeschalteter Anmeldung
 einen Lese-Schlüssel (Bereich „Lesen“, wie in Schritt 5). Bei der App in Home Assistant steht die Adresse unter
@@ -830,7 +830,7 @@ Verbindungen → Home Assistant.
 Die Integration fragt alle 15 Minuten. Ein neuer Zähler erscheint nach dem Neuladen der Integration. Wird die
 Anmeldung eingeschaltet oder der Schlüssel widerrufen, fragt Home Assistant nach einem neuen Schlüssel; ist der
 Energietracker älter als 3.9.0, steht unter Einstellungen → Reparaturen ein Hinweis. Mehr im
-[README der Integration](https://github.com/Bingerminger/energietracker-hacs#deutsch).
+[README der Integration](https://github.com/Bingerminger/energietracker-integration#deutsch).
 
 Die Vorlagen aus Schritt 5 und der Sensor „Zu tun“ bleiben gültig, etwa für Werte, die die Integration nicht
 anlegt (Tage bis zum Stichtag, PV-Kennzahlen).
