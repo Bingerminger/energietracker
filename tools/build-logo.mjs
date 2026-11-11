@@ -6,7 +6,7 @@
 // Strom, PV-Einspeisung, Wasser, Fernwärme, Gas). Keine Verläufe, keine fremden
 // Grafiken. Bis v3.11 war das Logo ein Haus mit Regenbogenring.
 //
-//   NODE_PATH=/Users/h.schubert/node_modules node tools/build-logo.mjs
+//   NODE_PATH=~/node_modules node tools/build-logo.mjs
 //
 // Schreibt docs/assets/promo/logo.svg (Vorlage), public/img/icon-*.png und die
 // beiden favicon.ico. Gerendert mit Chromium (Playwright, nur Entwicklung).
@@ -71,7 +71,7 @@ function ico(pngs) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const require = createRequire(join(process.env.NODE_PATH || '/Users/h.schubert/node_modules', 'x'));
+  const require = createRequire(join(process.env.NODE_PATH || join(process.env.HOME || '', 'node_modules'), 'x'));
   const { chromium } = require('playwright');
   writeFileSync(join(ROOT, 'docs/assets/promo/logo.svg'), logoSvg('light', { size: 512 }) + '\n');
   const browser = await chromium.launch();

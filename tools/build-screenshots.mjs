@@ -20,7 +20,7 @@
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-const require = createRequire(join(process.env.NODE_PATH || '/Users/h.schubert/node_modules', 'x'));
+const require = createRequire(join(process.env.NODE_PATH || join(process.env.HOME || '', 'node_modules'), 'x'));
 const pw = require('playwright');
 const FLAGS = process.argv.slice(2).filter(a => a.startsWith('--'));
 const [BASE0, LANG = 'de', OUT = '.', ONLY = ''] = process.argv.slice(2).filter(a => !a.startsWith('--'));
