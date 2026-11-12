@@ -4,15 +4,17 @@
 #   bash tools/farm/farm.sh alles      # bauen, starten, prüfen, abbauen
 #
 # farm.sh baut das Image aus dem Arbeitsstand (energietracker:farm und
-# energietracker:farm-rootless), legt die Integration in die Volumes beider
-# Home-Assistant-Fassungen und baut danach alles wieder ab. Alle Ports hören
-# nur auf 127.0.0.1; keine Datei des Rechners wird in einen Container
-# eingehängt (nur Named Volumes), damit die Farm auch mit eingeschränkter
-# Dateifreigabe von Docker Desktop läuft.
+# energietracker:farm-rootless, dazu Apache mit PHP 8.4 und 8.5), legt die
+# Integration in die Volumes beider Home-Assistant-Fassungen und baut danach
+# alles wieder ab. Alle Ports hören nur auf 127.0.0.1; keine Datei des
+# Rechners wird in einen Container eingehängt (nur Named Volumes), damit die
+# Farm auch mit eingeschränkter Dateifreigabe von Docker Desktop läuft.
 name: et-farm
 
 services:
-  # Standard-Image (root beim Start, nginx und php-fpm als eigene Benutzer)
+  # Standard-Image (root beim Start, nginx und php-fpm als eigene Benutzer).
+  # nginx nach docker/nginx.conf ist damit geprüft; einen eigenen nginx-Dienst
+  # braucht die Farm nicht.
   energietracker:
     image: ${FARM_IMAGE:-energietracker:farm}
     restart: "no"
@@ -39,6 +41,62 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+
+  # Eigener Webserver bzw. Synology Web Station: Apache mit der mitgelieferten
+  # .htaccess und dem VirtualHost aus docs/betrieb/webserver.md, der
+  # Arbeitsstand wie ein Git-Checkout, data/ im Webroot (tools/farm/apache.Dockerfile)
+  apache-php84:
+    image: ${FARM_IMAGE_APACHE84:-energietracker:farm-apache-php8.4}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_APACHE84:-19846}:80"
+  apache-php85:
+    image: ${FARM_IMAGE_APACHE85:-energietracker:farm-apache-php8.5}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_APACHE85:-19847}:80"
+
+  # Reverse-Proxy mit HTTPS und Anmeldung durch den Proxy
+  # (docs/betrieb/sicherheit.md § 6 und § 7): Caddy prüft Name und Passwort und
+  # meldet den Namen in X-Forwarded-User; der Energietracker glaubt die
+  # Kopfzeile nur von der festen Adresse des Proxys.
+  caddy:
+    image: ${FARM_CADDY_IMAGE:-caddy:2-alpine}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_CADDY:-19848}:443"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    networks:
+      proxy-netz:
+        ipv4_address: ${FARM_PROXY_CADDY_IP:-10.198.47.10}
+  energietracker-proxy:
+    image: ${FARM_IMAGE:-energietracker:farm}
+    restart: "no"
+    # Direkt erreichbar nur zur Gegenprobe: dieselbe Kopfzeile von hier zählt nicht
+    ports:
+      - "127.0.0.1:${FARM_PORT_ET_PROXY:-19849}:80"
+    volumes:
+      - et-daten-proxy:/data
+    environment:
+      ET_AUTH: proxy
+      ET_TRUSTED_PROXIES: ${FARM_PROXY_CADDY_IP:-10.198.47.10}
+      ET_PROXY_USER_HEADER: X-Forwarded-User
+    networks:
+      proxy-netz:
+        ipv4_address: ${FARM_PROXY_ET_IP:-10.198.47.20}
+
+  # Update-Weg: zuerst die zuletzt veröffentlichte Version (farm.sh setzt
+  # FARM_IMAGE_UPDATE aus dem letzten Tag); pruefen.mjs startet denselben
+  # Dienst danach mit dem Image aus dem Arbeitsstand auf demselben Volume.
+  et-update:
+    image: ${FARM_IMAGE_UPDATE:-ghcr.io/bingerminger/energietracker:latest}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_UPDATE:-19850}:80"
+    volumes:
+      - et-daten-update:/data
 
   # Home Assistant, aktuelle Fassung
   ha-neu:
@@ -71,8 +129,39 @@ services:
     ports:
       - "127.0.0.1:${FARM_PORT_EVCC:-19844}:7070"
 
+networks:
+  default: {}
+  # Eigenes Netz mit festen Adressen, damit ET_TRUSTED_PROXIES genau den Proxy nennt
+  proxy-netz:
+    ipam:
+      config:
+        - subnet: ${FARM_PROXY_NETZ:-10.198.47.0/24}
+
+configs:
+  # Zugänge gelten nur in der Farm (Port nur auf 127.0.0.1, danach abgebaut).
+  # Passwort beider Namen: farm-proxy-123 (bcrypt, Kosten 6; $ verdoppelt für Compose)
+  caddyfile:
+    content: |
+      {
+      	admin off
+      	skip_install_trust
+      	auto_https disable_redirects
+      }
+      localhost {
+      	tls internal
+      	basic_auth {
+      		farm $$2a$$06$$aHb2xdBDo6G6k/6nQQIpoOdkoAttUcLZezvlxVQ9OPFx8b1Rde4eu
+      		mitbewohner $$2a$$06$$aHb2xdBDo6G6k/6nQQIpoOdkoAttUcLZezvlxVQ9OPFx8b1Rde4eu
+      	}
+      	reverse_proxy energietracker-proxy:80 {
+      		header_up X-Forwarded-User {http.auth.user.id}
+      	}
+      }
+
 volumes:
   et-daten:
   et-daten-rootless:
+  et-daten-proxy:
+  et-daten-update:
   ha-neu:
   ha-alt:

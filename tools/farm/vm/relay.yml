@@ -1,0 +1,51 @@
+# Test-Farm (tools/farm/vm.sh): Weiterleitung von 127.0.0.1 zur VM et-farm-haos.
+#
+# Warum: macOS lässt Programme ohne Freigabe „Lokales Netzwerk“ (etwa Node aus
+# Homebrew) keine Adressen im lokalen Netz erreichen, auch nicht die VM im Netz
+# „Shared“ von Parallels (EHOSTUNREACH), curl und ssh des Systems dagegen schon.
+# Docker erreicht die VM; Caddy reicht deshalb nur auf 127.0.0.1 weiter:
+#   127.0.0.1:19855 → Home Assistant der VM (Port 80 bzw. 8123, auch Websocket und Ingress)
+#   127.0.0.1:19856 → direkter Port der App in der VM (KI-Schnittstelle)
+# Läuft nur, solange vm.sh oder die Demo es brauchen; farm.sh down baut es ab.
+name: et-farm-vm
+
+services:
+  relay:
+    image: ${FARM_CADDY_IMAGE:-caddy:2-alpine}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_VM_HA:-19855}:19855"
+      - "127.0.0.1:${FARM_PORT_VM_APP:-19856}:19856"
+    environment:
+      FARM_VM_IP: ${FARM_VM_IP:?Adresse der VM fehlt}
+      FARM_VM_HA_PORT: ${FARM_VM_HA_PORT:-80}
+      FARM_VM_PORT_APP: ${FARM_VM_PORT_APP:-19851}
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+
+configs:
+  caddyfile:
+    content: |
+      {
+      	admin off
+      	auto_https off
+      }
+      (durchreichen) {
+      	# Home Assistant lehnt X-Forwarded-For ohne eingerichteten Proxy mit 400 ab;
+      	# die Weiterleitung soll unsichtbar sein wie eine direkte Verbindung
+      	header_up -X-Forwarded-For
+      	header_up -X-Forwarded-Proto
+      	header_up -X-Forwarded-Host
+      }
+      :19855 {
+      	reverse_proxy {$$FARM_VM_IP}:{$$FARM_VM_HA_PORT} {
+      		import durchreichen
+      		flush_interval -1
+      	}
+      }
+      :19856 {
+      	reverse_proxy {$$FARM_VM_IP}:{$$FARM_VM_PORT_APP} {
+      		import durchreichen
+      	}
+      }

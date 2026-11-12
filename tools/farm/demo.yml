@@ -1,0 +1,68 @@
+# Demo der Test-Farm (tools/farm/README.md, „Demo“): alles auf einmal zum Vorführen.
+# Nicht von Hand starten, sondern: bash tools/farm/farm.sh demo  …  bash tools/farm/farm.sh down
+#
+# Mit der VM (Snapshot „demo“) laufen hier nur evcc und Open WebUI; ohne VM kommen
+# Energietracker und Home Assistant als Container dazu (Profil „ohne-vm“).
+# Ports nur auf 127.0.0.1; für die VM hört evcc zusätzlich auf der Adresse des Macs
+# im Netz „Shared“ von Parallels (Datei aus demo.sh, nicht im Heimnetz).
+# Eigene Instanz von Open WebUI mit eigenem Volume: der Container „open-webui“
+# auf Port 3000 bleibt unberührt.
+name: et-farm-demo
+
+services:
+  evcc:
+    image: ${FARM_EVCC_IMAGE:-evcc/evcc:latest}
+    restart: "no"
+    command: ["evcc", "--demo"]
+    ports:
+      - "127.0.0.1:${FARM_PORT_EVCC_DEMO:-19852}:7070"
+
+  open-webui:
+    image: ${FARM_WEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}
+    restart: "no"
+    profiles: ["webui"]
+    ports:
+      - "127.0.0.1:${FARM_PORT_WEBUI:-19845}:8080"
+    volumes:
+      - webui:/app/backend/data
+    environment:
+      # Ollama des Macs; nur lokal, keine Cloud
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ENABLE_OPENAI_API: "False"
+      # Demo ohne eigene Anmeldung (nur 127.0.0.1)
+      WEBUI_AUTH: "False"
+      DEFAULT_LOCALE: de-DE
+      WEBUI_NAME: Energietracker-Demo
+      DEFAULT_MODELS: ${FARM_DEMO_MODELL:-}
+      # Werkzeugserver wie in docs/anleitungen/ki-assistent.md, Schritt 4 (demo.sh setzt Adresse und Schlüssel)
+      TOOL_SERVER_CONNECTIONS: ${FARM_DEMO_TOOL_SERVERS:-[]}
+      OFFLINE_MODE: "True"
+      ENABLE_VERSION_UPDATE_CHECK: "False"
+      ANONYMIZED_TELEMETRY: "False"
+      DO_NOT_TRACK: "True"
+      SCARF_NO_ANALYTICS: "True"
+
+  # ── nur ohne VM ──
+  energietracker:
+    image: ${FARM_IMAGE:-energietracker:farm}
+    restart: "no"
+    profiles: ["ohne-vm"]
+    ports:
+      - "127.0.0.1:${FARM_PORT_ET_DEMO:-19853}:80"
+    volumes:
+      - et-daten:/data
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:${FARM_HA_NEU:-stable}
+    restart: "no"
+    profiles: ["ohne-vm"]
+    ports:
+      - "127.0.0.1:${FARM_PORT_HA_DEMO:-19854}:8123"
+    volumes:
+      - ha:/config
+    environment:
+      TZ: Europe/Berlin
+
+volumes:
+  webui:
+  et-daten:
+  ha:

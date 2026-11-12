@@ -1,0 +1,5 @@
+# Gilt nur für tools/farm/apache.Dockerfile (BuildKit nimmt diese Datei statt
+# der .dockerignore im Wurzelverzeichnis). Der Bau-Kontext kommt als tar von
+# farm.sh und enthält schon nur, was Git kennt oder nicht ignoriert, wie ein
+# Checkout auf dem Webserver. Hier also nichts weiter ausschließen.
+.git
