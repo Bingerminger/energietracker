@@ -20,7 +20,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.13.0** · geplant für Dienstag, 17.11.2026 | **Prognose für Wärmepumpe, PV und E-Auto** | Die Prognose rechnet die Wärmepumpe nach dem Wetter und bezieht PV, Batterie und E-Auto ein; Auszahlungen der Einspeisung lassen sich erfassen. Dazu einheitliche Begriffe in allen Sprachen, Längengrenzen für Freitext und ein schnelleres Tankmodell. |
+| **v3.13.0** · in Arbeit, erscheint, wenn es fertig ist | **Prognose für Wärmepumpe, PV und E-Auto** | Die Prognose rechnet die Wärmepumpe nach dem Wetter und bezieht PV, Batterie und E-Auto ein; Auszahlungen der Einspeisung lassen sich erfassen. Dazu einheitliche Begriffe in allen Sprachen, Längengrenzen für Freitext und ein schnelleres Tankmodell. |
 | **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. |
 | **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
 

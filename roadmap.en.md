@@ -19,7 +19,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.13.0** · planned for Tuesday, 17 Nov 2026 | **Forecast for heat pump, PV and electric car** | The forecast calculates the heat pump by the weather and includes PV, battery and electric car; feed-in payouts can be recorded. Plus consistent terms in every language, length limits for free text and a faster tank model. |
+| **v3.13.0** · in progress, out when it is ready | **Forecast for heat pump, PV and electric car** | The forecast calculates the heat pump by the weather and includes PV, battery and electric car; feed-in payouts can be recorded. Plus consistent terms in every language, length limits for free text and a faster tank model. |
 | **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. |
 | **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
 
