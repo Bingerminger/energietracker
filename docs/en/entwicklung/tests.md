@@ -317,6 +317,50 @@ anomaly table, the quality gate firing, the PV hint appearing, forecast and
 expectation not vanishing silently — and balance and costs staying the total
 between the readings.
 
+**Heat pump test household (v3.13.0).** A weather model for the heat pump cannot
+be judged on the sample households, because they come from the app's own model.
+`tests/fixtures/heatpump-household/` therefore holds a test household with **its
+own physics**, produced by `generate.mjs` (fixed seed, `--check` only compares).
+The generator uses **no code and no constants of the app**. Only the file
+formats and the degree days for the climate normal are shared.
+
+- **Weather:** 30 invented years for the climate normal, three data years and a
+  test year (July 2022 to June 2026) at 51° N. The winter 2023/24 is mild, the
+  winter 2024/25 cold. Plus daily solar radiation.
+- **Household A** as in #40: air-to-water heat pump in a renovated house, a
+  cascade with peak/off-peak at Z1 and Z2, 9.9 kWp PV, a battery from July 2023,
+  a wallbox from June 2024 with charging sessions as from evcc. **Household B:**
+  new build with a ground-source heat pump on the household meter, electric
+  heating.
+- **Three reading variants of the same truth:** V1 monthly and irregular (one
+  gap, one estimated reading), V2 quarterly at first, then yearly, V3 daily like
+  Home Assistant, plus quarter hours for 2024.
+- **The truth is kept separately** (`a-truth.json`, `b-truth.json`): daily
+  values per component and the true annual bills. The heating limit (about 13
+  and 11 °C) and the seasonal performance factor (about 3.1 to 3.4) emerge, they
+  are not set.
+
+`tools/rueckrechnung.php` measures the forecast against it. On the first day of
+each of the last 24 months it builds a temporary data directory with everything
+known on that day. The app forecasts the next twelve months, **in advance** with
+the climate normal and **in hindsight** with the actual weather. It adds
+“Expected at billing” after 3, 6 and 9 months of the billing year and a naive
+forecast from the previous year's months. The thresholds for “better” are in
+`schwellen.json`, fixed before any work on the model. **Heat pump, balance and
+feed-in are judged only on cuts from July 2024 on**, when the battery and the
+wallbox are in place; the tool still shows the earlier cuts. Household B is
+judged by the fixed thresholds only.
+
+```
+php tools/rueckrechnung.php --runs A/V1 --block heat_pump
+php tools/rueckrechnung.php --root ../other-checkout --json new.json --baseline grundlinie.json
+```
+
+`HeatPumpHouseholdTest` checks that the test household is current and
+consistent, that every variant can be imported and that the back-calculation
+delivers all measures for one cut. **It does not check the thresholds**; the
+feature packages do.
+
 **Contracts to the day (v2.9.0).** `ContractDayAccurateTest` checks months with a
 price change, a contract switch and a gap, the renewed and the cancelled
 contract, cancellation deadline and reminder, missed deadlines, price increases,

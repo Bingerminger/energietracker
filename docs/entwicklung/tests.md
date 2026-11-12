@@ -333,6 +333,49 @@ gekennzeichnet, keiner davon in der Abweichungstabelle, die Gütesperre greift,
 der PV-Hinweis erscheint, Prognose und Erwartung verschwinden nicht still — und
 Saldo und Kosten bleiben die Summe zwischen den Ablesungen.
 
+**Prüfhaushalt Wärmepumpe (v3.13.0).** Ein Wettermodell für die Wärmepumpe
+lässt sich an den Beispielhaushalten nicht beurteilen, denn sie entstehen aus
+dem Modell der App. Unter `tests/fixtures/heatpump-household/` liegt deshalb ein
+Prüfhaushalt mit **eigener Physik**, erzeugt von `generate.mjs` (fester Seed,
+`--check` vergleicht nur). Der Generator nutzt **keinen Code und keine
+Konstanten der App**. Geteilt sind nur die Dateiformate und die Heizgradtage
+fürs Klimanormal.
+
+- **Wetter:** 30 erfundene Jahre fürs Klimanormal, drei Datenjahre und ein
+  Prüfjahr (Juli 2022 bis Juni 2026) bei 51° N. Der Winter 2023/24 ist mild, der
+  Winter 2024/25 kalt. Dazu die Einstrahlung je Tag.
+- **Haushalt A** wie in #40: Luft/Wasser-Wärmepumpe in einem sanierten Haus,
+  Kaskade mit HT/NT an Z1 und Z2, PV mit 9,9 kWp, Speicher ab Juli 2023, Wallbox
+  ab Juni 2024 mit Ladevorgängen wie aus evcc. **Haushalt B:** Neubau mit
+  Sole/Wasser-Wärmepumpe am Haushaltszähler, Heizung mit Strom.
+- **Drei Ablese-Varianten derselben Wahrheit:** V1 monatlich und unregelmäßig
+  (eine Lücke, eine geschätzte Ablesung), V2 erst vierteljährlich, dann
+  jährlich, V3 täglich wie Home Assistant, dazu Viertelstunden für 2024.
+- **Die Wahrheit liegt getrennt** (`a-truth.json`, `b-truth.json`): Tageswerte
+  je Baustein und die wahren Jahresrechnungen. Heizgrenze (rund 13 und 11 °C)
+  und Jahresarbeitszahl (rund 3,1 bis 3,4) ergeben sich, sie sind nicht gesetzt.
+
+`tools/rueckrechnung.php` misst daran die Prognose. An jedem Monatsanfang der
+letzten 24 Monate entsteht ein temporäres Datenverzeichnis mit allem, was an
+diesem Tag bekannt war. Die App sagt die nächsten zwölf Monate voraus,
+**vorab** mit dem Klimanormal und **nachgerechnet** mit dem Ist-Wetter. Dazu
+kommen „Erwartet bei Abrechnung“ nach 3, 6 und 9 Monaten des Abrechnungsjahrs
+und eine naive Prognose aus den Vorjahresmonaten. Die Schwellen für „besser“
+stehen in `schwellen.json`, festgelegt vor der Arbeit am Modell. **Wärmepumpe,
+Saldo und Einspeisung urteilt das Werkzeug erst an Schnitten ab Juli 2024**, wenn
+Speicher und Wallbox da sind; die früheren Schnitte zeigt es weiter. Für
+Haushalt B gelten nur die festen Schwellen.
+
+```
+php tools/rueckrechnung.php --runs A/V1 --block heat_pump
+php tools/rueckrechnung.php --root ../anderer-stand --json neu.json --baseline grundlinie.json
+```
+
+`HeatPumpHouseholdTest` prüft, dass der Prüfhaushalt aktuell und in sich
+stimmig ist, jede Variante sich einspielen lässt und die Rückrechnung für einen
+Schnitt alle Maße liefert. **Die Schwellen prüft er nicht**, das tun die
+Fachpakete.
+
 **Verträge tagesgenau (v2.9.0).** `ContractDayAccurateTest` prüft Monate mit
 Preisänderung, Vertragswechsel und Lücke, den weiterlaufenden und den
 gekündigten Vertrag, Kündigungsstichtag und Erinnerung, verpasste Fristen,
