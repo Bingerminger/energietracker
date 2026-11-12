@@ -1,0 +1,78 @@
+# Lokale Test-Farm des Energietrackers (tools/farm/README.md).
+#
+# Nicht von Hand starten, sondern über den Treiber:
+#   bash tools/farm/farm.sh alles      # bauen, starten, prüfen, abbauen
+#
+# farm.sh baut das Image aus dem Arbeitsstand (energietracker:farm und
+# energietracker:farm-rootless), legt die Integration in die Volumes beider
+# Home-Assistant-Fassungen und baut danach alles wieder ab. Alle Ports hören
+# nur auf 127.0.0.1; keine Datei des Rechners wird in einen Container
+# eingehängt (nur Named Volumes), damit die Farm auch mit eingeschränkter
+# Dateifreigabe von Docker Desktop läuft.
+name: et-farm
+
+services:
+  # Standard-Image (root beim Start, nginx und php-fpm als eigene Benutzer)
+  energietracker:
+    image: ${FARM_IMAGE:-energietracker:farm}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_ET:-19840}:80"
+    volumes:
+      - et-daten:/data
+    environment:
+      ET_LOG_LEVEL: info
+      ET_LOG_DEST: stderr
+
+  # Variante ohne root, gehärtet wie im Beispiel aus docs/betrieb/docker.md
+  energietracker-rootless:
+    image: ${FARM_IMAGE_ROOTLESS:-energietracker:farm-rootless}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_ET_ROOTLESS:-19841}:8080"
+    volumes:
+      - et-daten-rootless:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # Home Assistant, aktuelle Fassung
+  ha-neu:
+    image: ghcr.io/home-assistant/home-assistant:${FARM_HA_NEU:-stable}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_HA_NEU:-19842}:8123"
+    volumes:
+      - ha-neu:/config
+    environment:
+      TZ: Europe/Berlin
+
+  # Home Assistant, älteste Fassung, die die Integration unterstützt
+  # (Feld "homeassistant" in hacs.json; farm.sh setzt FARM_HA_ALT daraus)
+  ha-alt:
+    image: ghcr.io/home-assistant/home-assistant:${FARM_HA_ALT:-2026.3.0}
+    restart: "no"
+    ports:
+      - "127.0.0.1:${FARM_PORT_HA_ALT:-19843}:8123"
+    volumes:
+      - ha-alt:/config
+    environment:
+      TZ: Europe/Berlin
+
+  # evcc im Demo-Modus (simulierte Wallboxen, keine Anmeldung)
+  evcc:
+    image: ${FARM_EVCC_IMAGE:-evcc/evcc:latest}
+    restart: "no"
+    command: ["evcc", "--demo"]
+    ports:
+      - "127.0.0.1:${FARM_PORT_EVCC:-19844}:7070"
+
+volumes:
+  et-daten:
+  et-daten-rootless:
+  ha-neu:
+  ha-alt:

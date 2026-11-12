@@ -560,6 +560,19 @@ bekannte Lücken (nicht blockierend, beide Varianten). `docker-armv7-probe.yml`
 und startet es, ohne zu veröffentlichen; erst wenn er grün ist, kommt arm/v7 in
 die Plattformliste.
 
+**Lokale Test-Farm (vor jedem Release).** Was die CI nicht sieht, ist das Image
+im Verbund mit den Programmen drumherum. `bash tools/farm/farm.sh alles` baut das
+Image aus dem Arbeitsstand (Standard und ohne root), startet es mit **Home
+Assistant in der aktuellen und der ältesten unterstützten Fassung** samt
+Integration und mit **evcc im Demo-Modus**, prüft und baut alles wieder ab, auch
+bei einem Fehler. Geprüft werden Gesundheit und Version, der Beispielhaushalt,
+eine lesende Probe mit und ohne Anmeldung, Anmeldung an und aus, die
+**MCP-Schnittstelle** per JSON-RPC gegen `GET /api/summary` und in beiden Home
+Assistant **die Zahl der Geräte und Sensoren und jeder Wert gegen die API**. Die
+Farm läuft nur auf Zuruf, nur mit Beispieldaten und nur auf `127.0.0.1`;
+Einzelheiten und Grenzen (die Demo von evcc hat keine Ladevorgänge) stehen in
+[`tools/farm/README.md`](../../tools/farm/README.md).
+
 ---
 
 ## 4. Bekannte Grenze

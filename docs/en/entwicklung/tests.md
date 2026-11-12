@@ -536,6 +536,19 @@ latest release tag every week and scans the images for known vulnerabilities
 by hand only) builds the image for `linux/arm/v7` under QEMU and starts it
 without publishing; only once it is green does arm/v7 join the platform list.
 
+**Local test farm (before every release).** What CI does not see is the image
+working together with the programs around it. `bash tools/farm/farm.sh alles`
+builds the image from the working tree (standard and without root), starts it
+with **Home Assistant in the current and the oldest supported version** with the
+integration and with **evcc in demo mode**, checks, and tears everything down
+again, on failure too. It checks health and version, the sample household, a
+read-only probe with and without sign-in, sign-in on and off, the **MCP
+interface** by JSON-RPC against `GET /api/summary`, and in both Home Assistant
+versions **the number of devices and sensors and every value against the API**.
+The farm runs on demand only, with sample data only and on `127.0.0.1` only;
+details and limits (evcc's demo has no charging sessions) are in
+[`tools/farm/README.md`](../../../tools/farm/README.md).
+
 ---
 
 ## 4. Known limit
