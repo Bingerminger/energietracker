@@ -21,6 +21,8 @@ abstract class HttpServerTestCase extends TestCase
     private string $serverLog = '';
     /** @var array<string,string> v3.12.0 — zusätzliche `-d`-Werte des Testservers (etwa display_errors=1 wie `php -S` von Hand) */
     protected array $serverIni = [];
+    /** v3.13.0 — Wartezeit von request() in Sekunden (der Selbsttest der Diagnose wartet kürzer) */
+    protected int $requestTimeout = 20;
 
     /**
      * @param array<string,mixed> $settings Inhalt von settings.json
@@ -48,11 +50,14 @@ abstract class HttpServerTestCase extends TestCase
         }
         // v3.4.0 — Größengrenzen wie im Docker-Image (docker/php.ini), damit die
         // Grenzen der App greifen und nicht die des Entwicklungs-PHP (8 MB)
-        $ini = [];
+        // v3.13.0 — Diagnose für eine ausbleibende Antwort: Eine Rechenschleife bricht nach 18 s Rechenzeit
+        // mit Datei und Zeile im Protokoll ab (vor der Wartezeit von request()); wartet der Server
+        // (Sperre, Netz), schreibt er auf SIGUSR1 seinen Stack (Test-Router vor router.php)
+        $ini = ['-d', 'max_execution_time=18'];
         foreach ($this->serverIni as $k => $v) array_push($ini, '-d', "$k=$v");
         $this->proc = proc_open(
             [PHP_BINARY, '-d', 'post_max_size=256M', '-d', 'display_errors=0', '-d', 'display_startup_errors=0',
-             ...$ini, '-S', "127.0.0.1:$port", 'router.php'],
+             ...$ini, '-S', "127.0.0.1:$port", 'tests/fixtures/test-router.php'],
             // Fehlerausgabe in eine Datei: bleibt eine Antwort aus (Status 0), zeigt request() sie an
             [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', $this->serverLog = $this->dataDir . '.log', 'a']],
             $pipes, $root, $all
@@ -83,7 +88,7 @@ abstract class HttpServerTestCase extends TestCase
     {
         $ctx = stream_context_create(['http' => [
             'method' => $method, 'header' => implode("\r\n", $headers), 'content' => $body ?? '',
-            'ignore_errors' => true, 'timeout' => 20,
+            'ignore_errors' => true, 'timeout' => $this->requestTimeout,
         ]]);
         $raw = @file_get_contents($this->base . $path, false, $ctx);
         $status = 0; $out = [];
@@ -95,14 +100,49 @@ abstract class HttpServerTestCase extends TestCase
         // v3.12.0 — keine Antwort: Zustand des Servers und Ende seines Protokolls in die Meldung des Tests
         // (McpReadEndpointTest bekam in der CI selten Status 0 bei get_contracts, ohne erkennbaren Grund)
         if ($status === 0 && $raw === false) {
+            $err = (string)(error_get_last()['message'] ?? '-');
             $st = is_resource($this->proc) ? proc_get_status($this->proc) : [];
+            // v3.13.0 — wo der Server steckt: erst der Zustand aus /proc (Linux; rechnet oder wartet er,
+            // welche Dateien des Datenordners hält er offen), dann sein PHP-Stack auf SIGUSR1
+            $where = $this->serverWhereabouts((int)($st['pid'] ?? 0), !empty($st['running']));
             $log = $this->serverLog !== '' ? @file_get_contents($this->serverLog) : false;
-            $raw = sprintf("[keine Antwort auf %s %s] Server läuft: %s, Signal: %s, Exit: %s, Fehler: %s\nProtokoll (Ende):\n%s",
+            $raw = sprintf("[keine Antwort auf %s %s] Server läuft: %s, Signal: %s, Exit: %s, Fehler: %s%s\nProtokoll (Ende):\n%s",
                 $method, $path, var_export($st['running'] ?? null, true), (string)($st['termsig'] ?? '-'),
-                (string)($st['exitcode'] ?? '-'), (string)(error_get_last()['message'] ?? '-'),
-                $log === false ? '(keins)' : substr($log, -2000));
+                (string)($st['exitcode'] ?? '-'), $err, $where,
+                $log === false ? '(keins)' : substr($log, -4000));
         }
         return ['status' => $status, 'headers' => $out, 'body' => (string)$raw];
+    }
+
+    /**
+     * v3.13.0 — Zustand des hängenden Testservers für die Meldung: unter Linux Zustand und Wartestelle
+     * des Kernels und die offenen Dateien im Datenordner (etwa eine Sperrdatei). Danach SIGUSR1: Der
+     * Server schreibt seinen PHP-Stack ins Protokoll (tests/fixtures/test-router.php), request() hängt es an.
+     * Die Reihenfolge zählt: Das Signal unterbricht ein blockierendes flock().
+     */
+    private function serverWhereabouts(int $pid, bool $running): string
+    {
+        if ($pid <= 0 || !$running) return '';
+        $out = '';
+        if (is_readable("/proc/$pid/status")) {
+            preg_match('/^State:\s*(.+)$/m', (string)@file_get_contents("/proc/$pid/status"), $m);
+            $wchan = trim((string)@file_get_contents("/proc/$pid/wchan"));
+            $files = [];
+            foreach (@scandir("/proc/$pid/fd") ?: [] as $fd) {
+                $t = @readlink("/proc/$pid/fd/$fd");
+                if (is_string($t) && str_starts_with($t, $this->dataDir . '/')) $files[] = substr($t, strlen($this->dataDir) + 1);
+            }
+            $out .= sprintf(', Zustand: %s, wartet in: %s, offen im Datenordner: %s',
+                $m[1] ?? '-', $wchan !== '' && $wchan !== '0' ? $wchan : '-', $files !== [] ? implode(' ', $files) : '-');
+        }
+        if (function_exists('posix_kill') && defined('SIGUSR1') && $this->serverLog !== '') {
+            @posix_kill($pid, SIGUSR1);
+            for ($i = 0; $i < 30 && !str_contains((string)@file_get_contents($this->serverLog), 'ET-TRACE'); $i++) usleep(100_000);
+            if (!str_contains((string)@file_get_contents($this->serverLog), 'ET-TRACE')) $out .= ', Stack: keiner (Signal ohne Antwort)';
+        } else {
+            $out .= ', Stack: keiner (ohne pcntl/posix)';
+        }
+        return $out;
     }
 
     /** @return mixed `data` einer JSON-Antwort */
