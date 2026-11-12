@@ -126,6 +126,7 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | **Stichtag für Zähler mit Verbrauch je Zeitraum** | M | v3.12.0 Stichtag | Bekannte Grenze v3.12.0 |
 | — | **Werkstatt nach dem Wetterabgleich neu rechnen,** damit am selben Tag dieselbe Zahl steht | S | F1040 | Bekannte Grenze v3.12.0 |
 | — | **HACS 1.1.0:** Sensor für den Füllstand von Öl und Pellets | S | F1038 | Entscheidung 2026-11-10 |
+| — | **Rückfrage beim Eintragen eines Zählerstands nach dem Wetter** statt nach dem Median der letzten Abstände (dieselbe Erwartung wie „Zwischenablesung prüfen“), damit der Heizbeginn keine falsche Rückfrage auslöst | S–M | v3.9.0 Zwischenablesung prüfen | GitHub #65 |
 
 ### v3.14.0 — Lange Verläufe und Umzug
 
