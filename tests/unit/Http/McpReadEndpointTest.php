@@ -22,7 +22,8 @@ final class McpReadEndpointTest extends HttpServerTestCase
         $r = $this->request('POST', '/api/mcp', ['Content-Type: application/json', 'Accept: application/json, text/event-stream',
             "Authorization: Bearer {$this->key}"], (string)json_encode($msg));
         $j = json_decode($r['body'], true);
-        self::assertSame(200, $r['status'], $r['body']);
+        // v3.13.0 — mit dem Serverprotokoll: Bricht PHP 8.3 eine lange C-Funktion ab, steht dort Datei und Zeile
+        self::assertSame(200, $r['status'], $r['body'] . "\n" . $this->serverLogTail());
         self::assertFalse($j['result']['isError'] ?? true, $r['body']);
         return $j['result']['structuredContent'];
     }

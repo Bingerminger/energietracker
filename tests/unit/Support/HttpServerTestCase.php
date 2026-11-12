@@ -50,10 +50,11 @@ abstract class HttpServerTestCase extends TestCase
         }
         // v3.4.0 — Größengrenzen wie im Docker-Image (docker/php.ini), damit die
         // Grenzen der App greifen und nicht die des Entwicklungs-PHP (8 MB)
-        // v3.13.0 — Diagnose für eine ausbleibende Antwort: Eine Rechenschleife bricht nach 18 s Rechenzeit
-        // mit Datei und Zeile im Protokoll ab (vor der Wartezeit von request()); wartet der Server
-        // (Sperre, Netz), schreibt er auf SIGUSR1 seinen Stack (Test-Router vor router.php)
-        $ini = ['-d', 'max_execution_time=18'];
+        // v3.13.0 — Diagnose für eine ausbleibende Antwort: Eine Rechenschleife bricht nach 12 s Rechenzeit
+        // mit Datei und Zeile im Protokoll ab, eine lange C-Funktion spätestens nach 12 + 2 s (harte
+        // Grenze von PHP), beides vor der Wartezeit von request(); wartet der Server (Sperre, Netz),
+        // schreibt er auf SIGUSR1 seinen Stack (Test-Router vor router.php)
+        $ini = ['-d', 'max_execution_time=12'];
         foreach ($this->serverIni as $k => $v) array_push($ini, '-d', "$k=$v");
         $this->proc = proc_open(
             [PHP_BINARY, '-d', 'post_max_size=256M', '-d', 'display_errors=0', '-d', 'display_startup_errors=0',
@@ -143,6 +144,13 @@ abstract class HttpServerTestCase extends TestCase
             $out .= ', Stack: keiner (ohne pcntl/posix)';
         }
         return $out;
+    }
+
+    /** v3.13.0 — Ende des Serverprotokolls für Meldungen von Tests (etwa „Maximum execution time … on line …“) */
+    protected function serverLogTail(int $bytes = 3000): string
+    {
+        $log = $this->serverLog !== '' ? @file_get_contents($this->serverLog) : false;
+        return $log === false ? '(kein Protokoll)' : "Protokoll (Ende):\n" . substr($log, -$bytes);
     }
 
     /** @return mixed `data` einer JSON-Antwort */
