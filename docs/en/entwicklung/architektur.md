@@ -383,7 +383,7 @@ in a circle, title, one sentence, at most one action).
 
 ## 8. Public demo (since v3.0.0)
 
-The demo at <https://bingerminger.github.io/energietracker/> is the real
+The demo at <https://bingerminger.github.io/energietracker/demo/> is the real
 interface without PHP. GitHub Pages only serves files, so the API answers are
 produced in advance:
 

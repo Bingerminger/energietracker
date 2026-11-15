@@ -16,7 +16,7 @@ export const REPO_URL = 'https://github.com/Bingerminger/energietracker';
 export const ISSUES_URL = `${REPO_URL}/issues`;
 // v3.12.0 (M6) — Linkreihe der Hilfe wie oben im README: Demo, Handbuch, Roadmap, Discussions.
 // Roadmap und Discussions beschreiben das Projekt, nicht diese Version; sie stehen deshalb auf `main`.
-export const DEMO_URL = 'https://bingerminger.github.io/energietracker/';
+export const DEMO_URL = 'https://bingerminger.github.io/energietracker/demo/';
 export const DISCUSSIONS_URL = `${REPO_URL}/discussions`;
 const ROADMAP_DE = `${REPO_URL}/blob/main/roadmap.md`;
 const ROADMAP_EN = `${REPO_URL}/blob/main/roadmap.en.md`;

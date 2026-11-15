@@ -2752,7 +2752,7 @@ ersetzt den ganzen Haushalt und behält die Stufe; einen laden darf nur, wer
 die Installation verwaltet (§11). „Überspringen“ ändert nichts und beendet
 den Erststart.
 
-**Öffentliche Demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
+**Öffentliche Demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/demo/)):
 fünf Schritte, ohne „Welche Energieträger nutzt du?“ (bis v3.7 stand hier „drei“;
 „Sprache und Land“ gibt es auch dort seit v3.5.0). Am Ende steht „Die Demo
 zeigt jetzt den Beispielhaushalt „…“. Einen anderen wählst du über

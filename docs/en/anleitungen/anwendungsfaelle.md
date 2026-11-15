@@ -35,7 +35,7 @@ This replaces **all** data of this installation. The app takes a snapshot
 first; you restore it under Settings → Data and backup. Once users are set up, only an
 administrator may do this.
 
-In the [public demo](https://bingerminger.github.io/energietracker/) the
+In the [public demo](https://bingerminger.github.io/energietracker/demo/) the
 assistant asks on your first visit which household you want to see. You pick
 another one there the same way, under Settings → For you → Setup assistant.
 More: [Setup](../einstieg/einrichtung.md).

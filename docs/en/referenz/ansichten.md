@@ -2650,7 +2650,7 @@ the meter-reading capture. A sample household replaces the whole household and
 keeps the level; only someone who manages the installation may load one
 (§11). “Skip” changes nothing and ends the first start.
 
-**Public demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
+**Public demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/demo/)):
 five steps, without “Which energy sources do you use?” (up to v3.7 this said
 “three”; “Language and country” exists there too since v3.5.0). At the end it says
 “The demo now shows the sample household “…”. Pick another under Settings → For you →

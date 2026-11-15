@@ -359,7 +359,7 @@ with CSS animation, without a library.
 
 ## 5. The public demo
 
-Without installing anything: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/).
+Without installing anything: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/demo/).
 On the first visit the assistant opens with five steps — “Language and
 country”, “Who are you?”, “How much experience do you have?”, “How do you want
 to work?” and “What comes next”. The demo then shows the chosen sample household; “Skip” shows the
@@ -373,7 +373,7 @@ showcase.
 - **Change it:** Settings → For you → “Start the setup assistant”.
 - **Link directly:** `?persona=` with the name of the sample household, for
   example
-  [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/?persona=eigenheim-modern).
+  [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/demo/?persona=eigenheim-modern).
 
 ---
 

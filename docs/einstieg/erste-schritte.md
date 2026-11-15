@@ -187,7 +187,7 @@ und Temperaturen werden beim Laden mit den Werten desselben Zeitraums im
 Vorjahr fortgeschrieben, Termine liegen relativ zu heute (einer ist fällig).
 
 Ganz ohne Installation geht es in der
-[öffentlichen Demo](https://bingerminger.github.io/energietracker/) — derselbe
+[öffentlichen Demo](https://bingerminger.github.io/energietracker/demo/) — derselbe
 Beispielhaushalt zum Ansehen; gespeichert wird dort nichts.
 
 ---

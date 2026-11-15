@@ -34,6 +34,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Projektseite (site/, aus main) an die Wurzel von /energietracker/, die Demo aus dem
+      # Release-Tag darunter nach demo/ — Muster aller Projekte unter bingerminger.github.io.
+      - name: Projektseite aus main sichern
+        run: |
+          node site/tools/build.mjs --check
+          mkdir -p "$RUNNER_TEMP/seite"
+          rsync -a --exclude src --exclude tools --exclude aussagen.md --exclude .gitignore site/ "$RUNNER_TEMP/seite/"
+
       - name: Neuestes Release auschecken
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
@@ -58,12 +66,17 @@ jobs:
           node-version: "24"
 
       - name: Demo bauen
-        run: node tools/build-demo.mjs --out dist/demo
+        run: node tools/build-demo.mjs --out dist/site/demo
+
+      - name: Projektseite dazulegen
+
+        run: cp -R "$RUNNER_TEMP/seite/." dist/site/
+
 
       - name: Hochladen
         uses: actions/upload-pages-artifact@v5
         with:
-          path: dist/demo
+          path: dist/site
 
   deploy:
     name: Demo veröffentlichen

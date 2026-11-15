@@ -183,7 +183,7 @@ temperatures are carried forward on loading with the values of the same period
 one year earlier, and reminders sit relative to today (one is due).
 
 Without installing anything there is the
-[public demo](https://bingerminger.github.io/energietracker/) — the same sample
+[public demo](https://bingerminger.github.io/energietracker/demo/) — the same sample
 household to look around; nothing is saved there.
 
 ---

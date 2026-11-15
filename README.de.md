@@ -7,7 +7,7 @@ Zählerstände rein, Antworten raus: Bekomme ich Geld zurück? Stimmt die Rechnu
 Selbst gehostet, ohne Konto und ohne Datenbank. Und auf Wunsch mit deiner KI im Heimnetz.</p>
 
 <p align="center">
-  <a href="https://bingerminger.github.io/energietracker/"><b>Demo</b></a> ·
+  <a href="https://bingerminger.github.io/energietracker/demo/"><b>Demo</b></a> ·
   <a href="docs/README.md"><b>Hilfe</b></a> ·
   <a href="roadmap.md"><b>Roadmap</b></a> ·
   <a href="https://github.com/Bingerminger/energietracker/discussions"><b>Discussions</b></a>
@@ -18,7 +18,7 @@ Selbst gehostet, ohne Konto und ohne Datenbank. Und auf Wunsch mit deiner KI im 
   <a href="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml"><img src="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg" alt="Lizenz: AGPL-3.0-or-later"></a>
   <a href="docs/betrieb/docker.md"><img src="https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg" alt="Docker: amd64 und arm64"></a>
-  <a href="https://bingerminger.github.io/energietracker/"><img src="https://img.shields.io/badge/Demo-ausprobieren-7c5cff.svg" alt="Demo ausprobieren"></a>
+  <a href="https://bingerminger.github.io/energietracker/demo/"><img src="https://img.shields.io/badge/Demo-ausprobieren-7c5cff.svg" alt="Demo ausprobieren"></a>
 </p>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/uebersicht-dunkel.de.png"><img src="docs/assets/promo/screens/uebersicht.de.png" alt="Übersicht des Beispielhaushalts: Was ist zu tun? Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Darunter eine Kachel je Verbrauchsart mit Trend" width="860"></picture></p>

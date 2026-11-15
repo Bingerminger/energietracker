@@ -7,7 +7,7 @@ Meter readings in, answers out: Will I get money back? Is the bill right? Is swi
 Self-hosted, no account and no database. And, if you like, with your own AI in your home network.</p>
 
 <p align="center">
-  <a href="https://bingerminger.github.io/energietracker/"><b>Demo</b></a> ·
+  <a href="https://bingerminger.github.io/energietracker/demo/"><b>Demo</b></a> ·
   <a href="docs/en/README.md"><b>Help</b></a> ·
   <a href="roadmap.en.md"><b>Roadmap</b></a> ·
   <a href="https://github.com/Bingerminger/energietracker/discussions"><b>Discussions</b></a>
@@ -18,7 +18,7 @@ Self-hosted, no account and no database. And, if you like, with your own AI in y
   <a href="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml"><img src="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg" alt="License: AGPL-3.0-or-later"></a>
   <a href="docs/en/betrieb/docker.md"><img src="https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg" alt="Docker: amd64 and arm64"></a>
-  <a href="https://bingerminger.github.io/energietracker/"><img src="https://img.shields.io/badge/Demo-try%20it-7c5cff.svg" alt="Try the demo"></a>
+  <a href="https://bingerminger.github.io/energietracker/demo/"><img src="https://img.shields.io/badge/Demo-try%20it-7c5cff.svg" alt="Try the demo"></a>
 </p>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/uebersicht-dunkel.en.png"><img src="docs/assets/promo/screens/uebersicht.en.png" alt="Overview of the sample household: What needs doing? Will I get money back? More or less than last year? Below, one tile per utility with its trend" width="860"></picture></p>

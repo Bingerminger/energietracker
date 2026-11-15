@@ -93,7 +93,7 @@ final class ReadmeClaimsTest extends TestCase
             $sorted = $pos;
             sort($sorted);
             self::assertSame($sorted, $pos, "$f: Reihenfolge Demo, Hilfe, Roadmap, Discussions");
-            self::assertStringContainsString('https://bingerminger.github.io/energietracker/', $head);
+            self::assertStringContainsString('https://bingerminger.github.io/energietracker/demo/', $head);
             self::assertStringContainsString('https://github.com/Bingerminger/energietracker/discussions', $head);
         }
         // dieselbe Reihe in der Hilfe der App
@@ -107,7 +107,7 @@ final class ReadmeClaimsTest extends TestCase
             $last = $p;
         }
         $docs = (string)file_get_contents(self::root() . '/public/js/lib/docs.js');
-        self::assertStringContainsString("DEMO_URL = 'https://bingerminger.github.io/energietracker/'", $docs);
+        self::assertStringContainsString("DEMO_URL = 'https://bingerminger.github.io/energietracker/demo/'", $docs);
     }
 
     /** Jedes Bild, das das README zeigt, liegt im Repository. */

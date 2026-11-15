@@ -359,7 +359,7 @@ sind SVG mit CSS-Animation, ohne Bibliothek.
 
 ## 5. Die öffentliche Demo
 
-Ohne Installation: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/).
+Ohne Installation: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/demo/).
 Beim ersten Besuch öffnet sich der Assistent mit fünf Schritten — „Sprache
 und Land“, „Wer bist du?“, „Wie viel Erfahrung hast du?“, „Wie willst du
 arbeiten?“ und „So geht es weiter“. Danach zeigt die Demo den gewählten Beispielhaushalt; „Überspringen“
@@ -373,7 +373,7 @@ zeigt das Schaufenster.
 - **Wechseln:** Einstellungen → Für dich → „Einrichtungsassistent starten“.
 - **Direkt verlinken:** `?persona=` mit dem Namen des Beispielhaushalts,
   etwa
-  [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/?persona=eigenheim-modern).
+  [`…/energietracker/?persona=eigenheim-modern`](https://bingerminger.github.io/energietracker/demo/?persona=eigenheim-modern).
 
 ---
 

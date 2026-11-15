@@ -396,7 +396,7 @@ Kreis, Titel, ein Satz, höchstens eine Aktion).
 
 ## 8. Öffentliche Demo (seit v3.0.0)
 
-Die Demo unter <https://bingerminger.github.io/energietracker/> ist die echte
+Die Demo unter <https://bingerminger.github.io/energietracker/demo/> ist die echte
 Oberfläche ohne PHP. GitHub Pages liefert nur Dateien aus; die Antworten der
 API entstehen deshalb vorab:
 

@@ -36,7 +36,7 @@ Das ersetzt **alle** Daten dieser Installation. Vorher legt die App einen
 Snapshot an; unter Einstellungen → Daten und Sicherung spielst du ihn wieder ein. Sind
 Benutzer eingerichtet, darf das nur ein Verwalter.
 
-In der [öffentlichen Demo](https://bingerminger.github.io/energietracker/)
+In der [öffentlichen Demo](https://bingerminger.github.io/energietracker/demo/)
 fragt der Assistent beim ersten Aufruf von selbst, welchen Haushalt du sehen
 willst. Einen anderen wählst du dort ebenso über Einstellungen → Für dich →
 Einrichtungsassistent. Mehr: [Einrichtung](../einstieg/einrichtung.md).
