@@ -37,3 +37,5 @@ graphify-out
 
 # Echte Versorgerdokumente (Posteingang-Entwicklung)
 samples/
+# Projektseite für GitHub Pages (pages.yml) — gehört nicht ins Image
+site
