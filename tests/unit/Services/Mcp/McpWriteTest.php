@@ -65,7 +65,9 @@ final class McpWriteTest extends McpInboxTestCase
         self::assertSame('reading', $r['kind']);
         $new = array_values(array_filter($this->gasReadings(), fn($x) => $x['date'] === '2026-02-01'));
         self::assertCount(1, $new);
-        self::assertSame([13200.5, 'mcp', PendingChanges::clientRef($p['proposal_id']), false],
+        // v3.13.0 — wörtlich die Kennung des Vorschlags (bis v3.12 mit Bindestrich statt Unterstrich)
+        self::assertMatchesRegularExpression('/^mp_[0-9a-f]{24}$/', $p['proposal_id']);
+        self::assertSame([13200.5, 'mcp', $p['proposal_id'], false],
             [$new[0]['counter'], $new[0]['source'], $new[0]['client_ref'], $new[0]['is_estimated']], 'Herkunft mcp, Kennung des Vorschlags');
         self::assertSame([['kind' => 'reading', 'ref' => ['type' => 'reading', 'utility' => 'gas', 'meter_id' => 'm_gas_default', 'id' => $new[0]['id']]]], $r['applied']);
         self::assertSame([], $this->pending->listOpen(), 'übernommen ist nicht mehr offen');
@@ -200,6 +202,23 @@ final class McpWriteTest extends McpInboxTestCase
         self::assertSame('errors.mcp.invalidArguments', $err['code']);
         $err = $this->callToolError('propose_reading', ['utility' => 'heizoel', 'counter' => 10], $this->writer());
         self::assertSame('errors.mcp.invalidArguments', $err['code'], 'Tank ohne Zählerstände');
+    }
+
+    /**
+     * v3.13.0 (K2d) — Der Vorschlagsweg der KI nimmt keinen Stand über der gemeinsamen Grenze eines Zählerstands an
+     * (Support\FieldRules::counter); sein Schema ist enger (WriteTools::MAX_COUNTER), nie weiter.
+     */
+    public function testACounterAboveTheSharedLimitIsNoProposal(): void
+    {
+        $before = $this->snapshot();
+        foreach ([4e12, 5e10] as $v) {
+            self::assertSame('errors.mcp.invalidArguments', $this->callToolError('propose_reading', ['utility' => 'gas', 'meter' => 'm_gas_default',
+                'date' => '2026-02-01', 'counter' => $v], $this->writer())['code'], (string)$v);
+        }
+        self::assertSame([], $this->pending->listOpen(), 'kein Vorschlag angelegt');
+        self::assertSame([], self::changed($before, $this->snapshot()));
+        self::assertLessThanOrEqual(\Energietracker\Services\ReadingService::MAX_COUNTER, \Energietracker\Services\Mcp\Tools\WriteTools::MAX_COUNTER,
+            'das Schema der KI ist nie weiter als die gemeinsame Regel');
     }
 
     public function testQuestionsOfTheFormLandInChecksAndSummary(): void

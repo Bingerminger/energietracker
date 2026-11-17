@@ -337,10 +337,17 @@ final class InboxServiceTest extends ServiceTestCase
     {
         $e = $this->inbox->upload(InboxFixture::pdf('ct'), 'ct.pdf');
         $c = $this->contracts->create('gas', ['meter_id' => 'm_gas_default', 'provider' => 'Stadtwerke Musterstadt', 'start' => '2024-01-01',
-            'contract_number' => '  VK-1  ', 'customer_number' => str_repeat('9', 80), 'attachment_ids' => [$e['attachment_id'], $e['attachment_id']],
+            'contract_number' => '  VK-1  ', 'customer_number' => str_repeat('9', 64), 'attachment_ids' => [$e['attachment_id'], $e['attachment_id']],
             'working_prices' => [['from' => '2024-01-01', 'ct_per_kwh' => 11.0]]]);
         self::assertSame('VK-1', $c['contract_number'], 'ohne Leerraum am Rand');
         self::assertSame(64, mb_strlen($c['customer_number']), 'höchstens 64 Zeichen');
+        // v3.13.0 (Paket F) — länger ist ein Fehler mit Feld und Grenze (bis v3.12 still auf 64 gekürzt)
+        try {
+            $this->contracts->update('gas', $c['id'], ['customer_number' => str_repeat('9', 80)]);
+            self::fail('80 Zeichen angenommen');
+        } catch (\Energietracker\Support\LocalizedException $x) {
+            self::assertSame(['errors.common.tooLong', 'customer_number', '64'], [$x->key, $x->params['field'], $x->params['max']]);
+        }
         self::assertSame([$e['attachment_id']], $c['attachment_ids'], 'jeder Beleg einmal');
         $u = $this->contracts->update('gas', $c['id'], ['contract_number' => '', 'attachment_ids' => []]);
         self::assertArrayNotHasKey('contract_number', $u, 'leer entfernt das Feld');

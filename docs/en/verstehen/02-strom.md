@@ -138,6 +138,77 @@ car)”**: the charged amount per month with price, as CSV and PDF for the
 employer. Step by step:
 [Record charging electricity for a company car](../anleitungen/ladestrom-nachweis.md).
 
+## A new wall box in the history *(v3.13.0)*
+
+**A new wall box does not know its first winters.** Up to v3.12, the forecast took
+the average of all measured months for every calendar month without history, so after
+a summer too little for the winter.
+
+<!-- doc-claim: wallbox-arrival -->
+**Since v3.13.0 the forecast of the wall box calculates such months by an assumption:**
+an electric car needs about 1% more electricity per degree below 20 °C, and it is
+driven the same distance. The degrees come from the climate normal (otherwise from
+your own daily temperatures), the level from the measured months. Source: Lee, Song,
+Lim, Park (2024), Energy Conversion and Management 306, 118289: at −15 °C 35.4% more
+energy than at 24 °C, most efficient between 20 and 30 °C. If the meter only knows a
+month distributed (rare readings) and there are charging sessions from evcc, the
+month comes from the sessions. It needs three measured months and temperatures for
+every calendar month (without them it stays with the average); the forecast names the
+months calculated this way.
+
+**The meter in front of the wall box still uses the months before it**, in which the
+car is missing. Giving those months the grid consumption of the wall box in the same
+calendar month (without the solar share of the evcc sessions) is built but did not
+pass its check on the test household. A note says so and suggests a baseline date on
+the day of the installation ([glossary: baseline date](09-glossar.md)). In a cascade
+(heat pump in front, household behind), the note also applies to the household meter:
+the wall box hangs on the front meter there but sits in the household. The notes stay
+for two years after the installation, that is from the installation date on the wall
+box meter.
+
+## Heat pump by the weather *(v3.13.0, not yet switched on)*
+
+**A heat pump’s electricity follows the weather; so far the forecast treats it like
+household electricity:** with the seasonal profile of the measured years. After a mild
+winter it is therefore too low, after a cold one too high.
+
+**Which meters follow the weather** is decided in one place (`UtilityWeather`), only by
+fields, never by the name:
+
+| Meter | follows the weather |
+|---|---|
+| role **heat pump**, own meter (next to or behind the household) | yes |
+| **cascade:** front meter with the heat pump role, household behind it | yes, calculated is the **rest** (the quantity its contract bills), not the whole meter |
+| **main electricity meter**, when the heating runs on electricity (Household › Building) and there is no heat pump meter of its own | yes; with several meters without a parent meter none (the app does not guess) |
+| **group** (e.g. peak/off-peak of a heat pump) | yes, if all members do |
+
+**Built is the same path as for gas:** heating model from degree days and days (also
+across reading intervals), climate normal instead of weather luck, quality gate, band.
+In addition the calculation picks the heating limit itself when the meter has none of
+its own, and uses the same calibration to the latest level for forecast and balance.
+
+**Unlike gas**, the climate normal of the heat pump follows the **temperature trend**:
+at ten DWD weather stations the mean of the thirty years put the degree days of the
+following year **9 to 12 % too high**, with the trend 2 to 3 %
+([measurement](../entwicklung/messung-temperaturtrend.md)). The **HT/NT group** of a
+heat pump calculates **one** model and splits it by the shares of its registers per
+calendar month; group = HT + NT holds.
+
+**It is only shown once it passes its check.** It is measured on a test household with
+its own physics, not derived from the app’s model, against thresholds fixed in advance
+(tool `tools/rueckrechnung.php`, [tests](../entwicklung/tests.md)). In v3.13.0 the
+calculation does not pass them yet; forecast, band and “Expected at billing” stay with
+the seasonal profile, and **a note says so** in the forecast, on the balance card and in
+the workshop.
+
+**Minimum needed** once it is switched on: 8 measured months or 8 intervals between
+readings of at least 20 days, including a winter and a summer month, plus a location for
+the climate normal. Below that the seasonal profile stays and the note says what is
+missing (show instead of guess).
+
+**Known limit:** the model is linear. In a very cold winter the performance factor drops
+and a heating rod kicks in; then it tends to be too low.
+
 ## Typical pitfalls
 
 - **Expecting a temperature correlation.** For pure household electricity, a

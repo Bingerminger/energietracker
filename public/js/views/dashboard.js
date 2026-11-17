@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { getUtilities, getSettings, getSettingsSync } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
-import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm, trendNeedsCheck } from '../lib/chart-data.js';
+import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm, trendNeedsCheck, periodMonths } from '../lib/chart-data.js';
 import { toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { heatLimitFacts, heatLimitEffect, heatLimitBeginnerLines, applyHeatLimit, isGroupId, heatLimitLaterUntil } from '../lib/heat-limit.js';   // v3.9.0 (#38)
@@ -16,7 +16,7 @@ import { readingCheckLines, readingCheckTitle, correctHref, markReadings, delete
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeHtml, expectedBalance, bandText } from '../lib/semantics.js';
+import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeHtml, expectedBalance, bandText, costPriceMissing } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 import { periodMode, periodName, pickPeriod, periodsWithData, addDays as addDaysIso, sameSpanTrend, periodWindow } from '../lib/billing-period.js';   // v3.6.0 (F1030), v3.10.0 (#36)
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
@@ -858,7 +858,9 @@ export function artTileHtml({ utility, consumption, billing = null, groups = nul
       + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOfReading', { date: fmt.date(addDaysIso(billing.as_of, 1)) }) : '')
     : win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
     + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
-  const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
+  // v3.13.0 — ein Vertrag ohne Arbeitspreis: „Preis fehlt“ statt eines Betrags (nicht „kein Vertrag“, nicht der Grundpreis)
+  const priceMissing = costPriceMissing({ u: utility, rows: last12, billing });
+  const noContract = totalCost === 0 && !priceMissing;    // D — kein Vertrag/keine Kosten
   // v2.13.0 (Review FE-06) — Einspeisung ist ein Erlös, Erzeugung hat weder
   // Kosten noch Vertrag; bei beiden ist mehr besser (Trendfarbe)
   const feedIn = isFeedIn(utility);
@@ -896,13 +898,15 @@ export function artTileHtml({ utility, consumption, billing = null, groups = nul
           <div class="kpi__value">${escapeHtml(fmt.pct(pct, 0))}</div>
           ${pvYear.autarkiequote != null ? `<div class="kpi__sub">${escapeHtml(t('dashboard.tile.autarky', { pct: fmt.pct(pvYear.autarkiequote, 0) }))}</div>` : ''}
         </div>` : '')
+          : priceMissing ? slot(costKey, `<span data-role="tile-price-missing">${escapeHtml(t('priceMissing.short'))}</span>`,
+            `<div class="kpi__sub"><a href="#/utility/${escapeHtml(encodeURIComponent(utility.key))}/contracts">${escapeHtml(t('priceMissing.add'))}</a></div>`)
           : slot(costKey,
             noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : escapeHtml(fmt.eur(totalCost)),
             `${noContract ? '' : trendHtml(trendCost, trendOpts)}
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : billing ? escapeHtml(t('billing.dashboard.costSub', { advances: fmt.eur(billing.advances) })) : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
           ${bonusText && !noContract ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}`)}
       </div>
-      ${last12.length >= 2 ? `<div class="dash-spark art-kachel__spur"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : '<div class="art-kachel__spur" aria-hidden="true"></div>'}
+      ${sparkWindow(monthly, billing) ? `<div class="dash-spark art-kachel__spur"><canvas data-spark="${escapeHtml(utility.key)}"${billing ? ' data-spark-window="billing"' : ''}></canvas></div>` : '<div class="art-kachel__spur" aria-hidden="true"></div>'}
       ${groupsHtml}
       ${tileFootHtml(utility, consumption, summary, tanks)}
     </div>
@@ -1074,9 +1078,28 @@ function renderTotalChart(datasets, span = 12, container = document) {
 }
 
 /**
+ * v3.13.0 (GitHub #64) — Monate der Kachel-Balken: im Abrechnungsjahr die der gewählten Periode (`billing`,
+ * künftige Monate leer), sonst die letzten zwölf Monate. Null, wenn es nichts zu zeigen gibt (dann keine Spur).
+ * @param {Array<object>} monthly  Monatszeilen der Art
+ * @param {?{from: string, until: string}} billing  Periode der Kachel oder null
+ * @param {string} [today]  ISO-Tag (Tests)
+ * @returns {{months: string[], rows: Array<object|null>, partial: boolean[], from: string, to: string}|null}
+ */
+export function sparkWindow(monthly, billing = null, today = undefined) {
+  if (billing) {
+    const per = periodMonths(monthly, billing, today);
+    return per && per.rows.some(Boolean) ? per : null;
+  }
+  const win = lastMonths(monthly, 12);
+  if (!win || win.rows.length < 2) return null;
+  return { months: win.rows.map(m => m.ym), rows: win.rows, partial: win.rows.map(m => isPartial(m)), from: win.from, to: win.to };
+}
+
+/**
  * v2.16.0 (Review FE-17) — Mini-Verlauf je Karte: die zwölf Monate des
  * Kartenfensters als Säulen, dieselben Monate ein Jahr zuvor als Linie.
  * Ohne Achsen und Legende; die Zahlen stehen in den Kennzahlen darüber.
+ * v3.13.0 (#64) — im Abrechnungsjahr die Monate der Periode (sparkWindow).
  */
 function renderSparks(datasets, container) {
   const out = [];
@@ -1086,21 +1109,23 @@ function renderSparks(datasets, container) {
     if (!canvas) continue;
     const monthly = d.consumption?.monthly_total || [];
     const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
-    const win = lastMonths(monthly, 12);
-    if (!win || win.rows.length < 2) continue;
+    // v3.13.0 (GitHub #64) — im Abrechnungsjahr die Monate der Periode wie die Zahlen der Kachel (künftige leer),
+    // die Linie dieselben Monate ein Jahr davor; ohne Periode (Kalenderjahr, Einspeisung, Erzeugung) wie bisher
+    const per = sparkWindow(monthly, d.billing);
+    if (!per) continue;
     const byYm = new Map(monthly.map(m => [m.ym, m]));
-    const rows = win.rows;
-    const partial = rows.map(m => isPartial(m));
-    const prev = rows.map(m => byYm.get(shiftYm(m.ym, -12))?.[key] ?? null);
+    const { months, rows, partial } = per;
+    const prev = months.map(ym => byYm.get(shiftYm(ym, -12))?.[key] ?? null);
     const hasPrev = prev.some(v => v != null);
     const bar = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
     const unit = u.consumption_unit;
+    const win = { from: per.from, to: per.to };
     out.push(makeChart(canvas, {
       type: 'bar',
       data: {
-        labels: rows.map(m => fmt.month(m.ym)),
+        labels: months.map(ym => fmt.month(ym)),
         datasets: [
-          { type: 'bar', label: u.label, data: rows.map(m => m[key] ?? null), backgroundColor: bar(0.55, 0.18), borderWidth: 0, order: 2 },
+          { type: 'bar', label: u.label, data: rows.map(m => m?.[key] ?? null), backgroundColor: bar(0.55, 0.18), borderWidth: 0, order: 2 },
           ...(hasPrev ? [{ type: 'line', label: t('dashboard.spark.prev'), data: prev, borderColor: tokenColor('text2'), borderWidth: 1.5,
             borderDash: [3, 3], pointRadius: 0, tension: 0.3, spanGaps: false, order: 1 }] : []),
         ],
@@ -1251,8 +1276,10 @@ export function withGroupContracts(meters) {
 }
 
 /** Hauptzähler und Gruppen mit laufendem Vertrag und erwartetem Saldo (ohne PV). */
+// v3.13.0 — auch ein Vertrag ohne gemessenen Verbrauch (`projection_missing`): Er steht mit „Noch zu wenig Ablesungen“ da,
+// statt zu fehlen (sonst hieß es „Noch kein Vertrag mit Abschlag erfasst“)
 const moneyMeters = (meters, byKey) => withGroupContracts(meters).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
-  && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
+  && (m.contract.projected_end_balance != null || !!m.contract.projection_missing) && !isPv(byKey.get(m.utility)));
 
 /**
  * Zeilen der Antwort „Muss ich nachzahlen?“ (Einsteiger) aus `/api/summary`.
@@ -1268,6 +1295,17 @@ export function beginnerMoneyLines(meters, byKey) {
   return withContract.map(m => {
     const u0 = byKey.get(m.utility);
     const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
+    // v3.13.0 — Vertrag ohne Arbeitspreis: kein „zurück“, sondern „Preis fehlt“ mit Weg zum Vertrag
+    if (m.contract.price_missing) {
+      return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
+      <span><strong>${escapeHtml(u.label)}:</strong> <span data-role="money-price-missing">${escapeHtml(t('priceMissing.short'))}</span>
+      <span class="small"> · <a href="#/utility/${escapeHtml(encodeURIComponent(m.utility))}/contracts">${escapeHtml(t('priceMissing.add'))}</a></span></span></li>`;
+    }
+    // v3.13.0 — nur der Anfangsstand: kein Betrag aus einem Verbrauch von null
+    if (m.contract.projection_missing) {
+      return `<li class="dash-answer__row">${artIcon(u, { size: 16 })}
+      <span><strong>${escapeHtml(u.label)}:</strong> <span data-role="money-too-few">${escapeHtml(t('utility.balance.tooFewReadings'))}</span></span></li>`;
+    }
     // v3.10.0 — eine Quelle mit der Saldo-Karte (expectedBalance): Summe einer Abrechnung über
     // mehrere Verträge, Spanne bzw. Breite der Schätzung
     const exp = expectedBalance(m.contract);
@@ -1448,7 +1486,15 @@ async function tenancyBudget() {
   return current ? api.tenancyBudget(current.id) : null;
 }
 
-function tenancyAnswerHtml(b) {
+// v3.13.0 — exportiert für tests/saldo-farbe.test.mjs (Mietverhältnis ohne Preise)
+export function tenancyAnswerHtml(b) {
+  // v3.13.0 — ohne Preise kennt die App die Kosten nicht: kein „reicht“ aus der ganzen Vorauszahlung, sondern der Hinweis
+  if (b?.price_missing) {
+    return `<section class="card dash-answer" aria-labelledby="dash-a-rent">
+    <h2 class="card__title" id="dash-a-rent">${icon('block')} ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
+    <p data-role="rent-price-missing">${t('tenancy.budget.priceMissing')}</p>
+  </section>`;
+  }
   const r = Number(b.projected_result_eur);
   if (!Number.isFinite(r)) return '';
   const credit = r <= 0;

@@ -47,13 +47,51 @@ Diese Fristen rechnet die App. Ein Test hält die Zahlen an den Werten im Code.
 | Ankündigung einer Preisänderung im Sondervertrag <!-- doc-claim: rights-deadline announce_special_months --> | 1 Monat vor der Änderung | § 41 Abs. 5 Satz 1 bis 3 EnWG |
 | Ankündigung einer Preisänderung in der Grundversorgung <!-- doc-claim: rights-deadline announce_basic_days --> | 42 Tage (sechs Wochen) vor der Änderung, die zum Monatsbeginn gilt | § 5 Abs. 2 StromGVV, § 5 Abs. 2 GasGVV |
 | Bekanntgabe eines Bescheids per Post <!-- doc-claim: rights-deadline notice_postal_days --> | am 4. Tag nach Aufgabe zur Post | § 41 Abs. 2 Satz 1 VwVfG, § 122 Abs. 2 Nr. 1 AO |
-| Widerspruch oder Klage gegen einen Bescheid <!-- doc-claim: rights-deadline notice_months --> | 1 Monat nach Bekanntgabe | § 70 Abs. 1 VwGO; Fristende nach §§ 187 Abs. 1, 188 Abs. 2, 3 BGB (zu prüfen); am Samstag, Sonntag oder Feiertag der nächste Werktag (§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG) |
+| Widerspruch oder Klage gegen einen Bescheid <!-- doc-claim: rights-deadline notice_months --> | 1 Monat nach Bekanntgabe | § 70 Abs. 1 VwGO; Fristende nach §§ 187 Abs. 1, 188 Abs. 2, 3 BGB; am Samstag, Sonntag oder Feiertag der nächste Werktag (§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG) |
 
 So rechnet die App die Termine:
 
+- **Kündigungsstichtag** *(v3.13.0, Nr. 52)*: der **letzte Tag, an dem die
+  Kündigung beim Anbieter ankommen kann**, damit die Frist spätestens mit dem
+  Vertragsende abläuft. Die Frist beginnt am Tag nach dem Zugang (§ 187 Abs. 1
+  BGB) und endet am Tag mit derselben Zahl, im kürzeren Monat am Monatsletzten
+  (§ 188 Abs. 2, 3 BGB). **Endet der Vertrag am Monatsletzten, ist der Stichtag
+  der Monatsletzte:** <!-- doc-claim: notice-last-day --> Ende 29.02.2028 mit
+  einem Monat Frist: 31.01.2028; Ende 30.09.2029 mit sechs Monaten:
+  31.03.2029; Ende 31.03.2029 mit einem Monat: 28.02.2029. Sonst der Tag mit
+  derselben Zahl (Ende 15.05.2028, ein Monat: 15.04.2028). Bis v3.12 war es
+  immer der Tag mit derselben Zahl, bei einem
+  Ende am Monatsletzten 1 bis 3 Tage zu früh. Eine Frist in Tagen: Ende minus
+  Tage. Dieselbe Regel gilt für die neun Monate der Fernwärme (§ 32
+  AVBFernwärmeV). **Fällt der Stichtag auf ein Wochenende oder einen
+  Feiertag, bleibt er:** § 193 BGB gilt für Kündigungsfristen nicht.
 - **Sonderkündigung:** Die Kündigung muss vor dem Tag der Preisänderung
   zugehen; der Termin ist der Tag davor. Nennt das Schreiben ein früheres Datum,
   steht das frühere als Termin, und der Hinweis nennt beide.
+- **Ankündigung einer Preisänderung** *(v3.13.0, Nr. 18, 24)*: gerechnet wie
+  der Kündigungsstichtag. <!-- doc-claim: announcement-forward --> Die Frist
+  (ein Monat im Sondervertrag, sechs Wochen in der Grundversorgung) beginnt am
+  Tag nach dem Schreiben und muss mit dem letzten Tag des alten Preises
+  abgelaufen sein: **Änderung zum 01.03.2027, Sondervertrag: rechtzeitig bis
+  31.01.2027, Grundversorgung bis 17.01.2027.** Ein Schreiben genau einen
+  Kalendermonat bzw. 42 Tage vorher (01.02.2027 bzw. 18.01.2027) heißt
+  **„knapp, prüfen“**, nicht „zu spät“; erst danach ist es zu spät. Bis v3.12
+  galt dieser Tag als rechtzeitig. <!-- /doc-claim --> Gründe: §§ 187, 188 BGB
+  gelten entsprechend für Fristen, die von einem Ereignis zurück laufen (IHK
+  München, „Rückwärtsfristen“, PDF vom 24.10.2022, abgerufen 2026-11-16:
+  Beginn am 07.05., 14 Tage, letzter Tag 22.04.); der Gesetzgeber zählt bei der
+  gesetzlich geregelten Rückwärtsfrist der Hauptversammlung weder den Tag der
+  Einberufung noch den der Versammlung mit (§ 121 Abs. 7, § 123 Abs. 1 AktG,
+  abgerufen 2026-11-16; nur Vergleich). Dagegen rechnet eine Arbeitshilfe für
+  Versorger (abgerufen 2026-11-16) mit dem Kalenderabstand. Eine
+  Entscheidung zur Zählung gibt es nicht (BGH, 10.09.2024, EnVR 75/23, und
+  21.10.2025, EnZR 97/23: eine zu spät angekündigte Erhöhung ist unwirksam, die
+  Frist wird nicht vorgerechnet). **Maßgeblich ist der Zugang** beim Kunden
+  (Verbraucherzentrale, „Preiserhöhungen bei Strom und Gas“, Stand 19.11.2025,
+  abgerufen 2026-11-16); die App kennt nur das Datum des Schreibens. In der
+  Grundversorgung zählt die öffentliche Bekanntgabe, der Brief geht
+  zeitgleich hinaus. Für Fernwärme gibt es keine allgemeine Ankündigungsfrist
+  (§ 24 AVBFernwärmeV, abgerufen 2026-11-16); die App prüft dort keine.
 - **Gebührenbescheid:** Bescheiddatum plus vier Tage, mit Zustellungsurkunde das
   Datum der Zustellung; dann ein Monat. Fehlt der Tag im Monat, gilt der
   Monatsletzte. Fällt dieser Tag auf einen Samstag, Sonntag oder einen Feiertag,
@@ -85,6 +123,17 @@ optionale Einbau.
 
 Den Jahresverbrauch nimmt die App als Mittel der letzten drei vollen Jahre. Für
 konventionelle Zähler und für Gas prüft sie nichts.
+
+**Ein Jahr bleibt ein Jahr** *(v3.13.0)*: Das Gesetz nennt brutto jährliche
+Beträge und den Jahresstromverbrauch, aber keine Umrechnung auf 365 Tage. Ein
+Kalenderjahr aus Ablesungen und eine Rechnung über **genau ein Jahr**
+(Stichtag zu Stichtag, 365 oder 366 Tage) nimmt die App deshalb, wie sie
+sind; nur einen kürzeren oder längeren Zeitraum rechnet sie auf 365 Tage um,
+Menge und Betrag nach derselben Regel. Den Jahreswert aus Ablesungen rechnet
+sie aus den ungerundeten Tagesmengen, nicht aus den auf 0,1 kWh gerundeten
+Monatszeilen. Bis v3.12 wurde auch ein Schaltjahr umgerechnet (6.012 kWh in
+366 Tagen galten als 5.996 kWh), und die Summe der Monatszeilen konnte genau
+6.000 kWh über die Grenze heben.
 
 ## Aussagen und Quellen
 
@@ -135,17 +184,17 @@ konventionelle Zähler und für Gas prüft sie nichts.
 
 | Nr. | Aussage | Norm und Quelle | Stand | Status |
 |---|---|---|---|---|
-| 18 <!-- doc-claim: rights-rule de.enwg.41.5.s1 --> | Sondervertrag: Über eine Preisänderung unterrichtet der Lieferant Haushaltskunden spätestens einen Monat vorher, einfach und verständlich, mit Anlass, Voraussetzungen und Umfang. | [§ 41 Abs. 5 Satz 1 bis 3 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
+| 18 <!-- doc-claim: rights-rule de.enwg.41.5.s1 --> | Sondervertrag: Über eine Preisänderung unterrichtet der Lieferant Haushaltskunden spätestens einen Monat vorher, einfach und verständlich, mit Anlass, Voraussetzungen und Umfang. | [§ 41 Abs. 5 Satz 1 bis 3 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-16 | W |
 | 19 <!-- doc-claim: rights-rule de.enwg.41.5.s4 --> | Sondervertrag: Du kannst ohne Kündigungsfrist zum Wirksamwerden der Preisänderung kündigen, ohne gesondertes Entgelt. | [§ 41 Abs. 5 Satz 4 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
 | 20 <!-- doc-claim: rights-rule de.enwg.41.6 --> | Sondervertrag: Kein Unterrichtungsgebot und kein Kündigungsrecht, wenn der Lieferant eine gesetzliche Änderung der Umsatzsteuer unverändert weitergibt oder eine Absenkung der Kalkulationsbestandteile nach § 40 Abs. 3 Nr. 1 bis 5 EnWG. | [§ 41 Abs. 6 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
 | 21 <!-- doc-claim: rights-rule de.vz.special_termination --> | Die Kündigung muss zum Wirksamwerden beim Anbieter vorliegen; der Anbieter darf dafür keine eigene Frist setzen; eine Mindestlaufzeit schließt das Recht nicht aus. | [Verbraucherzentrale Niedersachsen: Sonderkündigungsrecht (Stand 24.04.2026)](https://www.verbraucherzentrale-niedersachsen.de/themen/energie-wohnen/energiepreise-anbieterwechsel/preiserhoehung-wenn-energieanbieter-das-sonderkuendigungsrecht-verweigern) | 2026-11-03 | S |
 | 22 <!-- doc-claim: rights-rule de.enwg.41b.1 --> | Sondervertrag: Der Lieferant bestätigt eine Kündigung binnen einer Woche nach Zugang in Textform, mit dem Vertragsende. | [§ 41b Abs. 1 Satz 2 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41b.html) | 2026-11-03 | W |
-| 24 <!-- doc-claim: rights-rule de.stromgvv.5.2 --> | Grundversorgung Strom: Preisänderungen gelten zum Monatsbeginn, mit öffentlicher Bekanntgabe mindestens sechs Wochen vorher und zeitgleich einem Brief mit Umfang, Anlass und Voraussetzungen. | [§ 5 Abs. 2 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-03 | W |
-| 24 <!-- doc-claim: rights-rule de.gasgvv.5.2 --> | Grundversorgung Gas: ebenso. | [§ 5 Abs. 2 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-03 | W |
+| 24 <!-- doc-claim: rights-rule de.stromgvv.5.2 --> | Grundversorgung Strom: Preisänderungen gelten zum Monatsbeginn, mit öffentlicher Bekanntgabe mindestens sechs Wochen vorher und zeitgleich einem Brief mit Umfang, Anlass und Voraussetzungen. | [§ 5 Abs. 2 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-16 | W |
+| 24 <!-- doc-claim: rights-rule de.gasgvv.5.2 --> | Grundversorgung Gas: ebenso. | [§ 5 Abs. 2 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-16 | W |
 | 25 <!-- doc-claim: rights-rule de.stromgvv.5.3 --> | Grundversorgung Strom: Du kannst ohne Frist zum Wirksamwerden kündigen; die Änderung wirkt nicht, wenn du binnen eines Monats nach Zugang deiner Kündigung einen eingeleiteten Versorgerwechsel nachweist. | [§ 5 Abs. 3 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-03 | W |
 | 25 <!-- doc-claim: rights-rule de.gasgvv.5.3 --> | Grundversorgung Gas: ebenso. | [§ 5 Abs. 3 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-03 | W |
-| 26 <!-- doc-claim: rights-rule de.stromgvv.20 --> | Grundversorgung Strom: Kündigung jederzeit mit zwei Wochen Frist, in Textform; der Grundversorger bestätigt unverzüglich, ohne Entgelt. | [§ 20 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__20.html) | 2026-11-03 | W |
-| 26 <!-- doc-claim: rights-rule de.gasgvv.20 --> | *Zu prüfen:* Grundversorgung Gas: ebenso. | [§ 20 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__20.html) | 2026-11-03 | G |
+| 26 <!-- doc-claim: rights-rule de.stromgvv.20 --> | Grundversorgung Strom: Kündigung jederzeit mit zwei Wochen Frist, in Textform; der Grundversorger bestätigt unverzüglich, ohne Entgelt. Wann die zwei Wochen enden, hängt vom Zugang ab; der Kündigungsbrief lässt den Termin deshalb offen *(v3.13.0)*. | [§ 20 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__20.html) | 2026-11-13 | W |
+| 26 <!-- doc-claim: rights-rule de.gasgvv.20 --> | Grundversorgung Gas: ebenso (gleicher Wortlaut). | [§ 20 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__20.html) | 2026-11-13 | W |
 | 29 <!-- doc-claim: rights-rule de.avbfernwaermev.24.4 --> | Fernwärme: Preise ändern sich nach der Preisänderungsklausel mit Kosten- und Marktelement; die Berechnungsfaktoren sind auszuweisen. Ein Sonderkündigungsrecht gibt es nur im Sonderfall einer Gaspreiserhöhung nach dem Energiesicherungsgesetz. | [§ 24 Abs. 4 bis 7 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__24.html) | 2026-11-03 | W |
 | 58 <!-- doc-claim: rights-rule de.enwg.2026 --> | *Unsicher:* Das EnWG wurde 2026 geändert (BGBl. 2026 I Nr. 226); ob das §§ 40 bis 41b betrifft, ist nicht geprüft. | [EnWG, Änderung durch BGBl. 2026 I Nr. 226](https://www.buzer.de/41_EnWG.htm) | 2026-11-03 | U |
 
@@ -153,7 +202,7 @@ konventionelle Zähler und für Gas prüft sie nichts.
 
 | Nr. | Aussage | Norm und Quelle | Stand | Status |
 |---|---|---|---|---|
-| 30 <!-- doc-claim: rights-rule de.avbfernwaermev.32 --> | Fernwärme: Laufzeit höchstens zehn Jahre; ohne Kündigung neun Monate vor Ablauf verlängert sie sich um fünf Jahre; gekündigt wird schriftlich. | [§ 32 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__32.html) | 2026-11-03 | W |
+| 30 <!-- doc-claim: rights-rule de.avbfernwaermev.32 --> | Fernwärme: Laufzeit höchstens zehn Jahre; ohne Kündigung neun Monate vor Ablauf verlängert sie sich um fünf Jahre; gekündigt wird schriftlich. | [§ 32 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__32.html) | 2026-11-13 | W |
 | 31 <!-- doc-claim: rights-rule de.bgb.310.2 --> | §§ 308, 309 BGB gelten nicht für Sonderabnehmerverträge der Strom-, Gas-, Fernwärme- und Wasserversorger, soweit diese nicht zum Nachteil der Kunden von den Versorgungsbedingungen der Verordnungen abweichen; für Abwasser entsprechend. | [§ 310 Abs. 2 BGB](https://www.gesetze-im-internet.de/bgb/__310.html) | 2026-11-03 | W |
 | 32 <!-- doc-claim: rights-rule de.bgb.309.9 --> | *Zu prüfen:* Eine erste Laufzeit über 24 Monate ist in den AGB eines Verbrauchervertrags unwirksam. Darauf stützt sich die Warnung der App bei Strom und Gas. | [§ 309 Nr. 9 BGB](https://www.gesetze-im-internet.de/bgb/__309.html) | 2026-11-03 | G |
 | 59 <!-- doc-claim: rights-rule de.bgb.309.9.b --> | *Unsicher:* Eine stillschweigende Verlängerung ist in AGB nur wirksam, wenn der Vertrag danach auf unbestimmte Zeit läuft und jederzeit mit höchstens einem Monat Frist kündbar ist. Ob das für einen verlängerten Strom- oder Gasvertrag gilt, hängt von § 310 Abs. 2 BGB (Nr. 31) und vom Datum des Vertragsschlusses ab. Die App nennt deshalb keine Frist und rechnet kein frühestes Ende; sie verweist auf den Vertrag. | [§ 309 Nr. 9 Buchst. b BGB](https://www.gesetze-im-internet.de/bgb/__309.html) | 2026-11-03 | U |
@@ -171,9 +220,9 @@ konventionelle Zähler und für Gas prüft sie nichts.
 
 | Nr. | Aussage | Norm und Quelle | Stand | Status |
 |---|---|---|---|---|
-| 40 <!-- doc-claim: rights-rule de.msbg.30 --> | Intelligentes Messsystem: Obergrenzen je Fallgruppe für den Anschlussnutzer 40, 50, 110 und 140 € im Jahr, über 100.000 kWh ein angemessenes Entgelt, beim optionalen Einbau 30 €; brutto je Jahr und Zählpunkt, für den grundzuständigen Messstellenbetreiber (Fassung vom 23.12.2025). Die Beträge älterer Fassungen sind nicht belegt; die App prüft erst ab 2026-01-01. | [§ 30 Abs. 1, 3 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
-| 41 <!-- doc-claim: rights-rule de.msbg.30.1.4 --> | Mit einer Vereinbarung nach § 14a EnWG oder einer Anlage über 7 bis 15 kW gilt die Gruppe mit 50 €. | [§ 30 Abs. 1 Nr. 4 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
-| 42 <!-- doc-claim: rights-rule de.msbg.30.4 --> | Jahresverbrauch ist das Mittel der letzten drei Jahreswerte, sonst die Prognose des Netzbetreibers; passen mehrere Gruppen, gilt die höchste Grenze; eine Festlegung der Bundesnetzagentur ginge vor. Ob es sie gibt, ist offen (Stand 2026-11). | [§ 30 Abs. 4 bis 6 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
+| 40 <!-- doc-claim: rights-rule de.msbg.30 --> | Intelligentes Messsystem: Obergrenzen je Fallgruppe für den Anschlussnutzer 40, 50, 110 und 140 € im Jahr, über 100.000 kWh ein angemessenes Entgelt, beim optionalen Einbau 30 €; brutto je Jahr und Zählpunkt, für den grundzuständigen Messstellenbetreiber (Fassung vom 23.12.2025). Die Beträge älterer Fassungen sind nicht belegt; die App prüft erst ab 2026-01-01. | [§ 30 Abs. 1, 3 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
+| 41 <!-- doc-claim: rights-rule de.msbg.30.1.4 --> | Mit einer Vereinbarung nach § 14a EnWG oder einer Anlage über 7 bis 15 kW gilt die Gruppe mit 50 €. | [§ 30 Abs. 1 Nr. 4 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
+| 42 <!-- doc-claim: rights-rule de.msbg.30.4 --> | Jahresverbrauch ist das Mittel der letzten drei Jahreswerte, sonst die Prognose des Netzbetreibers; passen mehrere Gruppen, gilt die höchste Grenze; eine Festlegung der Bundesnetzagentur ginge vor. Ob es sie gibt, ist offen (Stand 2026-11). Eine Umrechnung auf 365 Tage nennt der Wortlaut nicht. | [§ 30 Abs. 4 bis 6 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
 | 43 <!-- doc-claim: rights-rule de.msbg.32.1 --> | Moderne Messeinrichtung: höchstens 25 € brutto im Jahr (seit 2025, vorher 20 €; das Datum der Erhöhung ist noch zu prüfen). | [§ 32 Abs. 1 MsbG](https://www.gesetze-im-internet.de/messbg/__32.html) | 2026-11-03 | W |
 | 44 <!-- doc-claim: rights-rule de.msbg.35.1 --> | Zusatzleistung vorzeitige Ausstattung auf Verlangen: einmalig bis 100 €, im optionalen Fall bis 30 € je Jahr; Einbau auf Verlangen binnen vier Monaten. | [§ 35 Abs. 1 Nr. 1 MsbG](https://www.gesetze-im-internet.de/messbg/__35.html) | 2026-11-03 | W |
 | 45 <!-- doc-claim: rights-rule de.msbg.29 --> | Pflichteinbau eines intelligenten Messsystems über 6.000 kWh, mit einer Vereinbarung nach § 14a EnWG und bei Anlagen über 7 kW; sonst optional; moderne Messeinrichtung bis Ende 2032. | [§ 29 MsbG](https://www.gesetze-im-internet.de/messbg/__29.html) | 2026-11-03 | W |
@@ -192,7 +241,8 @@ konventionelle Zähler und für Gas prüft sie nichts.
 | 50 <!-- doc-claim: rights-rule de.vwvfg.41.2.3 --> | Kam der Bescheid nicht oder später an, gilt der vierte Tag nicht: „Dies gilt nicht, wenn der Verwaltungsakt nicht oder zu einem späteren Zeitpunkt zugegangen ist; im Zweifel hat die Behörde den Zugang des Verwaltungsaktes und den Zeitpunkt des Zugangs nachzuweisen.“ | [§ 41 Abs. 2 Satz 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-09 | W |
 | 50 <!-- doc-claim: rights-rule de.ao.122.2.zugang --> | Ebenso für Abgaben: „außer wenn er nicht oder zu einem späteren Zeitpunkt zugegangen ist“. | [§ 122 Abs. 2 AO, letzter Halbsatz](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-09 | W |
 | 51 <!-- doc-claim: rights-rule de.vwgo.80 --> | Widerspruch und Klage gegen öffentliche Abgaben schieben die Zahlung nicht auf; die Vollziehung soll ausgesetzt werden, wenn ernstliche Zweifel bestehen oder sie eine unbillige Härte wäre. | [§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO](https://www.gesetze-im-internet.de/vwgo/__80.html) | 2026-11-03 | W |
-| 52 <!-- doc-claim: rights-rule de.bgb.188 --> | *Zu prüfen:* Eine Monatsfrist endet mit dem Tag des Folgemonats mit derselben Zahl; fehlt er, mit dem Monatsletzten (das BGB gilt nach § 222 Abs. 1 ZPO und § 31 Abs. 1 VwVfG). Zum Ende am Wochenende oder Feiertag Nr. 60. | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-03 | G |
+| 52 <!-- doc-claim: rights-rule de.bgb.188 --> | Eine Monatsfrist beginnt am Tag nach dem Ereignis und endet mit dem Tag des letzten Monats mit derselben Zahl; fehlt er, mit dem Monatsletzten (das BGB gilt auch nach § 222 Abs. 1 ZPO und § 31 Abs. 1 VwVfG). Zum Ende am Wochenende oder Feiertag Nr. 60. Für den Kündigungsstichtag rechnet die App vorwärts: der letzte Tag, an dem die Kündigung zugehen kann, damit die Frist spätestens mit dem Vertragsende abläuft; bei einem Ende am Monatsletzten der Monatsletzte (siehe „So rechnet die App die Termine“). | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-13 | W |
+| 52 <!-- doc-claim: rights-rule de.bgh.iii_zr_172_04 --> | § 193 BGB ist auf Kündigungsfristen weder unmittelbar noch entsprechend anwendbar: Ein Kündigungsstichtag am Wochenende oder Feiertag verschiebt sich nicht. Im Fall („bis zum 30.04.2002 mit einer Frist von einem Monat“) nannte das Berufungsgericht den 31.03.2002 als Fristende; darüber entschied der BGH nicht. Nicht in App-Texten. | [BGH, 17.02.2005, III ZR 172/04](https://lorenz.userweb.mwn.de/urteile/iiizr172_04.htm) | 2026-11-13 | S |
 | 60 <!-- doc-claim: rights-rule de.vwgo.57.2 --> | Fällt das Ende einer Frist auf einen Sonntag, einen allgemeinen Feiertag oder einen Sonnabend, endet sie mit Ablauf des nächsten Werktags; das gilt nach § 57 Abs. 2 VwGO für die Fristen der VwGO. | [§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO](https://www.gesetze-im-internet.de/vwgo/__57.html) | 2026-11-03 | W |
 | 60 <!-- doc-claim: rights-rule de.vwvfg.31.3 --> | Im Verwaltungsverfahren ebenso: Fristende am Sonntag, gesetzlichen Feiertag oder Sonnabend → Ablauf des nächstfolgenden Werktags (nicht, wenn die Behörde unter Hinweis auf die Vorschrift einen bestimmten Tag als Ende mitgeteilt hat). | [§ 31 Abs. 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__31.html) | 2026-11-03 | W |
 | 60 <!-- doc-claim: rights-rule de.ao.108.3 --> | Für Abgaben nach der Abgabenordnung ebenso. | [§ 108 Abs. 3 AO](https://www.gesetze-im-internet.de/ao_1977/__108.html) | 2026-11-03 | W |
@@ -210,9 +260,9 @@ konventionelle Zähler und für Gas prüft sie nichts.
 ## Was offen ist
 
 - **Gegenlesen** durch einen Menschen vor dem Release (alle Zeilen).
-- **Zu prüfen (G):** GasGVV §§ 11, 17, 18, 20 im Wortlaut; § 309 Nr. 9 BGB als
+- **Zu prüfen (G):** GasGVV §§ 11, 17, 18 im Wortlaut; § 309 Nr. 9 BGB als
   Grundlage der Laufzeitwarnung; Verjährung (§§ 195, 199 BGB); Ausschluss des
-  Widerspruchsverfahrens (§ 68, § 74 VwGO); Fristende (§§ 187, 188 BGB); die
+  Widerspruchsverfahrens (§ 68, § 74 VwGO); die
   bundesweiten Feiertage nach den Feiertagsgesetzen der Länder (Nr. 61); § 30
   AVBWasserV; der Verweis der Kommunalabgabengesetze auf die Abgabenordnung je
   Land; das Datum, seit dem 25 € für die moderne Messeinrichtung gelten.
@@ -221,3 +271,16 @@ konventionelle Zähler und für Gas prüft sie nichts.
   MsbG-Fassungen 2023 und 02/2025; eine Festlegung der Bundesnetzagentur zu den
   Preisobergrenzen; die Kündigungsfrist eines stillschweigend verlängerten
   Strom- oder Gasvertrags (Nr. 59).
+- **Nicht belegt (Ankündigung einer Preisänderung, Nr. 18, 24):** eine
+  Entscheidung oder Kommentarstelle, die die Frist von § 41 Abs. 5 Satz 2 EnWG
+  oder § 5 Abs. 2 GVV vorwärts oder rückwärts zählt (Kommentare nicht
+  eingesehen); eine Postlaufzeit für den Zugang im Zivilrecht. Darum heißt der
+  eine Tag, an dem die Rechnungen auseinandergehen, „knapp, prüfen“.
+- **Nicht belegt (Kündigungsstichtag, Nr. 52):** eine Entscheidung, die den
+  Stichtag bei einem Ende am Monatsletzten für einen Energievertrag ausdrücklich
+  festlegt, und ein Rechenbeispiel in den Bedingungen eines Versorgers. Belegt
+  sind der Wortlaut der §§ 187, 188, 193 BGB, die Vorwärtsrechnung, das
+  Fristende 31.03. für den Kündigungstermin 30.04. im Verfahren III ZR 172/04
+  (Aussage des Berufungsgerichts) und dass § 193 BGB nicht gilt. Ein Vertrag, der den
+  Stichtag selbst festlegt, geht vor; die Bestätigung des Versorgers nennt das
+  Vertragsende (§ 41b Abs. 1 Satz 2 EnWG).

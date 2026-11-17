@@ -72,7 +72,7 @@ final class MeterTools extends ToolGroup
                     'utility'          => $u,
                     'utility_label'    => $label,
                     'id'               => $id,
-                    'untrusted'        => Sanitize::untrusted(['name' => $this->masked((string)($m['name'] ?? ''))]),
+                    'untrusted'        => Sanitize::untrusted(['name' => $this->maskedName((string)($m['name'] ?? ''))]),
                     'active'           => MeterService::inService($m),
                     'role'             => Utilities::roleOf($u, $m),
                     'parent_meter_id'  => $m['parent_meter_id'] ?? null,
@@ -109,7 +109,7 @@ final class MeterTools extends ToolGroup
                     'utility'       => $u,
                     'utility_label' => $label,
                     'id'            => $gid,
-                    'untrusted'     => Sanitize::untrusted(['name' => $this->masked((string)($g['name'] ?? ''))]),
+                    'untrusted'     => Sanitize::untrusted(['name' => $this->maskedName((string)($g['name'] ?? ''))]),
                     'members'       => array_values(array_map(fn($m) => (string)$m['id'], $meters->groupMembers($u, $gid))),
                 ], fn($v) => $v !== []);
             }

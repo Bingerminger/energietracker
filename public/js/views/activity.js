@@ -21,6 +21,7 @@ import { getSettings, saveSettings } from '../state.js';
 import { docUrl } from '../lib/docs.js';
 import { DEMO } from '../lib/demo-mode.js';
 import { icon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 /** Zeiträume des Filters (Schlüssel unter activity.period.*). */
 const PERIODS = ['all', 'm3', 'm12', 'thisYear', 'lastYear'];
@@ -98,6 +99,9 @@ export async function render(container, _params = [], ctx = {}) {
     }));
     container.querySelectorAll('[data-undo]').forEach(b => b.addEventListener('click', async () => {
       const e = entries.find(x => x.id === b.dataset.undo);
+      // v3.13.0 (Paket F) — eine Übernahme der KI zurücknehmen stellt Daten zurück (nicht nur durchstreichen): erst fragen
+      if (revertsData(e) && !(await confirmModal({ title: t('activity.undoData.title'), message: t('activity.undoData.text', { title: entryTitle(e) }),
+        confirmLabel: t('activity.undoData.ok'), danger: true }))) return;
       try {
         const res = await api.undoActivity(e.id);
         replace(res);
@@ -122,6 +126,12 @@ export async function render(container, _params = [], ctx = {}) {
   draw();
   jumpToField(container, ctx?.query);   // v3.12.0 (M3) — aus der Suche
 }
+
+/**
+ * v3.13.0 (Paket F) — Übernahme der KI mit festgehaltenem Rückweg (ActivityService::undo stellt die Daten auf den
+ * Stand davor, solange es der jüngste ist). Ohne Rückweg (vor v3.13.0) gibt es keinen Knopf.
+ */
+export const revertsData = (e) => e?.revert?.type === 'records' && !e.undone;
 
 /** Passt ein Eintrag zum Filter? */
 function matches(e, f) {
@@ -199,7 +209,7 @@ function itemHtml(e) {
     <div class="activity-item__actions">
       <button type="button" class="btn btn--sm btn--ghost" data-note="${esc(e.id)}" title="${esc(t('activity.note.edit'))}"
         aria-label="${esc(t('activity.note.editNamed', { title }))}">${icon('stift')}</button>
-      ${!undone && (e.action === 'done' || e.action === 'dismissed') ? `<button type="button" class="btn btn--sm btn--ghost" data-undo="${esc(e.id)}"
+      ${!undone && (e.action === 'done' || e.action === 'dismissed' || revertsData(e)) ? `<button type="button" class="btn btn--sm btn--ghost" data-undo="${esc(e.id)}"
         aria-label="${esc(t('activity.undoNamed', { title }))}">${esc(t('common.undo'))}</button>` : ''}
     </div>
   </li>`;
@@ -213,7 +223,7 @@ function openNote(e, onSaved) {
       <div class="fgrid">
         <div class="field field--full">
           <label for="an-note">${esc(t('activity.dialog.note'))}</label>
-          <input class="input" type="text" id="an-note" maxlength="500" value="${esc(e.note || '')}">
+          <input class="input" type="text" id="an-note" ${maxAttr('activity', 'note')} data-counter value="${esc(e.note || '')}">
         </div>
       </div>`,
     footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${esc(t('common.cancel'))}</button>

@@ -18,6 +18,7 @@ use Energietracker\Services\Mcp\Server;
 use Energietracker\Services\Mcp\Services;
 use Energietracker\Services\Mcp\ToolRegistry;
 use Energietracker\Services\MeterService;
+use Energietracker\Services\ReadingCheckService;
 use Energietracker\Services\ReadingService;
 use Energietracker\Services\SettingsService;
 use Energietracker\Storage\JsonStore;
@@ -75,6 +76,10 @@ abstract class McpTestCase extends ServiceTestCase
             ConsumptionService::class => $this->consumption, Config::class => $this->mcpConfig, PendingChanges::class => $this->pending,
         ];
         if (isset($known[$class])) return $known[$class];
+        // v3.13.0 (Paket K1, #65) — Vorschläge prüfen nach dem Wetter (wie im Container der App)
+        if ($class === ReadingCheckService::class) {
+            return $this->built[$class] ??= new ReadingCheckService($this->store, $this->meters, $this->readings, $this->consumption, $this->settings);
+        }
         return $this->built[$class] ??= $this->buildService($class);
     }
 
@@ -157,6 +162,8 @@ abstract class McpTestCase extends ServiceTestCase
         $tool = (new ToolRegistry($this->mcpServices()))->get($name);
         if ($tool?->outputSchema !== null) {
             self::assertSame([], Schema::validate($structured, $tool->outputSchema), "$name: Ausgabe passt nicht zum outputSchema");
+            // v3.13.0 — auch in der Form auf der Leitung: `{}` und `[]` verschieden (ein leeres Teilobjekt war eine Liste)
+            self::assertSame([], Schema::validateJson($result['content'][0]['text'], $tool->outputSchema), "$name: Ausgabe auf der Leitung passt nicht zum outputSchema");
         }
         return $structured;
     }

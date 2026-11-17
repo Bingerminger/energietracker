@@ -44,20 +44,20 @@ final class InboxController
 
     /**
      * Ablegen. Roh (`Content-Type: application/pdf`, Name in `?name=`) — so
-     * schickt es die Oberfläche und der Kurzbefehl „Teilen → Energietracker“.
+     * schickt es die Oberfläche und der Kurzbefehl „Teilen → Energietracker“;
+     * v3.13.0 auch als Formular wie ein Beleg (`curl -F file=@brief.pdf`).
      * v3.7.0 (Paket betrieb) — oder als JSON `{name?, pdf_base64}`: Home
      * Assistant reicht Anhänge aus der IMAP-Integration als Text weiter
      * (imap.fetch_part liefert den Anhang base64-kodiert, mit Zeilenumbrüchen).
      */
     public function create(Request $req): never
     {
-        $length = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
-        if ($req->rawBody === '' && $length > 0) {
-            throw new LocalizedException('errors.attachment.size', ['max' => 10], 'body over post_max_size');
-        }
-        $bytes = $req->rawBody;
-        $name = $req->queryParam('name');
-        if (!str_starts_with($bytes, '%PDF-') && is_array($req->body) && array_key_exists('pdf_base64', $req->body)) {
+        // v3.13.0 — dieselbe Regel wie der Beleg (UploadBody): roh, als Formular (Feld `file` oder die einzige Datei, der
+        // Dateiname gilt, wenn `?name=` fehlt), Grenzen von PHP als „zu groß“ mit der Grenze, die griff. Bisher hieß ein
+        // Formular „zu groß, höchstens 10 MB“, auch mit wenigen hundert Bytes, und über post_max_size „nur PDF“.
+        [$bytes, $fileName] = \Energietracker\Http\UploadBody::read($req);
+        $name = $req->queryParam('name') ?? $fileName;
+        if ($fileName === null && !str_starts_with($bytes, '%PDF-') && is_array($req->body) && array_key_exists('pdf_base64', $req->body)) {
             // streng: nur das Base64-Alphabet (Zeilenumbrüche aus der Mail überspringt PHP auch so)
             $b64 = is_string($req->body['pdf_base64']) ? $req->body['pdf_base64'] : '';
             $decoded = $b64 !== '' ? base64_decode($b64, true) : false;
@@ -129,7 +129,9 @@ final class InboxController
         try {
             $fields ? $this->inbox->extract($id, $pages, $consent, $fresh) : $this->inbox->classify($id, $pages, $consent, $fresh);
         } catch (LocalizedException $e) {
-            Response::error($this->i18n->t($e->key, $e->params), in_array($e->key, self::UPSTREAM, true) ? 502 : 400, null, $e->key);
+            $upstream = in_array($e->key, self::UPSTREAM, true);
+            // v3.13.0 — Feld und Grenze wie an jeder Fehlerantwort (ErrorHandler::fieldDetail)
+            Response::error($this->i18n->t($e->key, $e->params), $upstream ? 502 : 400, $upstream ? null : \Energietracker\Http\ErrorHandler::fieldDetail($e), $e->key, true);
         }
         Response::json($this->inbox->preview($id));
     }

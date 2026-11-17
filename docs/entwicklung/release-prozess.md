@@ -150,7 +150,8 @@ git commit -m "vX.Y.Z — <Kurzbeschreibung>"
 git push origin main
 
 # 2. Auf die CI warten. Erst bei grün weiter.
-#    (Jobs: test, lint-php, phpunit, docker)
+#    (Jobs: test, lint-php, phpunit, docker; die Zeitreise lief vorher lokal,
+#    in der CI läuft sie wöchentlich und per Knopf im Workflow „Zeitreise“)
 
 # 3. Tag setzen und pushen → löst den GHCR-Publish aus
 git tag -a vX.Y.Z -m "vX.Y.Z — …"

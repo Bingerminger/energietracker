@@ -126,7 +126,10 @@ ideally from an energy assessment or for your vehicle.
   note says so, “Save 10%” stays.
 - **Electricity has no heating model, not even for a heat pump.** So there is
   neither winter nor room temperature. The percentages of a measure apply to all
-  electricity on the meter, and base load and saving calculate the same.
+  electricity on the meter, and base load and saving calculate the same. The heat
+  pump calculation by the weather is built but not yet switched on
+  ([Electricity](../verstehen/02-strom.md#heat-pump-by-the-weather-v3130-not-yet-switched-on));
+  the workshop says so.
 - **No offer entered, no switch.** “Price rises” needs a price.
 - **Water has no tariff to choose:** you do not change supplier there, the workshop
   calculates with your current contract.
@@ -230,8 +233,15 @@ tank. Deliveries have no advance payment and no bill.
 - **Replacing the heating: a second calculation for the same heat.** Heat =
   fuel × efficiency of the old boiler. A heat pump needs heat ÷ seasonal
   performance factor in electricity, a pellet boiler heat ÷ its efficiency in
-  pellets. The performance factor applies all year; in reality it is lower in
-  winter and higher in summer. Empty fields use stated example values, not
+  pellets. **Since v3.13.0 the performance factor is spread over the months by the
+  weather:** lower in winter, higher in summer, while the seasonal performance factor
+  stays exactly your input (electricity per year = heat ÷ SPF). The shape comes from
+  the Carnot coefficient of performance at the month’s mean outdoor temperature in the
+  climate normal, with the flow temperature of a heating curve for radiators (part-load
+  points of DIN EN 14825, medium temperature: 52 °C at −7 °C down to 30 °C at +12 °C)
+  and 55 °C for hot water; an air-to-water heat pump is assumed. If a heat meter in the
+  household measures a heat pump, the workshop uses its measured performance per month.
+  Without a climate normal the performance factor stays the same all year. Empty fields use stated example values, not
   guide values. Installation costs are not included; with a cost entered the
   workshop names the payback.
 

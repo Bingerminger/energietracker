@@ -109,7 +109,9 @@ async function enumerate(get, post = null) {
     '/api/homeassistant/notify',              // v3.9.0 (F1033) — Einstellungen → Integrationen: Benachrichtigungen (aus)
     '/api/rights',                            // v3.11.0 (F1035) — Rechte als Kunde (Ansichten filtern im Browser)
     // v3.12.0 (F1037) — Einstellungen → Integrationen: KI-Assistenten (aus, ohne Schlüssel, leere Listen)
-    '/api/mcp/status', '/api/mcp/journal', '/api/mcp/proposals');
+    '/api/mcp/status', '/api/mcp/journal', '/api/mcp/proposals',
+    // v3.13.0 — Haushalt › Zähler „Alle“ und die Zahl am Reiter „Frühere Verträge“ in einer Anfrage
+    '/api/meters-overview');
   // v3.6.0 — Vorschau „Person löschen“ je Person (Löschen selbst lehnt die Demo ab)
   for (const p of (await get('/api/people')).json?.data ?? []) add(`/api/users/${p.id}/handover`);
   // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau je Dokument (vorberechnete Auslesung)
@@ -185,6 +187,8 @@ async function enumerate(get, post = null) {
       }
       if (m.capture === 'period') add(`/api/utility/${k}/periods?meter_id=${q}`); // v3.1.0 (H3)
       add(`/api/utility/${k}/dossier?meter_id=${q}`);   // v3.7.0 (Paket betrieb) — Akte je Zähler
+      // v3.13.0 (Paket vertrag) — Auszahlungen an der Saldo-Karte der Einspeisung
+      if (u.accounting_kind === 'feed_in') add(`/api/feed-in-payouts?meter_id=${q}`);
       for (const model of FORECAST_MODELS) {
         // Vorbelegung der Prognose-Ansicht: ohne Was-wäre-wenn, Horizont aus den Einstellungen
         add(`/api/utility/${k}/meters/${id}/forecast?` + new URLSearchParams({
@@ -211,9 +215,27 @@ async function enumerate(get, post = null) {
       // v3.7.0 (Paket betrieb) — Akte je Vertrag (Angebote haben keine)
       if (!c.is_shadow) add(`/api/utility/${k}/dossier?contract_id=${encodeURIComponent(c.id)}`);
     }
+    const allContracts = (await get(`/api/utility/${k}/contracts`)).json?.data ?? [];
     for (const g of (await get(`/api/utility/${k}/meter-groups`)).json?.data ?? []) {
       // v3.9.0 (Gruppenverträge) — Status des Gruppenvertrags: Saldo-Karte eines Mitglieds, „Kosten & Verträge“
       if (u.has_contracts !== false) add(`/api/utility/${k}/meters/${g.id}/contract-status`);
+      // v3.13.0 (Paket vertrag) — eine Gruppe mit Gruppenvertrag ist Ziel der Prognose und der Werkstatt
+      if (u.has_contracts !== false && allContracts.some(c => c.meter_group_id === g.id && !c.is_shadow)) {
+        add(`/api/utility/${k}/contracts?meter_id=${encodeURIComponent(g.id)}`);
+        for (const model of FORECAST_MODELS) {
+          add(`/api/utility/${k}/meters/${g.id}/forecast?` + new URLSearchParams({
+            temp_offset: 0, price_factor: 1, model, forecast_months: months }).toString());
+        }
+        if (post) {
+          const base = scenarioBody(defaultState(k, g.id));
+          const r = await post('/api/forecast/scenario', base);
+          scenarios.push(base);
+          const data = r.json?.data;
+          if (r.status === 200 && data?.valid) {
+            for (const pid of presetsFor(data)) scenarios.push(scenarioBody(presetState(pid, defaultState(k, g.id), data)));
+          }
+        }
+      }
       // v3.6.0 (Paket abrechnung) — Zählergruppen der Übersicht im Abrechnungsjahr
       if (u.supports_bill_check) add(`/api/utility/${k}/meter-groups/${g.id}/billing-periods`);
     }

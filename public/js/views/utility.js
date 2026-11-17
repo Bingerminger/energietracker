@@ -24,8 +24,8 @@ import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, balanceHtml, verdictKey, tHtml, moreIsBetter, uncertainRangeText, uncertainRangeHtml, costWithoutContract, balanceRangeEnds, expectedBalance, bandText } from '../lib/semantics.js';
-import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween, neighbours } from '../lib/plausibility.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, balanceHtml, verdictKey, tHtml, moreIsBetter, uncertainRangeText, uncertainRangeHtml, costWithoutContract, costPriceMissing, balanceRangeEnds, expectedBalance, bandText } from '../lib/semantics.js';
+import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween, neighbours, weatherExpectations, readingPreview } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 import { docUrl } from '../lib/docs.js';
@@ -36,12 +36,14 @@ import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApp
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+import { fillFeedInPayouts } from '../components/feed-in-payouts.js';   // v3.13.0 (Paket vertrag)
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { mergeRestOf, restNoteHtml, restNoteText, subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 import { readingCheckLines, readingCheckTitle, readingCheckIndex, markReadings } from '../lib/reading-check.js';   // v3.9.0 (ablesung-pruefen)
 import { atLeast } from '../lib/levels.js';   // v3.12.0 (M4)
 import { trendHtml } from '../components/trend.js';   // v3.12.0 (M4)
 import { icon, artIcon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -224,6 +226,11 @@ async function rerender(container) {
     }
   }
   const isDelivery = u.reading_kind === 'delivery';
+  // v3.13.0 (Paket waermepumpe) — Strom der Wärmepumpe: rechnet „Erwartet bei Abrechnung“ noch ohne Wetter, sagt die
+  // Karte warum (Server `heat_pump_weather`, an Feldern entschieden, nie am Text)
+  const hpw = contractStatusData.heat_pump_weather;
+  const hpWhy = hpw && !hpw.on ? ({ not_validated: 'notValidated', no_normal: 'noNormal', few_measured: 'fewMeasured', no_heating: 'noHeating', no_summer: 'noSummer' }[hpw.reason] || 'fewMeasured') : null;
+  const hpNote = hpWhy ? `<p class="infobox infobox--info small" data-role="hp-weather-note">${escapeHtml(t('utility.heatPumpNoWeather.' + hpWhy))}</p>` : '';
   // v2.9.0 — Rechtshinweise (Sonderkündigungsrecht) nur im passenden Land;
   // die Schwelle „Ablesung überfällig" aus den Einstellungen (CALC-23)
   const settings = (await getSettings().catch(() => null)) || {};
@@ -421,6 +428,8 @@ async function rerender(container) {
   const hasContract = monthlyYear.some(m => m.contract_id);
   // v3.9.0 (Skeptiker N8) — Art mit Verträgen, im Jahr kein Vertrag und keine Kosten
   const noContractCost = costWithoutContract({ u, hasContract, cost: costShown, billing, delivery: isDelivery });
+  // v3.13.0 — ein Vertrag ohne Arbeitspreis: kein Kostenbetrag und kein Saldo, sondern „Preis fehlt“ mit Weg zum Vertrag
+  const priceMissing = costPriceMissing({ u, rows: monthlyYear, billing: billing ? sel : null });
   // v3.4.0 (N1021) — der laufende Vertrag nach der Phase des Servers: Bei
   // überlappenden Verträgen ist der abgelöste ältere zwar noch „im Zeitraum“
   // (`is_current`), gilt aber nicht mehr
@@ -490,7 +499,11 @@ async function rerender(container) {
       ${isGeneration ? '' : `
       <div class="kpi">
         <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}${bonusText ? infoNote(t('utility.kpi.cost'), t('bonus.costNote')) : ''}</div>
-        ${noContractCost
+        ${priceMissing
+          // v3.13.0 — ohne Arbeitspreis: „Preis fehlt“ statt eines Betrags aus Grundpreis oder 0,00 €
+          ? `<div class="kpi__value" data-role="kpi-cost" data-price-missing>${escapeHtml(t('priceMissing.short'))}</div>
+        <div class="kpi__sub"><a href="#/utility/${encodeURIComponent(u.key)}/contracts" data-role="price-missing-link">${escapeHtml(t('priceMissing.add'))}</a></div>`
+          : noContractCost
           // v3.9.0 (Skeptiker N8) — ohne Vertrag keine Kosten: „kein Vertrag“ statt „0,00 €“
           ? `<div class="kpi__value" data-role="kpi-cost">${escapeHtml(t('utility.kpi.noContract'))}</div>
         <div class="kpi__sub"><a href="#/utility/${encodeURIComponent(u.key)}/contracts">${escapeHtml(t('utility.kpi.noContractHint'))}</a></div>`
@@ -506,6 +519,8 @@ async function rerender(container) {
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht: „Guthaben 75,29 €" statt „−75,29 €" -->
           ${tileCrosses ? `<div class="kpi__sub muted" data-role="kpi-balance-card">${escapeHtml(t('utility.kpi.balanceOnCard', { date: fmt.date(cardFrom) }))}</div>`
+          // v3.13.0 — ohne Arbeitspreis sind das nur Abschläge: kein Saldo
+          : priceMissing ? `<div class="kpi__sub" data-role="kpi-balance" data-price-missing>${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: escapeHtml(t('priceMissing.short')) })}</div>`
           : `<div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}" data-role="kpi-balance">
             ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: yearBalanceView.credit === null ? yearBalanceView.word : `${yearBalanceView.word} ${fmt.eur(yearBalanceView.amount)}` })}${info('balance')}
           </div>`}
@@ -538,7 +553,7 @@ async function rerender(container) {
     ${meter.parent_meter_id && contracts.some(c => !c.is_shadow) ? `<p class="infobox infobox--info small" data-role="sub-rest-note">${escapeHtml(subContractHint(meter, state.meters))}</p>` : ''}
     </div>
     <div data-sicht="balance">
-    ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) : ''}
+    ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) + hpNote : ''}
     </div>
     <div data-sicht="overview">
     <section class="card" id="saldo-kurz" data-role="saldo-kurz" hidden></section>
@@ -671,6 +686,8 @@ async function rerender(container) {
   });
 
   fillSaldoShort(container);   // v3.12.0 (M4)
+  // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung an der Saldo-Karte
+  if (isFeedIn) fillFeedInPayouts(container.querySelector('[data-role="feed-in-payouts"]'), { meterId: meter.id, onChange: () => rerender(container) });
 
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
   fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn, quality: consumptionData.anomaly_quality });
@@ -744,6 +761,16 @@ function fillSaldoShort(container) {
   const curTon = cur.classList.contains('balance-col__value--credit') ? 'ton-ok' : cur.classList.contains('balance-col__value--due') ? 'ton-fehler' : '';
   const verdictTon = verdict?.classList.contains('refund') ? 'ton-ok' : verdict?.classList.contains('surcharge') ? 'ton-fehler' : '';
   const value = verdict?.querySelector('.balance-verdict__value');
+  // v3.13.0 — Vertrag ohne Arbeitspreis: kein Saldo und kein „zurück“, sondern „Preis fehlt“ mit Weg zum Vertrag
+  if (cur.hasAttribute('data-price-missing')) {
+    box.innerHTML = `<h2 class="card__title">${icon('waage')} ${escapeHtml(text(label))}</h2>
+    <div class="saldo-kurz" data-role="saldo-kurz-price-missing">
+      <div><strong class="saldo-kurz__wert">${escapeHtml(t('priceMissing.short'))}</strong><small>${escapeHtml(t('priceMissing.contract'))}</small></div>
+      <a class="btn btn--ghost btn--sm" href="#/utility/${encodeURIComponent(state.utility?.key || '')}/contracts">${escapeHtml(t('priceMissing.add'))}</a>
+    </div>`;
+    box.hidden = false;
+    return;
+  }
   box.innerHTML = `<h2 class="card__title">${icon('waage')} ${escapeHtml(text(label))}</h2>
     <div class="saldo-kurz">
       <div data-role="saldo-kurz-current"><strong class="saldo-kurz__wert ${curTon}">${escapeHtml(text(cur))}</strong><small>${escapeHtml(word)}</small></div>
@@ -949,9 +976,15 @@ export function balanceCard(c, u, country = 'DE') {
   const meas = !isFeedIn && meas0 && meas0.until ? meas0 : null;
   const today = settledSum && c.settle_today ? c.settle_today : { balance: c.current_balance, energy_estimated: c.estimated_cost_to_date,
     base: c.base_to_date, bonus: c.bonus_to_date, advance: c.advance_paid, special_net: c.special_payment_net };
-  const cur = meas ? meas.balance : today.balance;
+  // v3.13.0 (Paket vertrag) — Einspeisung mit erfassten Auszahlungen: erhalten und offen im Abrechnungsjahr
+  // (offen = erwartet − erhalten, gerechnet vom Server); ohne Auszahlung wie bisher der Anspruch
+  const po = isFeedIn && c.payouts && Number(c.payouts.count) > 0 ? c.payouts : null;
+  const cur = po ? po.open : meas ? meas.balance : today.balance;
   const estimatedOnly = !isFeedIn && !meas && c.cost_to_date != null;
-  const proj = exp ? exp.value : c.projected_end_balance;
+  // v3.13.0 — zu wenig Ablesungen für eine Erwartung (nur der Anfangsstand eines neuen Vertrags): kein Betrag zur
+  // Abrechnung, kein Vorschlag, und ohne gemessenen Tag auch kein „Saldo heute“ aus einem Verbrauch von null
+  const tooFew = !isFeedIn && !!c.projection_missing;
+  const proj = po && po.open_at_settle != null ? po.open_at_settle : exp ? exp.value : c.projected_end_balance;
   // N1007 — verdict ist jetzt ein stabiler Key (surcharge|refund|payout|reclaim|balanced).
   // Logik (Farbe/Pfeil) auf dem Key, Anzeige lokalisiert über t('utility.verdict.<key>').
   // v3.12.0 (Sichtung S1) — der Schlüssel folgt dem Vorzeichen, neutral nur bei genau 0 (`verdict` des Servers: Toleranz 5 €)
@@ -1064,6 +1097,8 @@ export function balanceCard(c, u, country = 'DE') {
   }
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
   if (c.price_missing) notes.push(t('priceMissing.contract'));
+  // v3.13.0 — noch kein Verbrauch gemessen: warum kein Betrag zur Abrechnung dasteht
+  if (tooFew) notes.push({ html: t('utility.balance.tooFewReadingsNote') });
   // v3.9.0 (F1032, #40) — Rest-Abrechnung: wie der Vertrag rechnet (gemessen − Subzähler)
   if (c.rest_of) notes.push(restNoteText(c.rest_of, u.consumption_unit));
   // v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist: verlängert sich nach § 32 AVBFernwärmeV, bis wann
@@ -1133,7 +1168,7 @@ export function balanceCard(c, u, country = 'DE') {
         + (Math.abs(since.special) >= 0.005 ? ' ' + escapeHtml(t(since.special > 0 ? 'utility.balance.estimateTodayRefund' : 'utility.balance.estimateTodayPaid',
           { value: fmt.eur(Math.abs(since.special)) })) : '')}</p>` : '';
   // v3.10.0 (M3) — „Saldo am ‹Ablesung›“, wenn sie zurückliegt; ohne gemessenen Tag „Saldo heute (geschätzt)“ (H3)
-  const balanceLabel = isFeedIn ? t('utility.balance.colClaimFeedIn')
+  const balanceLabel = isFeedIn ? t(po ? 'utility.balance.colOpenFeedIn' : 'utility.balance.colClaimFeedIn')
     : dated ? escapeHtml(t('utility.balance.colBalanceAt', { date: untilTxt }))
     : estimatedOnly ? escapeHtml(t('utility.balance.colBalanceEstimated')) : t('utility.balance.colBalance');
 
@@ -1151,8 +1186,8 @@ export function balanceCard(c, u, country = 'DE') {
         </div>
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : meas ? escapeHtml(t('utility.balance.colPaidUntil', { date: untilTxt })) : t('utility.balance.colPaid')}</div>
-          <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(meas ? meas.advance : settledSum && c.settle_today ? c.settle_today.advance : c.advance_paid)}</div>
-          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
+          <div class="balance-col__value"${po ? ' data-role="balance-payouts-received"' : ''}>${isFeedIn ? (po ? fmt.eur(po.received) : '–') : fmt.eur(meas ? meas.advance : settledSum && c.settle_today ? c.settle_today.advance : c.advance_paid)}</div>
+          <div class="balance-col__sub">${isFeedIn ? (po ? escapeHtml(tp('utility.balance.payoutsCount', Number(po.count), { count: Number(po.count) })) : t('utility.balance.paidViaGrid')) : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
             ? t('utility.balance.paidCurrentEvery', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
             : t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) })) : t('utility.balance.paidCurrentNone'))}</div>
           ${!isFeedIn && Array.isArray(c.next_advance_dates) && c.next_advance_dates.length ? `<div class="balance-col__sub" data-role="next-due">${escapeHtml(t('utility.balance.nextDue', { date: fmt.date(c.next_advance_dates[0]) }))}</div>` : ''}
@@ -1162,21 +1197,21 @@ export function balanceCard(c, u, country = 'DE') {
           <div class="balance-col__label" data-role="balance-current-label">${balanceLabel}${info('balance')}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht ohne Vorzeichen; die Farbe
                folgt der Bedeutung (bis v2.12 hieß die rote Klasse „positive") -->
-          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}" data-role="balance-current">${curView ? (curView.credit === null ? escapeHtml(curView.word) : fmt.eur(curView.amount)) : '–'}</div>
-          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced'))
+          <div class="balance-col__value ${tooFew && !meas ? '' : curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}" data-role="balance-current"${!isFeedIn && c.price_missing ? ' data-price-missing' : ''}>${tooFew && !meas ? '–' : curView ? (curView.credit === null ? escapeHtml(curView.word) : fmt.eur(curView.amount)) : '–'}</div>
+          <div class="balance-col__sub">${tooFew && !meas ? '' : isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced'))
             // v3.10.0 (M3) — zum Tag der Ablesung nur das Wort („bisher zu viel gezahlt“ stimmt heute nicht mehr)
             : dated && curView ? curView.word
             : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
-        <div class="balance-verdict ${unc ? 'balanced' : verdictCls}">
-          <div class="balance-verdict__label">${unc ? icon('sortieren', { size: 16 }) : arrow} ${t('utility.balance.verdictLabel')}</div>
+        <div class="balance-verdict ${unc || tooFew ? 'balanced' : verdictCls}"${tooFew ? ' data-role="verdict-too-few"' : ''}>
+          <div class="balance-verdict__label">${unc ? icon('sortieren', { size: 16 }) : tooFew ? '' : arrow} ${t('utility.balance.verdictLabel')}</div>
           <!-- v3.7.0 (Nachlauf) — unsicher: nur die Spanne, kein Punktwert „≈ X €“ -->
           <!-- v3.9.0 (Skeptiker M6) — mit Band (Wetter, Modell): auf den Euro, „≈“ statt Cent -->
           <!-- v3.12.0 (Sichtung S1) — unsicher: jedes Ende in seiner Farbe; bei genau 0 nur das Wort, ohne Betrag -->
           <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? uncertainRangeHtml(unc)
-            : verdict === 'balanced' ? ''
+            : tooFew || verdict === 'balanced' ? ''
             : band && Math.abs(proj) >= 1 ? `≈ ${fmt.eur0(Math.abs(proj))}` : fmt.eur(Math.abs(proj || 0))}</div>
-          <div class="balance-verdict__verdict">${unc ? t('balanceUncertain.verdict') : t('utility.verdict.' + verdict)}</div>
+          <div class="balance-verdict__verdict">${unc ? t('balanceUncertain.verdict') : tooFew ? escapeHtml(t('utility.balance.tooFewReadings')) : t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
@@ -1195,6 +1230,7 @@ export function balanceCard(c, u, country = 'DE') {
         return h ? `<p class="muted small" data-role="card-anchor-hint">${escapeHtml(h)}</p>` : ''; })()}
       ${unc && poorFitIn(unc.reasons) ? '<div data-role="heat-limit-slot"></div>' /* v3.9.0 (#38) — Heizgrenze-Vorschlag, nachgeladen */ : ''}
       ${notesHtml}
+      ${isFeedIn && c.payouts ? '<div data-role="feed-in-payouts"></div>' /* v3.13.0 (Paket vertrag) — Auszahlungen, nachgeladen */ : ''}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
       ${balancePathHtml(c, u, isFeedIn)}
     </div>
@@ -1451,17 +1487,20 @@ export function contractsTable(contracts, u) {
       // Tagesanteil des Monats (75 € × 16/31), der in keinem Saldo stand
       const bonus = contractRowBonus(c);
       const bonusStr = bonus > 0 ? fmt.eur(bonus) : '–';
+      // v3.13.0 — abgerechnet (eine gebuchte Rechnung deckt das Ende, `settled_until`): wie „Frühere Verträge“ Verbraucht und
+      // Bezahlt „–“ (gezählt wird erst nach der Rechnung, also nichts), dazu der Satz mit dem Tag der Rechnung
+      const settled = typeof c.settled_until === 'string' && c.settled_until !== '';
       return `<tr data-group-row data-contract-id="${escapeHtml(c.contract_id || '')}"${hidden ? ' hidden' : ''}>
         <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
         <td class="period-cell">${period}</td>
         <td>${phasePill(c)}</td>
         <td class="num muted" style="font-size:var(--fs-xs)">${tariffStr}</td>
         <td class="num">${c.current_advance_amount != null ? escapeHtml(advanceAmountText(c.current_advance_amount, c.current_advance_every_months)) : '–'}</td>
-        <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
-        <td class="num">${fmt.eur(c.advance_paid)}</td>
+        <td class="num">${settled ? '<span class="muted">–</span>' : fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
+        <td class="num">${settled ? '<span class="muted">–</span>' : fmt.eur(c.advance_paid)}</td>
         <td class="num${bonus > 0 ? ' ton-ok' : ''}">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
-        ${balCell(cur)}
+        ${settled ? `<td class="num muted" data-role="settled"><small>${escapeHtml(t('contractsPast.settled', { date: fmt.date(c.settled_until) }))}</small></td>` : balCell(cur)}
         ${c.projection_uncertain ? `<td class="num" data-role="expected-range">${uncertainRangeHtml(c.projection_uncertain)}</td>`
           // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende);
           // v3.10.0 — beginnt er erst nach der laufenden Periode, gibt es keinen (–, ohne ≈)
@@ -2196,7 +2235,7 @@ function openPeriodModal(container, u, meter, period, periods = []) {
       <div class="fgrid">
         <div class="field field--full"><label class="check"><input type="checkbox" name="is_estimated" ${period?.is_estimated ? 'checked' : ''}> ${t('utility.readingsTable.estimated')}</label></div>
         <div class="field field--full"><label for="pf-note">${t('utility.readingsTable.colNote')}</label>
-          <input class="input input--text" id="pf-note" name="note" type="text" maxlength="500" value="${escapeHtml(period?.note || '')}"></div>
+          <input class="input input--text" id="pf-note" name="note" type="text" ${maxAttr('periods', 'note')} data-counter value="${escapeHtml(period?.note || '')}"></div>
       </div>
     </form>`;
   openModal({
@@ -2247,7 +2286,7 @@ function deliveriesTable(deliveries, u) {
       <th scope="col" class="num">${t('utility.deliveriesTable.colTotal')}</th>
       <th scope="col">${t('utility.deliveriesTable.colSupplier')}</th>
       <th scope="col">${t('utility.deliveriesTable.colNote')}</th>
-      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
+      <th scope="col" class="spalte-aktionen"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>
     ${sorted.map(d => {
@@ -2262,7 +2301,7 @@ function deliveriesTable(deliveries, u) {
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
         <td>${escapeHtml(d.supplier || '')}</td>
         <td class="muted" style="font-size:var(--fs-xs)">${escapeHtml(d.note || '')}</td>
-        <td style="text-align:right;white-space:nowrap">
+        <td class="spalte-aktionen">
           <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}">${icon('stift')}</button>
           <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}">${icon('eimer')}</button>
         </td>
@@ -2439,7 +2478,7 @@ function openTankLevelModal(container, u, meter) {
         </div>
         <div class="field field--full">
           <label for="lf-note">${t('utility.tank.levelNote')}</label>
-          <input class="input input--text" id="lf-note" type="text" name="note" maxlength="80">
+          <input class="input input--text" id="lf-note" type="text" name="note" ${maxAttr('meters', 'tank_levels.note')}>
         </div>
       </div>
     </form>`;
@@ -2746,7 +2785,13 @@ function openReadingModal(container, u, meter, reading, readings = []) {
     const { next, nextDeviceChanged } = neighbours(others, meter, date);
     return { next, nextDeviceChanged };
   };
-  const lastReading = isEdit ? null : prevBefore('9999-12-31');
+  // v3.13.0 (Paket K2e) — der Stand am gewählten Tag, den ein neuer ersetzt (Speichern: updateReading statt anlegen),
+  // auch ein unbestätigter Verdacht
+  const sameDayOf = (date) => (isEdit ? null : ((readings || []).find(r => r.date === date) || null));
+  // v3.13.0 (#65) — Erwartung nach dem Wetter je Abstand (voriger Stand → Datum), einmal geladen; ohne Antwort
+  // die alte Regel. Beim Bearbeiten zählt die alte Zahl des Stands nicht mit (exclude), v3.13.0 (Paket K2e) ebenso
+  // der Stand, den ein neuer am selben Tag ersetzt (der Tag ist das Ende des Abstands).
+  const weather = weatherExpectations((from, to) => api.readingExpectation(u.key, meter.id, from, to, reading?.id ?? sameDayOf(to)?.id ?? null));
   const body = `
     <form id="reading-form">
       <div class="field">
@@ -2761,7 +2806,7 @@ function openReadingModal(container, u, meter, reading, readings = []) {
       </div>
       <div class="field">
         <label for="rf-note">${t('utility.readingModal.note')}</label>
-        <input class="input input--text" id="rf-note" type="text" name="note" value="${escapeHtml(reading?.note || '')}">
+        <input class="input input--text" id="rf-note" type="text" name="note" ${maxAttr('readings', 'note')} data-counter value="${escapeHtml(reading?.note || '')}">
       </div>
       <div class="field">
         <label class="check">
@@ -2794,41 +2839,38 @@ function openReadingModal(container, u, meter, reading, readings = []) {
     title: isEdit ? t('utility.readingModal.titleEdit', { label: u.label }) : t('utility.readingModal.titleNew', { label: u.label }),
     body, footer,
     onMount({ modalEl, close }) {
-      // B — Verbrauchs-Vorschau beim Eingeben (nur im Anlegen-Modus mit
-      // bekanntem letztem Stand).
+      // B — Verbrauchs-Vorschau beim Eingeben (nur im Anlegen-Modus).
       const counterEl = modalEl.querySelector('input[name="counter"]');
       const dateEl    = modalEl.querySelector('input[name="date"]');
       const previewEl = modalEl.querySelector('[data-role="preview"]');
       const msgEl     = modalEl.querySelector('[data-role="msg"]');
-      const lastCounter = !isEdit && lastReading?.counter != null ? Number(lastReading.counter) : null;
       const updatePreview = () => {
         showFieldError(counterEl, msgEl, null);
-        if (!previewEl || lastCounter == null) return;
+        if (!previewEl || isEdit) return;
         const v = parseDecimal(counterEl.value);
         if (v == null) { previewEl.hidden = true; return; }
-        const diff = v - lastCounter;
-        const delta = (diff < 0 ? '−' : '+') + fmt.num(Math.abs(diff), 2);
-        let days = null;
-        if (lastReading.date && dateEl.value) {
-          const d = Math.round((new Date(dateEl.value) - new Date(lastReading.date)) / 86400000);
-          if (Number.isFinite(d) && d > 0) days = d;
-        }
-        previewEl.hidden = false;
         // v2.6.0 — dieselben Rückfragen wie beim Speichern, schon beim Tippen
         // (Rückgang, ungewöhnlicher Sprung, Komma vergessen, Zukunft).
         const date = dateEl.value || today;
         const prev = prevBefore(date);
+        if (prev && !weather.has(prev.date, date)) weather.load(prev.date, date).then(() => { if (modalEl.isConnected) updatePreview(); });
         const issues = checkReading({
           value: v, date, today, prev, typical,
           deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
           ...nextIssueArgs(date),
+          expected: prev ? weather.get(prev.date, date) : null,
         });
-        previewEl.textContent = [
-          days != null
-            ? tp('utility.preview.sinceLastDays', days, { delta, unit: u.unit, days })
-            : t('utility.preview.sinceLast', { delta, unit: u.unit }),
+        // v3.13.0 (Paket K2e) — die Menge seit dem Stand davor und bis zum Stand danach, beide zum gewählten Datum
+        // (readingPreview, dieselbe Regel wie die Seite „Zählerstände“). Bis v3.12 stand hier der Abstand zum jüngsten
+        // Stand: Ein Nachtrag zwischen zwei Ständen hieß etwa „−1.700 m³ seit letztem Stand“. Auch vor dem ersten Stand
+        // stehen jetzt die Rückfragen da (bisher erst ab einem Stand).
+        const n = neighbours(others, meter, date);
+        const lines = [
+          readingPreview({ value: v, date, prev: n.prev, next: n.next, deviceChanged: n.deviceChanged, nextDeviceChanged: n.nextDeviceChanged, unit: u.unit }),
           ...issues.map(i => issueText(i, { unit: u.unit, date })),
-        ].join(' · ');
+        ].filter(Boolean);
+        previewEl.hidden = lines.length === 0;
+        previewEl.textContent = lines.join(' · ');
         previewEl.classList.toggle('reading-card__preview--warn', issues.length > 0);
       };
       counterEl?.addEventListener('input', updatePreview);
@@ -2858,11 +2900,12 @@ function openReadingModal(container, u, meter, reading, readings = []) {
         const date = form.date.value;
         const prev = prevBefore(date);
         // auch ein unbestätigter Verdacht am selben Tag: Der neue Wert ersetzt ihn
-        const sameDay = isEdit ? null : ((readings || []).find(r => r.date === date) || null);
+        const sameDay = sameDayOf(date);
         const issues = checkReading({
           value: counter, date, today, prev, typical, sameDay,
           deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
           ...nextIssueArgs(date),
+          expected: prev ? await weather.load(prev.date, date) : null,   // v3.13.0 (#65)
         });
         if (issues.length && !await confirmIssues(issues, { unit: u.unit, date, utility: u.key })) return;
         const data = {
@@ -2917,11 +2960,11 @@ function openDeliveryModal(container, u, meter, delivery) {
         </div>
         <div class="field field--l">
           <label for="df-supplier">${t('utility.deliveryModal.supplier')}</label>
-          <input class="input input--text" id="df-supplier" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
+          <input class="input input--text" id="df-supplier" type="text" name="supplier" ${maxAttr('deliveries', 'supplier')} value="${escapeHtml(delivery?.supplier || '')}">
         </div>
         <div class="field field--full">
           <label for="df-note">${t('utility.deliveryModal.note')}</label>
-          <input class="input input--text" id="df-note" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
+          <input class="input input--text" id="df-note" type="text" name="note" ${maxAttr('deliveries', 'note')} data-counter value="${escapeHtml(delivery?.note || '')}">
         </div>
         <div class="field field--full">
           <label class="check">

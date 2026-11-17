@@ -14,8 +14,10 @@
 
    Optionen: --years (Liste), --qh-years (2), --runs (5), --port (Startport,
    sonst frei), --demo (zusätzlich die Beispieldaten als Vergleich),
-   --render, --json <Datei>. Ergebnis als Markdown-Tabelle auf stdout; die
-   Zahlen stehen in docs/entwicklung/messung-grosse-daten.md.
+   --tank [--tank-years n] (v3.13.0: Heizöltank dazu, auf Wunsch über mehr
+   Jahre; misst auch die Heizöl-Ansichten), --render, --json <Datei>.
+   Ergebnis als Markdown-Tabelle auf stdout; die Zahlen stehen in
+   docs/entwicklung/messung-grosse-daten.md.
    ========================================================================= */
 import { spawn } from 'node:child_process';
 import { cpSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -55,6 +57,12 @@ export function endpoints({ year, qhYear, meters }) {
     { view: 'Flexibilität', label: 'Kachel der Übersicht', path: `/api/flexibility?year=${qhYear}&summary=1` },
     { view: 'Prognose-Werkstatt', label: 'Gas: Prognose', path: `/api/utility/gas/meters/${m('gas')}/forecast` },
     { view: 'Prognose-Werkstatt', label: 'Gas: Szenario „Kalter Winter“', path: '/api/forecast/scenario', method: 'POST', body: scenario },
+    // v3.13.0 — mit Tank (large-household --tank): die Ansichten, die das Tankbuch lesen
+    ...(m('heizoel') ? [
+      { view: 'Verbrauchsart', label: 'Heizöl: Verbrauch je Monat', path: `/api/utility/heizoel/meters/${m('heizoel')}/consumption` },
+      { view: 'Verbrauchsart', label: 'Heizöl: Bestand (Tankbuch)', path: `/api/utility/heizoel/meters/${m('heizoel')}/stock-history` },
+      { view: 'Prognose-Werkstatt', label: 'Heizöl: Prognose', path: `/api/utility/heizoel/meters/${m('heizoel')}/forecast` },
+    ] : []),
   ];
 }
 
@@ -99,7 +107,7 @@ export async function measureEndpoints(base, ctx, runs = 5) {
 export async function contextOf(base) {
   const get = async (p) => (await (await fetch(base + p)).json()).data;
   const meters = {};
-  for (const u of ['gas', 'strom', 'wasser', 'pv_einspeisung', 'pv_erzeugung']) meters[u] = (await get(`/api/utility/${u}/meters`))?.[0]?.id ?? null;
+  for (const u of ['gas', 'strom', 'wasser', 'pv_einspeisung', 'pv_erzeugung', 'heizoel']) meters[u] = (await get(`/api/utility/${u}/meters`))?.[0]?.id ?? null;
   const intervals = await get('/api/intervals').catch(() => []);
   const qhYears = (Array.isArray(intervals) ? intervals : intervals?.series || []).filter(s => s.kind === 'energy').map(s => s.year);
   const year = new Date().getFullYear() - 1;
@@ -209,7 +217,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
         cpSync(join(ROOT, 'demo-data', entry), join(dir, entry), { recursive: true });
       }
     } else {
-      info = buildLargeHousehold(dir, { years: s.years, qhYears });
+      info = buildLargeHousehold(dir, { years: s.years, qhYears, tank: args.includes('--tank'),
+        ...(opt('tank-years') ? { tankYears: Number(opt('tank-years')) } : {}) });
     }
     const p = port ? port++ : await freePort();
     const { proc, base } = await startServer(dir, p);

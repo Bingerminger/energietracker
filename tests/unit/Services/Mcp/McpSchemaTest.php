@@ -102,6 +102,25 @@ final class McpSchemaTest extends McpTestCase
         self::assertSame('{"type":"array","items":{"type":"object","properties":{"a":{"type":"string"}}}}', $json);
     }
 
+    /** v3.13.0 — auf der Leitung sind `{}` und `[]` verschieden; nachsichtig (Eingaben) bleibt beides erlaubt. */
+    public function testOnTheWireAnEmptyListIsNoObject(): void
+    {
+        $s = ['type' => 'object', 'properties' => ['advance' => ['type' => 'object', 'properties' => ['current' => ['type' => 'number']]],
+            'rows' => ['type' => 'array', 'items' => ['type' => 'object']]]];
+        self::assertSame([], Schema::validate(['advance' => [], 'rows' => []], $s), 'nachsichtig: [] gilt als beides');
+        self::assertSame([['path' => '/advance', 'rule' => 'type', 'expected' => 'object']], Schema::validateJson('{"advance":[],"rows":[]}', $s));
+        self::assertSame([['path' => '/rows', 'rule' => 'type', 'expected' => 'array']], Schema::validateJson('{"advance":{},"rows":{}}', $s));
+        self::assertSame([['path' => '/rows/0', 'rule' => 'type', 'expected' => 'object']], Schema::validateJson('{"rows":[[]]}', $s));
+        self::assertSame([['path' => '/', 'rule' => 'type', 'expected' => 'object']], Schema::validateJson('[]', $s));
+        self::assertSame([], Schema::validateJson('{"advance":{"current":1.5},"rows":[{}]}', $s));
+        // shape(): leere Teilobjekte werden {}, leere Listen bleiben [], Werte bleiben
+        $shaped = json_encode(Schema::shape(['advance' => [], 'rows' => [[], ['a' => 1]], 'free' => []],
+            $s + ['additionalProperties' => ['type' => 'object']]));
+        self::assertSame('{"advance":{},"rows":[{},{"a":1}],"free":{}}', $shaped);
+        self::assertSame('{"rows":[]}', json_encode(Schema::shape(['rows' => []], $s)));
+        self::assertSame('{"x":[]}', json_encode(Schema::shape(['x' => []], ['type' => 'object', 'properties' => ['x' => ['type' => ['object', 'array']]]])), 'zwei Typen: unverändert');
+    }
+
     /** Jedes Werkzeug der Registry: Name, Schemas, Texte (alle Pakete fallen hier mit hinein). */
     public function testEveryRegisteredToolIsWellFormed(): void
     {

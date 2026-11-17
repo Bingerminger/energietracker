@@ -38,7 +38,10 @@ Versorger die Preise zum 01.10., stehen zwei Zeilen da, und jeder Tag rechnet
 mit dem Preis, der an ihm gilt. *(v3.12.0)* Das gilt auch mitten im Monat
 und **genau wie bei Strom**: Ein Preis ab dem 15. zählt ab dem 15., ein
 Vertragswechsel am 15. teilt Menge, Grundpreis und Abschlag nach denselben
-Tagen, und „Rechnung prüfen“ beginnt am Preisstichtag eine neue Zeile.
+Tagen (den Abschlag mit „Abschläge zählen: ganze Rate am Fälligkeitstag“ nach
+seinen Terminen, seit v3.13.0,
+[Saldo bis heute](00-overview.md#10-saldo-bis-heute)), und „Rechnung prüfen“
+beginnt am Preisstichtag eine neue Zeile.
 Beispiel (erfunden): Juli mit 12,4 m³, Trinkwasser 2,10 € bis zum 14. und
 2,60 € ab dem 15.: **29,44 €** statt 26,04 €. Bis v3.11 galten bei Wasser
 Vertrag und Preis des Monatsersten.

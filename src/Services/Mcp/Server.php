@@ -76,6 +76,14 @@ final class Server
     public const NAMED = ['tools/call' => 'name', 'resources/read' => 'uri', 'prompts/get' => 'name'];
     /** nur ältere Fassungen; 2026-07-28 kennt sie nicht mehr (404) */
     public const LEGACY_ONLY = ['initialize', 'ping'];
+    /**
+     * v3.13.0 — die einzige angebotene Fassung mit JSON-RPC-Stapeln: 2025-03-26 verlangt, dass ein Server sie annimmt
+     * („MUST support receiving JSON-RPC batches“), 2025-06-18 hat sie entfernt. Gilt auch ohne Kopfzeile (dann ist
+     * es diese Fassung).
+     */
+    public const BATCH_VERSION = '2025-03-26';
+    /** höchstens so viele Nachrichten in einem Stapel (jede zählt in der Ratenbegrenzung wie eine eigene Anfrage) */
+    public const BATCH_MAX = 20;
     /** Base64-Form einer gespiegelten Kopfzeile (Spezifikation 2026-07-28, „Value Encoding“) */
     public const B64_PREFIX = '=?base64?';
     public const B64_SUFFIX = '?=';
@@ -146,8 +154,8 @@ final class Server
         $log = ['method' => null, 'name' => null, 'result' => 'error', 'version' => null, 'client' => []];
         $id = null;
         try {
-            // seit 2025-06-18 keine Stapel mehr
-            if (str_starts_with(ltrim($raw), '[')) throw new RpcError(400, self::INVALID_REQUEST, 'errors.mcp.batch');
+            // v3.13.0 — ein Stapel nur in der Fassung 2025-03-26 (seit 2025-06-18 gibt es keine Stapel mehr)
+            if (str_starts_with(ltrim($raw), '[')) return $this->batch($raw, $ctx, $headers);
             try {
                 $msg = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
             } catch (\JsonException) {
@@ -194,6 +202,76 @@ final class Server
             $log['error_id'] = $errorId;
             return ['status' => 500, 'body' => $this->errorBody($id, $err, $ctx->locale), 'headers' => [], 'log' => $log];
         }
+    }
+
+    /**
+     * v3.13.0 — Ein JSON-RPC-Stapel (Array) in der Fassung 2025-03-26 (Kopfzeile `MCP-Protocol-Version` fehlt oder nennt
+     * sie): jede Nachricht einzeln wie handle(), die Antworten als Liste in derselben Reihenfolge, Benachrichtigungen
+     * ohne Antwort; nur Benachrichtigungen → 202 ohne Körper. `initialize` gehört nie in einen Stapel (Spezifikation
+     * 2025-03-26, Lifecycle), ebenso eine Nachricht einer anderen Fassung; beide bekommen ihren Fehler in der Liste.
+     * Spätere Fassungen: 400 mit -32600 wie bisher. `logs` trägt je Nachricht einen Eintrag fürs Zugriffsprotokoll.
+     *
+     * @param array<string,string> $headers
+     * @return array{status:int, body:array<mixed>|null, headers:array<string,string>, log:array<string,mixed>, logs?:list<array{log:array<string,mixed>, status:int}>}
+     */
+    private function batch(string $raw, McpContext $ctx, array $headers): array
+    {
+        $log = ['method' => 'batch', 'name' => null, 'result' => 'error', 'version' => null, 'client' => []];
+        $fail = function (RpcError $e) use (&$log, $ctx): array {
+            $log['code'] = $e->key;
+            return ['status' => $e->status, 'body' => $this->errorBody(null, $e, $ctx->locale), 'headers' => $e->headers, 'log' => $log];
+        };
+        $header = $headers['mcp-protocol-version'] ?? null;
+        if ($header !== null && $header !== self::BATCH_VERSION) return $fail(new RpcError(400, self::INVALID_REQUEST, 'errors.mcp.batch'));
+        $log['version'] = self::BATCH_VERSION;
+        try {
+            $list = json_decode($raw, false, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $fail(new RpcError(400, self::PARSE_ERROR, 'errors.mcp.parse'));
+        }
+        // JSON-RPC 2.0: ein leerer Stapel ist eine ungültige Anfrage (eine Antwort, keine Liste)
+        if (!is_array($list) || $list === []) return $fail(new RpcError(400, self::INVALID_REQUEST, 'errors.mcp.invalidRequest'));
+        if (count($list) > self::BATCH_MAX) return $fail(new RpcError(400, self::INVALID_REQUEST, 'errors.mcp.batchTooLarge', ['max' => self::BATCH_MAX]));
+        $bodies = [];
+        $logs = [];
+        $out = [];
+        foreach ($list as $msg) {
+            $one = ['method' => null, 'name' => null, 'result' => 'error', 'version' => self::BATCH_VERSION, 'client' => []];
+            $key = null;
+            if (!$msg instanceof \stdClass) {
+                $key = 'errors.mcp.invalidRequest';   // kein Objekt (auch ein Stapel im Stapel)
+            } else {
+                $method = $msg->method ?? null;
+                $version = is_object($msg->params ?? null) && is_object($msg->params->_meta ?? null)
+                    ? ($msg->params->_meta->{self::META_VERSION} ?? null) : null;
+                if ($method === 'initialize') $key = 'errors.mcp.batchInitialize';
+                elseif ($version !== null && $version !== self::BATCH_VERSION) $key = 'errors.mcp.batch';
+            }
+            if ($key !== null) {
+                $id = $msg instanceof \stdClass && (is_string($msg->id ?? null) || is_int($msg->id ?? null)) ? $msg->id : null;
+                $one['method'] = $msg instanceof \stdClass && is_string($msg->method ?? null) ? self::label($msg->method) : null;
+                $one['code'] = $key;
+                $bodies[] = $this->errorBody($id, new RpcError(400, self::INVALID_REQUEST, $key), $ctx->locale);
+                $logs[] = ['log' => $one, 'status' => 400];
+                continue;
+            }
+            $r = $this->handle(self::encode($msg), $ctx, $headers);
+            if ($r['body'] !== null) $bodies[] = $r['body'];
+            $logs[] = ['log' => $r['log'], 'status' => $r['status']];
+            $out += $r['headers'];
+        }
+        $log['result'] = 'ok';
+        // nur Benachrichtigungen: angenommen, ohne Antwort (Streamable HTTP 2025-03-26)
+        if ($bodies === []) return ['status' => 202, 'body' => null, 'headers' => [], 'log' => $log, 'logs' => $logs];
+        return ['status' => 200, 'body' => $bodies, 'headers' => array_intersect_key($out, ['Retry-After' => true]), 'log' => $log, 'logs' => $logs];
+    }
+
+    /** v3.13.0 — Anzahl der Nachrichten eines Stapels (für die Ratenbegrenzung je Nachricht); 0 = kein Stapel. */
+    public static function batchSize(string $raw): int
+    {
+        if (!str_starts_with(ltrim($raw), '[')) return 0;
+        $list = json_decode($raw, false, 64);
+        return is_array($list) ? count($list) : 0;
     }
 
     /**
@@ -412,7 +490,8 @@ final class Server
         }
         if (!is_array($data)) throw new \LogicException("mcp: tool '{$tool->name}' must return an array");
         $log['result'] = 'ok';
-        $structured = $data === [] ? new \stdClass() : $data;
+        // v3.13.0 — in der Form des eigenen Schemas: ein leeres Teilobjekt als `{}`, nicht als `[]` (Schema::shape)
+        $structured = $data === [] ? new \stdClass() : ($tool->outputSchema !== null ? Schema::shape($data, $tool->outputSchema) : $data);
         // v3.12.0 — manche Programme geben nur `content` weiter: Salden stehen dort zusätzlich als fertiger Satz
         $sentences = is_array($data) ? self::balanceSentences($data) : [];
         return [

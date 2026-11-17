@@ -126,6 +126,9 @@ Tarifvergleich, in der Hilfe. Das **Glossar ist die Termbase** —
 `tests/fixtures/termbase.json` führt je Begriff die kanonische Form (`use`)
 und die Varianten, die nicht mehr vorkommen dürfen (`avoid`); `allowKeys`
 nennt bewusste Ausnahmen, `csv.*` ist ausgenommen. Test: `testTermbase`.
+*(v3.13.0)* Ein Begriff mit `follow` gilt auch umgekehrt: Wo der deutsche
+Text ihn nennt, nennt ihn jede Sprache in ihrer kanonischen Form
+(`testTermbaseFollowsTheGermanTerm`, bisher die Heizgrenze).
 
 | Deutsch | Englisch | Französisch | Italienisch | Spanisch | Portugiesisch | Niederländisch |
 |---|---|---|---|---|---|---|
@@ -137,6 +140,9 @@ nennt bewusste Ausnahmen, `csv.*` ist ausgenommen. Test: `testTermbase`.
 | Zustandszahl | correction factor | coefficient de correction | coefficiente di correzione | coeficiente de corrección | coeficiente de correção | volumeherleidingsfactor |
 | Verbrauchsart | utility | type de consommation | utenza | suministro | serviço | verbruikssoort |
 | Subzähler | sub-meter | sous-compteur | sottocontatore | subcontador | subcontador | tussenmeter |
+| Heizgrenze | heating limit | température de non-chauffage | soglia di riscaldamento | umbral de calefacción | limiar de aquecimento | stookgrens |
+| Snapshot | snapshot | instantané | istantanea | instantánea | instantâneo | momentopname |
+| Jahresbericht | annual report | rapport annuel | relazione annuale | informe anual | relatório anual | jaarverslag |
 
 Die vollständige Liste steht in der Datei. Eigennamen der Verbrauchsarten
 folgen dem Katalog `utilityNames.*` (Heizöl heißt niederländisch

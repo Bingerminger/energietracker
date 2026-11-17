@@ -5,6 +5,9 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
+use Energietracker\Support\FieldRules;
+use Energietracker\Support\LocalizedException;
 
 /**
  * v1.3.0 — Empfehlungs-Engine (rein statistisch, keine externen APIs).
@@ -188,13 +191,17 @@ final class RecommendationService
      */
     public function dismiss(string $id, ?string $until = null): array
     {
+        // v3.13.0 — „bis“ ist ein Tag im Eingabebereich (Support\FieldRules, wie jeder Tag), die Kennung frei von
+        // gefährlichen Zeichen (wie im Backup); bisher stand „bis abc“ in der Datei und blendete für immer aus
+        if ($until !== null && ($k = FieldRules::problem('date', $until)) !== null) throw FieldRules::error($k, 'until', $until, 'date');
+        if ($id === '' || !BackupService::safeId($id)) throw new LocalizedException('errors.common.valueInvalid', ['field' => 'id', 'value' => mb_substr($id, 0, 40)], 'recommendation id');
         $rec = $this->activity !== null || !$until ? $this->find($id) : null;
         if (!$until) {
             $until = date('Y-m-d', strtotime('+30 days'));
             $deadline = (string)($rec['evidence']['deadline'] ?? '');
             if ($deadline > $until) $until = $deadline;
         }
-        $map = $this->dismissedMap();
+        $map = $this->dismissedMap(false);
         $map[$id] = $until;
         $this->store->write('recommendations_dismissed.json', $map);
         $entry = $this->activity?->dismissed($rec ?? ['id' => $id, 'title' => $id], $until);
@@ -207,7 +214,7 @@ final class RecommendationService
      */
     public function restore(string $id): void
     {
-        $map = $this->dismissedMap();
+        $map = $this->dismissedMap(false);   // v3.13.0 — geschrieben wird die Datei, wie sie ist (auch das Unlesbare entfernt „wieder einblenden“)
         if (array_key_exists($id, $map)) {
             unset($map[$id]);
             $this->store->write('recommendations_dismissed.json', $map);
@@ -629,7 +636,7 @@ final class RecommendationService
     {
         $warnPct = (float)$this->settings->get('tank_warn_pct', 15);
         try {
-            $hist = $this->deliveries->stockHistory($utility, (string)$meter['id'], $this->consumption);
+            $hist = $this->deliveries->stockLatest($utility, (string)$meter['id'], $this->consumption);   // v3.13.0 — nur der Stand
         } catch (\Throwable) {
             return null;
         }
@@ -693,11 +700,14 @@ final class RecommendationService
             // v3.4.0 (F1025, Mangel 6) — Wasser lässt sich nicht wechseln: kein
             // „Tarifvergleich starten und ggf. wechseln“
             $switch = Utilities::isSwitchable($utility) ? '' : 'NoSwitch';
+            // v3.13.0 — das Ende, zu dem gekündigt wird (`cancel_end`): in der Verlängerung nach § 32 AVBFernwärmeV deren
+            // Ende, nicht das ursprüngliche
+            $endsOn = (string)($c['cancel_end'] ?? $c['end'] ?? '');
             $detail = $byCancel
                 ? $this->i18n->t('recommendations.engine.r6.detailCancel' . $switch, [
                     'provider' => $provider,
                     'date'     => $this->i18n->date((string)$c['cancel_by']),
-                    'end'      => $this->i18n->date((string)($c['end'] ?? '')),
+                    'end'      => $this->i18n->date($endsOn),
                 ])
                 : $this->i18n->tp('recommendations.engine.r6.detail' . $switch, (int)$days, ['provider' => $provider, 'days' => $days]);
             // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Erinnerung bleibt, der Text nennt die Lücke
@@ -912,10 +922,16 @@ final class RecommendationService
         ];
     }
 
-    private function dismissedMap(): array
+    /**
+     * @param bool $usable v3.13.0 — nur Einträge mit einem Tag (die Sicht der Rechnung). Ein gespeichertes „bis abc“
+     *        verglich sich bisher als Text größer als jedes Datum: Die Empfehlung blieb für immer ausgeblendet. Geschrieben
+     *        wird die Datei, wie sie ist ($usable = false).
+     */
+    private function dismissedMap(bool $usable = true): array
     {
         $m = $this->store->read('recommendations_dismissed.json', []);
-        return is_array($m) ? $m : [];
+        if (!is_array($m)) return [];
+        return $usable ? array_filter($m, fn($until) => is_string($until) && Dates::isIsoDate($until)) : $m;
     }
 
     private function activeUtilities(): array

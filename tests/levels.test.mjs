@@ -118,7 +118,13 @@ const RANKS = { beginner: 0, advanced: 1, expert: 2 };
 const maxLevel = (...ls) => ls.reduce((a, b) => (RANKS[b] > RANKS[a] ? b : a), 'beginner');
 function docLevels(rel) {
   const rows = {}, problems = [];
+  let inTable = false;
   for (const line of src(rel).split('\n')) {
+    // v3.13.0 — Abschnitt 2 (Funktionen nach Aufgaben): jede Zeile trägt eine Sprungmarke, sonst prüft sie niemand
+    if (line.startsWith('## ')) inTable = /^## 2\./.test(line);
+    if (inTable && line.startsWith('| ') && !/^\|\s*(Funktion|Feature)\s*\|/.test(line) && !line.includes('<a id="level-')) {
+      problems.push(`${rel}: Zeile ohne Sprungmarke: ${line.slice(2, 70)}`);
+    }
     if (!line.startsWith('|') || !line.includes('<a id="level-')) continue;
     const cells = line.split('|').slice(1, -1).map(c => c.trim());
     const shown = cells.slice(1, 4).map(c => c !== '–');
@@ -203,8 +209,19 @@ const ELEMENTS = {
     [V + 'flexibility.js', re('<div class="card"§LV§>\\s*<h2 class="card__title">\\$\\{esc\\(t\\(\'flex\\.series\\.title\'')]] },
   'level-el-settings-display': { page: 'settings:display', at: ['dashboard', 'contractReminders'].map(g => [V + 'settings-fields.js', group(g)]) },
   'level-el-settings-household': { page: 'household:building', at: ['reference', 'water'].map(g => [V + 'settings-fields.js', group(g)]) },
-  'level-el-settings-utilities': { page: 'household:utilities', at: ['physical', 'delivery', 'flex', 'pv'].map(g => [V + 'settings-fields.js', group(g)]) },
+  'level-el-settings-utilities': { page: 'household:utilities', at: ['physical', 'delivery', 'flex', 'pv', 'advance'].map(g => [V + 'settings-fields.js', group(g)]) },
   'level-el-settings-co2': { page: 'settings:calculation', at: [[V + 'settings-fields.js', group('co2')]] },
+  // v3.13.0 — die Zeilen ohne Sprungmarke liefen am Test vorbei; zwei davon widersprachen dem Code (Auslesen, Kurzbefehl)
+  'level-el-billing-only': { page: 'utility', at: [[V + 'utility.js', re('name="is_billing_only"§LV§')]] },
+  'level-el-advance-rhythm': { page: 'contracts', at: [[V + 'contracts.js', /const every = Number\(e\.every_months\) \|\| 1;/]] },
+  'level-el-concept': { page: 'household:utilities', at: [[V + 'settings.js', re('id="concept-card"§LV§')], [V + 'meters.js', re('data-action="concept"§LV§')]] },
+  'level-el-heat-limit': { page: 'todo', at: [['public/js/lib/heat-limit.js', re('data-role="heat-limit-hint"§LV§')]] },
+  'level-el-reading-check': { page: 'todo', at: [[V + 'dashboard.js', re('data-role="reading-check-todo"§LV§')]] },
+  'level-el-dossier': { page: 'contracts', at: [['public/js/components/dossier.js', re('<details class="dossier"§LV§')]] },
+  'level-el-reading-setup': { page: 'connections:reading', at: [['public/js/components/inbox-cloud.js', re('id="inbox-reading-card"§LV§')]] },
+  'level-el-channels': { page: 'inbox', at: [[V + 'inbox.js', re('id="inbox-channels"§LV§')]] },
+  'level-el-people': { page: 'household:people', at: [[V + 'settings-household.js', re('id="people-card"§LV§')]] },
+  'level-el-users': { page: 'settings:access', at: [[V + 'settings-access.js', re('id="users-card"§LV§')]] },
 };
 function group(gkey) { return new RegExp(`\\{ gkey: '${gkey}',[^\\n]*?(?:level: '(\\w+)'[^\\n]*?)?fields: \\[`); }
 
@@ -231,6 +248,80 @@ for (const rel of ['docs/referenz/stufen.md', 'docs/en/referenz/stufen.md']) {
   }
   t(`${rel}: Teile von Seiten mit der Stufe aus dem Code`, !wrongEl.length, wrongEl.join(' · '));
 }
+// v3.13.0 — ansichten.md wiederholt die Stufen der Seiten in einer Tabelle („ab Stufe | Seiten | …“). Sie widersprach
+// seit dem Umbau v3.12 dem Code, ohne dass ein Test es sah. Jetzt: jeder Name in der Spalte „Seiten“ ist der Name der
+// Seite im Katalog (Lektion 102: Wege gegen den Katalog prüfen) und steht in der Zeile ihrer Stufe, jede genannte
+// Seite genau einmal.
+{
+  const catOf = (lang) => JSON.parse(src(`public/locales/${lang}.json`));
+  const get = (c, k) => k.split('.').reduce((o, p) => o?.[p], c);
+  // Seite → [Bereich vor „→“ ('' = keiner nötig), Katalogschlüssel des Namens]; Namen, die kein Katalogeintrag sind, als Anfang
+  const NAMES = {
+    dashboard: ['', 'nav.dashboard'], todo: ['', 'nav.todo'], 'readings-entry': ['', 'nav.readings'], inbox: ['', 'nav.inbox'],
+    'contracts-overview': ['', 'nav.contracts'], 'contracts-past': ['', 'nav.contractsPast'], flexibility: ['', 'nav.flexibility'],
+    report: ['', 'nav.report'], help: ['', 'nav.help'], tariffs: ['', 'nav.tariffs'], 'bill-check': ['', 'nav.billCheck'],
+    tenancy: ['', 'nav.tenancy'], analysis: ['', 'nav.analysis'], figures: ['', 'nav.figures'],
+    temperatures: ['connections', 'nav.weather'],
+    ...Object.fromEntries(settingsPages.map(p => [`settings:${p}`, ['settings', `settings.page.${p}.title`]])),
+    ...Object.fromEntries(['reading', 'calendar', 'homeassistant', 'ai', 'keys', 'evcc', 'homenet'].map(p => [`connections:${p}`, ['connections', `connections.${p}.title`]])),
+  };
+  const ALIASES = { de: { utility: 'Verbrauch je Art', forecast: 'Prognose-Werkstatt', household: 'Haushalt mit allen vier Seiten' },
+    en: { utility: 'Consumption per utility', forecast: 'Forecast workshop', household: 'Household with all four pages' } };
+  for (const [lang, rel, head] of [['de', 'docs/referenz/ansichten.md', '| ab Stufe | Seiten |'], ['en', 'docs/en/referenz/ansichten.md', '| From level | Pages |']]) {
+    const c = catOf(lang);
+    const area = { settings: get(c, 'nav.settings'), connections: get(c, 'nav.connections') };
+    const levelOf = Object.fromEntries(L.LEVELS.map(l => [get(c, `level.${l}`), l]));
+    const lines = src(rel).split('\n');
+    const at = lines.findIndex(l => l.startsWith(head));
+    const found = {}, bad = [];
+    for (const line of lines.slice(at + 2)) {
+      if (!line.startsWith('| ')) break;
+      const [lvlName, pages] = line.split('|').slice(1, 3).map(s => s.trim());
+      const level = levelOf[lvlName];
+      if (!level) { bad.push(`unbekannte Stufe „${lvlName}“`); continue; }
+      for (const seg of pages.replace(/\([^)]*\)/g, '').split(';')) {
+        const [pre, list] = seg.includes('→') ? seg.split('→').map(s => s.trim()) : ['', seg];
+        for (const item of list.split(',').map(s => s.trim()).filter(Boolean)) {
+          const key = Object.entries(ALIASES[lang]).find(([, a]) => item === a)?.[0]
+            ?? Object.entries(NAMES).find(([, [want, k]]) => {
+              const name = get(c, k);
+              const inArea = want ? pre === area[want] : pre !== area.settings && pre !== area.connections;
+              return inArea && (item === name || item.startsWith(name + ' '));
+            })?.[0];
+          if (!key) { bad.push(`„${pre ? pre + ' → ' : ''}${item}“ ist kein Seitenname aus dem Katalog`); continue; }
+          (found[key] ||= []).push(level);
+          if (L.viewLevel(key) !== level) bad.push(`${key}: Doku ${level}, Code ${L.viewLevel(key)}`);
+        }
+      }
+    }
+    const twice = Object.entries(found).filter(([, ls]) => ls.length > 1).map(([k]) => k);
+    const missing = Object.keys(NAMES).filter(k => !found[k]);
+    t(`${rel}: Tabelle „ab Stufe“ nennt jede Seite in der Zeile ihrer Stufe (Namen aus dem Katalog)`, at > 0 && !bad.length && !twice.length && !missing.length,
+      [...bad, ...twice.map(k => `${k} doppelt`), ...missing.map(k => `${k} fehlt`)].join(' · ') || `${Object.keys(found).length} Seiten`);
+
+    // §11: je Seite der Einstellungen, des Haushalts und der Verbindungen eine Zeile „Bereich → Seite | … | Stufe“
+    const head11 = lang === 'de' ? '| Seite | Inhalt | ab Stufe |' : '| Page | Contents | From level |';
+    const at11 = lines.findIndex(l => l.startsWith(head11));
+    const pages11 = {
+      ...Object.fromEntries(Object.entries(NAMES).filter(([, [want]]) => want).map(([k, [want, ck]]) => [`${area[want]} → ${get(c, ck)}`, k])),
+      ...Object.fromEntries(householdPages.map(p => [`${get(c, 'nav.household')} → ${get(c, `household.${p}.tab`)}`, `household:${p}`])),
+    };
+    const seen = new Set(), bad11 = [];
+    for (const line of lines.slice(at11 + 2)) {
+      if (!line.startsWith('| ')) break;
+      const cells = line.split('|').slice(1, -1).map(s => s.trim());
+      const key = pages11[cells[0]];
+      const level = levelOf[cells[cells.length - 1].split(/[;,]/)[0].trim()];
+      if (!key) { bad11.push(`„${cells[0]}“ ist keine Seite (Namen aus dem Katalog)`); continue; }
+      seen.add(key);
+      if (L.viewLevel(key) !== level) bad11.push(`${key}: Doku ${level}, Code ${L.viewLevel(key)}`);
+    }
+    const missing11 = Object.values(pages11).filter(k => !seen.has(k));
+    t(`${rel} §11: jede Seite von Einstellungen, Haushalt und Verbindungen mit der Stufe aus dem Code`, at11 > 0 && !bad11.length && !missing11.length,
+      [...bad11, ...missing11.map(k => `${k} fehlt`)].join(' · ') || `${seen.size} Seiten`);
+  }
+}
+
 const de = docLevels('docs/referenz/stufen.md').rows, en = docLevels('docs/en/referenz/stufen.md').rows;
 t('Funktionstabelle: Deutsch und Englisch mit denselben Sprungmarken und Stufen',
   JSON.stringify(Object.entries(de).sort()) === JSON.stringify(Object.entries(en).sort()));

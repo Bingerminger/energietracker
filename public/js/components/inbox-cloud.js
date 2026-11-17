@@ -61,8 +61,12 @@ const fieldText = (key) => {
 function localPanel(settings, isAdmin) {
   const ep = fieldText('ocr_endpoint'), ap = fieldText('ocr_api'), md = fieldText('inbox_model'), to = fieldText('inbox_timeout_s');
   const api = OCR_APIS.includes(settings.ocr_api) ? settings.ocr_api : 'ollama';
+  // v3.13.0 (K2d) — Härtung: Schnittstelle, Modell und Zeitlimit wirken für alle und stehen in App::ADMIN_SETTINGS;
+  // Mitglieder sehen sie gesperrt (bisher offen, der Server nahm die Änderung an)
+  const dis = isAdmin ? '' : ' disabled';
   return `<div class="settings-fields" data-role="rd-local" data-shown-by="rd-mode=local">
       <p class="settings-field__hint" data-role="rd-shared">${escapeHtml(t('settings.reading.localShared'))}</p>
+      ${isAdmin ? '' : `<p class="muted" data-role="rd-admin-only">${escapeHtml(t('settings.inboxCloud.adminOnly'))}</p>`}
       <div class="field settings-field">
         <label for="rd-endpoint">${escapeHtml(ep.label)}</label>
         <input class="input input--text" type="text" inputmode="url" id="rd-endpoint" data-field="ocr_endpoint" spellcheck="false" autocapitalize="off"
@@ -71,7 +75,7 @@ function localPanel(settings, isAdmin) {
       </div>
       <div class="field settings-field">
         <label for="rd-api">${escapeHtml(ap.label)}</label>
-        <select class="select" id="rd-api" data-field="ocr_api" aria-describedby="rd-api-hint">
+        <select class="select" id="rd-api" data-field="ocr_api" aria-describedby="rd-api-hint"${dis}>
           ${OCR_APIS.map(o => `<option value="${o}" ${o === api ? 'selected' : ''}>${escapeHtml(t(`settings.ocrApis.${o}`))}</option>`).join('')}
         </select>
         ${hintHtml('rd-api-hint', ap.hint)}
@@ -83,12 +87,12 @@ function localPanel(settings, isAdmin) {
       <div class="field settings-field">
         <label for="rd-model">${escapeHtml(md.label)}</label>
         <input class="input input--text" type="text" id="rd-model" data-field="inbox_model" spellcheck="false" autocapitalize="off"
-               value="${escapeHtml(settings.inbox_model ?? '')}" placeholder="${escapeHtml(t('settings.placeholder.inboxModel'))}" aria-describedby="rd-model-hint">
+               value="${escapeHtml(settings.inbox_model ?? '')}" placeholder="${escapeHtml(t('settings.placeholder.inboxModel'))}" aria-describedby="rd-model-hint"${dis}>
         ${hintHtml('rd-model-hint', md.hint)}
       </div>
       <div class="field settings-field">
         <label for="rd-timeout">${escapeHtml(to.label)} <span class="settings-field__unit">${escapeHtml(t('settings.unit.seconds'))}</span></label>
-        <input class="input" type="text" inputmode="numeric" id="rd-timeout" data-field="inbox_timeout_s" value="${escapeHtml(String(settings.inbox_timeout_s ?? ''))}" aria-describedby="rd-timeout-hint">
+        <input class="input" type="text" inputmode="numeric" id="rd-timeout" data-field="inbox_timeout_s" value="${escapeHtml(String(settings.inbox_timeout_s ?? ''))}" aria-describedby="rd-timeout-hint"${dis}>
         ${hintHtml('rd-timeout-hint', to.hint)}
       </div>
     </div>`;

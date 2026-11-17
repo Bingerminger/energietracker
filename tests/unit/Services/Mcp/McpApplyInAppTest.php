@@ -76,7 +76,8 @@ final class McpApplyInAppTest extends McpInboxTestCase
         $r = $this->applier()->inApp($p['proposal_id'], self::PERSON);
         self::assertFalse($r['repeated']);
         $new = $this->readingOn('2026-02-01');
-        self::assertSame([13200.0, 'mcp', PendingChanges::clientRef($p['proposal_id'])], [(float)$new['counter'], $new['source'], $new['client_ref']]);
+        // v3.13.0 — `client_ref` ist wörtlich die Kennung des Vorschlags
+        self::assertSame([13200.0, 'mcp', $p['proposal_id']], [(float)$new['counter'], $new['source'], $new['client_ref']]);
         self::assertSame([], $this->pending->listOpen());
         // der Verlauf nennt beides: den Schlüssel und die Person, dazu den Satz
         $e = $this->activity->get($r['result']['activity_ids'][0]);
@@ -198,13 +199,14 @@ final class McpApplyInAppTest extends McpInboxTestCase
         self::assertSame('done', $r['result']['document']['status']);
         $e = $this->activity->get($r['result']['activity_ids'][0]);
         self::assertSame($p['summary'], $e['changes'], 'Skeptiker M9: was geändert wurde, nicht nur der Dateiname');
-        // Skeptiker M9 — „Rückgängig“ gibt es hier nicht: Es striche nur den Eintrag durch, die Daten blieben
-        try {
-            $this->activity->undo($e['id']);
-            self::fail('undo');
-        } catch (\Energietracker\Http\HttpStatusException $x) {
-            self::assertSame([409, 'errors.activity.undoNotPossible'], [$x->status, $x->key]);
-        }
+        // Skeptiker M9 — „Rückgängig“ striche nur den Eintrag durch, die Daten blieben (bis v3.12 deshalb 409).
+        // v3.13.0 (Paket F) — jetzt mit Rückweg: Rechnung und Ablesung wieder weg, das Dokument wieder offen
+        self::assertCount(1, $this->bills->list('gas'));
+        $u = $this->activity->undo($e['id']);
+        self::assertSame([true, true], [$u['reverted'], !empty($u['undone'])]);
+        self::assertSame([], $this->bills->list('gas'), 'die Rechnung ist wieder weg');
+        self::assertNotContains('2025-12-31', array_column($this->readings->list('gas', 'm_gas_default'), 'date'));
+        self::assertSame(['read', []], [$this->inbox->get($id)['status'], $this->inbox->get($id)['applied'] ?? []], 'das Dokument ist wieder offen');
     }
 
     public function testTheSentenceFollowsTheAmounts(): void

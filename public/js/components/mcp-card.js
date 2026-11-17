@@ -38,7 +38,8 @@ import { icon } from '../lib/icons.js';
 /** Bereiche der KI-Schlüssel (AuthService::API_KEY_SCOPES, McpContext::SCOPES) */
 export const MCP_SCOPES = ['mcp', 'mcp_write'];
 /** Ergebnisse im Zugriffsprotokoll mit Farbe (Konzept §2.7) */
-const RESULT_TAGS = { ok: 'tag--success', tool_error: 'tag--warning', error: 'tag--danger', denied: 'tag--danger', rate_limited: 'tag--warning' };
+// v3.13.0 (Paket F) — `undone`: eine Übernahme der KI im Verlauf zurückgenommen (neutral, ohne Farbe)
+const RESULT_TAGS = { ok: 'tag--success', tool_error: 'tag--warning', error: 'tag--danger', denied: 'tag--danger', rate_limited: 'tag--warning', undone: '' };
 /** Schalter → Feld in GET /api/mcp/status */
 const SETTINGS = [
   { key: 'mcp_enabled', field: 'setting', id: 'mcp-enabled', label: 'settings.mcp.enabled' },

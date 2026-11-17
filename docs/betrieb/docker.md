@@ -683,7 +683,16 @@ sagt, was fehlt: Im Log steht `Datenverzeichnis nicht beschreibbar — Rechte am
 Volume anpassen` mit UID und Gruppe, die schreiben müssen; `GET /api/health`
 antwortet mit `503` und `data_dir_writable: false` (Docker zeigt *unhealthy*),
 und die App meldet „Energietracker kann nicht in sein Datenverzeichnis
-schreiben …“. Nach dem `chown` genügt ein Neuladen der Seite.
+schreiben …“. Nach dem `chown` genügt ein Neuladen der Seite. *(v3.13.0)* Das
+gilt auch für einen **schon eingerichteten Ordner nach einem Wechsel der UID**
+(etwa das Image ohne root auf einem bestehenden Volume): **Jeder Schreibweg
+antwortet mit `503`** und dieser Meldung (`errors.storage.notWritable`), Lesen
+bleibt `200`, ebenso die Vorschau eines Imports (Trockenlauf), die nichts schreibt. Bis v3.12 kam dort beim Speichern `500` „Interner Fehler“. Das gilt
+auch für die Wege, die Home Assistant und ein Kalender-Abo lesen
+(`/api/summary`, `/api/todo`, `/api/calendar.ics`): Fehlt die Kennung der
+Installation (`instance.json`), gilt eine aus dem Datenordner abgeleitete, bei
+jeder Anfrage dieselbe; sobald wieder geschrieben werden darf, speichert die App
+genau diese. Bisher antworteten diese drei Wege dann mit `503`.
 
 **Selbst bauen:** `docker build --target rootless -t energietracker:rootless .`
 — ohne `--target` entsteht wie bisher das Standard-Image. Das Image setzt
@@ -704,7 +713,7 @@ schreiben …“. Nach dem `chown` genügt ein Neuladen der Seite.
 | Container steht auf „Exited“ mit einem Fehlercode, im Log „Dienst beendet, Container endet“ | nginx oder php-fpm ist ausgefallen; der Container endet dann absichtlich (seit v3.10.0). Mit `--restart unless-stopped` bzw. `restart: unless-stopped` startet Docker ihn wieder. Steht der Fehler vor dieser Zeile im Log, ist er die Ursache. |
 | „403/Permission denied" auf `data` | Der Container setzt die Rechte beim Start; bei eigenem Host-Ordner ggf. Schreibrechte prüfen. |
 | Unraid: nach *New Permissions* „Daten nicht schreibbar“ | Container neu starten — er stellt `/data` wieder auf `www-data` (UID 82). |
-| Ohne root: im Log „Datenverzeichnis nicht beschreibbar“, `/api/health` mit `503` | Der Datenordner gehört nicht der UID des Containers (10001). `sudo chown -R 10001:0 <Ordner>` oder ein Named Volume — [Ohne root](#ohne-root-v350). |
+| Ohne root: im Log „Datenverzeichnis nicht beschreibbar“, `/api/health` und jeder Schreibweg mit `503` (seit v3.13.0) | Der Datenordner gehört nicht der UID des Containers (10001). `sudo chown -R 10001:0 <Ordner>` oder ein Named Volume — [Ohne root](#ohne-root-v350). |
 | Texterkennung „nicht erreichbar“, obwohl Ollama auf demselben Rechner läuft | Im Container ist `localhost` der Container selbst. Die Adresse des Rechners im Heimnetz eintragen und Ollama mit `OLLAMA_HOST=0.0.0.0` starten — [Texterkennung im Heimnetz](../anleitungen/texterkennung.md#wenn-der-energietracker-in-docker-läuft). |
 | Texterkennung mit langem Zeitlimit endet mit `504` | Das Image selbst wartet seit v3.1.0 bis 310 s; ein Reverse-Proxy davor wartet kürzer. Dessen Zeitlimit über 300 s setzen oder `ocr_timeout_s` senken. |
 

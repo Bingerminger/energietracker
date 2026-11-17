@@ -11,7 +11,7 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Neunundzwanzig Schlüssel ändern
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Neununddreißig Schlüssel ändern
 dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
 einbetten lässt, Namen sperrt, den Verlauf kürzt oder Daten nach außen gibt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
 `allowed_hosts` und `activity_keep_months` sowie (seit v3.7.0) `inbox_provider`,
@@ -21,10 +21,10 @@ v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` und
 `ha_notify_service`, ob und wohin Benachrichtigungen an Home Assistant gehen,
 (seit v3.10.0) `home_ca_pem` und `home_tls_insecure`, wem Verbindungen ins
 Heimnetz vertrauen, (seit v3.12.0) `mcp_enabled`, `mcp_share_identifiers`,
-`mcp_share_documents` und `mcp_apply_in_app`, ob und was eine KI lesen darf und wer eine Änderung bestätigt, `language`, `country`, `currency` und `timezone`, die Vorgabe für alle, und `update_check`, `location_name`, `latitude`, `longitude` und `weather_auto_fill`, ob die App nach neuen Versionen fragt und welchen Standort sie dem Wetterdienst nennt. Ein
-Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
-alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
-Einschränkung nicht.
+`mcp_share_documents` und `mcp_apply_in_app`, ob und was eine KI lesen darf und wer eine Änderung bestätigt, `language`, `country`, `currency` und `timezone`, die Vorgabe für alle, und `update_check`, `location_name`, `latitude`, `longitude` und `weather_auto_fill`, ob die App nach neuen Versionen fragt und welchen Standort sie dem Wetterdienst nennt, sowie (seit v3.13.0) `letters_admin_only`; ist er an, kommen die Angaben für Briefe dazu (`letter_sender_name`, `letter_sender_address`, `letter_supply_address`). Seit v3.13.0 außerdem die übrigen Einstellungen der Texterkennung und des Auslesens, `ocr_api`, `ocr_model`, `ocr_timeout_s`, `inbox_model`, `inbox_timeout_s` und `inbox_cloud_timeout_s`, und der Benachrichtigung an Home Assistant, `ha_notify_events` und `ha_notify_hour`, und der Speicher für Belege, `attachments_max_mb` (sie wirken für alle). Ein
+Mitglied, das einen davon **geändert** mitschickt, bekommt `403` `errors.auth.adminOnly`; ein unveränderter Wert, den
+eine Seite mitschickt, geht durch. Alle anderen Schlüssel dürfen auch Mitglieder ändern; ein Test ordnet jeden
+Schlüssel einer der beiden Rollen zu. Ohne Anmeldung gilt die Einschränkung nicht.
 
 Die Standardwerte gelten für eine neue Installation in Deutschland. Ein anderes
 Land setzt beim ersten Start sein Profil (Standort, Währung, Zeitzone,
@@ -39,6 +39,10 @@ Adresse `#/settings`. Erste Seite der Einstellungen, oben mit der Suche über al
 einem gerade verborgenen Bereich, etwa unter „Cloud“, sagt ein Hinweis an der
 Karte, wo es steht; **„Zeigen“ klappt den Bereich auf und speichert nichts**
 *(v3.12.0)*.
+
+**Die Suche kennt auch frühere Namen und die Überschrift einer Karte:**
+„HGT-Basistemperatur“ führt zur Heizgrenze, „Wetterort“ und „Standort“ zum Ort
+unter Verbindungen → Wetterdaten *(v3.13.0)*.
 
 ### Nutzungsstufe und Einrichtung *(v3.2.0)*
 
@@ -215,6 +219,7 @@ auch nicht mit dem Schalter für Kennnummern
 | `letter_sender_name` | leer | Name (Absender) | Eine Zeile; erste Zeile des Absenders, Unterschrift unter dem Brief. Leer: kein Absender, der Brief zeigt die Lücke `[…]`. |
 | `letter_sender_address` | leer | Anschrift (Absender) | Bis zu vier Zeilen, etwa Straße und Hausnummer, dann Postleitzahl und Ort. Beginnt die letzte Zeile mit einer Postleitzahl, schlägt der Brief den Ort für „Ort, Datum“ vor. Steht nur im Brief, wenn auch ein Name da ist. |
 | `letter_supply_address` | leer | Lieferanschrift (Verbrauchsstelle) | Eine Zeile; steht im Brief unter den Angaben zur Zuordnung als „Lieferanschrift“. |
+| `letters_admin_only` | aus | Nur Verwalter ändern diese Angaben | *(v3.13.0)* Wirkt nur mit [Anmeldung](../anleitungen/benutzer.md): Dann ändern nur Verwalter Name, Anschrift und Lieferanschrift; Mitglieder sehen sie gesperrt, und der Brief-Dialog bietet ihnen „übernehmen“ nicht an (ein Brief mit anderem Absender geht trotzdem). Die Schnittstelle antwortet Mitgliedern dann mit `403`. Den Schalter stellt nur ein Verwalter. |
 
 ### Wohnen und Warmwasser *(v3.1.0)*
 
@@ -304,13 +309,24 @@ Adresse `#/household/utilities`.
 | `billing_cycle_anchor_fernwaerme` | `01-01` | Stichtag Fernwärme: erster Tag der Abrechnungsperiode | wie Gas |
 | `billing_cycle_anchor_pv_einspeisung` | `01-01` | Stichtag PV-Einspeisung: erster Tag der Abrechnungsperiode | Erster Tag der Abrechnungsperiode der Einspeisevergütung (seit v2.13.0; vorher galt fest der 1. Januar). |
 
+### Abschläge zählen (v3.13.0)
+
+Haushalt → Verbrauchsarten, Karte „Abschläge zählen“, ab Erfahren. Eine Einstellung für alle Verträge mit
+monatlichem Abschlag; ein Abschlag mit Terminen (alle zwei oder drei Monate, Termine laut Rechnung) zählt immer ganz
+an seinem Tag. Rechnung und Beispiel: [Saldo bis heute](../verstehen/00-overview.md#10-saldo-bis-heute).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `advance_counting` | `pro_rata` | Abschlag zählen | `pro_rata` „Tagesanteilig (Standard)“: Beginnt oder endet ein Vertrag mitten im Monat, zählt der Abschlag dieses Monats nach den Vertragstagen, wie bis v3.12. `due_day` „Ganze Rate am Fälligkeitstag“: Jede monatliche Zeile des Abschlagsplans zählt eine ganze Rate an jedem Fälligkeitstag, der im Vertrag liegt (Beginn und Ende eingeschlossen), mit dem Betrag, der an diesem Tag gilt; auch der laufende Monat, die letzte Ablesung und ein Abrechnungsjahr, das mitten im Monat beginnt, zählen die Rate erst an ihrem Tag. Wer nach dem Rat aus v3.12.0 die volle Rate als Sonderzahlung gebucht hat, löscht sie nach dem Umschalten (sonst zählt sie doppelt). Andere Werte: `400` `errors.settings.valueInvalid`. Länderprofile setzen ihn nicht. |
+| `advance_due_day` | 1 | Fälligkeitstag | Tag im Monat von 1 bis 31, ganzzahlig, nur mit `due_day` wirksam; in kürzeren Monaten der letzte Tag (31 heißt im Februar der 28. bzw. 29.). Leer (`null`, `""`) gilt wieder der 1. Andere Werte: `400` `errors.settings.valueInvalid`. |
+
 ### Physikalische Konstanten
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
 | `gas_conversion_factors` | 11,5 kWh/m³ (undatiert) | Gas-Umrechnungsfaktoren | Ein Eintrag je Brennwertperiode, wie auf der Gasrechnung: Gültig ab, Zustandszahl und Brennwert. Daraus rechnet die App den Faktor kWh/m³; ohne Aufschlüsselung trägst du den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. An jedem Stichtag teilt die App das Ableseintervall tagesgenau. Liste mit „Gültig ab“, Zustandszahl und Brennwert je Periode; ein Eintrag darf undatiert sein. Standard: undatiert 11,5 kWh/m³. |
 | `gas_cv_unit` | `kwh` | Brennwert angeben in | Einheit, in der der Brennwert eingegeben wird: `kwh` (kWh/m³), `mj` (MJ/m³) oder `gj` (GJ/Smc). Gespeichert wird immer kWh/m³. |
-| `hdd_base_temp` | 15 | HGT-Basistemperatur | Heizgrenze: Tage darunter zählen als Heiztage. |
+| `hdd_base_temp` | 15 | Heizgrenze | Basistemperatur der Heizgradtage: Tage darunter zählen als Heiztage. *(v3.13.0)* Bis v3.12 hieß das Feld „HGT-Basistemperatur“. |
 
 ### Energieträger (Lieferung)
 
@@ -463,7 +479,7 @@ Adresse `#/connections/weather`.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `location_name` | `Leipzig Zentrum` | Ortsname | Name des Standorts, für die Anzeige. Unter Verbindungen → Wetterdaten per Ortssuche gesetzt. **Ändern nur Verwalter** *(v3.12.0)*. |
+| `location_name` | `Leipzig Zentrum` | Ortsname | Name des Standorts, für die Anzeige. Unter Verbindungen → Wetterdaten per Ortssuche gesetzt. **Ändern nur Verwalter** *(v3.12.0)*. Höchstens 120 Zeichen *(v3.13.0)*. |
 | `latitude` | 51,3397 | Breitengrad | Breitengrad für Temperaturen und Klimanormal (an Open-Meteo gerundet auf zwei Nachkommastellen, rund 1 km). **Ändern nur Verwalter** *(v3.12.0)*. |
 | `longitude` | 12,3731 | Längengrad | Längengrad, wie Breitengrad. **Ändern nur Verwalter** *(v3.12.0)*. |
 | `weather_auto_fill` | an | Wetter automatisch füllen | Holt beim Öffnen der App höchstens einmal täglich Temperaturen von Open-Meteo (Standort auf rund 1 km gerundet). **Ändern nur Verwalter** *(v3.12.0)*. |

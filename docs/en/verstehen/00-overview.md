@@ -999,6 +999,7 @@ Cost to date       = working price × measured consumption     (up to the last r
                    - bonuses up to today
 Advances paid      = advances per payment plan, due at the start of the month,
                      up to and including the current month
+                     (with “full payment on the due day”: every payment whose day has come)
 Balance today      = cost to date - advances paid + special payments (net)
 Expected at end    = balance today + estimated remaining cost - remaining advances
 ```
@@ -1006,6 +1007,73 @@ Expected at end    = balance today + estimated remaining cost - remaining advanc
 Up to v2.7, costs **and** advances only counted for months with a reading. Anyone
 who had last read the meter in March saw a balance made up of three months in
 September, while the bank had long since debited nine advances.
+
+**Counting advance payments: pro rata or full payment (since v3.13.0).** If a
+contract starts or ends mid-month, the app counts that month’s monthly advance
+payment **pro rata** by the contract days by default. Many suppliers, however,
+debit the **full payment on its due day**. One setting covers all contracts
+(Household → Utilities, “Counting advance payments”,
+[`advance_counting`](../referenz/einstellungen.md#counting-advance-payments-v3130)):
+with **“Full payment on the due day”** every monthly row of the payment plan
+counts a full payment on each due day within the contract (start and end
+included), with the amount that applies on that day. If a month has no such day
+(1 to 31), its last day applies (31 means 28 or 29 February). Advance payments
+with due dates (every two or three
+months, dates from the bill) count in full on their day either way. Invented
+example (`AdvanceDueDayTest`): €90 a month, due on the 1st, contract from 1 Jan
+to 14 Jul, costs €600:
+
+<!-- doc-claim: advance-due-day-example (AdvanceDueDayTest) -->
+```text
+pro rata        6 × €90 + €90 × 14/31 = €580.65   to pay  €19.35
+full payment    7 × €90              = €630.00   credit  €30.00
+```
+
+**The rule applies to every partial period,** not only in the month of the
+change: the balance card, monthly rows, forecast, billing year, “Check bill”,
+workshop, annual report and the values for Home Assistant and the AI count a
+payment in full as soon as its day has come.
+
+- **Current month:** with a due day after the 1st, “Balance today” moves by one
+  payment on the due day; until then the current month’s payment does not
+  count yet (pro rata, the current month counts in full).
+- **“Balance on ‹reading›”** counts the payments before the reading day (below).
+- **A billing year that starts mid-month** gets that month’s payment in full or
+  not at all, depending on its day.
+- **“Expected at settlement”** counts the same twelve payments over a whole billing
+  year. It differs when the contract starts or ends mid-month within it, or when
+  the advance payment changes mid-month.
+- The card names the next due date **after today:** on the due day it is already
+  the following one, because “Balance today” counts that day’s payment. The
+  advance suggestion works per payment up to the bill.
+
+**A payment on the day of a reading belongs to the next period.** A reading on
+day D is the boundary **at the start** of D: the pro rata part counts up to the
+day before, and a full payment or a due date on day D likewise counts only in
+the next period, on every day of the month alike. The annual bill works the same
+way: it counts the advance payments due within the billing period. “Balance on
+‹reading›”, the tile “Advances … to …” and the billing year follow this rule;
+“Balance today” counts the payment on the day itself. **Exception as in the
+billing year:** if the reading falls on the last day of the period (such as the
+final reading on the last day of the contract), that day counts, including a
+payment due that day; card and final bill then count the same. *(since v3.13.0)*
+The billing year counts a final reading on the last day of the contract in the
+same way, also without an entered final bill. Until then it ended the day before:
+with €90 as a full payment on the 15th and a contract until 15 July it counted €540
+instead of €630. Invented example
+(`AdvanceDueDayTest`): €90 due on the 1st, billing year equal to the calendar
+year, annual reading on 1 Jan 2026:
+
+<!-- doc-claim: advance-reading-day (AdvanceDueDayTest) -->
+```text
+billing year 2025     12 × €90 = €1,080.00   payment of 1 Jan 2026 not included
+balance today 2026     1 × €90 =    €90.00   the payment of 1 Jan 2026
+```
+
+**Before switching:** whoever booked the full payment of such a month as a
+special payment (extra advance payment) following the advice from v3.12.0
+counts it twice afterwards; delete that special payment then. An advance
+payment with due dates stays as it is.
 
 **The estimate** for the gap and for the remainder runs per day: for gas and
 district heating with the heating model (`a × HDD + c`, with the measured daily
@@ -1097,6 +1165,7 @@ range               = expected balance + (energy_assumption − estimated energy
 advance             = current advance + range / remaining months
 ```
 
+<!-- doc-claim: group-billing-year (GroupReadingsDifferTest) -->
 **Group whose members were read at different times (since v3.12.0).** The group
 counts as measured up to the **earliest** last reading of its members. From there on
 the app estimates the whole group; what the member read later has already measured
@@ -1106,7 +1175,11 @@ are read; a month without one member would otherwise look like lower consumption
 If the readings are **more than 62 days** apart, the balance is marked uncertain
 (`group_readings_differ`): the range gives the days without any reading ± 50 %. The
 balance of measured values only (`balance_measured`) ends at the earliest reading
-anyway. **Reading all members on the same day** makes the estimate unnecessary.
+anyway, and *(since v3.13.0)* so does the group's **billing year**: one rule for both,
+with the same balance (until then it ran to the latest reading, and the member read
+earlier lacked the days in between). A reading entered as estimated counts as
+measured in neither. **Reading all members on the same day** makes the estimate
+unnecessary.
 
 Without a heating model (electricity, water) there is neither a quality gate nor a
 heating share carried forward over the year; a calendar month never measured takes
@@ -1144,7 +1217,21 @@ supersede nothing. Contracts without a successor and gapless chains stay unchang
 **Price missing (since v3.7.0).** If a contract has no unit price, costs and
 balance contain only standing charge and advance payments. Contract status and
 billing year both say so (`price_missing`) instead of showing two different,
-equally wrong balances.
+equally wrong balances. *(Since v3.13.0)* The same rule as for the months: if a
+price per reading (or, for a group contract, a price per register) carries the
+months, nothing is missing.
+
+<!-- doc-claim: reading-price-section (ReadingPriceSectionTest) -->
+**Price per reading (the same everywhere since v3.13.0).** If a contract has no
+unit price on a day (for water no drinking water price), the app calculates with
+the **price at the reading**. A section between two readings takes the price of
+its **first reading**, or, if that has none, the one of its **last**; from a
+reading with a price on it applies until a reading names a new one. If the first
+price is at the reading of 1 May, the section up to it (from the reading of
+1 April) already has that price, the sections before do not. The same rule holds
+in the months, on the balance card, in the billing year, in “Check bill” and in
+the AI interface. Up to v3.12 billing year and “Check bill” then only counted
+the standing charge and the advance payments.
 
 ### One projection for balance and workshop *(since v3.9.0)*
 
@@ -1214,12 +1301,14 @@ estimate up to today is a second line below it; the forecast stays under
 “Expected at settlement”:
 
 ```text
-measured until  = last reading (exclusive, like the monthly rows)
+measured until  = last reading (exclusive, like the monthly rows; since v3.13.0
+                  inclusive when it falls on the last day of the period)
 cost            = working price of the measured monthly rows
                 + standing charge day-exact [balance from, last reading)
                 - bonuses of the months with measured days
 advances        = plan pro rata by days (the started month only for its measured part);
                   installments with a rhythm in full if their day is before the reading
+                  (with “full payment on the due day” every payment, since v3.13.0)
 balance on …    = cost - advances + special payments before the reading
 second line     = balance today (current_balance) = balance on …
                   + estimated consumption + standing charge − advances + special payments since the reading
@@ -1342,6 +1431,8 @@ Working price  per segment: consumption on the segment's days × price of that d
 Base price     monthly amount × days of the segment / days of the month
 Advance        monthly amount on the first contract day of the month,
                pro rata to the contract days in the month
+               (default; with “full payment on the due day” a full payment
+               on every due day within the contract, since v3.13.0, section 10)
 ```
 
 Up to v2.8 the contract valid on the first of the month applied to the whole
@@ -1367,7 +1458,9 @@ unless cancelled nine months before expiry; the balance card then names the end
 of the current extension and the day by which the cancellation must arrive.
 Since the follow-up review for v3.11.0 this applies before the end as well: if
 no notice period is entered on a district heating contract, the cancellation
-date is the end minus nine months (`cancel_by`, with reminder and date); once it
+date is the end minus nine months (`cancel_by`, with reminder and date; *v3.13.0*
+for an end on the last day of a month the last day of a month,
+[legal sources no. 52](../referenz/rechtsgrundlagen.md#deadlines)); once it
 has passed, the balance card, timeline, overview and “Check switch” name the
 extension (`renewal_term` {until, cancel_by}) instead of a switch at the end of
 the term. An entered notice period takes precedence. If a follow-up contract is

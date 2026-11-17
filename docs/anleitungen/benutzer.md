@@ -205,12 +205,16 @@ stehen, bis jemand sie neu zuweist; der Dialog sagt es vorher.
 | Adressen im Netz: Einbetten, Texterkennung, evcc | ✓ | — |
 | Vorgabe für alle: Sprache, Land, Währung, Zeitzone *(v3.12.0)* | ✓ | — |
 | Hinweis auf neue Versionen, Standort und Wetterabgleich *(v3.12.0)* | ✓ | — |
+| Angaben für Briefe (Absender, Lieferanschrift) unter Haushalt → Gebäude | ✓ | ✓ (nicht mehr, sobald „Nur Verwalter ändern diese Angaben“ an ist, *v3.13.0*) |
+| der Schalter „Nur Verwalter ändern diese Angaben“ *(v3.13.0)* | ✓ | — |
 
 Einspielen und Laden ersetzen alle Daten; die Adressen lassen den Server mit
 anderen Rechnern sprechen. Darum bleiben sie der Verwaltung vorbehalten.
 Versucht ein Mitglied es trotzdem, antwortet die App mit „Das darf nur, wer
 die Installation verwaltet.“ Unter Einstellungen → Zugang und Sicherheit sehen Mitglieder
-nur den Hinweis, wer den Zugriff verwaltet.
+nur den Hinweis, wer den Zugriff verwaltet. **Unter Verbindungen** *(v3.13.0)* fehlen
+für Mitglieder die Knöpfe für den Home-Assistant-Token und die Felder für evcc und die
+Sicherheit im Heimnetz; dort steht, dass die Verwaltung sie einrichtet.
 
 **Mindestens eine Person verwaltet.** Die letzte Person mit der Rolle
 „Verwaltung“ lässt sich weder zum Mitglied machen noch löschen.

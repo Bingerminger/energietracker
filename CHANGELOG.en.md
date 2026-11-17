@@ -7,6 +7,799 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.13.0] — 2026-11-17 — Battery, wall box and peak/off-peak in the forecast
+
+MINOR release without a schema step (stays 1.8.0). The plan was the forecast for heat pump, PV, battery and electric
+car by the weather. **It is built, and only what passes its check is shown:** measured on a test household with
+physics of its own that does not come from the app’s model, against fixed thresholds. What passed: the **feed-in balance by the
+sun**, the **feed-in after a new battery** and the **months of a new wall box**. The **heat pump by the weather** and
+the **PV forecast** do not meet their thresholds yet and stay off; the app says so where they would otherwise
+calculate. Alongside come **peak and off-peak as one contract** ([#40]), the **check at entry by the weather**
+([#65]), **feed-in payouts**, **advance payments as a full payment on the due day**, length limits for free text and
+the fixes from [#64]. API, CSV format 1, backup format
+3.0 and the Docker environment only grow additively; **PHP 8.4 is the new minimum version**.
+
+### Summary
+
+- **Feed-in by the sun.** The app fetches the daily solar radiation, and “Expected at billing” for the feed-in is
+  calculated with it, including the days since the last reading. What the grid operator has transferred you record
+  at the balance card: **already paid out and still outstanding.**
+- **Peak and off-peak as one contract** ([#40]): the forecast calculates a group with a group contract as a whole,
+  each register at its own price, with the standing charge; the annual report counts it once.
+- **New battery, new wall box:** the feed-in forecast takes the charging of a new battery off the months before it.
+  A new wall box gets its first winter from the charging sessions or from a stated assumption.
+- **The check at entry knows the season** ([#65]): when the heating starts it no longer asks wrongly about a typo,
+  neither for a reading proposed by an AI nor in the preview of a CSV import.
+- **Advance payments count as your supplier does** (known limit of v3.12.0): pro rata by day as before or as a **full
+  payment on the due day**, one setting for all contracts.
+- **Built and checked, still off:** heat pump by the weather, PV forecast, grid import after a new battery and the
+  meter in front of a new wall box. They keep calculating as before, and **a note says so.** Heat pump and PV
+  forecast go back on the test bench with v3.14.
+- **Input without silent cutting:** one list of maximum lengths for every path, inbox lists confirmed, changed or
+  discarded **entry by entry**, **undoing changes made by the AI** in the history.
+- **Recalculated thoroughly:** cancellation deadlines forwards under §§ 187, 188 BGB, the advance payment in a partial
+  month, the billing year like the balance card, **“Price missing” instead of €0** for a contract without a unit
+  price, **one rule per input** for write paths, backup and stored data, and an AI interface that no longer calls
+  assumed figures “measured”.
+- **Operation:** **PHP 8.4** as the minimum version, the `.htaccess` for Apache knows `…/api/…` like nginx, the
+  integration **1.1.0** comes from the default list of the Marketplace (formerly HACS) and brings fill level, the
+  forecast of the group and payouts. Plus [#64]: buttons below the field, tile bars in the billing year.
+
+### For existing installations
+
+- **PHP 8.4 is now the minimum version** (was 8.3). This only affects running on your own web server; the Docker
+  image and the Home Assistant app ship PHP 8.5, Synology Web Station offers 8.4. Ubuntu 24.04 as well as RHEL,
+  AlmaLinux and Rocky Linux 10 ship 8.3: on Ubuntu 24.04 PHP 8.4 comes from the PPA `ondrej/php`, on RHEL 10 and its
+  rebuilds from 10.2 on from AppStream (package `php8.4`) or from the Remi repository; otherwise use Docker. **If you
+  still run PHP 8.3, switch before updating.** If the app still runs on an older version afterwards, the diagnostics
+  page says so. Reason: under PHP 8.3 the test suite rarely hung inside PHP itself, and none of the documented ways
+  needs 8.3.
+- **Weather fetched once:** after the update the daily weather sync fetches the solar radiation once from your first
+  reading on (one archive request) and completes the climate normal once with radiation and the temperature trend.
+  **The heating degree days stay as they are;** gas and every other utility calculate the same. After that the
+  feed-in balance changes (under “Changed”). Without the weather sync it stays as it was.
+- **Texts that are too long are no longer cut:** saving reports `400` with field and limit. A value above the limit
+  from an older version stays readable; the message only comes when you save that field again. **A backup or
+  snapshot with longer texts is imported only after correcting them.**
+- **Apache:** the bundled `.htaccess` now rewrites `…/api/…` to `api.php` like nginx (with `mod_rewrite`). If you
+  maintain your own `.htaccess`, take over the new rule; `…/api.php/api/…` keeps working.
+- **Integration 1.1.0 from the Marketplace:** the new sensors need Energietracker 3.13.0 and appear after reloading
+  the integration. With an older version everything stays as in 1.0.
+- **Some figures change** (examples under “Changed”): the feed-in balance, the expected costs in the annual report
+  with a peak/off-peak group or with a sub-meter under its own contract, the forecast of a peak/off-peak group, meters with consumption per period on an earlier
+  reference date, the months of replacing the heating in the workshop, the feed-in forecast after a new battery,
+  that of a new wall box in winter and the balance with a final reading on the last day of a contract. In addition
+  **cancellation deadlines** for a contract ending on the last day of a month (1 to 3 days later), the **billing year**
+  for a contract starting or ending during a month, for a meter group and with a garden meter, and cent amounts from
+  rounding.
+- **Contract without a unit price:** instead of €0 or the standing charge it says “Price missing”; the API marks it
+  with `price_missing`, the figures stay.
+- **Stricter input, no more breakage from old values:** truth values only count as yes/no, true/false, 1/0 or on/off
+  (empty means no), otherwise `400`. A backup with invalid values or references is imported only after it is
+  corrected. What an older version stored in a form rejected today stays in the file; the app calculates without that
+  value and names it on the diagnostics page and in `/api/health` (`data_issues`).
+- ⚠ **CSV of readings:** `readings.csv` (format 1 and “local”) has three more columns, appended at the end
+  (`Nur-Abrechnung`, `Gemeldet-am`, `Bestaetigt`); the first nine stay as they are. Anyone reading the file by column
+  count sees them. Older files without these columns are imported as before.
+- **Counting advance payments** stays pro rata by default; until you switch, no amount changes (except for the final
+  reading on the last day of a contract, under “Changed”).
+- **New names:** the setting “HDD base temperature” is now called “Heating limit”; the key `hdd_base_temp` and its
+  value stay. Filter buttons have the shape of tabs.
+- **With sign-in:** the switch “Only admins change these details” (details for letters) is off by default; nothing
+  changes until an admin switches it on. Members no longer see the token buttons and the fields for evcc and home network security under Connections;
+  the settings for text recognition, document reading, the Home Assistant notification and the storage for receipts
+  are now changed by admins only (under “Security”).
+- **“Undo” on changes made by the AI** exists for changes from 3.13.0 on; older ones stay without a way back (`409`).
+
+### Added
+
+#### Sun and feed-in
+
+- **Solar radiation per day:** the weather sync fetches the radiation from Open-Meteo along with the temperature
+  (kWh/m²; archive, daily sync, forecast), the climate normal the mean radiation per month over 30 years **with its
+  trend**: the flat mean was on average 3.4% too low in the following year
+  ([measurement](docs/en/entwicklung/messung-einstrahlung.md)). In the backup; backups without radiation import fine.
+  Manual entry and CSV keep the measured radiation of a day.
+- **Feed-in balance by the sun:** “Expected at billing” calculates the days since the last reading with the measured
+  radiation, the next days with the forecast and the rest of the billing year with the climate normal. What your
+  system feeds in per kWh/m² the app learns **per season** from your readings; it needs two readings at least six
+  months apart. If the normal lacks the radiation, the balance takes the mean of your own days
+  ([PV § 12](docs/en/verstehen/12-pv.md#12-sun-by-the-weather-v3130)).
+- **Recording feed-in payouts:** at the balance card, “Record payout” with day, amount, period (optional) and note. The
+  card then shows “Feed-in payment (as of today)”, **“Already paid out”** and **“Still outstanding”** for the billing
+  year. A payout with a period counts pro rata by days: the annual statement for 2025, transferred in February 2026,
+  counts for 2025. Delete with “Undo”, in the history, in the backup, in Home Assistant and for the AI
+  ([PV § 13](docs/en/verstehen/12-pv.md#13-recording-payouts-v3130)). The showcase has two invented payouts. **The
+  balance in the API stays your claim**; the card subtracts what was paid out next to it.
+
+#### Peak and off-peak as one contract ([#40])
+
+- **Forecast:** a group with a group contract appears as a target in the selection, right before its first register,
+  and is preselected. **Its quantity is peak + off-peak month by month, its cost is the energy of each register at
+  its own price**, plus standing charge, advance payment and bonuses of the group contract. The registers stay
+  selectable and point to their group with the button “Show group”.
+- **Annual report:** “Expected costs” counts a group with a group contract once, also when its registers are
+  submeters.
+- **Workshop:** a group made of the registers of a heat pump gets the heat pump levers.
+- **Home Assistant and AI:** additive `group_forecast_12m` with the standing charge; `forecast_12m` of the registers
+  stays.
+
+#### A new battery and a new wall box in the history
+
+- **New battery:** the feed-in forecast takes the charging of the same calendar month off the months before the
+  installation (otherwise the daily rate of the measured months), once the charging meter has measured three months.
+  On the test household it was off by 36 to 41% on average in the year after the installation, now by 15 to 19%
+  ([PV § 14](docs/en/verstehen/12-pv.md#14-a-new-battery-in-the-history-v3130)).
+- **New wall box:** calendar months without history come from the charging sessions in evcc or from a stated
+  assumption with a source (about 1% more electricity per degree below 20 °C) instead of the average of all months
+  ([electricity](docs/en/verstehen/02-strom.md#a-new-wall-box-in-the-history-v3130)).
+- **Monthly rows, analysis and annual report stay measured;** only what the forecast learns from the months is
+  adjusted. The sample households have battery and wall box from the start and therefore show none of this.
+
+#### Built, checked, still off
+
+- **The test bench:** a test household with physics of its own (two houses, three ways of reading, a mild and a cold
+  winter, battery and wall box arriving along the way) and the back-calculation `tools/rueckrechnung.php`, in
+  advance and with the weather as it came. **It is measured against fixed thresholds;** whatever does not meet them
+  calculates as before and says so ([tests](docs/en/entwicklung/tests.md)).
+- **Heat pump by the weather:** built for the heat pump’s electricity, the rest of a cascade and the main meter when
+  heating with electricity; one place decides from the fields which meter follows the weather. It does not meet the
+  thresholds set in advance yet, so it is **not switched on:** forecast, band and “Expected at billing” keep the seasonal profile, a note appears in the forecast, at the balance
+  card and in the workshop ([electricity](docs/en/verstehen/02-strom.md)). Groundwork without effect until it is
+  switched on: the climate normal carries the temperature trend; at ten DWD stations the flat mean put the heating
+  degree days of the following year 9 to 12% too high ([measurement](docs/en/entwicklung/messung-temperaturtrend.md)).
+- **PV forecast by the radiation:** built, not switched on. Generation and feed-in keep the seasonal profile, the
+  forecast says so, the workshop calculates the base year as measured.
+- **Grid import after a new battery, meter in front of a new wall box:** built, not switched on. For two years from
+  the installation the forecast says that it still uses the months before, and suggests a **baseline date on the day
+  of the installation**.
+- **Heat pump and PV forecast go back on the test bench with v3.14;** for grid import after a new battery and the
+  meter in front of a new wall box no release is set yet.
+
+#### Counting advance payments
+
+- **Pro rata or full payment** (known limit of v3.12.0): under Household › Utilities (from Experienced) you choose
+  for all contracts how a monthly advance payment counts: **pro rata by day** (default, as before) or as a **full
+  payment on the due day** (day 1 to 31, the last day in shorter months). Each payment then counts in full on its day
+  if that day lies within the contract; an advance payment with due dates counts on its dates as before. Invented
+  example: €90 due on the 1st, contract until 14 July, costs €600: pro rata €19.35 to pay, as full payments €30.00
+  credit.
+- The balance card, monthly rows, forecast, billing year, “Check bill”, workshop, annual report, Home Assistant and
+  the AI follow the setting. **“Balance today” then moves by one payment on the due day,** and the card names the
+  next due date. **A payment on the day of a reading counts in the period after it,** like the pro rata part and like
+  the annual bill: with an annual reading on 1 January the old year keeps twelve payments.
+- **If you booked the full payment as a special payment following the advice from v3.12.0, delete it after
+  switching,** otherwise it counts twice ([Balance to date](docs/en/verstehen/00-overview.md#10-balance-to-date)).
+
+#### Inbox and AI
+
+- **Inbox lists entry by entry** (known limit of v3.12.0): unit and water prices, advance payments made, gas
+  conversion, readings per meter, credits and due dates of advances you confirm, change or discard entry by entry;
+  “As read” takes the decision back. Proposals, the household from documents and the AI follow it.
+- **Undoing changes made by the AI:** “Undo” in the history puts the data back to how they were before the change,
+  for a reading as for a whole document, **as long as nothing has changed since.** The undo appears in the access
+  log, and the AI learns about it.
+
+#### Interface
+
+- **Costs & contracts:** “New contract” at the top of the page (with several utilities, you pick the utility first);
+  the “Past contracts” tab shows their number.
+- **Character counter** below long fields from 80% of the limit (“1,640 of 2,000 characters”).
+- **“Only admins change these details”** under details for letters (`letters_admin_only`, off by default): with
+  sign-in, only an admin changes sender and supply address if you want.
+- **Diagnostics below PHP 8.4:** if the server runs an older version, the diagnostics page says that it is no longer
+  tested from v3.13 on. `/api/health` stays unchanged.
+
+#### Home Assistant
+
+- **Integration 1.1.0 from the Marketplace** (`Bingerminger/energietracker-integration`): heating oil and pellets
+  with **Stock** (L or kg) and **Fill level** (%), a group with a group contract with **Forecast 12 months** and
+  **Forecast costs 12 months** (with the standing charge), the feed-in with **Already paid out**, **Still
+  outstanding** and **Outstanding at settlement**. The sensors of 1.0 stay as they are.
+- **Notifications:** if Home Assistant redirects to another address, “Send a test message” names the new address
+  (only scheme, host and port) instead of just “status 307”. Energietracker still does not follow a redirect.
+
+#### API and data (additive)
+
+- **Endpoints:** `GET|POST /api/feed-in-payouts`, `PATCH|DELETE /api/feed-in-payouts/{id}`,
+  `GET /api/meters-overview[?utilities=…]`, `GET /api/utility/{u}/meters/{id}/reading-expectation?from=&to=`,
+  `POST /api/utility/{u}/meters/{id}/reading-expectations` (several intervals in one request, read-only); now 210
+  routes.
+- **Buckets and fields:** bucket `feed_in_payouts.json` (in the backup); temperature day `rad`; climate normal
+  `rad_month`, `rad_month_trend` and further `rad_*`, plus `temp_trend*`; contract status of the feed-in `payouts`;
+  `/api/summary` with `group_forecast_12m` and `contract.payouts_received`, `payouts_open`, `payouts_open_at_settle`;
+  forecast with `pv_model`, `heat_pump_weather`, the notes `pv_no_weather`, `heat_pump_no_weather`,
+  `battery_history`, `ev_history`, `ev_months` and the methods `ev_sessions`, `ev_assumed`; workshop
+  `replacement.jaz_months`; `/api/health` `data_initialized`; `/api/diagnostics` `php_minimum`, `php_supported`;
+  inbox `item_edits`; history `revert`; test message `error: redirect` with `location`.
+- **AI (MCP):** `get_overview` with `group_forecast_12m`, `get_forecast` with `priced_by_group`, the feed-in status
+  with `payouts_*`, `get_document` with `confirmed` and `origin`; the result `undone` in the access log.
+- **Error codes:** `errors.common.tooLong` (with `field`, `max`, `length`), in the backup import `too_long:<field>`,
+  `errors.activity.undoChanged`, `errors.mcp.proposal.undone`, `errors.readingCheck.tooMany` and
+  `errors.readingCheck.tooManyDays` (more than 4,000 intervals or 40,000 days in one request). **Settings:**
+  `letters_admin_only` (admins only), `advance_counting` (`pro_rata` | `due_day`) and `advance_due_day` (1 to 31).
+- **Without measured consumption:** `projection_missing` in the contract status and `/api/summary`; then
+  `projected_end_balance`, `verdict` and `suggested_advance` are `null`. Plus `price_missing` on the tenancy budget and
+  `bonus_year1_eur` on the switch decision. ⚠ The `risk` of the tenancy budget is `null` without known costs,
+  `year_to_date.value` has up to three decimals.
+- **Earlier contracts and the sum of the utility:** `settled_until` in the contract status of an earlier contract
+  whose end is covered by a booked bill: its last day, settled with the bill up to that day (`current_balance` and
+  `projected_end_balance` 0.00, `verdict` `balanced`), likewise in `get_contracts` of the AI. On the billing years of
+  the whole utility (`GET /api/utility/{u}/billing-periods`) `periods[].member_as_of`: per meter the last day its
+  target counts (`null`: nothing counted).
+- **AI with too few readings yet:** `balance_today` has the new meaning `meaning: too_few_readings` (basis
+  `assumed`) as long as the contract status carries `projection_missing`, in `get_contracts` and `get_overview`.
+- **Input and rights:** `detail` on error answers that name a field, `effect` per finding in `GET /api/diagnostics`
+  `data_issues`, `announced_tight` in the facts of the special termination finding; a new installation stores its
+  identifier `instance.json` at the first start.
+
+### Changed
+
+#### Figures that change (examples old → new, invented households)
+
+- **Feed-in balance by the sun:** up to v3.12 the days between the last reading and today were missing, and the mean
+  of the months read applied to every remaining month. If the last reading is from the end of May, in November the
+  sun from June until today now counts too; after a long summer without a reading “Expected at billing” rises
+  clearly. In the demo and the showcase the feed-in balance changes accordingly.
+- **Expected costs in the annual report with a group contract,** also wrong in v3.12.0 and earlier: **in the
+  showcase the heat pump (peak and off-peak behind the main meter) was missing altogether,** its costs are now
+  included. For the sample household “Own house with gas, oil or pellets” the standing charge of its peak/off-peak
+  group is added.
+- **Expected costs in the annual report with a sub-meter billed under its own contract** (without a group), also
+  wrong in v3.12.0 and earlier: **its money was missing,** because the meter in front deducts it. It now counts on the
+  days of its contract; after a contract ends without renewal, the meter in front bills everything again. The sample
+  households have no such sub-meter, their figures stay.
+- **Forecast of a peak/off-peak group:** the quantity was the median of the sum, the energy cost a blended price from
+  twelve months. **Now it is peak + off-peak per month, each register at its own price;** the unit price of the group
+  is the mix of the month. In the sample households the quantity changes by tenths of a kWh and the amount by cents;
+  if the share of peak and off-peak shifts over the year, by clearly more.
+- **Meters with consumption per period on a reference date** (known limit of v3.12.0): **a period counts from its
+  last day;** one that only ends afterwards does not count, as with meter readings since v3.12.0. This affects
+  balance, annual report, tenancy budget, overview and forecast for an earlier day. Heat January 100, February 200,
+  March 300 kWh and so on, entered up to June: as of 29 April 2,100 → 600 kWh, on 30 April 1,000 kWh. **Today
+  something only changes if the current month is already entered:** it counts from its last day.
+- **Replacing the heating in the workshop** (known limit of v3.12.0): **the performance factor is spread over the
+  months by the weather,** lower in winter, higher in summer. The seasonal performance factor stays your input,
+  the electricity over the year stays the same, only the months shift. Flow temperature after the part-load
+  points of DIN EN 14825 (medium temperature, 52 °C at −7 °C to 30 °C at +12 °C); if a heat meter in the household
+  measures a heat pump, its measured performance factor per month applies. Without a climate normal it stays the
+  same all year ([What if](docs/en/anleitungen/was-waere-wenn.md)).
+- **Feed-in forecast lower after a new battery, wall box forecast higher in winter** while its winter has not been
+  measured. Sample households and demo unchanged.
+- **Final reading on the last day of a contract:** “Balance on ‹reading›” now counts that day, standing charge and
+  advance payment, as the final bill in the billing year does; until now the card ended the day before. €90 a month,
+  contract until 15 July, final reading on 15 July: advance payments €580.65 → €583.55 (15 instead of 14 days of
+  July). Likewise a reading on the last day of the billing year, as long as the card shows that year. Sample
+  households and demo unchanged.
+- **Sample data with radiation:** all sample households and the showcase carry the daily radiation; the PV of the
+  sample household “Own house with heat pump and solar” follows it. Its annual figures (generation, feed-in, battery)
+  and the examples of the [flexibility](docs/en/anleitungen/flexibilitaet.md) guide change slightly.
+- ⚠ **Cancellation deadlines** for a contract ending on the last day of a month move 1 to 3 days later (reminder,
+  “To do”, calendar, letter, Home Assistant). In the sample household “Own house with gas, oil or pellets” the gas
+  deadline is now 31 May 2026 instead of 30 May 2026.
+- ⚠ **Advance payment in a partial month:** moving in on 10 April with €62 advance payment: billing year €291.40
+  instead of €278.38. Contract with €90 until 14 July without a successor: billing year and “Check bill” €580.65
+  instead of €558.36.
+- ⚠ **Final reading on the last day of a contract** without an entered final bill (€90, contract until 15 July):
+  billing year €583.55 instead of €580.65, with a full payment on the 15th €630.00 instead of €540.00.
+- ⚠ **Meter group, members read on different days:** the billing year ends earlier and shows the card's balance
+  (example €351.65 instead of €360.59). With different prices for peak and off-peak, the card's “Balance on …”
+  changes by cents too.
+- ⚠ **Estimated reading at the end:** the billing year ends at the last real reading (example €20.30 instead of
+  €21.59).
+- ⚠ **Garden meter read later than the main meter:** balance card and annual report show the amount of the billing
+  year (example −€162.08 instead of −€167.15). In the showcase the water balance changes by cents this way, as long
+  as the garden is read after the main meter.
+- ⚠ **The same cent:** “Earlier contracts” and the standing charge in “Check bill” and in the billing year change by up
+  to 3 cents (showcase, electricity standing charge: €150.00 instead of €149.99).
+- ⚠ **Tenancy:** annual report and budget count an ended month covered only in part by readings from its measured
+  days. In the sample household “I rent my home” the report of the year before changes (water by a few euros).
+- ⚠ **Metering charge:** a bill covering exactly one year (a leap year too, anniversary to anniversary) is no longer
+  converted to 365 days; quantity and amount follow the same rule.
+- ⚠ **CO₂ split in part of a year:** stage, share and amount change if the meter also has readings before moving in or
+  after moving out; the key figure per m² under CO₂ costs works the same way.
+- ⚠ **Price missing the other way round:** if prices per reading carry all months, or a group contract only has prices
+  per register (peak/off-peak), contract and billing year no longer carry `price_missing`; the card shows a balance
+  instead of the note.
+- ⚠ **Price per reading without a unit price in the contract:** billing year, “Check bill” and the AI use the price at
+  the reading like the balance card (example electricity, 1,458 kWh at 27.90 ct, standing charge €7, advance €49: a
+  €70.76 back payment instead of a €336.00 credit). Water without a drinking water price: months and balance card
+  count the drinking water at the price at the reading.
+- ⚠ **Handover a few days after the contract end:** the billing year ends on the last day of the contract (example 201
+  instead of 206 days, 1,809 instead of 1,854 kWh); the money stays. New and additive: `contract_end` on such billing
+  years.
+- ⚠ **Final reading on the last day of the contract:** “Balance today” of an ended contract (“Earlier contracts”, AI)
+  drops by the estimated day it used to add.
+- ⚠ **AI interface:** balances and costs from assumed prices are `assumed` instead of `measured` or `entered`, a small
+  estimated remainder makes a total estimated, the measured PV amounts in the scenario are `entered`.
+  `get_consumption` with `billing_period` ends at the last real reading. The amounts stay.
+- ⚠ **Earlier contracts with a later first reading:** contract from 1 January 2023, first reading 1 July 2023:
+  −€105.00 instead of −€459.00. In the sample households two earlier contracts without a booked bill thus turn into a
+  small back payment (for example electricity −€335.41 becomes +€70.09). After a booked bill the balance counts from
+  the day after, without its result (next line).
+- ⚠ **Earlier contracts with a booked bill:** if it covers the end of the contract, the contract stands at **€0.00**,
+  “billed with the bill up to …”; “Earlier contracts” then shows consumed and paid as empty, the AI only this one
+  balance. In the sample households seven contracts thus stand at €0.00 (for example gas until 30 June 2024
+  −€2,508.29, electricity −€660.76, −€602.25 and −€426.29). If the bill covers only part, the rest after it stays open.
+- ⚠ **Sum of a utility in the AI:** a billing year of the whole utility in which a target ends spread at the contract
+  end is called `distributed` instead of `measured`; the sum over the billing years carries `parts`. The amounts stay.
+- ⚠ **Sum of a utility with a meter group or an ended contract:** quantity and balance are the sum of the targets
+  (example: balance of group and own meter together €260.99; a contract until 17 August with handover on 23 August:
+  1,603 instead of 1,638 kWh).
+- ⚠ **Year to date:** exact to three decimals, up to 0.1 per month different.
+
+#### Input
+
+- **Maximum lengths for free text, one list for every path** (known limit of v3.12.0): names 120 characters
+  (provider 160), reminder titles 300, notes 2,000 (history and inbox 500), numbers 64; the list is in the
+  [data model](docs/en/referenz/datenmodell.md) reference. Too long is an error with field and limit, through the
+  API, in the CSV import (the line, also in a dry run), in the backup import and for the AI. **Nothing is cut any
+  more:** bills, tenancies, periods, the note in the inbox, tank levels, baseline events and contract numbers were cut
+  silently so far. Only a file name above 120 characters is still shortened, before its extension (under “Fixed”).
+- A period note may now be 2,000 characters long (so far silently 500), and so may a reading note in the capture (so
+  far 200 at the field). A note from the AI to `propose_reading` stays at 200: the summary you confirm does not show
+  it.
+- `POST /api/activity/{id}/undo` undoes AI changes with a way back (`200`, so far `409`); new is `409`
+  `errors.activity.undoChanged`. `PATCH /api/inbox/{id}` takes `item_edits`.
+- New and additive: `/api/health` `data_issues {count, kinds}`, `GET /api/diagnostics` `data_issues` (list), backup
+  problem kinds `text:<field>`, `reference:<field>`, `duplicate_id`, error code `errors.common.numberOutOfRange`. The
+  API reference now lists every problem kind. A field that an older version stored in a form rejected today is
+  returned by the API as `null` (the file keeps the value).
+- ⚠ A meter reading, initial reading or ingest value above 10¹² answers `errors.common.numberOutOfRange` (so far
+  `errors.reading.counterInvalid`); `counterInvalid` stays for text, a comma and negative values.
+- ⚠ A price change whose letter is dated exactly one calendar month (special contract) or 42 days (basic supply)
+  before the change no longer counts as announced in time but as tight (`announced_tight: true` in the finding,
+  `announced_late` stays `false`).
+
+#### Interface and texts
+
+- **Terms** (known limit of v3.12.0): the heating limit has the glossary name everywhere in French, Italian, Spanish,
+  Portuguese and Dutch; the setting under Household › Utilities is “Heating limit” (so far “HDD base temperature”),
+  in German “Heizgrenze”. “Snapshot” is “istantanea” and “momentopname” throughout Italian and Dutch, the AI task
+  “Annual report” in English as in the menu.
+- **Connections for members** (known limit of v3.12.0): the token buttons for Home Assistant and the fields for evcc
+  and home network security are for admins only; members read who sets them up. For text recognition, document
+  reading and notifications both apply: the interface locks the fields, the server rejects changes by members (under
+  “Security”).
+- **Household › Meters “All”** loads with one request instead of up to 18.
+- **Filter buttons** have the shape of tabs (one shape in sub-menus).
+- **Next due date:** on the day of a due date (advance payment with due dates, or full payment) the balance card
+  already names the following one, because “Balance today” counts that day’s payment; so do the API field
+  `next_advance_dates` and the “advance payment too high” check for the letter.
+
+#### Operation and docs
+
+- **`/api/health` with a fresh data directory:** additive `data_initialized: false`, and `schema_version` names the
+  schema the first call creates (so far “?”).
+- **Home Assistant guide:** the attributes in step 5, the way through the Supervisor and the webhook template with
+  `notify.notify` are now tested in a running Home Assistant; the permissions in `/share` remain untested.
+- **AI assistant guide:** the Open WebUI entry is imported as a file. If you set up Open WebUI through
+  `TOOL_SERVER_CONNECTIONS`, each entry needs `"config":{"enable":true}`.
+- **Integration from the default list of the Marketplace (formerly HACS):** install it by searching for
+  “Energietracker” in the Marketplace (Home Assistant 2026.11 or later, without a connection to GitHub). With Home
+  Assistant 2026.3 to 2026.10 the way is called HACS, likewise through the search
+  ([Home Assistant](docs/en/anleitungen/home-assistant.md#integration-from-the-marketplace-formerly-hacs-v3120)).
+
+### Fixed
+
+- **The check at entry knows the season** ([#65]). For gas, district heating, heat and the electricity of a heat
+  pump, “Typo?” in the “+ Reading” dialog and on the “Meter readings” page compares the amount since the previous
+  reading with an **expectation by the weather**: the heating model with the temperatures of those days, otherwise
+  the same days in earlier years, otherwise intervals with at least as much heating weather. Up to v3.12 it compared
+  with the median of the last ten intervals and asked at every start of the heating season. If the days are colder
+  than anything so far (such as the first heating week after the first summer), it only asks “Missing decimal
+  separator?”. The note names the expectation (“the weather suggests about …”). Without temperatures and for other
+  utilities the previous rule applies. **The same expectation applies to a reading proposed by an AI**
+  (`propose_reading`, readings from a document, taking over a proposal) **and to the preview of a CSV import,** which
+  fetches it for all lines in one request.
+- **Buttons on top of input fields** ([#64]): in the notifications to Home Assistant, “Delete” at the token and
+  “Generate new ID” at the webhook covered the field. Buttons for a field now sit below it; a test checks every page
+  of Settings, Household and Connections at three widths.
+- **Tile bars follow the billing year** ([#64]): in billing-year mode the small bars show the months of the period
+  (for example from September), future months empty, with the line of the same months a year earlier. Up to now they
+  stayed on the last twelve months. Water now follows its billing year like its figures.
+- **Apache: `…/api/…` returned 404,** although the guide promised it, for example `…/api/ingest` for Home Assistant.
+  The bundled `.htaccess` now rewrites the path, large imports included.
+- **Register after a month without consumption:** the monthly row named the general unit price of the group
+  contract, so the off-peak register’s forecast used the peak price.
+- **Faster print view, overview and agenda:** the contract status read all readings again for every contract. With
+  ten years of daily values the print view of the annual report takes 1.4 instead of 3.1 s, the overview 1.1 instead
+  of 2.3 s ([measurement](docs/en/entwicklung/messung-grosse-daten.md#v3130-print-view-and-tank-ledger)).
+- **Tank ledger with less memory:** heating oil and pellets compute their daily series once per request; overview,
+  recommendations and annual report take only the days they need. The values are the same.
+- **The workshop recalculates after the daily weather sync** (known limit of v3.12.0), so the same day shows the
+  same figure.
+- **Checks across the turn of the year** (known limit of v3.12.0): the check of the public demo and the interface
+  tests derive their expectations from the state of the sample data and stay green in January and on New Year’s
+  night. **Unlike announced,** not through sample data that keeps up.
+- **Levels in the docs:** “Views” and “What can I do at which level?” match the code; a test checks every row.
+- **Importing a backup:** every finding the import reports has a text in all languages. Until now the dialog showed
+  the technical key for about twenty kinds; a test requires a text for every kind.
+- **Page names in the docs:** “Views” names the settings pages as the app does (for example “Access and security”
+  instead of “Access”); a test checks every name against the interface.
+
+#### Calculation
+
+- **Advance payment in a partial month:** if a contract starts or ends during a month (moving in, contract end without
+  a successor), the billing year, “Check bill”, the tile “Advance payments” and the rest of the month in the workshop
+  cut the already pro rata advance payment a second time by the days of the calendar month. The monthly row now names
+  the contract's days (`contract_from`, `contract_until`) and every view splits by them; the standing charge too.
+- **The billing year ends like the balance card:** at the last real reading, for a meter group at the earliest last
+  reading of its members. Until now standing charge and advance payments of a group ran to the latest reading, and a
+  reading entered as estimated after the last real one counted in the measured volume. With peak and off-peak at
+  different prices the card counts the volume per register.
+- **Final reading on the last day of a contract:** the billing year counts that day too, also without an entered final
+  bill, as the balance card and the final bill do.
+- **Garden meter and own wastewater meter:** the monthly row counts their volume only for the days the main meter has
+  measured, as “Check bill” does. A garden meter read later used to deduct its whole monthly volume.
+- **The same cent:** “Earlier contracts” calculate the balance from the rounded amounts like the balance card and the
+  billing year; “Check bill” and the billing year round the standing charge once over all days like the card. A rest
+  remains for the energy charge (Known limits).
+- **Annual report with a tenancy:** a closed year is calculated with the readings of the day of the report. A month
+  covered by the readings only in part (reading on 31 December, moving in or out during the month) counts its measured
+  days as measured instead of taking that month of the year before.
+- **Contract without a unit price:** costs no longer show an amount (so far €0 or just the standing charge) but
+  **“Price missing”** with the way to the contract, on the start view of the utility and in the overview (tile,
+  “Will I get money back?”). This also holds for the months before a unit price entered later. The API marks such
+  months, totals, groups, the forecast and the current contract with `price_missing` (additional, the figures stay).
+  A price per reading still counts as a price.
+- **Price per reading everywhere:** if a contract has no unit price on a day, billing year, “Check bill” and the AI
+  now also use the price at the reading, like the months and the balance card; for water the months do so for the
+  drinking water too. So far billing year and “Check bill” then only counted the standing charge and the advance
+  payments and so showed a credit that does not exist. A section between two readings takes the price of its first
+  reading, otherwise that of its last ([prices](docs/en/verstehen/00-overview.md)).
+- **Annual report:** the appendix “Billing years” shows “Price missing” instead of costs and balance when a contract has
+  no unit price.
+- **Contract end without a successor:** if the last reading is a few days after the end (handover after moving out),
+  the billing year ends on the last day of the contract like the balance card and the final bill. The AI names a
+  reading day only where a reading is the closing reading.
+- **“Balance today” of an ended contract** with a final reading on its last day no longer adds an estimated day.
+- **An ended contract** no longer names next advance payment dates.
+- **Sum of a whole utility:** the billing year of a utility (overview, appendix of the annual report, CSV, AI
+  interface) is the sum of its targets. A meter group with a group contract ends at the earliest last reading of its
+  registers, every other meter at its last reading, the last contract on its last day. So far the utility counted all
+  meters up to the latest reading: the standing charge and advance payments of a group ran further than its quantity,
+  and next to the empty main meter the quantity after the contract end was counted.
+- **Card of an ended contract:** “… months · … kWh” names the quantity up to the last day of the contract like the
+  billing year, not up to the handover.
+- **Earlier contracts:** if a contract starts before the first reading, its balance counts from that reading like its
+  billing years. So far the standing charge and advance payments of the months before counted against a consumption
+  of zero, a credit that does not exist.
+- **Earlier contracts after a booked bill:** an ended contract counts its balance like a current one **from the day
+  after its last booked bill**, without the booked results. If a booked bill covers the end of the contract, it stands
+  at **€0.00** with “billed with the bill up to …” (Earlier contracts, AI, `settled_until`); if it covers only part, the
+  rest after it stays open. An annual bill across a tariff change with the same supplier also settles the contract
+  before, a bill of another supplier never does. The difference between bill and app shows under “Check bill”. So far
+  the balance added the result of every bill reaching into the time from the first reading in full: after a final
+  bill that also bills the days before, a remainder was left, after a partial bill its period counted twice.
+- **Forecast of a register in a group contract:** if the group contract has no unit price for a register, its
+  forecast months carry the group contract and **“Price missing”** (`price_missing`, also `forecast_12m` in
+  `/api/summary`). So far the forecast of the register named €0.00 costs.
+- **Only the initial reading in `/api/summary`:** `contract.balance` is `null` (Home Assistant: unknown) while there
+  are not enough readings yet, as on the balance card. So far it showed the standing charge minus advance payments as
+  a credit.
+- **New contract with only the initial reading:** without measured consumption the app names no expected credit and
+  suggests no advance payment of €0. The balance card and the overview say “Not enough readings yet”, the annual
+  report “no amount yet” instead of “No advance payments”. An ended contract entirely before the first reading no
+  longer names a balance.
+- **Annual report without a price:** if a contract has no unit price, the report promises no credit and names no
+  energy costs for this utility but “Price missing”, also in “At a glance”. A tenancy without prices names no credit
+  of the whole prepayment (tenancy view, overview, report).
+- **Forecast of a peak/off-peak group:** a register read earlier still forecasts up to the last month of the group. So
+  far it was missing there and the group lay below peak plus off-peak.
+- **Switch decision:** a dated bonus on an offer counts in the first year when its day lies in it, like the same
+  amount as a sign-up bonus.
+- **Year to date** (`/api/summary`, AI): the sum of the unrounded daily amounts, not of the rounded months.
+
+#### Deadlines and rights
+
+- **Cancellation deadline:** if a contract ends on the last day of a month, the last day to cancel is now the last day
+  of a month (end 30 June, one month's notice: by 31 May). Before, the app named the day with the same number, 1 to 3
+  days too early, and already called the deadline missed on those days. The calculation runs forwards under §§ 187,
+  188 BGB ([legal basis](docs/en/referenz/rechtsgrundlagen.md)); this also applies to the nine months for district
+  heating.
+- **District heating after the extension:** the day by which the five-year extension must be cancelled is back under
+  “To do”, in the calendar and in the reminder; the reminder names the end of the extension.
+- **Cancellation letter in basic supply:** the date always stays a gap, as announced; the two weeks run from the day
+  the letter arrives. If only the notice period is missing, the dialog no longer says “neither an end nor a notice
+  period”.
+- **Metering charge:** a bill covering exactly one year (a leap year too) is no longer converted to 365 days, and the
+  annual consumption from readings comes from the unrounded daily amounts; exactly at a limit such as 6,000 kWh it
+  stays in the lower group. Bill and readings put the same year into the same group.
+- **CO₂ split with self-contained heating in part of a year:** emissions and costs only count on the days of the
+  tenancy, like the shortened limits. Before, a whole year's emissions stood against the limits of part of a year.
+- **API reference `contract-status`:** renewed contracts and all cancellation bases as the app has them.
+- **Notice of a price change counted like the cancellation deadline:** the period (one month for a special contract,
+  six weeks in basic supply) starts on the day after the letter and must have run out by the last day of the old price
+  (change on 1 March: in time up to 31 January or 17 January). A letter exactly one calendar month or 42 days ahead
+  counted as in time so far; now it is **“tight, please check”**, with the note that receipt is what counts (in basic
+  supply the public announcement). Only after that does the app say “too late”. “Your rights”, “To do” and the inbox
+  show the same; the letter for the special termination claims nothing about it.
+
+#### Input
+
+- **One rule per kind of value** for every write path, the backup import and reading stored data: numbers with
+  limits, days, IDs, references to a meter or a group and truth values. **Truth values** understand yes/no,
+  true/false, 1/0 and on/off,
+  empty means no, anything else is `400`; so far some paths read a way of saying “no” as yes, for example when loading
+  the sample data, for the dry run in the address and for the reduction of the CO₂ refund.
+- **Rejected means: nothing written.** A rejected Home Assistant reading with a timestamp still wrote quarter-hour
+  values, a rejected merge created an empty group, and an unknown receipt on a reading, bill or tenancy statement left
+  traces.
+- **Backup import with the same rules:** readings on unknown meters or meters of another utility, duplicate IDs,
+  unusable prices, names as lists and oversized numbers are reported with pot, row and field, and nothing is imported.
+- **Values from older versions no longer bring anything down:** a stored value the app rejects today stays in the
+  file; the app calculates without it (a record without a usable day, reading or start stays out of the calculation,
+  any other field counts as not entered, a setting as its default) instead of breaking a page with `500`.
+  `/api/health` reports the findings as `data_issues`, the diagnostics page lists them.
+- **Tank, deliveries, recommendations:** size, stock and price of the initial stock are checked when changed too; a
+  delivery with a negative amount and “hide until” without a day are rejected.
+- A list or an object inside an entry gave `500` instead of `400`; a `PATCH` with an empty meter detached a contract
+  from its meter.
+- **CSV round trip of readings:** “billing only”, “reported on” and “verified” now come along; so far a billing-only
+  reading counted as a monthly reading again after export and import.
+- **Docs on CSV format 1:** new columns are added only at the end, existing ones stay byte for byte. v3.12.0 reads the
+  file of 3.13 (without the three flags), 3.13 reads the one of v3.12.0. So far the reference called any change a new
+  format.
+- **Backups within the same second** get their own names; so far a later one overwrote the first.
+- **Data folder with another owner** (for example the image without root on an existing volume): write paths answer
+  `503` with a message saying what to do, instead of `500`; reading keeps working, and so does the dry run
+  (`?dry_run=1`) of the imports of readings, periods, market prices and backups, which writes nothing. The dry run of
+  the time series, the evcc import and the monthly prices on a contract still answers `503`.
+- **Numbers as text under the rule of their kind:** prices, amounts, settings and temperatures read “12,5” as 12.5 on
+  every write path and in the backup import, now also at the contract price, the signup bonus, temperatures and the
+  settings with a fixed range (for example time limits, CO₂ and self-consumption); ambiguous text such as “2.405,5” is
+  `400` there. **A meter reading takes no comma on any path** (reading, initial reading, meter swap, ingest, backup), as
+  since v2.5.3; the message now names the point as the decimal separator. A comma can be a thousands separator, and a
+  reading that is silently off by a factor of 1000 would be worse than a loud `400`.
+- **Cleared settings of an older version** (stored as `null`) count as not entered in the diagnostics and the backup
+  import; so far importing the own backup failed on them.
+- **Stored data and backup import find the same:** the diagnostics and `/api/health` (`data_issues`) also name
+  references into nothing to a meter or a group (parent meter and group on a meter, meter or group on a contract, the
+  meter of a reading, delivery, period and bill), free text above its maximum length and a due
+  day outside 1 to 31, each with its effect. So far nothing reported them, and only importing the own backup failed.
+  The import rejects a parent meter or group that does not exist and names every finding of a file, not only the
+  first. **The own export imports again unchanged** (checked on every sample household).
+- **Error answers name field and limit as values** (`detail`), as the API reference promises; an initial reading above
+  10¹² names the limit instead of “a number from 0”.
+- **Device number up to 64 characters** like the other numbers: when creating, at a meter swap, in the backup and in
+  the diagnostics. So far any length went through.
+- **Receipt and inbox as a form:** a receipt or a document for the inbox sent as `multipart/form-data` is accepted; so
+  far the answer was “too large”, even for a few bytes. Above PHP's limits both paths follow one rule and name the limit
+  that applied (`upload_max_filesize` or `post_max_size`) instead of “only photos and PDF” or a fixed 10 MB. An unknown
+  kind (`rechnung` instead of `bill_pdf`) is `400`; so far it silently became `other`.
+- **File name in the inbox and on a receipt:** a name above 120 characters is shortened before its extension, and the
+  extension stays (`…-page-2.pdf`); so far it was lost. A file name is not input into a field and so not an error.
+- **Switch decision and tariff comparison with an older offer:** a stored offer without a label (from old data, a
+  backup or by hand) broke both with `500`, also for a group. Now it is named after its tariff, without a tariff name
+  “Hypothesis”.
+- **Without write access** the summary, “To do” and the calendar keep reading (`200`), even if the identifier of the
+  installation was not stored yet; so far these three paths then answered `503`.
+
+#### Interface
+
+- **First start in the browser's language:** the interface sends the browser's language preferences with its first
+  requests. Up to v3.12 a French browser got German, Germany and a German weather location on the very first start;
+  now “fr-CH” gives French and Switzerland, “de-AT” German and Austria.
+- **Preview for a back-filled reading:** below the meter reading the amount **since the previous reading** and **until
+  the next reading** is shown, both for the chosen date, in the “+ Reading” dialog and on the “Meter readings” page.
+  Before, the dialog compared a back-filled reading with the latest one and showed a negative amount for a correct
+  value.
+- **Replacing on the same day:** if a reading replaces a stored one of the same day (dialog, “Meter readings” page,
+  a line of a CSV import with a different value), the old one no longer counts for the expectation by the weather.
+  New and additive: `exclude` in `POST /api/utility/{u}/meters/{id}/reading-expectations`.
+- **Focus after a question:** after “Cancel” the focus is back on the button that asked, also in the “+ Reading”
+  dialog and on the “Meter readings” page. Keyboard and screen reader users lost their place there.
+- **Contrast of badges:** “Shadow”, “Offer”, “Future” and the group of a utility reach 4.5:1 on every surface, in the
+  light and the dark theme; a test checks all badges.
+- **Buttons of wide tables stay visible:** between 900 and 1280 px the buttons of past contracts were outside the
+  frame. The column of actions now stays at the right edge, as do those of oil and pellet deliveries, of the inbox and
+  of To do › “Dates”.
+- **Evidence check in the inbox and via the AI:** an identifier that starts with a digit (such as “3QXZ0098765432”)
+  no longer counts as evidence for a number, also after the word “meter”. A unit or currency right after the number
+  (“1,250m³”) stays a number.
+- **The search in the settings finds the weather location:** “weather location”, as the setup calls it, and
+  “location” from the heading of the card under Connections › Weather data find place name, latitude, longitude and
+  the weather switch, in all seven languages. Up to v3.12 the search found the place only as “place name”.
+- **Earlier names stay search words:** searching for the heating limit under its old name “HDD base temperature” finds
+  it, likewise in the other languages.
+
+#### AI interface
+
+- **The basis follows the weakest input:** a balance, annual costs or a billing year from assumed prices (the contract
+  continues without an entry, the price guarantee is over) is no longer called “measured”. A total over several
+  meters is called estimated as soon as one meter spreads the month at an estimated reading. Rows with money name its
+  basis (`money_basis`); a contract without a unit price gives no amount but `price_missing`.
+- Every answer matches its output schema, also an empty sub-object (`run_scenario` for heating oil, pellets and
+  feed-in).
+- `reading_on` of a billing year only names a day on which a reading lies; otherwise `end_distributed` is set.
+- The balance at billing in `run_scenario` is spelled out (`meaning`, `text`) like every balance.
+- Protocol version 2025-03-26 accepts JSON-RPC batches, as it requires (up to 20 messages).
+- `client_ref` of a reading taken over is exactly the proposal's ID.
+- The sentence for a balance without a unit price no longer names an amount. It said “… is only the advance
+  payments” even when the standing charge and months with a price were in it.
+- **Not enough readings yet:** `balance_today` names no credit but “not enough readings yet” (`meaning:
+  too_few_readings`, basis `assumed`), in `get_contracts` and `get_overview`.
+- **Billing year of the whole utility:** the basis comes from the targets. If a target ends before its next reading
+  (spread at the contract end), the row is distributed, not measured. The sum over the rows carries `parts` and is
+  never stronger than its weakest row.
+- **Earlier contracts:** a settled contract only names “Settled: billed with the bill up to …”, no second balance at
+  the last reading. If “balance today” counts a payment after the last reading, it names that payment’s day.
+- **Forecast of a register in a group contract** (`get_forecast`): costs at the unit price of the register, without one
+  `price_missing`, instead of `no_contract`; `priced_by_group` still names the group with standing charge and advance.
+
+### Security
+
+- **Hardening of roles:** every setting is assigned to a role; the settings for text recognition, document reading,
+  the Home Assistant notification and the storage for receipts are changed by admins only.
+- **Hardening of the AI interface:** without sharing identifiers it replaces known numbers also when written
+  differently, and names and titles get the same second check as notes.
+
+### Known limits
+
+- **Heat pump by the weather, PV forecast, grid import after a new battery and the meter in front of a new wall box**
+  are built and not switched on (under “Added”). So the workshop still has no examples for winter and room
+  temperature for the heat pump’s electricity, and PV there uses the last measured year.
+- **The heating model is linear:** in a very cold winter a heat pump’s performance factor drops and a heating rod
+  kicks in; the calculation would then come out rather low. A curved model is planned with [#38] for v3.14.
+- **Consumption between two readings** is still spread evenly over the days, PV included; by the weather it is
+  planned for v3.14. **Annual readings only** give no heating model; the forecast then follows the seasonal profile
+  and says so.
+- **A battery’s installation** is the installation date on its meter, without one the day it was created. When adding
+  meters for an older battery, enter its installation date there; the note names the date the app uses.
+- **Wall box in a cascade:** a wall box on the front meter (heat pump in front, household behind) counts as part of
+  the household. The app reads this from the roles; there is no field of its own for it.
+- **Feed-in balance and feed-in forecast** can differ in level in the year after a new battery: the balance does not
+  know the adjustment by the charging. If a wall box charges from the sun at midday, that still shows as feed-in in
+  the months before.
+- **Radiation:** days you add by CSV inside a period already fetched get no radiation. The trend of the normal is a
+  straight line; if the development reverses, it is too high for some years.
+- **Payouts:** the inbox does not yet recognise a credit from the grid operator as a payout; you record it at the
+  balance card.
+- **Check at entry:** in a week colder than anything so far (such as the first heating start of a new meter) it only
+  asks “Missing decimal separator?”; a small typo slips through there. **It only gets stricter in mild weeks once a
+  heating model holds.** With daily readings (Home Assistant) it asks a little later than before. **The preview of
+  a CSV import** compares with the stored readings, not with earlier lines of the same file: the first import into an
+  empty meter and files with more than 4,000 intervals are checked by the previous rule.
+- **Counting advance payments:** one due day applies to all contracts; an advance payment with due dates keeps
+  counting on its own dates. **The app repeats entered dates every year** (many suppliers plan 11 advance payments a
+  year). Anyone who moved in during the year and keeps paying in the same rhythm enters the dates of the next year.
+- **Undo:** changes made by the AI in v3.12 have no way back. Only the latest state can be undone; if a record
+  touched has changed since, it is up to you. The message for texts that are too long names the field by its
+  technical name (“notes”).
+- **Very long histories:** with daily values over about 75 years, overview, agenda, annual report and calendar still
+  need more than 128 MB of memory (rework planned for v3.14).
+- **Periods and readings at the end of a month:** on the last day of a month a meter with consumption per period
+  already counts the month, a meter with readings only with the reading on the 1st.
+- **Home Assistant:** the permissions in `/share` are untested; Energietracker does not follow a redirect.
+- **Sub-meter under its own contract without a forecast:** if it has no valid forecast yet, the meter in front still
+  deducts it, and its money is still missing from the expected costs of the annual report.
+- **Energy charge to the cent:** “Check bill” and the billing year round the energy charge per section like a line of
+  the bill, the monthly rows and with them balance card and annual report per month. If a price change or a reading
+  splits a month, both can differ by 1 to 2 cents.
+- **Estimated reading at a period boundary:** if a reading entered as estimated lies exactly on the end of a billing
+  period and a real reading follows later, the estimate splits the volume between the two periods.
+- **Monthly row of a meter group:** a month in which one member has not been read yet shows only the other members in
+  the monthly table, without a mark.
+- **Unusable stored data:** a contract, meter, tenancy or bill without a usable required field (start, devices,
+  period) is missing from calculation and list; the diagnostics page names it with its ID, and changing or deleting
+  works through the API or a corrected backup. Readings, periods and deliveries stay visible in their lists.
+- **Price missing:** if the unit price starts only a few days after the contract, the whole first month says “Price
+  missing”.
+- **Peak/off-peak group without a valid forecast of one register:** the group then calculates itself; a month in which
+  the register is still missing and that exists only once counts with the value without it. The forecast of the group
+  gives no warning then.
+- **Balance at the end of a contract:** as long as a contract falls into the running billing year, it calculates its
+  balance over that year, also after its end. Once it no longer falls into it (for example in the next billing year),
+  it calculates as an earlier contract without a booked bill over its whole term from the first reading. The balance
+  can then jump without any new data. One rule for all phases will follow.
+- **Bill check before the first reading:** if a bill starts before the first reading, the app counts the standing
+  charge from the start of the bill, the advance payments only from the month of the first reading.
+- **References into nothing:** a payout on a deleted meter, a bill on a deleted contract, a tenancy with an unknown
+  meter, advance payment dates before the start and a meter as its own parent meter. The write paths reject them, but
+  the first two arise when the meter or the contract is deleted, all five also through a backup. The backup import and
+  the stored data do not report them yet. Such a payout is missing from the balance card, and such a bill can only be
+  saved in the form again once you choose another contract or none.
+- **Duplicate ID in the stored data:** if two records of a pot carry the same ID, the stored data does not report it;
+  only importing the own export fails. This arises only from editing the files by hand.
+- **Electricity balance since the start of the year** (`strom_saldo_ytd`, electricity balance card) adds up rounded
+  monthly costs and can differ from the sum of the days by 1 cent.
+
+**v3.14.0 comes out when it is ready.** Focus: long histories and moving in from other apps, consumption between two
+readings by the weather and the curved heating model ([#38]). The heat pump by the weather and the PV forecast go
+back on the test bench.
+
+### Migration
+
+None. Schema stays 1.8.0, backup format 3.0. New is the bucket `feed_in_payouts.json` (in the backup; the sample
+households bring it empty), all new fields are optional. On the first weather sync after the update the app fetches
+the radiation once from the first reading and completes the climate normal; the heating degree days stay unchanged.
+Backups without radiation import fine, backups with texts that are too long only after correcting them.
+
+### Tests
+
+- **Second messy test household:** `EdgeHouseholdTest` with the generator under `tests/fixtures/edge-household/`
+  (physics of its own, `--check`): contracts that do not run smoothly (moving in and out during a month, peak/off-peak
+  meter group read on different days, advance payments with due dates, a unit price only later and a price per
+  reading, garden meter, a tenancy until moving out, a leap year), view against view with a calculation by hand per
+  case. It also runs in the AI tests for all households.
+- **Test household:** `HeatPumpHouseholdTest` with the generator under `tests/fixtures/heatpump-household/` (physics
+  of its own, the truth kept separate, fixture up to date with `--check`) and the back-calculation
+  `tools/rueckrechnung.php` (in advance and with actual weather, balance after 3, 6 and 9 months, against the
+  previous way and a naive forecast). The thresholds are in `schwellen.json`.
+- **Sun:** `RadiationDataTest`, `PvWeatherForecastTest`, `ScenarioPvNormalTest`. **Heat pump:** `UtilityWeatherTest`,
+  `HeatPumpWeatherTest`, `TemperatureTrendTest`, `ScenarioHeatPumpJazTest` (curve of the standard, year equal to the
+  input). **Contract:** `HtNtGroupForecastTest` (by hand: group = peak + off-peak, group minus registers = standing
+  charge), `FeedInPayoutServiceTest`, `McpGroupForecastTest`, `McpFeedInPayoutTest`. **Battery and wall box:**
+  `DeviceArrivalTest`.
+- **Check at entry:** `ReadingExpectationTest` with the pattern from [#65] (weekly by hand, a summer without heating,
+  the first heating weeks), `ReadingExpectationEndpointTest`, `ReadingExpectationBatchTest` (the batch request equals
+  the single one), `ReadingExpectationsEndpointTest`, `McpReadingWeatherTest` and one shared probe for PHP and
+  JavaScript. **Annual report:** `ReportSubmeterOwnContractTest` (equally expensive with and without the sub-meter’s
+  contract when it bills at the same price without a standing charge).
+- **Input:** `TextLimitsTest`, `TextLimitsEndpointTest`, `McpTextLimitsTest`, `InboxListItemsTest`,
+  `McpListItemsTest`, `McpUndoTest`, `McpUndoEndpointTest`. **Calculation:** `TankSeriesTest`, `LastMeasuredOnceTest`,
+  `StichtagPeriodsTest`, `CatalogStyleTest::testTermbaseFollowsTheGermanTerm`.
+- **Interface and operation:** `LetterSettingsAccessTest`, `MetersOverviewEndpointTest`, `FirstStartHealthCheckTest`,
+  `WebrootRulesTest`, `PhpMinimumVersionTest`, `HomeAssistantNotifyTest`, `BackupProblemCatalogTest`,
+  `ViewsPageNamesDocsTest`, `HomeAssistantRedirectDocsTest`; Node suites `levels`, `sichtung-layout` (no
+  button cuts a field), `chart`, `plausibility`, `mcp-snippet`, `outbound-admin`, `inbox`.
+- **Old against new:** every change to forecast, balance or workshop compares the outputs for all sample households
+  and the messy test household with the state before; outside its building block they are byte-identical.
+- **Time travel as a workflow of its own,** weekly and on demand, on three dates with the clock moved.
+- **Test farm** (`tools/farm`): Apache with `.htaccess` (PHP 8.4 and 8.5), a reverse proxy with HTTPS and proxy
+  sign-in, the update from the last release, the YAML templates of the docs, Home Assistant OS as a VM with the app
+  and integration 1.1.0.
+- **Old counter-probes brought up to date:** every maintained collection since v2.8.0 ran against today’s code. Where
+  a later release had moved a spot, the probe now checks the same rule at its new place; probes for rules a release
+  changed on purpose are retired with a reference. New tests for rules that had no effective check so far:
+  `AssigneeTest` (a former person in the log and on a completed reminder), `PdfWriterTest` (the traffic light in the
+  PDF is never colour alone), `PvSemanticsTest` (avoided CO₂ from generation only), `BillingWindowTest` (a payment
+  before the balance start), `TankModelTest` (a tank in a summer window), `ReportModelServiceTest` (anomalies from the
+  report year only, a zero advance on a fixed day), `ShortRestPeriodsTest`, `InboxMarksTest`,
+  `ContainerHardeningTest`, `SupportHintSettingTest`; Node suites `lists` (bill check without a completed period) and
+  `browser-render` (six places in the interface).
+- **Back-calculation:** `tools/rueckrechnung.php` now calculates with actual weather without the trend fields of the
+  climate normal. For the test household the results stay the same (`HeatPumpHouseholdTest`).
+- **Calculation rechecked:** `UtilityBillingYearSumTest` (sum of a utility equals the sum of its targets),
+  `EarlierContractBeforeFirstReadingTest`, `FirstReadingOnlyTest`, `HtNtGroupEarlierReadTest`,
+  `ReportPriceMissingTest`, `SummaryYearToDateTest`, `TariffSwitchDatedBonusTest`, `McpNoPriceSentenceTest`.
+- **Input and rights rechecked:** `DecimalCommaEveryPathTest` (every notation on every path), `BackupRoundTripTest`
+  (the own export of every sample household and of both test households imports again), `DataIssuesImportParityTest`,
+  `BackupImportRulesTest`, `InputAnswersEndpointTest`, `InputRulesDocsTest`, `InstanceIdWithoutWriteAccessTest`,
+  `PriceAnnouncementDeadlineTest` (boundary days with a leap year and month ends).
+- **Tests green on every day:** checks that depended on the fixed sample data and on today's date (misreading on the
+  overview, “Check bill” without a period, print view of the annual report, intermediate meter in the showcase, trend of
+  the tile) now take their expectation from the state of the data. Time travel is green on all dates.
+- **The box grid measures the finished page:** the check waits until the new view stands instead of 250 ms after the
+  change. It also makes wide tables wider than their frame, so a missing pinned column is always caught. The browser
+  checks grid and views stop when their port is already in use.
+- **3,163 test methods (+496).** Every new rule has a counter-probe that breaks it: 892 in 30 files, all red. Those
+  from v3.12 stay red except one, which is suspended: an earlier check now catches its case, and the later guard gets
+  its own test in 3.14.
+
+### Lessons learned
+
+- **First the threshold, then the model.** For the heat pump the limits were set before any work on the model, and
+  whatever does not meet them stays off. Without that rule it would be on now, because it looked clearly better with
+  one way of reading.
+- **A test bench the app did not invent.** Sample data from the app’s own model only confirm the model. The test
+  household calculates with physics of its own and brings winters, a battery and a wall box the app does not know yet
+  on the reference date.
+- **A thirty-year mean is no longer a normal.** The flat climate normal was systematically off for warmth and sun;
+  the trend belongs in the normal.
+- **A check needs a comparison with similar weather.** Scaling by the ratio of degree days would have asked wrongly
+  again when the heating starts; the comparison only uses intervals with at least as much heating weather.
+- **An internal rewrite changes the address the web server measures at.** With `api.php` as the target the limit for
+  large imports no longer applied; the target has to keep the route.
+
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+[#64]: https://github.com/Bingerminger/energietracker/issues/64
+[#65]: https://github.com/Bingerminger/energietracker/issues/65
+
+---
+
 ## [3.12.0] — 2026-11-10 — Energietracker for your AI
 
 MINOR release without a schema step (stays 1.8.0). The main feature is the **AI interface** (F1037):

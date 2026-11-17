@@ -109,18 +109,22 @@ final class ReportModelService
             $data = $this->billing->forUtility($u, false, $this->today);
             $qk = (string)$data['unit_key']; $dec = $this->decimals($u);
             $rows = []; $sum = ['q' => 0.0, 'cost' => 0.0, 'bonus' => 0.0, 'adv' => 0.0, 'bal' => 0.0];
-            $running = false; $partial = false; $items = [];
+            $running = false; $partial = false; $items = []; $missing = false;
+            $noPrice = $this->i18n->t('priceMissing.short');
             foreach ($data['periods'] as $p) {
                 if ((int)substr((string)$p['until'], 0, 4) !== $this->year) continue;
                 $name = $p['label'] ?? ($this->i18n->date((string)$p['from']) . '–' . $this->i18n->date((string)$p['until']));
                 if (!empty($p['running'])) { $name .= ' *'; $running = true; }
                 elseif (empty($p['complete'])) { $name .= ' †'; $partial = true; }
+                // v3.13.0 (Paket K3) — Preis fehlt wie in Abrechnungsjahr, Oberfläche und KI: kein Kosten- und kein Saldobetrag
+                $pm = !empty($p['price_missing']);
+                if ($pm) { $name .= ' ‡'; $missing = true; }
                 // v3.7.0 (#33) — Kosten ohne Bonus wie die Kachel, der Bonus als eigene Spalte:
                 // Saldo = Kosten − Bonus − Abschläge (− zusätzliche Abschlagszahlungen)
                 $bonus = (float)($p['bonus'] ?? 0);
                 $rows[] = [$name, $this->i18n->t($p['source'] === 'bill' ? 'report.billing.sourceBill' : 'report.billing.sourceAnchor'),
-                           $nf((float)($p[$qk] ?? 0), $dec), $nf((float)$p['cost'] + $bonus, 2), $nf($bonus, 2),
-                           $nf((float)$p['advances'], 2), $nf((float)$p['balance'], 2)];
+                           $nf((float)($p[$qk] ?? 0), $dec), $pm ? $noPrice : $nf((float)$p['cost'] + $bonus, 2), $nf($bonus, 2),
+                           $nf((float)$p['advances'], 2), $pm ? $noPrice : $nf((float)$p['balance'], 2)];
                 $sum['q'] += (float)($p[$qk] ?? 0); $sum['cost'] += (float)$p['cost'] + $bonus; $sum['bonus'] += $bonus;
                 $sum['adv'] += (float)$p['advances']; $sum['bal'] += (float)$p['balance'];
                 foreach ((array)($p['bonus_items'] ?? []) as $b) $items[] = $b;
@@ -129,14 +133,15 @@ final class ReportModelService
             $notes = [$this->i18n->t('report.billing.note')];
             if ($running) $notes[] = $this->i18n->t('report.billing.running', ['date' => $this->i18n->date($this->today)]);
             if ($partial) $notes[] = $this->i18n->t('report.billing.partial');
+            if ($missing) $notes[] = '‡ ' . $this->i18n->t('priceMissing.period');
             if ($items !== []) $notes[] = $this->bonusSentence($items);
             $out[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u),
                       'head' => [$this->i18n->t('report.billing.period'), $this->i18n->t('report.billing.source'), self::unit($u),
                                  $this->i18n->t('report.tableCost'), $this->i18n->t('report.billing.bonus'),
                                  $this->i18n->t('report.billing.advances'), $this->i18n->t('report.billing.balance')],
                       'rows' => $rows,
-                      'total' => [$this->i18n->t('report.appendix.total'), '', $nf($sum['q'], $dec), $nf($sum['cost'], 2), $nf($sum['bonus'], 2),
-                                  $nf($sum['adv'], 2), $nf($sum['bal'], 2)],
+                      'total' => [$this->i18n->t('report.appendix.total'), '', $nf($sum['q'], $dec), $missing ? $noPrice : $nf($sum['cost'], 2), $nf($sum['bonus'], 2),
+                                  $nf($sum['adv'], 2), $missing ? $noPrice : $nf($sum['bal'], 2)],
                       'notes' => $notes, 'numeric_from' => 2];
         }
         return $out;
@@ -339,6 +344,35 @@ final class ReportModelService
         return array_values(array_filter($this->meters->list($u), fn($m) => MeterService::countsInTotals($m)));
     }
 
+    /**
+     * v3.13.0 (Paket vertrag, #40) — Ziele der erwarteten Kosten: die Zähler, die in Summen zählen; die
+     * Mitglieder einer Gruppe mit Gruppenvertrag einmal als Gruppe, auch wenn sie Subzähler sind (dann rechnet
+     * der Zähler davor nur den Rest, ihr Geld zählt wie im Jahr). Ohne solche Gruppe dieselbe Liste wie
+     * rootMeters().
+     * v3.13.0 (Paket K1) — dazu ein Subzähler mit eigenem Vertrag ohne Gruppe: Der Zähler davor rechnet nur den Rest
+     * (Abzug an den Tagen dieses Vertrags), bis v3.12 fehlte das Geld des Subzählers in den erwarteten Kosten ganz.
+     * Bei ihm zählt nur das Geld seiner Vertragstage (ownContractCost).
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function forecastTargets(string $u): array
+    {
+        $out = []; $seen = [];
+        foreach ($this->meters->list($u) as $m) {
+            $gid = (string)($m['meter_group_id'] ?? '');
+            $grouped = $gid !== '' && $this->consumption->contractScope($u, $m)[1] !== null;
+            if (!MeterService::countsInTotals($m) && !$this->consumption->isDeductingSubmeter($u, $m)) continue;
+            if ($grouped) {
+                $g = isset($seen[$gid]) ? null : $this->meters->groupTarget($u, $gid);
+                $seen[$gid] = true;
+                if ($g !== null) $out[] = $g;
+                continue;
+            }
+            $out[] = $m;
+        }
+        return $out;
+    }
+
     private function emptyYear(): array
     {
         return ['value' => 0.0, 'cost' => 0.0, 'kwh_cost' => 0.0, 'co2' => 0.0, 'adj' => null, 'hdd' => 0.0,
@@ -352,7 +386,9 @@ final class ReportModelService
                 // v3.9.0 (Skeptiker M2) — erfasste Tage je Monat (größter Wert über die Zähler)
                 'days_months' => [],
                 // v3.9.0 (Skeptiker R2-7) — Menge der Monate mit Preis (Vertrag oder eigene Kosten), für den Ø Arbeitspreis
-                'value_priced' => 0.0, 'priced_months' => []];
+                'value_priced' => 0.0, 'priced_months' => [],
+                // v3.13.0 — in einem Monat fehlt einem Vertrag der Arbeitspreis
+                'price_missing' => false];
     }
 
     /** Jahreswerte einer Art über die Zähler, die in Summen zählen. */
@@ -391,6 +427,8 @@ final class ReportModelService
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
                 $out['days_months'][$mo] = max($out['days_months'][$mo] ?? 0, (int)($r['days'] ?? 0));
                 if (self::pricedRow($r)) { $out['value_priced'] += $v; $out['priced_months'][$mo] = true; }
+                // v3.13.0 — ein Monat, in dem ein Vertrag ohne Arbeitspreis rechnet (ConsumptionService::markPriceMissing)
+                if (!empty($r['price_missing'])) $out['price_missing'] = true;
             }
         }
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld zählt (der Elternvertrag
@@ -417,8 +455,14 @@ final class ReportModelService
                 }
                 $out['has_contract'] = true;
                 $out['priced'] = true;
+                if (!empty($r['price_missing'])) $out['price_missing'] = true;   // v3.13.0
             }
         }
+        // v3.13.0 — Preis fehlt in einem Monat des Jahres: Die Kosten der Art sind keine Verbrauchskosten (nur Grundpreis
+        // oder ein Teil der Monate). Der Bericht nennt sie dann nicht (Kacheln, Kosten je Art und Monat, Seite) und sagt
+        // „Preis fehlt“, wie Saldo-Karte, Abrechnungsjahr und KI (ReadTools::noPriceInYear). Bis dahin standen als
+        // „Energiekosten“ nur der Grundpreis bzw. die Monate mit Preis da.
+        if ($out['price_missing']) $out['priced'] = false;
         $out['coverage'] = count(array_filter($out['months'], fn($v) => $v !== null));
         $out['interpolated'] = count($out['interp_months']);
         // v3.7.0 (wirklichkeit-2) — mit verteilten Monaten: Liegen beide Jahresgrenzen
@@ -670,6 +714,20 @@ final class ReportModelService
                         'projection_uncertain' => $c['projection_uncertain'] ?? null,
                         // v3.10.0 (Skeptiker H1) — die Summe der Abrechnung für „Wohin geht mein Geld?“ (expectedBalance im Browser)
                         'settle' => array_intersect_key($c, array_flip(['settle_balance', 'settle_range', 'settle_uncertain', 'settle_parts']))];
+                    // v3.13.0 — ohne Arbeitspreis (in diesem Vertrag oder einem anderen derselben Abrechnung) ist der erwartete
+                    // Saldo nur Grundpreis minus Abschläge: kein Betrag, keine Spanne, kein Rat zum Abschlag. Die Leser des
+                    // Berichts (Abschnitt „Abrechnung“, „Auf einen Blick“, Empfehlungen) sehen dann `price_missing`.
+                    $pm = !empty($c['price_missing']);
+                    if (($c['settle_balance'] ?? null) !== null) {
+                        foreach ($status['contracts'] ?? [] as $o) {
+                            if (($o['settle_on'] ?? null) === ($c['settle_on'] ?? null) && ($o['settle_balance'] ?? null) !== null && !empty($o['price_missing'])) $pm = true;
+                        }
+                    }
+                    if ($pm) {
+                        $c['projected_end_balance'] = null; $c['settle_balance'] = null; $c['projection_uncertain'] = null;
+                        $c['projection_band'] = null; $c['suggested_advance'] = null; $c['balance_path'] = null;
+                        $own = ['projected_end_balance' => null, 'projection_band' => null, 'projection_uncertain' => null, 'settle' => []];
+                    }
                     if (($c['settle_balance'] ?? null) !== null) {
                         $c['projected_end_balance'] = $c['settle_balance'];
                         $sr = is_array($c['settle_range'] ?? null) ? $c['settle_range'] : null;
@@ -697,6 +755,9 @@ final class ReportModelService
                         'successor' => $c['successor'] ?? null, 'successor_switch' => !empty($c['successor_switch']),
                         'price_increase' => $c['price_increase'] ?? null,
                         'projected_end_balance' => $c['projected_end_balance'] ?? null,
+                        'price_missing' => $pm,   // v3.13.0
+                        // v3.13.0 — zu wenig Ablesungen für eine Erwartung (Vertragsstatus `projection_missing`)
+                        'projection_missing' => is_string($c['projection_missing'] ?? null) ? $c['projection_missing'] : null,
                         'current_advance' => $c['current_advance_amount'] ?? null,
                         'suggested_advance' => $c['suggested_advance'] ?? null,
                         // v3.9.0 (Skeptiker M15, H1) — kurz vor der Abrechnung kein Nachholbetrag; Rhythmus des Plans
@@ -1201,6 +1262,19 @@ final class ReportModelService
         ];
     }
 
+    /**
+     * v3.13.0 (Paket K2a) — Budget des Mietverhältnisses für das Berichtsjahr: Zeitraum um den 31.12., Daten vom Tag des
+     * Berichts (Lektion 103: den Stichtag durchreichen). Bis dahin war der 31.12. auch die Grenze der Daten: Die Ablesung,
+     * die den Dezember abschließt, liegt am 01.01. des Folgejahres (eine Ablesung am Tag D zählt bis D − 1), der Dezember
+     * eines abgeschlossenen Jahres galt nie als gemessen, und der Bericht nahm den Dezember des Vorjahres.
+     *
+     * @return array<string,mixed>
+     */
+    private function yearBudget(array $t): array
+    {
+        return $this->tenancyBudget->budget((string)$t['id'], $this->year . '-12-31', $this->today);
+    }
+
     /** Mietverhältnis: Vorauszahlung (Stand heute), Abrechnung und CO₂-Aufteilung des Berichtsjahres. */
     private function tenancyFacts(): ?array
     {
@@ -1214,7 +1288,7 @@ final class ReportModelService
         $t ??= $list[0];
         $budget = $this->tenancyBudget->budget((string)$t['id'], $this->today);
         $yearBudget = null;
-        try { $yearBudget = $this->tenancyBudget->budget((string)$t['id'], $this->year . '-12-31'); } catch (\Throwable) { $yearBudget = null; }
+        try { $yearBudget = $this->yearBudget($t); } catch (\Throwable) { $yearBudget = null; }
         $statement = null;
         foreach ($this->tenancies->statementsOf((string)$t['id']) as $s) {
             if (substr((string)($s['period_to'] ?? ''), 0, 4) === (string)$this->year) $statement = $s;
@@ -1236,7 +1310,10 @@ final class ReportModelService
         $label = (string)($t['label'] ?? '');
         $this->term('prepayment');
         $sentences = [];
-        $sentences[] = $this->i18n->t('report.topic.tenancy.budget', [
+        // v3.13.0 — ohne Preise (oder einem Zähler ohne Preis) kennt die App die Kosten nicht: kein Guthaben aus der ganzen
+        // Vorauszahlung, keine Empfehlung, kein Verlauf
+        $noPrice = !empty($budget['price_missing']);
+        $sentences[] = $this->i18n->t($noPrice ? 'report.topic.tenancy.budgetPriceMissing' : 'report.topic.tenancy.budget', [
             'from' => $this->i18n->date((string)$budget['period_from']), 'to' => $this->i18n->date((string)$budget['period_to']),
             'expected' => $this->advice->approx((float)$budget['expected_eur']), 'prepaid' => $this->advice->approx((float)$budget['prepaid_eur']),
         ]);
@@ -1258,20 +1335,21 @@ final class ReportModelService
         $months = [];
         $names = array_map('trim', explode(',', $this->i18n->t('format.monthsShort')));
         $cumExp = 0.0; $cumPaid = 0.0;
-        foreach ($budget['months'] ?? [] as $i => $m) {
+        foreach ($noPrice ? [] : $budget['months'] ?? [] as $i => $m) {
             $cumExp += (float)($m['expected_eur'] ?? 0); $cumPaid += (float)($m['prepaid_eur'] ?? 0);
             $mo = (int)substr((string)($m['ym'] ?? ''), 5, 2);
             $months[] = ['label' => $names[$mo - 1] ?? (string)$mo, 'value' => round($cumExp - $cumPaid, 2), 'projected' => empty($m['measured'])];
         }
         return [
-            'budget' => ['id' => (string)$t['id'], 'label' => $label, 'projected_result_eur' => $budget['projected_result_eur'] ?? null,
-                         'suggested_prepayment_eur' => $budget['suggested_prepayment_eur'] ?? null, 'period_to' => $budget['period_to'] ?? null],
+            'budget' => ['id' => (string)$t['id'], 'label' => $label, 'projected_result_eur' => $noPrice ? null : $budget['projected_result_eur'] ?? null,
+                         'suggested_prepayment_eur' => $noPrice ? null : $budget['suggested_prepayment_eur'] ?? null, 'period_to' => $budget['period_to'] ?? null,
+                         'price_missing' => $noPrice],
             'co2' => $co2,
-            'year_costs' => $yearBudget['components'] ?? null,
+            'year_costs' => !empty($yearBudget['price_missing']) ? null : $yearBudget['components'] ?? null,
             'topic' => [
                 'label' => $label, 'sentences' => $sentences,
                 'as_of_today' => true, 'path' => $months,
-                'projected_result_eur' => $budget['projected_result_eur'] ?? null,
+                'projected_result_eur' => $noPrice ? null : $budget['projected_result_eur'] ?? null,
                 'statement_result_eur' => $statement['result_eur'] ?? null,
                 'co2' => $co2,
             ],
@@ -1387,8 +1465,12 @@ final class ReportModelService
 
     private function moneySection(array $consumptionU, array $utilities, array $yd, array $totals, array $contracts): ?array
     {
-        if (($totals['cost_now'] ?? 0) <= 0) return null;
         $y = $this->year; $p = $y - 1;
+        // v3.13.0 — Arten, denen in diesem Jahr ein Arbeitspreis fehlt: keine Kosten, dafür „Preis fehlt“ (yearData)
+        $missing = array_values(array_filter($consumptionU, fn($u) => !empty($yd[$u][$y]['price_missing'])));
+        // ebenso ein laufender Vertrag mit Abschlag ohne gemessenen Verbrauch: Der Abschnitt sagt, warum kein Betrag dasteht
+        $tooFewAny = array_filter($contracts, fn($c) => !empty($c['has_advance']) && !empty($c['is_current']) && !empty($c['projection_missing'])) !== [];
+        if (($totals['cost_now'] ?? 0) <= 0 && $missing === [] && !$tooFewAny) return null;
         $by = [];
         // v3.7.0 (#33) — Kosten ohne Bonus, wie die Kachel; die Boni stehen darunter (bonus_notes)
         foreach ($consumptionU as $u) {
@@ -1426,6 +1508,21 @@ final class ReportModelService
         // Saldo je laufendem Vertrag (Stand heute)
         $balances = [];
         foreach ($contracts as $c) {
+            // v3.13.0 — ohne Arbeitspreis kein erwarteter Saldo: der Satz „Preis fehlt“ statt eines Guthabens, kein Rat zum Abschlag;
+            // ebenso ohne gemessenen Verbrauch (`projection_missing`, nur der Anfangsstand): „noch kein Betrag“
+            $tooFew = !empty($c['projection_missing']) && empty($c['price_missing']);
+            if (!empty($c['has_advance']) && !empty($c['is_current']) && (!empty($c['price_missing']) || $tooFew)) {
+                $balances[] = [
+                    'utility' => $c['utility'], 'label' => $c['label'], 'provider' => $c['provider'], 'meter_name' => $c['meter_name'],
+                    'projected_end_balance' => null, 'current_advance' => (float)($c['current_advance'] ?? 0), 'suggested_advance' => null,
+                    'uncertain' => null, 'band' => null, 'price_missing' => !$tooFew, 'projection_missing' => $tooFew ? (string)$c['projection_missing'] : null,
+                    'text' => $this->i18n->t($tooFew ? 'report.money.balanceTooFewReadings' : 'report.money.balancePriceMissing',
+                        ['date' => $this->i18n->date((string)($c['settle_date'] ?? $this->today))]),
+                    'advance_text' => null, 'path' => [], 'color' => (string)Utilities::get($c['utility'])['color'],
+                    'settle_on' => $c['settle_date'] ?? null, 'explainer' => null,
+                ];
+                continue;
+            }
             if (empty($c['has_advance']) || empty($c['is_current']) || ($c['projected_end_balance'] ?? null) === null) continue;
             $bal = (float)$c['projected_end_balance'];
             $adv = (float)($c['current_advance'] ?? 0);
@@ -1472,12 +1569,17 @@ final class ReportModelService
         }
         $forecast = $this->forecastNextYear($consumptionU);
         $t = $totals;
-        $sentence = $t['cost_pct'] === null
+        $sentence = ($t['cost_now'] ?? 0) <= 0 ? '' : ($t['cost_pct'] === null
             ? $this->i18n->t('report.money.sentenceNoPrevious', ['amount' => $this->advice->approx((float)$t['cost_now']), 'year' => $y])
             : $this->i18n->t('report.money.sentence', [
                 'amount' => $this->advice->approx((float)$t['cost_now']), 'year' => $y, 'pct' => $this->advice->pct((float)$t['cost_pct']), 'prev' => $p,
                 'price' => $this->signed((float)$t['price_effect']), 'volume' => $this->signed((float)$t['volume_effect']),
-            ]);
+            ]));
+        // v3.13.0 — die Arten ohne Arbeitspreis nennt der Satz, statt ihre Kosten als Grundpreis mitzuzählen
+        if ($missing !== []) {
+            $sentence = trim($sentence . ' ' . $this->i18n->t('report.money.priceMissing', ['year' => $y,
+                'labels' => implode(', ', array_map(fn($u) => $this->i18n->utilityLabel($u), $missing))]));
+        }
         return [
             'total' => ['cost' => $t['cost_now'], 'prev' => $t['cost_prev'], 'pct' => $t['cost_pct'],
                         'price_effect' => $t['price_effect'], 'volume_effect' => $t['volume_effect'], 'sentence' => $sentence],
@@ -1519,22 +1621,69 @@ final class ReportModelService
         return ($r > 0 ? '+' : ($r < 0 ? '-' : '±')) . $this->i18n->money(abs($r), 0);
     }
 
-    /** Erwartete Kosten der nächsten zwölf Monate (Prognose je Zähler, wie im SummaryService). */
+    /**
+     * Erwartete Kosten der nächsten zwölf Monate (Prognose je Zähler, wie im SummaryService).
+     *
+     * v3.13.0 (Paket vertrag, #40) — ein Gruppenvertrag (HT/NT) zählt einmal über die Gruppe, mit
+     * Grundpreis und Abschlag, statt je Zählwerk ohne beides; auch, wenn die Zählwerke Subzähler mit diesem
+     * Vertrag sind (Rest-Abrechnung am Zähler davor), deren Geld zählt wie im Jahr (yearData).
+     */
     private function forecastNextYear(array $consumptionU): ?array
     {
         if ($this->forecasts === null) return null;
         $sum = 0.0; $any = false;
         foreach ($consumptionU as $u) {
             if (Utilities::isDelivery($u)) continue;
-            foreach ($this->rootMeters($u) as $m) {
+            foreach ($this->forecastTargets($u) as $m) {
                 try { $f = $this->forecasts->forMeter($u, $m); } catch (\Throwable) { continue; }
                 if (empty($f['valid']) || empty($f['forecast'])) continue;
-                $cost = array_sum(array_map(fn($r) => (float)($r['cost_estimated'] ?? 0), array_slice($f['forecast'], 0, 12)));
+                $rows = array_slice($f['forecast'], 0, 12);
+                // v3.13.0 — rechnet ein Prognosemonat ohne Arbeitspreis, sind seine Kosten keine Verbrauchskosten (wie `/api/summary`)
+                if ($this->consumption->priceMissingIn($u, $m, $rows) !== []) continue;
+                // v3.13.0 (Paket K1) — Subzähler mit eigenem Vertrag ohne Gruppe: nur das Geld seiner Vertragstage
+                $cost = MeterService::countsInTotals($m) || !empty($m['is_group'])
+                    ? array_sum(array_map(fn($r) => (float)($r['cost_estimated'] ?? 0), $rows))
+                    : $this->ownContractCost($u, $m, $rows);
                 if ($cost > 0) { $sum += $cost; $any = true; }
             }
         }
         if (!$any) return null;
         return ['cost' => round($sum, 2), 'text' => $this->i18n->t('report.money.forecast', ['amount' => $this->advice->approx($sum)]), 'as_of_today' => true];
+    }
+
+    /**
+     * v3.13.0 (Paket K1) — Erwartete Kosten eines Subzählers mit eigenem Vertrag (ohne Gruppe): nur das Geld der Tage,
+     * an denen sein Vertrag rechnet. An den übrigen Tagen rechnet der Zähler davor die ganze Menge (er zieht den
+     * Subzähler nur an diesen Tagen ab, dieselben Verträge und Schnitttage wie ForecastService::deductionForecast);
+     * die Prognose des Subzählers rechnet sie zum letzten Preis weiter und stünde sonst doppelt im Bericht (etwa nach
+     * einem Vertragsende ohne Verlängerung). Im Teilmonat der feste Teil (`fixed_eur`, nur Vertragstage) und von der
+     * Arbeit der Anteil zum Vertragspreis: Vertragstage ÷ Monatstage × Arbeitspreis ÷ Preis je Einheit (`unit_eur`).
+     *
+     * @param list<array<string,mixed>> $rows die ersten zwölf Prognosemonate
+     */
+    private function ownContractCost(string $u, array $meter, array $rows): float
+    {
+        $contracts = $this->consumption->contractScope($u, $meter)[0];
+        $cuts = $this->contracts->cutDates($contracts);
+        $sum = 0.0;
+        foreach ($rows as $r) {
+            $from = sprintf('%04d-%02d-01', (int)($r['year'] ?? 0), (int)($r['month'] ?? 0));
+            $next = date('Y-m-d', (int)strtotime($from . ' +1 month'));
+            $dim = (int)date('t', (int)strtotime($from));
+            $days = 0;
+            foreach ($this->contracts->segmentsWithin($contracts, $cuts, $from, $next) as $seg) {
+                if ($seg['contract'] !== null) $days += (int)$seg['days'];
+            }
+            $cost = (float)($r['cost_estimated'] ?? 0);
+            if ($days >= $dim) { $sum += $cost; continue; }
+            if ($days <= 0) continue;
+            $fixed = (float)($r['fixed_eur'] ?? 0);
+            $unit = (float)($r['unit_eur'] ?? 0);
+            $share = $unit > 0 && is_numeric($r['working_price_ct'] ?? null)
+                ? min(1.0, $days / $dim * (float)$r['working_price_ct'] / 100 / $unit) : 0.0;
+            $sum += $fixed + ($cost - $fixed) * $share;
+        }
+        return $sum;
     }
 
     /** Je Verbrauchsart eine Seite. */
@@ -1684,6 +1833,10 @@ final class ReportModelService
      */
     private function costNote(string $u, array $now): array
     {
+        // v3.13.0 — einem Vertrag fehlt in diesem Jahr der Arbeitspreis: kein Betrag (er wäre nur der Grundpreis)
+        if ($now['has_contract'] && !empty($now['price_missing'])) {
+            return ['basis' => 'price_missing', 'value' => null, 'text' => $this->i18n->t('report.page.costPriceMissing')];
+        }
         if ($now['has_contract']) {
             $this->term('workingPrice', 'basePrice');
             // v3.7.0 (#33) — ohne Bonus, wie die Kachel; der Bonus steht in den Hinweisen der Seite
@@ -1708,9 +1861,13 @@ final class ReportModelService
                 $est = null;
                 if ($this->tenancyBudget !== null) {
                     try {
-                        $c = $this->tenancyBudget->budget((string)$t['id'], $this->year . '-12-31')['components'] ?? [];
+                        $yb = $this->yearBudget($t);
+                        $c = $yb['components'] ?? [];
                         $est = $u === 'waerme' ? ($c['heat_eur'] ?? null)
                             : ($u === 'wasser' ? (float)($c['warm_water_eur'] ?? 0) + (float)($c['cold_water_eur'] ?? 0) : null);
+                        // v3.13.0 — ohne Preis für diese Rolle kein Betrag (er wäre 0 € oder nur ein Teil)
+                        $roles = $u === 'waerme' ? ['heat'] : ['warm_water', 'cold_water'];
+                        foreach ($roles as $role) if (in_array("price_missing_$role", (array)($yb['assumptions'] ?? []), true)) $est = null;
                     } catch (\Throwable) {
                         $est = null;
                     }
@@ -1810,7 +1967,8 @@ final class ReportModelService
     {
         if ($this->deliveries === null) return null;
         foreach ($this->rootMeters($u) as $m) {
-            $h = $this->deliveries->stockHistory($u, (string)$m['id'], $this->consumption);
+            // v3.13.0 — nur die Tage ab dem Berichtsjahr bzw. dem Stichtag (Stand und Verbrauch des Jahres)
+            $h = $this->deliveries->stockHistory($u, (string)$m['id'], $this->consumption, null, min($this->year . '-01-01', $this->today));
             $days = $h['days'] ?? [];
             if ($days === []) continue;
             // Tageszeilen: [date, stock, consumption, …] (DeliveryService::stockHistory)

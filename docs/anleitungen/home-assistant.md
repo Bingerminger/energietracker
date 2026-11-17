@@ -7,8 +7,8 @@
 > von Hand — der Energietracker übernimmt Verträge, Kostenberechnung und
 > Prognosen, HA liefert still im Hintergrund die Daten.
 
-Diese Anleitung ist die **offizielle** Integration (ab Energietracker **v1.9.0**,
-Feature F1009).
+Diese Anleitung beschreibt die Schnittstelle, die der Energietracker selbst mitbringt (ab Energietracker
+**v1.9.0**, Feature F1009).
 
 > [!WARNING]
 > **Achtung vor kursierenden Forenanleitungen.** Es gibt eine populäre, aber
@@ -245,8 +245,10 @@ rest_command:
       }
 ```
 
-> **Pfad-Hinweis:** `…/api.php/api/ingest` funktioniert immer. Wenn dein Webserver
-> eine Rewrite-Regel hat (Apache `.htaccess` / nginx), geht auch `…/api/ingest`.
+> **Pfad-Hinweis:** `…/api.php/api/ingest` funktioniert immer. Im Docker-Image, mit
+> nginx nach `docker/nginx.conf` und *(seit v3.13.0)* mit Apache und der
+> mitgelieferten `.htaccess` geht auch `…/api/ingest`. Fehlt Apache das Modul
+> `mod_rewrite`, geht nur `…/api.php/api/ingest`.
 
 Token in `secrets.yaml` — der **ganze** Header-Wert samt `Bearer`:
 
@@ -359,7 +361,7 @@ mode: single
 
 ## Schritt 5 — Werte zurück nach Home Assistant
 
-> **Ohne YAML:** Die [HACS-Integration](#hacs-integration-v3120) legt diese Sensoren selbst an.
+> **Ohne YAML:** Die [Integration aus dem Marketplace (ehemals HACS)](#integration-aus-dem-marketplace-ehemals-hacs-v3120) legt diese Sensoren selbst an.
 
 Seit v3.1.0 geht es auch in die andere Richtung: Der Energietracker rechnet
 Saldo, Prognose und Fälligkeiten, Home Assistant zeigt sie an und reagiert
@@ -434,11 +436,10 @@ rest:
   (`[von, bis]`, sonst leer); `projected_end_balance_total` ist dann nur ein
   einzelner Wert der Schätzung, maßgeblich ist die Spanne.
 - *(v3.10.0)* **Grenzen der Attribute:** Der Pfad in `json_attributes_path` ist
-  gegen die JSONPath-Auswertung nachgerechnet, die Home Assistant benutzt, in
-  einem laufenden Home Assistant aber noch nicht geprüft; Rückmeldungen sind
-  willkommen. Ohne laufenden Vertrag schreibt Home Assistant bei jeder Abfrage
-  die Warnung „JSON result was not a dictionary“ ins Protokoll; der Zustand des
-  Sensors stimmt trotzdem.
+  *(seit v3.13.0)* in einem laufenden Home Assistant 2026.11 geprüft: Die
+  Attribute kommen an und stimmen mit `/api/summary` überein. Ohne laufenden
+  Vertrag schreibt Home Assistant bei jeder Abfrage die Warnung „JSON result was
+  not a dictionary“ ins Protokoll; der Zustand des Sensors stimmt trotzdem.
 - Ein Sensor zeigt „unbekannt“, wenn es den Wert nicht gibt — etwa ohne
   laufenden Vertrag oder bevor die Prognose genug Daten hat.
 - *(v3.4.0)* **Erledigtes zählt nicht mit:** `agenda.due`, `agenda.overdue`
@@ -573,15 +574,22 @@ oder die Weiterleitung der Absender.
 - **Adresse:** etwa `http://192.168.178.10:8123`, ohne Pfad. Im Heimnetz geht
   `http://`. Eine Adresse außerhalb (ein Fernzugang auf Home Assistant) geht
   nur mit `https://`, sonst lehnt der Energietracker ab.
+- *(v3.13.0)* **Leitet Home Assistant um?** Leitet Home Assistant die
+  eingetragene Adresse weiter, etwa von `http://192.168.178.10:8123` auf
+  `http://192.168.178.10`, folgt der Energietracker dem nicht: Er verbindet sich
+  nur mit der Adresse, die du einträgst. „Testnachricht senden“ nennt dann die
+  neue Adresse. Trag sie so ein.
 - Ändern dürfen das nur Verwalter.
 
-> **Was geprüft ist und was nicht (v3.9.0).** Alle drei Ziele sind gegen ein
+> **Was geprüft ist und was nicht (v3.13.0).** Alle drei Ziele sind gegen ein
 > nachgebautes Home Assistant getestet (Anfragen, Geheimnisse, jede Nachricht
-> einmal, Wiederholung, Obergrenze, Sprache). **Noch ungeprüft in einem
-> laufenden Home Assistant** sind der Weg über den Supervisor (ob
-> `SUPERVISOR_TOKEN` bei der App ankommt) und die Rechte im Ordner `/share` der
-> App für Home Assistant. Kommt dort etwas nicht an, nennt „Testnachricht
-> senden“ den Grund; Rückmeldungen aus echten Installationen sind willkommen.
+> einmal, Wiederholung, Obergrenze, Sprache). **In einem laufenden Home
+> Assistant geprüft** sind der Weg über den Supervisor (Home Assistant OS 18.4,
+> die Testnachricht kommt unter Benachrichtigungen an) und der Webhook mit der
+> Vorlage unten (Home Assistant 2026.11, Titel und Text kommen an). **Noch
+> ungeprüft** sind die Rechte im Ordner `/share` der App für Home Assistant.
+> Kommt etwas nicht an, nennt „Testnachricht senden“ den Grund; Rückmeldungen
+> aus echten Installationen sind willkommen.
 
 ### HTTPS mit eigenem Zertifikat *(v3.10.0)*
 
@@ -712,7 +720,7 @@ Was der Webhook bekommt (JSON; in der Automation unter `trigger.json`):
 
 ## Sensor „Zu tun“ *(v3.9.0)*
 
-> **Ohne YAML:** Die [HACS-Integration](#hacs-integration-v3120) legt diese Sensoren selbst an.
+> **Ohne YAML:** Die [Integration aus dem Marketplace](#integration-aus-dem-marketplace-ehemals-hacs-v3120) legt diese Sensoren selbst an.
 
 `GET /api/todo` liefert die Liste „Zu tun“: wie viele Punkte fällig sind, wie
 viele davon überfällig oder dringend, und den nächsten. Jeder fällige Punkt
@@ -803,22 +811,19 @@ Energietracker das Dokument danach zurück.
 
 ---
 
-## HACS-Integration *(v3.12.0)*
+<a id="hacs-integration-v3120"></a>
+
+## Integration aus dem Marketplace (ehemals HACS) *(v3.12.0)*
 
 Die Integration **Energietracker for Home Assistant** legt die Sensoren selbst an, ohne YAML. Sie liest
 dieselben Endpunkte wie die Vorlagen oben (`/api/summary` und `/api/todo`) und braucht den Energietracker 3.9.0
 oder neuer (die Attribute zu erwartetem und gemessenem Saldo, „bald fällig“ und dem nächsten Termin ab 3.10.0)
 sowie Home Assistant 2026.3 oder neuer.
 
-**Installieren:** als benutzerdefiniertes Repository
-`https://github.com/Bingerminger/energietracker-integration`, Typ **Integration**, bis die Integration in der
-Standardliste von HACS steht.
+**Installieren:** Die Integration steht in der Standardliste des Marketplace. In Home Assistant den
+**Marketplace** öffnen, **nach „Energietracker“ suchen**, herunterladen und Home Assistant neu starten.
 
-- **Ab Home Assistant 2026.11** ist HACS als **Marketplace** eingebaut. Den Marketplace einmal mit GitHub
-  verbinden (er zeigt einen Code für `https://github.com/login/device`, die Verbindung liest nur Öffentliches),
-  dann das Repository hinzufügen → **Energietracker** herunterladen → Home Assistant neu starten.
-- **Bis 2026.10** mit HACS: Menü **⋮ → Benutzerdefinierte Repositories** → Repository eintragen →
-  **Energietracker** herunterladen → Home Assistant neu starten.
+Mit Home Assistant 2026.3 bis 2026.10 heißt der Weg noch HACS, ebenfalls über die Suche nach „Energietracker“.
 
 Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
 Energietracker**: die Adresse, unter der du den Energietracker öffnest, und nur bei eingeschalteter Anmeldung
@@ -831,9 +836,13 @@ Verbindungen → Home Assistant.
   **Nächster Punkt fällig**, **Nächster Termin**, **Nächster Termin am**.
 - Je Zähler ein Gerät: **Saldo** (bei laufendem Vertrag, mit den Attributen `projected_end_balance_total`,
   `projected_end_range_total`, `projected_end_balance`, `measured_balance`, `measured_until` wie oben),
-  **Verbrauch seit Jahresbeginn**, **Prognose 12 Monate** (nicht bei Heizöl und Pellets), **Tage seit Ablesung**.
-- Eine Zählergruppe mit Gruppenvertrag bekommt ein eigenes Gerät nur mit **Saldo**; so zählt eine Summe über
-  alle Saldo-Sensoren jeden Vertrag einmal.
+  **Verbrauch seit Jahresbeginn**, **Prognose 12 Monate** (nicht bei Heizöl und Pellets), **Tage seit Ablesung**;
+  ab Integration 1.1.0 mit Energietracker 3.13.0 bei Heizöl und Pellets **Bestand** (L bzw. kg, Attribute
+  `capacity`, `estimated_from`) und **Füllstand** (%), bei der Einspeisung mit laufendem Vertrag **Bereits
+  ausgezahlt**, **Noch offen** und **Offen bei Abrechnung**.
+- Eine Zählergruppe mit Gruppenvertrag bekommt ein eigenes Gerät mit **Saldo**; so zählt eine Summe über alle
+  Saldo-Sensoren jeden Vertrag einmal. Ab Integration 1.1.0 mit Energietracker 3.13.0 dazu **Prognose 12 Monate**
+  (HT plus NT) und **Prognose Kosten 12 Monate** (nach dem Gruppenvertrag, mit Grundpreis).
 
 Die Integration fragt alle 15 Minuten. Ein neuer Zähler erscheint nach dem Neuladen der Integration. Wird die
 Anmeldung eingeschaltet oder der Schlüssel widerrufen, fragt Home Assistant nach einem neuen Schlüssel; ist der

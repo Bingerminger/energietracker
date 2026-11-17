@@ -100,8 +100,68 @@ final class LetterContractTest extends ServiceTestCase
             'Mindestlaufzeit später als die Frist' => [$base + ['notice_period_months' => 1, 'notice_mode' => 'any_day', 'min_term_end' => '2027-03-31'], '2026-11-03', '2027-03-31'],
             'ohne Frist und ohne Ende' => [$base, '2026-11-03', null],
             'verlängert, Sondervertrag: Termin steht im Vertrag' => [$base + ['end' => '2025-12-31', 'supply_kind' => 'special'], '2026-11-03', null],
-            'verlängert, Grundversorgung: zwei Wochen ab heute' => [$base + ['end' => '2025-12-31', 'supply_kind' => 'basic'], '2026-11-03', '2026-11-17'],
+            // v3.13.0 — bis v3.12 „heute + 14 Tage“ (17.11.2026) als Termin „nach meinen Unterlagen“; die zwei Wochen
+            // laufen aber ab dem Zugang des Briefs: Lücke (testBasicSupplyIsAlwaysAGap)
+            'verlängert, Grundversorgung: Lücke' => [$base + ['end' => '2025-12-31', 'supply_kind' => 'basic'], '2026-11-03', null],
         ];
+    }
+
+    /**
+     * v3.13.0 — Grundversorgung (Strom und Gas, Land mit Rechtsregeln): Der Termin ist eine Lücke, für jeden Eintrag.
+     * Die zwei Wochen (§ 20 Abs. 1 StromGVV/GasGVV) laufen ab dem Zugang, den die App nicht kennt. Bis v3.12 nannte der
+     * Brief „heute + 14 Tage“, wenn ein vergangenes Ende eingetragen war, und eine Lücke ohne Ende; mit eingetragener
+     * Frist einen Termin aus der Frist. Heute 03.11.2026; Varianten: mit und ohne Ende (vergangen, künftig), mit und
+     * ohne Frist (Monate, Tage).
+     *
+     * @return array<string, array{string, array<string,mixed>}>
+     */
+    public static function basicSupplies(): array
+    {
+        $cases = [];
+        $ends = ['ohne Ende' => [], 'Ende vorbei' => ['end' => '2025-12-31'], 'Ende künftig' => ['end' => '2027-06-30']];
+        $notices = ['ohne Frist' => [], 'Frist 1 Monat' => ['notice_period_months' => 1], 'Frist 14 Tage jederzeit' => ['notice_period_days' => 14, 'notice_mode' => 'any_day']];
+        foreach (['strom', 'gas'] as $u) {
+            foreach ($ends as $e => $end) foreach ($notices as $n => $notice) $cases["$u, $e, $n"] = [$u, $end + $notice];
+        }
+        return $cases;
+    }
+
+    #[DataProvider('basicSupplies')]
+    public function testBasicSupplyIsAlwaysAGap(string $u, array $fields): void
+    {
+        $this->contracts->delete($u, $u === 'strom' ? $this->stromContract : $this->gasContract);
+        $id = $this->createContract($u, ['start' => '2025-01-01', 'supply_kind' => 'basic',
+            'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]]] + $fields);
+        $m = $this->contractLetter($u, $id, 'termination', [], '2026-11-03');
+        self::assertNull($m['defaults']['extra']['term_date'] ?? null, 'kein errechneter Termin');
+        self::assertContains('term_date', $m['gaps']);
+        self::assertStringContainsString('Nach meinen Unterlagen ist das der […].', $m['text']);
+        self::assertSame(['reason' => 'basic_supply', 'cancel_by' => null, 'end' => $fields['end'] ?? null], $m['term_gap']);
+    }
+
+    /** Gegenstück: Sondervertrag mit denselben Einträgen rechnet weiter; ohne Frist sagt die Lücke, ob ein Ende eingetragen ist. */
+    public function testASpecialContractKeepsItsDateAndTheGapNamesTheEnd(): void
+    {
+        $this->contracts->delete('strom', $this->stromContract);
+        $base = ['start' => '2025-01-01', 'supply_kind' => 'special', 'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]]];
+        // Ende 30.06.2027, ein Monat: Stichtag 31.05.2027, Termin 30.06.2027
+        $id = $this->createContract('strom', $base + ['end' => '2027-06-30', 'notice_period_months' => 1]);
+        self::assertSame('2027-06-30', $this->contractLetter('strom', $id, 'termination', [], '2026-11-03')['defaults']['extra']['term_date'] ?? null);
+        // Ende eingetragen, keine Frist, jederzeit kündbar: Lücke „keine Frist“, das Ende steht dabei
+        $this->contracts->delete('strom', $id);
+        $id = $this->createContract('strom', $base + ['end' => '2027-09-30', 'notice_mode' => 'any_day']);
+        self::assertSame(['reason' => 'no_notice', 'cancel_by' => null, 'end' => '2027-09-30'],
+            $this->contractLetter('strom', $id, 'termination', [], '2026-11-03')['term_gap']);
+    }
+
+    /** Ohne Rechtsregeln (Österreich) kennt die App keine Grundversorgung nach deutschem Recht: wie bisher. */
+    public function testBasicSupplyOutsideGermanyKeepsTheOldRule(): void
+    {
+        $this->settings->set(['country' => 'AT']);
+        $this->contracts->delete('strom', $this->stromContract);
+        $id = $this->createContract('strom', ['start' => '2025-01-01', 'end' => '2027-06-30', 'notice_period_months' => 1, 'supply_kind' => 'basic',
+            'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]]]);
+        self::assertSame('2027-06-30', $this->contractLetter('strom', $id, 'termination', [], '2026-11-03')['defaults']['extra']['term_date'] ?? null);
     }
 
     #[DataProvider('terms')]
@@ -175,15 +235,19 @@ final class LetterContractTest extends ServiceTestCase
         self::assertStringNotContainsString('31.12.2031', $m['text'], 'nicht „nach meinen Unterlagen“');
     }
 
-    /** v3.12.0 (Skeptiker M11) — Grundversorgung mit Folgevertrag: zwei Wochen Frist, nicht der Tag vor dem Folgevertrag. */
-    public function testBasicSupplyWithASuccessorKeepsTheTwoWeeks(): void
+    /**
+     * v3.12.0 — Grundversorgung mit Folgevertrag: nicht der Tag vor dem Folgevertrag (28.02.2027).
+     * v3.13.0 — und auch kein „heute + 14 Tage“: Lücke mit dem Grund Grundversorgung.
+     */
+    public function testBasicSupplyWithASuccessorIsAGapNotTheDayBeforeIt(): void
     {
         $this->contracts->delete('strom', $this->stromContract);
         $base = ['start' => '2025-01-01', 'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]]];
         $id = $this->createContract('strom', $base + ['end' => '2025-12-31', 'supply_kind' => 'basic']);
         $this->createContract('strom', ['start' => '2027-03-01', 'working_prices' => [['from' => '2027-03-01', 'ct_per_kwh' => 30.0]]]);
         $m = $this->contractLetter('strom', $id, 'termination', [], '2026-11-03');
-        self::assertSame('2026-11-17', $m['defaults']['extra']['term_date'] ?? null, 'bis dahin 28.02.2027');
+        self::assertNull($m['defaults']['extra']['term_date'] ?? null, 'weder 28.02.2027 noch 17.11.2026');
+        self::assertSame('basic_supply', $m['term_gap']['reason'] ?? null);
     }
 
     /** @return array<string, array{string}> */

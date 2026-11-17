@@ -24,7 +24,7 @@ final class MarketPriceController
 
     public function importCsv(Request $req): never
     {
-        Response::json($this->prices->importCsv((string)$req->rawBody, $req->queryParam('dry_run') === '1'));
+        Response::json($this->prices->importCsv((string)$req->rawBody, $req->flag('dry_run')));
     }
 
     /**

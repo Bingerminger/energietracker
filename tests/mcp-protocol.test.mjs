@@ -11,7 +11,7 @@
 //   - 2026-07-28: server/discover und tools/call mit _meta und Kopfzeilen
 //   - Fehler: Fassung 1900-01-01 (400, -32022, supported), Kopfzeile passt
 //     nicht (400, -32020), unbekannte Methode (404, -32601), GET (405),
-//     Stapel (400), ohne Schlüssel (401, WWW-Authenticate), Lese-Schlüssel
+//     Stapel (400 ab 2025-06-18, in 2025-03-26 eine Liste), ohne Schlüssel (401, WWW-Authenticate), Lese-Schlüssel
 //     der übrigen API (403), fremder Ursprung (403), ausgeschaltet (403)
 //   - Content-Type application/json auf jeder Antwort mit Körper
 //   - Paket protokoll: Pflicht-Kopfzeilen 2026-07-28 (MCP-Protocol-Version,
@@ -134,8 +134,14 @@ try {
   t('Kopfzeile passt nicht zu _meta: 400, -32020', mism.status === 400 && mism.json?.error?.code === -32020, mism.text);
   const unk = await mcp({ jsonrpc: '2.0', id: 8, method: 'subscriptions/listen' }, { key, modern: true });
   t('unbekannte Methode (modern): 404, -32601', unk.status === 404 && unk.json?.error?.code === -32601 && jsonType(unk), unk.text);
-  const batch = await mcp(null, { key, raw: '[{"jsonrpc":"2.0","id":1,"method":"ping"}]' });
-  t('Stapel: 400, -32600', batch.status === 400 && batch.json?.error?.code === -32600, batch.text);
+  // v3.13.0 — Stapel nur in der Fassung 2025-03-26 (ohne Kopfzeile ist es diese): eine Liste in derselben Reihenfolge;
+  // ab 2025-06-18 bleibt er 400, -32600
+  const batch = await mcp(null, { key, raw: '[{"jsonrpc":"2.0","id":1,"method":"ping"}]', headers: { 'MCP-Protocol-Version': '2025-06-18' } });
+  t('Stapel ab 2025-06-18: 400, -32600', batch.status === 400 && batch.json?.error?.code === -32600, batch.text);
+  const batchOld = await mcp(null, { key, raw: '[{"jsonrpc":"2.0","id":1,"method":"ping"},{"jsonrpc":"2.0","id":2,"method":"tools/list"}]',
+    headers: { 'MCP-Protocol-Version': '2025-03-26' } });
+  t('Stapel in 2025-03-26: 200, eine Liste in Reihenfolge', batchOld.status === 200 && Array.isArray(batchOld.json)
+    && batchOld.json.map(x => x.id).join(',') === '1,2' && jsonType(batchOld), batchOld.text.slice(0, 200));
   const parse = await mcp(null, { key, raw: '{kein json' });
   t('kein JSON: 400, -32700', parse.status === 400 && parse.json?.error?.code === -32700, parse.text);
   const get = await fetch(`${BASE}/api/mcp`, { headers: { Authorization: `Bearer ${key}` } });

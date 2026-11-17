@@ -139,7 +139,8 @@ git commit -m "vX.Y.Z — <short description>"
 git push origin main
 
 # 2. Wait for CI. Only proceed on green.
-#    (jobs: test, lint-php, phpunit, docker)
+#    (jobs: test, lint-php, phpunit, docker; the time travel ran locally before,
+#    in CI it runs weekly and on demand in the "Zeitreise" workflow)
 
 # 3. Set and push the tag → triggers the GHCR publish
 git tag -a vX.Y.Z -m "vX.Y.Z — …"

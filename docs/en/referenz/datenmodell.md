@@ -39,7 +39,7 @@ data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # settings (defaults: SettingsService::DEFAULTS)
 ├── auth.json                 # sign-in, people (v3.2.0), HA token, API keys — passwords and keys only as hashes; not in the backup
-├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source since v2.8.0
+├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, rad?, source }, … } — source since v2.8.0, rad since v3.13.0
 ├── climate_normal.json       # climate normal at the location (v2.8.0) — key figures only, no raw data
 ├── weather_sync.json         # state of the last Open-Meteo sync (v2.8.0)
 ├── reminders.json            # appointments/maintenance
@@ -55,6 +55,7 @@ data/
 ├── activity.json             # history of done notices (v3.4.0) — created with the first entry
 ├── people.json               # register of people: number, name, role, deletion note (v3.6.0) — in the backup, without passwords
 ├── inbox.json                # inbox: supplier mail with its reading (v3.7.0) — created with the first document
+├── feed_in_payouts.json      # feed-in payouts (v3.13.0) — created with the first payout, in the backup
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── mcp/                      # AI interface (v3.12.0): open proposals (pending.json), access log, rate-limit counters, each with a lock of its own — created on first use, not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -113,16 +114,39 @@ same identifier.
   `csv` or `manual` (your own values, never overwritten). Entries without `source`
   come from older versions; if they are older than the archive delay (six days),
   they count as measured.
+  **Since v3.13.0 optionally `rad`:** the day's solar radiation (global horizontal
+  irradiation, Open-Meteo `shortwave_radiation_sum` in MJ/m² ÷ 3.6) in **kWh/m² per
+  day**, a number from 0 to 15. It comes in the same request as the temperature
+  (archive, daily sync, forecast). Days without `rad` stay valid. Measured days
+  without radiation (data from before v3.13.0, CSV, manual) get it added on the next
+  archive request; their temperatures stay as they are. A manual entry or a CSV
+  import keeps the day's measured radiation. The backup carries `rad`; a backup
+  without `rad` imports as before.
 - `climate_normal.json`: `version`, `latitude`/`longitude` (rounded), `period`
   `{from, to}` (the last 30 full calendar years), `fetched_at`, `days`, `doy_avg`
   (366 mean daily means, day 60 = 29 February) and `hdd` — per heating limit from
-  `"10.0"` to `"22.0"` in half-degree steps `{mean[12], sd[12], year_sd, years}`.
-  Fetched again when the location moves by more than 0.05° or the period no longer
-  reaches up to the previous year. Not part of the backup: the file can be
-  regenerated at any time.
+  `"6.0"` to `"22.0"` in half-degree steps `{mean[12], sd[12], year_sd, years}`.
+  **Since v3.13.0** also `rad_month` (twelve mean monthly sums of solar radiation in
+  kWh/m², January first, null without radiation), `rad_sd` (their spread over the
+  years), `rad_year_sd` (spread of the annual sum) and `rad_years`, plus `rad_month_trend` (the same months with the
+  linear trend of the annual sums carried forward to the year after the period, `rad_trend_factor`, method
+  `rad_trend_method` = `linear_annual`; null below ten complete years, see
+  [measurement](../entwicklung/messung-einstrahlung.md)). Plus `temp_trend` (kelvin: the linear trend of the annual
+  mean temperature carried forward to the year after the period, minus the period mean, at most ± 2 K; null below
+  ten complete years), `temp_trend_years`, `temp_trend_method` = `linear_annual`, `temp_trend_slope` (kelvin per
+  year) and `temp_trend_center` (middle of the years). Only the heat pump by the weather uses it, per forecast year:
+  degree days of the heating limit − slope × (year − centre); all other utilities keep `hdd` as before.
+  Fetched again
+  when the location moves by more than 0.05° or the period no longer reaches up to
+  the previous year. A normal without the key `rad_month_trend` or `temp_trend` (from before v3.13.0) gets
+  the radiation and the temperature trend of the same 30 years added once on the next weather sync; its degree
+  days stay as they are. Not part of the backup: the file can be regenerated at any
+  time.
 - `weather_sync.json`: `last_sync_at`, `last_sync_date` (for "once a day"),
   `measured_until`, `forecast_until`, `archive_error`, `forecast_error`,
-  `climate_normal` (status of the last sync).
+  `climate_normal` (status of the last sync), since v3.13.0 `radiation_checked`
+  `{from, to}`: the archive has already been asked for the radiation of these days
+  (no second request for the same years).
 
 > **`auth.json`** (F1009, extended in v2.6.0) contains **hashes** only, never
 > plaintext, and is **excluded** from the backup. If the file is missing,
@@ -450,7 +474,7 @@ with `capture: "period"`, per utility in `<utility>/periods.json` (a list):
   "reference": {                     // optional, comparison values of the consumption information
     "prev_month": 760, "prev_year_month": 900, "average_user": 850
   },
-  "note": "",                        // up to 500 characters
+  "note": "",                        // up to 2000 characters (up to v3.12 silently cut to 500)
   "attachment_id": null,             // optional: receipt (photo, PDF)
   "client_ref": "…"                  // optional, as for readings
 }
@@ -832,6 +856,14 @@ backward-compatible — if the field is missing, it becomes `[]` on normalisatio
 migration step); an older water contract keeps it missing until special payments
 arrive and is read as `[]`.
 
+### Feed-in payouts (`feed_in_payouts.json`) *(v3.13.0)*
+
+What the grid operator has transferred for the feed-in, one list across all
+feed-in meters: `{id, meter_id, date, amount, period_from, period_until, note,
+source, created_at}`. Fields, assignment to the billing year and balance card:
+[API](api.md#feed-in-payouts-v3130). The file is created with the first
+payout; no schema step. In the backup under `feed_in_payouts`.
+
 ### Charging sessions (`ev_sessions.json`) *(v3.2.0)*
 
 Wall box charging sessions from evcc, one list across all meters — filled from
@@ -1039,7 +1071,7 @@ first entry, if it is missing the history is empty. No schema step.
 | `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}`, *(v3.6.0)* after deletion `{name, id, deleted: true}`; *(v3.7.0)* also for deadlines and reminders with inherited responsibility (contract, meter) |
 | `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
 | `undone` | `{at, by}` after undo — the entry stays, struck through |
-| `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime |
+| `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime. *(v3.13.0)* `records` on a change made by the AI: `changes` (per record `{file, id` or `key, before, after}`; `null` = did not exist), `also` (entries the change created as well), `proposal_id` |
 
 **Retention:** `activity_keep_months` (default 60, `0` = unlimited); cleaned up
 when writing, by `done_on`.
@@ -1153,6 +1185,7 @@ file is created with the first document, no schema step.
   "cache": { "local|qwen3.8|7": { … } },   // raw answers per provider, model and schema version (at most three)
   "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
   "edits": {},                 // confirmed or corrected field values, {field: value}
+  "item_edits": {},            // v3.13.0: per entry of a list {field: {"<position>": {action: confirm|correct|discard, value?, at}}}; optional
   "applied": [],               // [{id, kind, key, ref, at}] — what was taken over
   "error": null,               // {key, params, at} on the last failure
   "gist": null                 // v3.7.0 (package betrieb): key message after the last write, see below
@@ -1234,6 +1267,72 @@ file is created with the first document, no schema step.
 - **Backup:** pot `inbox`, the PDF travels with the receipts. The import checks
   `id`, `sha256` and `status` per entry.
 
+### Maximum lengths for free text *(v3.13.0)*
+
+Notes and names have a maximum length, counted in characters without blank space
+at the edges. **The same list applies everywhere:** through the API and the
+interface (`maxlength` on the field, a counter below long fields from 80 %), in the
+CSV import (the line with a message), in the backup import (problem
+`too_long:<field>` with field and limit) and for the AI (`maxLength` in the schema).
+**Too long is an error** (`errors.common.tooLong`); nothing is ever cut.
+*(v3.13.0)* <!-- doc-claim: file-name -->**The exception is the file name** of a receipt (`original_name`) and
+so of a document in the inbox (`inbox` › `name`): it is not input into a field.
+If it is longer than 120 characters, the app shortens the stem before the
+extension, and the extension stays (`…-page-2.pdf`); up to v3.12 it was lost.<!-- /doc-claim --> A value
+above the limit from an older version stays readable and unchanged; the message
+comes as soon as a request sends it. The diagnostics and `/api/health`
+(`data_issues`, effect `kept`) name it before that, like the import of a backup of
+it *(v3.13.0)*. For entries of a list (special payments, tank
+levels …) an entry that is already stored word for word counts as existing data.
+`list.field` means: the field in every entry of the list.
+
+<!-- doc-claim: text-limits -->
+| Pot | Field | Characters |
+|---|---|---|
+| `meters` | `name` | 120 |
+| `meters` | `notes` | 2000 |
+| `meters` | `baseline_events.label` | 80 |
+| `meters` | `tank_levels.note` | 80 |
+| `meters` | `devices.serial` | 64 |
+| `meter_groups` | `name` | 120 |
+| `readings` | `note` | 2000 |
+| `contracts` | `provider` | 160 |
+| `contracts` | `tariff_name` | 120 |
+| `contracts` | `shadow_label` | 120 |
+| `contracts` | `notes` | 2000 |
+| `contracts` | `contract_number` | 64 |
+| `contracts` | `customer_number` | 64 |
+| `contracts` | `bonuses.label` | 120 |
+| `contracts` | `special_payments.note` | 120 |
+| `deliveries` | `supplier` | 120 |
+| `deliveries` | `note` | 2000 |
+| `periods` | `note` | 2000 |
+| `bills` | `note` | 2000 |
+| `bills` | `invoice_number` | 80 |
+| `bills` | `items.label` | 120 |
+| `bills` | `notice.file_number` | 80 |
+| `reminders` | `title` | 300 |
+| `reminders` | `notes` | 2000 |
+| `reminders` | `assignee` | 60 |
+| `tenancies` | `label` | 120 |
+| `tenancies` | `landlord` | 120 |
+| `tenancies` | `notes` | 2000 |
+| `tenancies` | `fixed_costs.label` | 120 |
+| `tenancy_statements` | `note` | 2000 |
+| `tenancy_statements` | `positions.label` | 120 |
+| `tenancy_statements` | `positions.unit` | 12 |
+| `people` | `name` | 60 |
+| `inbox` | `name` | 120 |
+| `inbox` | `note` | 500 |
+| `activity` | `note` | 500 |
+| `settings` | `location_name` | 120 |
+| `feed_in_payouts` | `note` | 500 |
+
+In addition: the note of a reading an AI proposes (`propose_reading`) up to 200
+characters, and a corrected text value in the inbox up to 200 characters. Account
+names (40), details for letters (60 per line) and the provider’s address have
+their own rules since v3.2.0 and v3.12.0.
+
 ---
 
 ## 3. Settings (`settings.json`)
@@ -1270,6 +1369,7 @@ here a selection with background:
 | `efficiency_class_thresholds` | A+…G | band limits kWh/m²·a |
 | `billing_cycle_anchor_*` | 01-01 | billing date — stored `MM-DD`, **displayed `DD-MM`** (v1.4.2); since v2.9.0 it must be a calendar day, otherwise 400. Since v2.13.0 also `…_pv_einspeisung` (the remuneration is calculated up to the billing date) |
 | `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **deprecated (v2.13.0)**, without effect (no advances, no balance) and no longer in the interface; removed in v3.0.0 |
+| `advance_counting`, `advance_due_day` | `pro_rata`, 1 | *(v3.13.0)* counting advance payments, for all contracts: `pro_rata` by the day (as before) or `due_day` full payment on the due day `advance_due_day` (1 to 31, a whole number, clamped to the end of the month). If missing (older backup), the default applies. Applied in the prepared payment plan (`due_day` on each monthly row, never stored); [Settings](einstellungen.md#counting-advance-payments-v3130) |
 | `delivery_baseload_share` | 0.15 | weather-independent base-load share for delivery utilities |
 | `tank_warn_pct` | 15 | warning threshold for the tank level in %; alert from half of it (since v2.13.0 also in the interface) |
 | `active_utilities` | gas, strom, wasser | which utilities menu and evaluations show; deselected ones keep their data. Heat (`waerme`, v3.1.0) is not active by default |

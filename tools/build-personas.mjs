@@ -248,6 +248,29 @@ const add = (...ss) => series(d => ss.reduce((t, s) => t + (s.get(d) ?? 0), 0));
 
 const LAT = DEMO.settings.latitude * Math.PI / 180;
 const LON = DEMO.settings.longitude;
+
+// v3.13.0 (Paket sonne, C2) — Einstrahlung je Tag (Globalstrahlung, kWh/m²) für Schaufenster und Beispielhaushalte:
+// Strahlung am Rand der Atmosphäre (Breite der Demo, Tag des Jahres) × Klarheitsindex mit Jahresgang (Winter trüber)
+// und trägem Wetterrauschen, fester Seed. Erfunden, 1.030 bis 1.090 kWh/m² im Jahr wie in Mitteldeutschland. Die
+// PV-Erzeugung der Personas folgt ihr (nicht umgekehrt), so rechnet die Saldo-Karte der Einspeisung nach der Sonne.
+const RAD = (() => {
+  const rr = seeded('rad');
+  const out = new Map();
+  let ar = 0;
+  for (const d of Object.keys(TEMPS).sort()) {
+    const n = doy(d);
+    const decl = 23.45 * Math.PI / 180 * Math.sin(2 * Math.PI * (284 + n) / 365);
+    const ws = Math.acos(clamp(-Math.tan(LAT) * Math.tan(decl), -1, 1));
+    const dr = 1 + 0.033 * Math.cos(2 * Math.PI * n / 365);
+    const h0 = 24 / Math.PI * 1.367 * dr * (ws * Math.sin(LAT) * Math.sin(decl) + Math.cos(LAT) * Math.cos(decl) * Math.sin(ws));
+    ar = 0.55 * ar + 0.835 * gauss(rr);
+    const kt = clamp(0.42 + 0.09 * Math.cos(2 * Math.PI * (n - 172) / 365.25) + 0.15 * ar, 0.06, 0.76);
+    out.set(d, round(h0 * kt, 3));
+  }
+  return out;
+})();
+/** Die Temperaturen der Demo mit der Einstrahlung je Tag (`rad`, s. RAD). */
+const TEMPS_RAD = Object.fromEntries(Object.entries(TEMPS).map(([d, t]) => [d, { ...t, rad: RAD.get(d) }]));
 /** Sinus der Sonnenhöhe in der Mitte einer Viertelstunde (Beginn in UTC-Sekunden). */
 function sunSin(ts) {
   const t = new Date((ts + 450) * 1000);
@@ -1315,12 +1338,13 @@ function eigenheimModern() {
     return re() < 0.42 ? between(re, 6, 20) * season(d, 0.12) : 0;
   });
   scaleTo(ev, 2500);
-  const SHARE = [2.5, 4.5, 8, 11.5, 13, 13, 13, 11.5, 9, 6, 3, 2];
-  const shareSum = SHARE.reduce((a, b) => a + b, 0);
+  // v3.13.0 (Paket sonne, C2) — die Erzeugung folgt der Einstrahlung des Tags (RAD): Ost- und Westdach holen im
+  // Sommer verhältnismäßig mehr aus jeder kWh/m² (flache Sonne am Morgen und Abend), dazu wenige Prozent Rauschen
+  // (Schnee, Verschattung). Bis v3.12 nach festen Monatsanteilen mit eigenem Wetterrauschen.
   const rp = r('pv');
   const gen = scaleTo(series(d => {
     if (d < COMMISSIONED) return 0;
-    return SHARE[+d.slice(5, 7) - 1] / shareSum / daysInMonth(d.slice(0, 7)) * clamp(1 + 0.45 * gauss(rp), 0.2, 1.75);
+    return RAD.get(d) * (1 + 0.08 * Math.cos(2 * Math.PI * (doy(d) - 172) / 365.25)) * clamp(1 + 0.04 * gauss(rp), 0.85, 1.15);
   }), 9400);
 
   // Tagesbilanz: direkt verbraucht, Speicher laden/entladen, Rest ins Netz.
@@ -1608,6 +1632,7 @@ const DEMO_FILE = join(ROOT, 'demo-data', 'energietracker-demo-backup.json');
 function showcase() {
   const P = 'showcase';
   const d = structuredClone(DEMO);
+  d.temperatures = structuredClone(TEMPS_RAD);   // v3.13.0 (Paket sonne, C2) — Einstrahlung je Tag (RAD)
   const ANNA = 'Anna', PAUL = 'Paul';
   const rem = (id) => d.reminders.find(r => r.id === id);
   rem('rem_demo0001').assignee = PAUL;
@@ -2113,6 +2138,18 @@ function appendToDirectoryArray(source, marker, items) {
 }
 
 /** Wie BackupService schreibt (4 Leerzeichen); Beträge mit „.0“ bleiben so stehen wie im Original. */
+/**
+ * v3.13.0 (Paket sonne, C2) — `demo-data/temperatures.json` (Verzeichnisform) in ihrer bisherigen Schreibweise:
+ * zwei Leerzeichen, Kommazahlen mit Nachkommastelle (−2.0, wie PHP mit JSON_PRESERVE_ZERO_FRACTION), ohne
+ * Zeilenumbruch am Ende.
+ */
+function tempsDirJson(t) {
+  const num = (v) => (Number.isInteger(v) ? v.toFixed(1) : String(v));
+  return '{\n' + Object.entries(t).map(([day, e]) => `  ${JSON.stringify(day)}: {\n`
+    + Object.entries(e).map(([k, v]) => `    ${JSON.stringify(k)}: ${typeof v === 'number' ? num(v) : JSON.stringify(v)}`).join(',\n')
+    + '\n  }').join(',\n') + '\n}';
+}
+
 function showcaseJson(d) {
   return JSON.stringify(d, null, 4).replace(/("signup_bonus_eur": )(\d+)(\n)/g, '$1$2.0$3') + '\n';
 }
@@ -2367,6 +2404,25 @@ function inboxSample() {
 }
 
 /**
+ * v3.13.0 (Paket vertrag) — Schaufenster: Auszahlungen des Netzbetreibers an der Einspeisung (erfunden). Die
+ * Jahresabrechnung 2025 kam im Februar 2026 und zählt mit ihrem Zeitraum für 2025; der Abschlag für das erste
+ * Quartal 2026 zählt im laufenden Abrechnungsjahr. So zeigt die Saldo-Karte „Bereits ausgezahlt“ und
+ * „Noch offen“, die Liste darunter beide Einträge. Ohne Notiz (der Text bliebe in der Demo unübersetzt).
+ * Liefert die Datei der Verzeichnisform.
+ */
+function payoutsShowcase(d) {
+  const meter = 'm_pv_einspeisung_main';
+  const id = (k) => 'fip_' + hex(`showcase|feed-in-payout|${k}`, 12);
+  d.feed_in_payouts = [
+    { id: id('2025'), meter_id: meter, date: '2026-02-16', amount: 412.8, period_from: '2025-01-01', period_until: '2025-12-31',
+      note: '', source: 'manual', created_at: '2026-02-16T18:40:00+01:00' },
+    { id: id('2026-q1'), meter_id: meter, date: '2026-04-15', amount: 60, period_from: '2026-01-01', period_until: '2026-03-31',
+      note: '', source: 'manual', created_at: '2026-04-15T19:05:00+02:00' },
+  ];
+  return [[join(ROOT, 'demo-data', 'feed_in_payouts.json'), JSON.stringify(d.feed_in_payouts, null, 4) + '\n']];
+}
+
+/**
  * Schaufenster: das Beispieldokument im Posteingang (Beleg samt PDF und
  * geprüfter Auslesung). Liefert die Dateien der Verzeichnisform.
  */
@@ -2433,7 +2489,7 @@ function backup(p) {
     app_version: PERSONA_VERSION,
     exported_at: EXPORTED_AT,
     meta: { schema_version: SCHEMA, migrated_at: EXPORTED_AT, log: [{ step: 'persona-seed', persona: p.id, version: PERSONA_VERSION }] },
-    temperatures: TEMPS,
+    temperatures: TEMPS_RAD,   // v3.13.0 (Paket sonne, C2) — mit Einstrahlung
     settings: p.settings,
     reminders: p.reminders,
     recommendations_dismissed: [],
@@ -2451,6 +2507,8 @@ function backup(p) {
     people: p.people,
     // v3.7.0 — Posteingang (die Beispielhaushalte bringen keine Post mit, das Schaufenster schon)
     inbox: p.inbox ?? [],
+    // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung (die Beispielhaushalte bringen keine mit)
+    feed_in_payouts: p.feed_in_payouts ?? [],
     // v3.5.0 (N1026) — nur für DemoDataAligner (Stichtag relativ zu heute), wird nicht eingespielt
     ...(p.demoAlign ? { demo_align: p.demoAlign } : {}),
     utilities,
@@ -2542,6 +2600,7 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
   // v3.12.0 (m4b) — Angaben für Briefe: Absender im Haushalt, Anschrift und Nummern an den laufenden Verträgen
   const textOf4 = (file) => rightsFiles.find(([f]) => f === file)?.[1] ?? textOf3(file);
   const letterFiles = lettersShowcase(d, textOf4);
+  const payoutFiles = payoutsShowcase(d);   // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung
   const later = [...sparseFiles, ...conceptFiles, ...rightsFiles, ...letterFiles];
   const notIn = (...groups) => ([f]) => !groups.some(g => g.some(([s]) => s === f));
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
@@ -2552,10 +2611,12 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
     ...conceptFiles.filter(notIn(rightsFiles, letterFiles)),
     ...rightsFiles.filter(notIn(letterFiles)),
     ...letterFiles,
+    ...payoutFiles,
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'people.json'), JSON.stringify(d.people, null, 4) + '\n'],   // v3.6.0
+    [join(ROOT, 'demo-data', 'temperatures.json'), tempsDirJson(d.temperatures)],   // v3.13.0 (Paket sonne, C2) — mit Einstrahlung
     ...Object.entries(d.utilities).filter(([, b]) => b.bills?.length)
       .map(([k, b]) => [join(ROOT, 'demo-data', k, 'bills.json'), JSON.stringify(b.bills, null, 4) + '\n']),
   ];

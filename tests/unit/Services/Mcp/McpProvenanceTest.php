@@ -59,10 +59,13 @@ final class McpProvenanceTest extends McpReadTestCase
         self::assertSame('estimated', Provenance::monthCost(['interpolated' => true, 'reading_gap_estimated' => true]));
         self::assertSame('entered', Provenance::monthCost(['interpolated' => false]), 'gemessene Menge × eingetragener Preis');
 
-        // Anteile am Betrag: 1 000 gemessen, 3 000 verteilt; 1 kWh geschätzt fällt unter 0,5 % weg
+        // Anteile am Betrag: 1 000 gemessen, 3 000 verteilt; 1 kWh geschätzt liegt unter 0,5 %, ist aber die schwächste
+        // Herkunft: v3.13.0 — sie fällt nicht weg, sondern bleibt mit 0,6 % (Zahl-Objekt: 0,01), die Summe heißt geschätzt
         $rows = [['interpolated' => false, 'kwh' => 1000.0], ['interpolated' => true, 'kwh' => 3000.0],
                  ['interpolated' => true, 'reading_gap_estimated' => true, 'kwh' => 1.0]];
-        self::assertSame(['measured' => 0.25, 'distributed' => 0.75], array_map(fn($v) => round($v, 4), Provenance::partsOf($rows, 'kwh')));
+        self::assertSame(['measured' => 0.2485, 'distributed' => 0.7455, 'estimated' => 0.006], array_map(fn($v) => round($v, 4), Provenance::partsOf($rows, 'kwh')));
+        // ein kleiner Anteil, der nicht die schwächste Herkunft ist, fällt weiter weg: 1 kWh gemessen neben 3 000 verteilt
+        self::assertSame(['distributed' => 1.0], Provenance::partsOf([['interpolated' => false, 'kwh' => 1.0], ['interpolated' => true, 'kwh' => 3000.0]], 'kwh'));
         // ohne Menge nach Tagen
         self::assertSame(['measured' => 0.5, 'distributed' => 0.5],
             Provenance::partsOf([['interpolated' => false, 'days' => 10], ['interpolated' => true, 'days' => 10]], 'kwh'));

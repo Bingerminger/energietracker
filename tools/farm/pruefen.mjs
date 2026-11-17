@@ -12,7 +12,7 @@ import { request as httpsRequest } from 'node:https';
 import { randomBytes } from 'node:crypto';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { erwartung } from './lib.mjs';
+import { erwartung, integrationVersion, sensorAbweichungen } from './lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const E = process.env;
@@ -36,6 +36,8 @@ const HA_NEU_INTERN = 'http://ha-neu:8123';
 const PROJECT = E.FARM_PROJECT || 'et-farm';
 const COMPOSE_FILE = E.FARM_COMPOSE_FILE || join(ROOT, 'tools', 'farm', 'compose.yml');
 const INTEGRATION = E.FARM_INTEGRATION || join(E.HOME || '', 'Code', 'energietracker-hacs');
+// Welche Sensoren erwartet werden, hängt an der Version der Integration (1.1.0: Tank, Gruppe, Auszahlungen)
+const INTEGRATION_VERSION = integrationVersion(INTEGRATION);
 const PROXY_PASSWORT = 'farm-proxy-123';   // Caddyfile in compose.yml
 
 const VERSION = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();
@@ -132,6 +134,11 @@ async function gesundheitUndVersion() {
     check(`health 200 und Version ${VERSION}`, d.version === VERSION, `Version ${d.version}, Status ${d.status}`);
     check('health ohne Fehler', d.status === 'ok' || d.status === 'degraded', String(d.status));
     check('Datenverzeichnis beschreibbar', d.data_dir_writable === true);
+    // v3.13.0 — ein frisches Datenverzeichnis sagt es (`data_initialized: false`) und nennt das Schema, das der
+    // erste gewöhnliche Aufruf anlegt; bis v3.12 stand dort „?“
+    check(`frisches Datenverzeichnis ehrlich gemeldet (data_initialized, Schema ${SCHEMA})`,
+        typeof d.data_initialized === 'boolean' && (d.data_initialized || (d.schema_version === SCHEMA && d.data_initialized_at === null)),
+        `data_initialized ${d.data_initialized}, Schema ${d.schema_version}`);
     const g = await warten('HEALTHCHECK', 90, async () => (gesundheit('energietracker') === 'healthy' ? 'healthy' : null))
         .catch(() => gesundheit('energietracker'));
     check('Container meldet healthy (HEALTHCHECK des Images)', g === 'healthy', g);
@@ -148,11 +155,11 @@ async function beispielhaushalt() {
     check('Übersicht mit Zählern aller acht Verbrauchsarten', s.status === 200 && arten.size === 8,
         `${meters.length} Zähler, ${arten.size} Arten`);
     stand.summary = s.d;
-    // Das Schema steht erst nach dem ersten gewöhnlichen Aufruf in meta.json (ein frisches
-    // Datenverzeichnis meldet bis dahin „?“), deshalb erst hier
+    // Das Schema steht erst nach dem ersten gewöhnlichen Aufruf in meta.json; seit v3.13.0 sagt health
+    // vorher `data_initialized: false`, hier muss das Verzeichnis eingerichtet sein
     const h = (await api(ET, 'GET', '/health')).d || {};
-    check(`Schema ${SCHEMA}, keine Migration offen`, h.schema_version === SCHEMA && Number(h.migrations_pending) === 0,
-        `Schema ${h.schema_version}`);
+    check(`Schema ${SCHEMA}, eingerichtet, keine Migration offen`, h.schema_version === SCHEMA && h.data_initialized === true
+        && Number(h.migrations_pending) === 0, `Schema ${h.schema_version}, data_initialized ${h.data_initialized}`);
 }
 
 // ── 3. Lesende Probe (Idee der ACC-Probe: nur GET, nur Struktur) ────────────
@@ -269,10 +276,11 @@ async function webserverApache(name, base, php) {
     const s0 = await api(apiB, 'GET', '/summary');
     const arten0 = new Set((s0.d?.meters ?? []).map((m) => m.utility));
     check('Erststart: Standardzähler Strom, Gas, Wasser', ['strom', 'gas', 'wasser'].every((u) => arten0.has(u)), [...arten0].join(', '));
-    // Doku (home-assistant.md, Schritt 3): „Wenn dein Webserver eine Rewrite-Regel hat
-    // (Apache .htaccess / nginx), geht auch …/api/ingest.“ Die .htaccess leitet /api/ nicht um.
-    const ohne = await http('GET', `${base}/api/health`);
-    hinweis(`ohne api.php: GET /api/health → HTTP ${ohne.status} (die mitgelieferte .htaccess schreibt /api/ nicht auf api.php um)`);
+    // Doku (home-assistant.md, Schritt 3): Seit v3.13.0 schreibt die mitgelieferte .htaccess
+    // /api/… auf api.php um (mit mod_rewrite), wie nginx. Vorher gab …/api/… hier 404.
+    const ohne = await api(base, 'GET', '/health');
+    check('ohne api.php: GET /api/health (.htaccess schreibt /api/ auf api.php um)',
+        ohne.status === 200 && ohne.d?.version === VERSION, `HTTP ${ohne.status}`);
 
     const imp = await api(apiB, 'POST', '/demo/import', { json: { force: true, persona: 'showcase' }, timeout: 120000 });
     check('Beispielhaushalt „showcase“ geladen', imp.status === 200 && imp.d?.persona === 'showcase', `HTTP ${imp.status}`);
@@ -302,6 +310,13 @@ async function webserverApache(name, base, php) {
     const mitTok = await push({ Authorization: `Bearer ${token}` });
     check('Push nach api.php/api/ingest: ohne Token 401, mit Token angenommen', token !== '' && ohneTok.status === 401 && [200, 201].includes(mitTok.status),
         `ohne ${ohneTok.status}, mit ${mitTok.status} ${mitTok.data?.code ?? ''}`);
+    // v3.13.0 — derselbe Push über …/api/ingest (Umschreiben in der .htaccess); der Token
+    // muss auch nach dem internen Umschreiben bei PHP ankommen
+    const push2 = (hdr) => api(base, 'POST', '/ingest', { headers: hdr, json: { utility: 'strom', meter: strom?.meter_id, value: wert + 1 } });
+    const ohneTok2 = await push2({});
+    const mitTok2 = await push2({ Authorization: `Bearer ${token}` });
+    check('Push nach /api/ingest (ohne api.php): ohne Token 401, mit Token angenommen', ohneTok2.status === 401 && [200, 201].includes(mitTok2.status),
+        `ohne ${ohneTok2.status}, mit ${mitTok2.status} ${mitTok2.data?.code ?? ''}`);
 
     // MCP mit api.php im Pfad (ki-assistent.md, Schritt 3)
     await api(apiB, 'PATCH', '/settings', { json: { mcp_enabled: true } });
@@ -311,6 +326,17 @@ async function webserverApache(name, base, php) {
         json: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'et-farm', version: VERSION } } },
     });
     check('MCP über api.php/api/mcp: initialize', init.status === 200 && typeof init.data?.result?.protocolVersion === 'string', `HTTP ${init.status}`);
+
+    // v3.13.0 — große Körper (VirtualHost der Doku: 8 MB, 256 MB nur für die Importe per LocationMatch):
+    // 9 MB an den Backup-Import kommen über api.php/api/… und über /api/… (Umschreiben) bei PHP an.
+    // Ein ungültiges Backup: Die App lehnt es selbst ab, eingespielt wird nichts.
+    const gross = { farm_padding: 'x'.repeat(9 * 1048576) };
+    for (const [wie, b] of [['api.php/api/backup/import', apiB], ['/api/backup/import (ohne api.php)', base]]) {
+        let r = null;
+        try { r = await http('POST', `${b}/api/backup/import`, { json: gross, timeout: 120000 }); } catch { /* Verbindung abgebrochen */ }
+        check(`9 MB an ${wie}: bei der App angekommen (kein 413)`, r !== null && r.status !== 413 && r.data?.success === false,
+            r ? `HTTP ${r.status} ${r.data?.code ?? ''}` : 'Verbindung abgebrochen');
+    }
 
     // Lesende Probe samt gesperrter Pfade (data/ mit echter settings.json, .git/HEAD liegt im Webroot)
     await lesendeProbe(base, {}, { apiBase: apiB });
@@ -622,7 +648,7 @@ async function homeAssistant(name, dienst, base, { schluessel = null } = {}) {
 
     const summary = (await api(ET, 'GET', '/summary', { headers: schluessel ? { Authorization: `Bearer ${schluessel}` } : {} })).d;
     const todo = (await api(ET, 'GET', '/todo', { headers: schluessel ? { Authorization: `Bearer ${schluessel}` } : {} })).d;
-    const soll = erwartung(summary);
+    const soll = erwartung(summary, INTEGRATION_VERSION);
     let reg;
     try {
         reg = await warten(`${name}: Sensoren`, 90, async () => {
@@ -640,30 +666,21 @@ async function homeAssistant(name, dienst, base, { schluessel = null } = {}) {
     const anlage = geraete.find((d) => d.name === 'Energietracker' && (d.identifiers ?? []).some(([dom, id]) => dom === 'energietracker' && id === summary?.instance_id));
     check(`${name}: Gerät „Energietracker“ mit Version ${VERSION}`, anlage?.sw_version === VERSION, String(anlage?.sw_version ?? 'fehlt'));
 
-    // Werte: jeder Sensor zeigt die Zahl der API, leer („unknown“) nur, wo die API null liefert
+    // Werte: jeder Sensor zeigt die Zahl der API, leer („unknown“) nur, wo die API null liefert; ab Integration
+    // 1.1.0 auch die Einheit der neuen Sensoren. Ein Sensor, den die Erwartung nicht kennt, ist ein Fehler.
     const states = await http('GET', `${base}/api/states`, { headers: auth });
-    const zustand = new Map((Array.isArray(states.data) ? states.data : []).map((s) => [s.entity_id, s.state]));
-    const prefix = `${summary?.instance_id}_`;
-    const falsch = []; let leer = 0;
-    for (const e of reg.sensoren) {
-        const uid = String(e.unique_id ?? '');
-        const sw = uid.startsWith(prefix) ? uid.slice(prefix.length) : uid;
-        const ist = zustand.get(e.entity_id);
-        if (sw === 'todo_count') {
-            if (Number(ist) !== Number(todo?.count)) falsch.push(`${sw}=${ist}`);
-            continue;
-        }
-        if (!soll.werte.has(sw)) continue;   // die übrigen Sensoren von „Zu tun“
-        const wert = soll.werte.get(sw);
-        if (wert === null) {
-            leer++;
-            if (ist !== 'unknown') falsch.push(`${sw}=${ist} statt leer`);
-        } else if (!(Math.abs(Number(ist) - Number(wert)) <= 1e-6 * Math.max(1, Math.abs(Number(wert))))) {
-            falsch.push(`${sw}=${ist} statt ${wert}`);
-        }
-    }
+    const zustand = new Map((Array.isArray(states.data) ? states.data : []).map((s) => [s.entity_id, s]));
+    const { falsch, leer, einheitenGeprueft } = sensorAbweichungen(reg.sensoren, zustand, summary, todo, INTEGRATION_VERSION);
     check(`${name}: Werte wie /api/summary und /api/todo, leer nur bei null`, falsch.length === 0,
-        falsch.length ? falsch.slice(0, 4).join(', ') : `${leer} leer`);
+        falsch.length ? falsch.slice(0, 4).join(', ') : `${leer} leer${soll.ab11 ? `, ${einheitenGeprueft} Einheiten` : ''}`);
+    // Integration 1.1.0: Der Beispielhaushalt bringt jede neue Art mit (Heizöl und Pellets, HT/NT-Gruppe mit
+    // Gruppenvertrag, Einspeisung mit Auszahlungen); fehlt eine, prüft die Zeile darüber sie nicht mit.
+    if (soll.ab11) {
+        const n = soll.neu;
+        check(`${name}: Sensoren der Integration 1.1.0 (Tank, Prognose der Gruppe, Auszahlungen) aus /api/summary`,
+            n.tank >= 4 && n.gruppenPrognose >= 2 && n.auszahlungen >= 3 && einheitenGeprueft === n.tank + n.gruppenPrognose + n.auszahlungen,
+            `Tank ${n.tank}, Gruppe ${n.gruppenPrognose}, Auszahlungen ${n.auszahlungen}, Einheiten ${einheitenGeprueft}`);
+    }
     const fehlerLog = logZeilen(dienst, /(ERROR|Traceback).*energietracker|custom_components\/energietracker/i, 4);
     check(`${name}: keine Fehler der Integration im Protokoll`, fehlerLog.length === 0, fehlerLog.join(' | ').slice(0, 300));
 }
@@ -862,8 +879,7 @@ async function abmelden(cookie) {
 
 // ── Ablauf ──────────────────────────────────────────────────────────────────
 const start = Date.now();
-let integration = '?';
-try { integration = JSON.parse(readFileSync(join(INTEGRATION, 'custom_components', 'energietracker', 'manifest.json'), 'utf8')).version; } catch { /* unbekannt */ }
+const integration = INTEGRATION_VERSION ?? '?';
 console.log(`Test-Farm: Energietracker ${VERSION} aus dem Arbeitsstand, Integration ${integration}, Home Assistant ${E.FARM_HA_NEU || 'stable'} und ${E.FARM_HA_ALT || '?'}`);
 
 await abschnitt('Energietracker: Gesundheit und Version', gesundheitUndVersion);

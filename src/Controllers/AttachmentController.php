@@ -5,6 +5,7 @@ namespace Energietracker\Controllers;
 
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
+use Energietracker\Http\UploadBody;
 use Energietracker\Services\AttachmentService;
 use Energietracker\Services\I18nService;
 use Energietracker\Services\OcrService;
@@ -13,8 +14,8 @@ use Energietracker\Support\LocalizedException;
 /**
  * v3.1.0 (Paket H2, B1) — Belege hochladen, ausliefern, auflisten, löschen.
  *
- * Upload als roher Body (kein multipart): `POST /api/attachments?kind=reading_photo`
- * mit dem Bild oder PDF. Den Typ bestimmt der Inhalt, nicht der Content-Type.
+ * Upload als roher Body: `POST /api/attachments?kind=reading_photo` mit dem Bild oder PDF, seit v3.13.0 auch als
+ * Formular (Http\UploadBody). Den Typ bestimmt der Inhalt, nicht der Content-Type.
  */
 final class AttachmentController
 {
@@ -50,24 +51,16 @@ final class AttachmentController
     public function create(Request $req): never
     {
         $name = $req->queryParam('name');
-        // Größer als post_max_size: PHP liefert einen leeren Körper — das ist
-        // „zu groß", nicht „falscher Typ"
-        $length = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
-        if ($req->rawBody === '' && $length > 0) {
-            throw new LocalizedException('errors.attachment.size',
-                ['max' => max(1, (int)floor(self::iniBytes((string)ini_get('post_max_size')) / 1048576))], 'body over post_max_size');
-        }
-        $entry = $this->attachments->store($req->rawBody, (string)$req->queryParam('kind', 'other'), $name);
+        // v3.13.0 — eine Art außerhalb der Liste ist ein Fehler, nicht still „other“ (`rechnung` statt `bill_pdf`);
+        // ohne Angabe bleibt es „other“
+        $kind = (string)$req->queryParam('kind', 'other');
+        AttachmentService::assertKind($kind);
+        // v3.13.0 — roh oder als Formular (Feld `file` oder die einzige Datei; der Dateiname gilt, wenn `&name=` fehlt);
+        // Grenzen von PHP heißen „zu groß“ mit der Grenze, die griff. Dieselbe Regel wie im Posteingang (UploadBody).
+        [$bytes, $fileName] = UploadBody::read($req);
+        $name ??= $fileName;
+        $entry = $this->attachments->store($bytes, $kind, $name);
         Response::json($entry, 201);
-    }
-
-    /** „8M" → Bytes */
-    private static function iniBytes(string $v): int
-    {
-        $n = (int)$v;
-        return match (strtolower(substr(trim($v), -1))) {
-            'g' => $n * 1073741824, 'm' => $n * 1048576, 'k' => $n * 1024, default => $n,
-        };
     }
 
     /**

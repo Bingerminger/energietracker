@@ -636,8 +636,9 @@ the reading with the receipt's ID. Fields, limits and error codes:
 
 ### Upload a photo — `POST /api/attachments`
 
-The file goes as the **raw body**, not as a form (`multipart`). The server
-determines the type from the content; the `Content-Type` is mere courtesy.
+The file goes as the **raw body** or *(v3.13.0)* as a form
+(`curl -F file=@zaehler.jpg …`). The server determines the type from the
+content; the `Content-Type` is mere courtesy.
 
 ```bash
 curl -X POST --data-binary @zaehler.jpg -H 'Content-Type: image/jpeg' \
@@ -793,7 +794,7 @@ Strict F4 validation: half-filled sub-rows (e.g. `{from: "2025-01-01"}` without
 Monthly consumption **utility-wide** (aggregated over all meters).
 
 **Query parameters:**
-- `hdd_base` (optional, float) — overrides the HDD base temperature for this one
+- `hdd_base` (optional, float) — overrides the heating limit for this one
   response
 
 **Response:**

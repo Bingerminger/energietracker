@@ -107,6 +107,14 @@ Guthaben steht vom kleineren zum größeren Betrag, wie an der Saldo-Karte. Der
 Arbeitspreis im Mittel auf der Seite einer Verbrauchsart zählt nur Monate mit
 Vertrag oder eigenem Preis.
 
+*(seit v3.13.0)* **Fehlt einem Vertrag der Arbeitspreis** (ganz oder in Monaten des
+Jahres), sagt der Bericht „Preis fehlt“ wie Saldo-Karte und Abrechnungsjahr: Er
+verspricht zur Abrechnung kein Guthaben, die Ampel „Abrechnung“ urteilt nicht, und die
+Kosten dieser Verbrauchsart zählen in Kacheln, Kosten je Art und Monat nicht mit (sie
+wären nur der Grundpreis oder ein Teil der Monate). Ebenso beim **Mietverhältnis ohne
+Preise**: Ohne Preis für einen zugeordneten Zähler oder ohne Zähler mit Preis und ohne
+pauschale Kosten nennt der Bericht kein Guthaben aus der ganzen Vorauszahlung.
+
 ## 4. Aufgaben: Priorität, Betrag, Frist
 
 Jede Aufgabe nennt ihren Grund mit den eigenen Zahlen, was sie bringt oder

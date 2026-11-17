@@ -293,8 +293,10 @@ final class AgendaService
                     // v3.7.0 — Fristen des Vertrags: seine Zuständige, sonst die des Zählers
                     $who = $this->who(null, $raw[$cid] ?? null, $meter);
 
-                    // v3.4.0 (F1024) — nur ein datierter Stichtag (s. Klassenkommentar)
-                    $cancel = ContractService::hasFixedCancelBy($raw[$cid] ?? [], $renewed) ? ($c['cancel_by'] ?? null) : null;
+                    // v3.4.0 (F1024) — nur ein datierter Stichtag (s. Klassenkommentar); v3.13.0 — auch der feste
+                    // Kündigungstag der Verlängerung nach § 32 AVBFernwärmeV (`notice_basis: renewal_term`)
+                    $cancel = ContractService::hasFixedCancelBy($raw[$cid] ?? [], $renewed, isset($c['notice_basis']) ? (string)$c['notice_basis'] : null)
+                        ? ($c['cancel_by'] ?? null) : null;
                     if ($cancel !== null && $cancel >= $today && ($cancel <= $until || ($remind && $basis === 'cancel_by'))) {
                         $due = $remind && $basis === 'cancel_by';
                         // v3.9.0 (L14) — Folgevertrag bei einem anderen Versorger: Der Wechsel ist
@@ -557,6 +559,9 @@ final class AgendaService
     public function markDone(array $in): array
     {
         if ($this->activity === null) throw new \LogicException('activity log not attached');
+        // v3.13.0 — Typen vorab: `occurrence` als Liste ergab 500, „gekündigt“ las `!empty()` („false“ war ja)
+        \Energietracker\Support\Input::assertTexts($in, ['uid', 'occurrence']);
+        $cancelled = \Energietracker\Support\Input::flag($in['cancelled'] ?? false, 'cancelled');
         $uid = is_scalar($in['uid'] ?? null) ? (string)$in['uid'] : '';
         $event = null;
         foreach ($uid === '' ? [] : $this->events(730) as $e) {
@@ -582,7 +587,7 @@ final class AgendaService
         }
 
         $revert = null;
-        if ($event['kind'] === 'cancel_by' && !empty($in['cancelled'])) {
+        if ($event['kind'] === 'cancel_by' && $cancelled) {
             $u = (string)$event['ref']['utility'];
             $cid = (string)$event['ref']['contract_id'];
             $c = $this->contracts->get($u, $cid);

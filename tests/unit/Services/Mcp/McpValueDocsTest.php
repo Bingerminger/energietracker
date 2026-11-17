@@ -163,8 +163,8 @@ final class McpValueDocsTest extends McpTestCase
         }
         self::assertStringContainsString("docUrl('aiAssistant', 'mehrwert')", $card);
         foreach (self::GUIDES as $rel) self::assertStringContainsString('<a id="mehrwert"></a>', self::file($rel), "$rel: Sprungmarke");
-        // „Neu in vX.Y“ führt dorthin
-        self::assertStringContainsString('?mcp=value', self::file('public/js/lib/demo-mode.js'));
+        // die Karte behält ihre Sprungmarke `mcp=value` (in v3.12 führte „Neu in vX.Y“ der Demo dorthin; seit v3.13
+        // zeigt der Hinweis auf die Hauptfunktion des jeweiligen Release, geprüft in tests/zutun-verbindungen.test.mjs)
         self::assertStringContainsString('mcp=value', $card);
         // nur Texte aus dem Katalog, nichts gerechnet: keine Aufrufe von api.* im Baustein
         $start = strpos($card, 'function renderValue()');

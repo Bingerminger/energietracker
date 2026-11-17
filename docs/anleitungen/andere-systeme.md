@@ -29,7 +29,7 @@ Die Beispiele verwenden `192.168.178.10:8080` als Adresse — setze deine ein.
 
 | | |
 |---|---|
-| Adresse | `http://<host>:<port>/api.php/api/ingest` — funktioniert immer; `…/api/ingest` nur mit Rewrite-Regel (im Docker-Image beides) |
+| Adresse | `http://<host>:<port>/api.php/api/ingest` — funktioniert immer; `…/api/ingest` nur mit Rewrite-Regel (im Docker-Image und *(seit v3.13.0)* mit der mitgelieferten `.htaccess` beides) |
 | Methode | `POST` |
 | Kopfzeilen | `Content-Type: application/json`; `Authorization: Bearer et_…`, sobald ein Token existiert |
 | Body, einzeln | `{"utility": "strom", "meter": "strom_haus", "value": 12345.6, "date": "2026-10-07"}` — `value` heißt auch `counter`; `date` ist optional (Standard: heute) |

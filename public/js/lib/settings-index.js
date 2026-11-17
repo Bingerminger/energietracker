@@ -47,6 +47,8 @@ export const PLACES = {
 
 // key: Schlüssel der Einstellung oder Name der Stelle; field: Sprungmarke (`data-field`, `data-key`);
 // also: weitere Schlüssel, die hier wohnen; terms: Katalogtexte, die mitgesucht werden
+/** v3.13.0 — Karte „Standort (für Open-Meteo)“ unter Verbindungen › Wetterdaten; die Einrichtung nennt sie „Wetterort“. */
+const WEATHER_PLACE = ['temperatures.location', 'setup.region.weather', 'temperatures.locHint'];
 const EXTRA = [
   // Für dich
   { key: 'ui_level', label: 'level.switch', place: 'general', field: 'ui_level', terms: ['settings.level.title', 'settings.level.hint'] },
@@ -99,10 +101,12 @@ const EXTRA = [
   { key: 'ha_notify_events', label: 'settings.haNotify.events', place: 'haNotify', field: 'ha_notify_events' },
   { key: 'ha_notify_hour', label: 'settings.haNotify.hour', place: 'haNotify', field: 'ha_notify_hour' },
   // Wetter, Kalender, KI, Schlüssel
-  { key: 'location_name', label: 'settings.field.location_name.label', place: 'weather', field: 'location_name' },
-  { key: 'latitude', label: 'settings.field.latitude.label', place: 'weather', field: 'latitude' },
-  { key: 'longitude', label: 'settings.field.longitude.label', place: 'weather', field: 'longitude' },
-  { key: 'weather_auto_fill', label: 'settings.field.weather_auto_fill.label', place: 'weather', field: 'weather_auto_fill' },
+  // v3.13.0 — der Standort auch unter der Überschrift seiner Karte („Standort (für Open-Meteo)“), unter dem Namen der
+  // Einrichtung („Wetterort“) und mit den Beschriftungen der Seite; bis v3.12 fand „Wetterort“ nichts
+  { key: 'location_name', label: 'settings.field.location_name.label', place: 'weather', field: 'location_name', terms: [...WEATHER_PLACE, 'temperatures.locName', 'temperatures.geoLabel'] },
+  { key: 'latitude', label: 'settings.field.latitude.label', place: 'weather', field: 'latitude', terms: [...WEATHER_PLACE, 'temperatures.lat'] },
+  { key: 'longitude', label: 'settings.field.longitude.label', place: 'weather', field: 'longitude', terms: [...WEATHER_PLACE, 'temperatures.lng'] },
+  { key: 'weather_auto_fill', label: 'settings.field.weather_auto_fill.label', place: 'weather', field: 'weather_auto_fill', terms: [...WEATHER_PLACE, 'settings.field.weather_auto_fill.hint'] },
   { key: 'calendar', label: 'connections.calendar.title', place: 'connections:calendar', terms: ['calendar.intro'] },
   { key: 'mcp_enabled', label: 'settings.mcp.enabled', place: 'connections:ai', field: 'mcp_enabled', admin: true, terms: ['settings.mcp.title', 'settings.mcp.enabledHint'] },
   { key: 'mcp_share_identifiers', label: 'settings.mcp.shareIdentifiers', place: 'connections:ai', field: 'mcp_share_identifiers', admin: true },
@@ -143,7 +147,9 @@ export function buildIndex(groups) {
     const p = PLACES[place];
     const where = [text(p.area), text(p.title)].join(' › ');
     const target = href ? href() : field ? `${p.href}${p.href.includes('?') ? '&' : '?'}field=${field}` : p.href;
-    const hay = [title, where, key, ...also, ...terms.map(x => (x.startsWith('=') ? x.slice(1) : text(x)))];
+    // v3.13.0 — `settings.search.alias.<key>`: frühere Namen je Sprache (aus v3.12 „HGT-Basistemperatur“ für die
+    // Heizgrenze); wer den alten Namen kennt, sucht ihn. Die Liste der alten Namen steht in tests/fixtures/termbase.json
+    const hay = [title, where, key, ...also, ...[...terms, `settings.search.alias.${key}`].map(x => (x.startsWith('=') ? x.slice(1) : text(x)))];
     out.push({ key, title, where, href: target, level: higher(viewLevel(p.gate), level || 'beginner'), admin, login, apiOnly, haystack: normalize(hay.join(' ')) });
   };
   for (const g of groups) {

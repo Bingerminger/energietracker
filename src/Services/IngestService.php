@@ -140,11 +140,13 @@ final class IngestService
 
         // Upsert-by-date: existiert schon eine Ablesung dieses Zählers am
         // selben Tag, wird sie aktualisiert; sonst neu angelegt.
+        // v3.13.0 (K2d) — gesucht unter allem Gespeicherten: Ein Stand desselben Tags, den die Rechnung auslässt
+        // (etwa 10³⁰⁰ aus einer älteren Version), wird ersetzt statt verdoppelt
         $existing = null;
-        $readings = $this->readings->list($utility, $meterId);
-        foreach ($readings as $r) {
+        foreach ($this->readings->stored($utility, $meterId) as $r) {
             if (($r['date'] ?? null) === $date) { $existing = $r; break; }
         }
+        $readings = $this->readings->list($utility, $meterId);
 
         // v2.6.0 — Ein Stand unter dem letzten desselben Geräts wird
         // angenommen, aber als verdächtig markiert: Die Antwort bleibt 201 bzw.
@@ -158,28 +160,33 @@ final class IngestService
         $suspect  = $previous !== null && $value < (float)$previous['counter']
             && ConsumptionService::rolloverAmount((float)$previous['counter'], $value, $this->meters->deviceOnDate($meter, $date)) === null;
 
-        // v3.3.0 (F1021) — mit Zeitstempel: Verbrauch je Viertelstunde (nicht bei Verdacht)
-        $slots = ($at !== null && !$suspect && $this->intervals !== null)
-            ? $this->intervals->addCounterSample($utility, $meterId, $at->getTimestamp(), $value) : null;
-
+        // v3.13.0 — erst die Ablesung (sie prüft Stand und Tag), dann die Viertelstunden. Bisher setzte der Weg
+        // den Stützwert und verteilte Viertelstunden, bevor die Prüfung des Stands warf: Ein abgewiesener Stand
+        // (400, etwa negativ oder über 10¹²) hinterließ trotzdem einen Stützwert, und die Viertelstunde davor
+        // bzw. danach bekam die Differenz zum Störwert.
         if ($existing !== null) {
-            $updated = $this->readings->update($utility, (string)$existing['id'], [
+            $saved = $this->readings->update($utility, (string)$existing['id'], [
                 'counter'    => $value,
                 'is_suspect' => $suspect,
                 'source'     => 'ingest',
             ]);
-            return $this->result('updated', $utility, $meterId, $date, $updated, $suspect, $previous) + ($slots !== null ? ['intervals' => $slots] : []);
+            $status = 'updated';
+        } else {
+            $saved = $this->readings->create($utility, [
+                'meter_id'   => $meterId,
+                'date'       => $date,
+                'counter'    => $value,
+                'note'       => 'Home Assistant',
+                'source'     => 'ingest',
+                'is_suspect' => $suspect,
+            ]);
+            $status = 'created';
         }
 
-        $created = $this->readings->create($utility, [
-            'meter_id'   => $meterId,
-            'date'       => $date,
-            'counter'    => $value,
-            'note'       => 'Home Assistant',
-            'source'     => 'ingest',
-            'is_suspect' => $suspect,
-        ]);
-        return $this->result('created', $utility, $meterId, $date, $created, $suspect, $previous) + ($slots !== null ? ['intervals' => $slots] : []);
+        // v3.3.0 (F1021) — mit Zeitstempel: Verbrauch je Viertelstunde (nicht bei Verdacht)
+        $slots = ($at !== null && !$suspect && $this->intervals !== null)
+            ? $this->intervals->addCounterSample($utility, $meterId, $at->getTimestamp(), $value) : null;
+        return $this->result($status, $utility, $meterId, $date, $saved, $suspect, $previous) + ($slots !== null ? ['intervals' => $slots] : []);
     }
 
     /** Obergrenze eines Stapels (API-34). */

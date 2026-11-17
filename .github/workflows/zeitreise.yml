@@ -1,0 +1,72 @@
+name: Zeitreise
+
+# v3.13.0 — die Runde unter verstellter Uhr (tools/zeitreise.sh, libfaketime) an drei Stichtagen, an denen schon
+# Tests kippten: 15.01. (Abrechnungsjahr ab 01.01. noch ohne gemessenen Teil), 31.12. 23:30 UTC (in der Ortszeit
+# schon Neujahr) und 01.03. (nach dem Februar). PHPUnit auf einer PHP-Version und die Node-Suiten mit Kalenderbezug
+# (feste Beispieldaten, Demo, Listen); die Layout-Suiten mit Chromium bleiben beim echten Tag.
+#
+# Eigener Workflow statt eines Jobs in ci.yml (Entscheidung 2026-11-12): Die Runde dauert 40 bis 50 Minuten und
+# soll nicht jeden Push und das Tor vor einem Release aufhalten. Sie läuft einmal pro Woche und auf Knopfdruck
+# (Actions › Zeitreise › Run workflow); die ganze Runde mit elf Stichtagen läuft weiter lokal vor jedem Release.
+# v3.12.0 lief Browser-Render (mit Sichten) unter libfaketime auf den Runnern unzuverlässig, welche der beiden
+# flackerte, ist nicht festgehalten: Wird der Lauf unruhig, zuerst `browser-render` aus ZR_NODE nehmen (es läuft
+# weiter mit echter Uhr in ci.yml und lokal in der ganzen Zeitreise).
+
+on:
+  schedule:
+    - cron: '23 2 * * 0'   # sonntags 02:23 UTC
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  zeitreise:
+    name: Zeitreise (verstellte Uhr)
+    runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Berlin
+      # die monotone Uhr bleibt echt: Zeitgeber in Node und PHP laufen wie ohne Zeitreise
+      FAKETIME_DONT_FAKE_MONOTONIC: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: PHP einrichten (8.4)
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: mbstring, json
+          coverage: none
+
+      - name: Node.js einrichten (24)
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Composer-Cache
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php8.4-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.4-
+
+      - name: Composer-Dependencies, jsdom und libfaketime installieren
+        run: |
+          composer install --no-progress --no-interaction --prefer-dist
+          npm install jsdom
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq faketime
+
+      - name: Zeitreise (15.01., 31.12. 23:30 UTC, 01.03.)
+        run: bash tools/zeitreise.sh 19200 jan15 silvester-utc mar01
+        env:
+          ZR_NODE: 'frontend-api-shape|browser-render|demo\.test|lists'
+          ZR_LOGDIR: /tmp/zeitreise
+
+      - name: Protokolle der Zeitreise (Diagnose)
+        if: failure()
+        run: tail -n 60 /tmp/zeitreise/*.log || true

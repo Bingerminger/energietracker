@@ -211,7 +211,7 @@ export async function demoFreshStart() {
  * v3.12.0 — Hauptfunktion des laufenden Release für die Hinweisleiste (Text `demo.news`).
  * Beim Release mitziehen. Passt die Version nicht mehr, schweigt die Zeile, statt Altes als neu zu nennen.
  */
-export const DEMO_NEWS = { version: '3.12', href: '#/connections/ai?mcp=value' };
+export const DEMO_NEWS = { version: '3.13', href: '#/forecast' };   // v3.13.0 — Speicher, Wallbox und HT/NT in der Prognose
 
 /** Zeile „Neu in vX.Y“ für diese Version oder null. */
 export function demoNews(version, news = DEMO_NEWS) {

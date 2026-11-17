@@ -27,6 +27,16 @@
   # Punktdateien und -verzeichnisse: .git, .github, .env, .htaccess …
   RewriteRule (^|/)\. - [R=404,L]
   RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$ - [R=404,L]
+  # v3.13.0 — /api/… geht an api.php wie bei nginx (docker/nginx.conf), etwa
+  # …/api/ingest für Home Assistant. Intern umgeschrieben, keine Weiterleitung:
+  # REQUEST_URI bleibt /api/…, Request zieht das Verzeichnis von SCRIPT_NAME ab
+  # (auch im Unterverzeichnis), den Token liest es auch aus
+  # REDIRECT_HTTP_AUTHORIZATION. Das Ziel ist api.php/api/…, nicht nur api.php:
+  # Apache prüft die Größe des Körpers am Ziel, und nur so greift die Ausnahme
+  # für die Importe (LocationMatch in docs/betrieb/webserver.md; Farm: 9 MB
+  # an /api/backup/import gaben mit dem Ziel api.php 413). Ohne mod_rewrite
+  # bleibt /api/… ein 404, dann geht nur …/api.php/api/… (home-assistant.md, Schritt 3).
+  RewriteRule ^api(/.*)?$ api.php/api$1 [L]
 </IfModule>
 
 # ── v3.4.0 (N1020) — Rückfall ohne mod_rewrite ─────────────────────────

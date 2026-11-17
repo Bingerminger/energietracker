@@ -8,6 +8,7 @@ import { t, hasTranslation, getCurrencySymbol } from '../lib/i18n.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { yearMap, yearsText } from '../lib/region.js';
 import { disclosureHtml } from '../components/disclosure.js';
+import { info } from '../components/info.js';   // v3.13.0 (Paket wechsel) — `info` an einer Gruppe
 import { icon } from '../lib/icons.js';
 import { sessionRole } from '../lib/levels.js';
 
@@ -57,10 +58,13 @@ export const GROUPS = [
   ]},
   // v3.12.0 (m4b) — Angaben für Briefe (freiwillig): Der Brief-Dialog füllt Absender und Lieferanschrift vor.
   // Bleiben in den eigenen Daten und im Backup; KI und Posteingang bekommen sie nie (SettingsService::LETTER_KEYS).
+  // v3.13.0 — `letters_admin_only`: mit Anmeldung ändert auf Wunsch nur ein Verwalter die drei Angaben
+  // (`lockedBy`: für Mitglieder gesperrt, solange der Schalter an ist; der Server prüft dasselbe)
   { gkey: 'letters', page: 'household:building', icon: 'brief', fields: [
-    { key: 'letter_sender_name', type: 'text', maxlength: 60, autocomplete: 'name' },
-    { key: 'letter_sender_address', type: 'lines', rows: 3, autocomplete: 'street-address' },
-    { key: 'letter_supply_address', type: 'text', maxlength: 60, placeholderKey: 'settings.placeholder.supplyAddress' },
+    { key: 'letter_sender_name', type: 'text', maxlength: 60, autocomplete: 'name', lockedBy: 'letters_admin_only' },
+    { key: 'letter_sender_address', type: 'lines', rows: 3, autocomplete: 'street-address', lockedBy: 'letters_admin_only' },
+    { key: 'letter_supply_address', type: 'text', maxlength: 60, placeholderKey: 'settings.placeholder.supplyAddress', lockedBy: 'letters_admin_only' },
+    { key: 'letters_admin_only', type: 'bool', admin: true },
   ]},
   // v3.1.0 (H3) — Mieter-Paket (F1008), Heizwärme (B8), Warmwasser (CALC-28)
   { gkey: 'tenancy', page: 'household:building', icon: 'schluessel', fields: [
@@ -95,6 +99,13 @@ export const GROUPS = [
     // rechnet dagegen nach einem, das Feld fehlte
     { key: 'billing_cycle_anchor_pv_einspeisung', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
   ]},
+  // v3.13.0 (Paket wechsel) — Abschlag zählen, eine Einstellung für alle Verträge (SettingsService::ADVANCE_COUNTING):
+  // tagesanteilig (Standard) oder ganze Rate am Fälligkeitstag. Tag und Warnung nur bei „ganze Rate“ (`showIf`).
+  // Ab Erfahren (Entscheidung des Maintainers 13.11.)
+  { gkey: 'advance', page: 'household:utilities', icon: 'geld', info: 'advance', level: 'advanced', fields: [
+    { key: 'advance_counting', type: 'select', options: ['pro_rata', 'due_day'], optionLabels: 'settings.advanceCounting' },
+    { key: 'advance_due_day', step: '1', showIf: ['advance_counting', 'due_day'] },
+  ], note: { key: 'settings.advanceCounting.warning', showIf: ['advance_counting', 'due_day'] } },
   { gkey: 'physical', page: 'household:utilities', icon: 'kolben', wide: true, level: 'advanced', fields: [
     // v2.5.0 — F1012: datierte Liste (Zustandszahl × Brennwert je Stichtag)
     // statt eines Skalars. Eigener Feldtyp, siehe renderGasFactors().
@@ -174,24 +185,28 @@ export const GROUPS = [
   ]},
   // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz (MKT-08)
   { gkey: 'attachments', page: 'data', icon: 'anhang', wide: true, level: 'expert', fields: [
-    { key: 'attachments_max_mb', unit: 'MB', step: '1' },
+    // v3.13.0 — eine Grenze für den ganzen Haushalt: mit Anmeldung nur Verwalter (ADMIN_SETTINGS)
+    { key: 'attachments_max_mb', unit: 'MB', step: '1', admin: true },
   ]},
   // v3.7.0 (Karte „Auslesen“) — Adresse und Schnittstelle des eigenen Diensts
   // (`ocr_endpoint`, `ocr_api`) teilt die Texterkennung mit dem Posteingang; sie
   // stehen einmal, in der Karte „Auslesen“ unter „Lokal“. Hier bleibt, was nur
   // die Zählerfotos betrifft (Bildmodell, Zeitlimit). Die frühere Gruppe
   // „Posteingang“ (inbox_provider, inbox_model, inbox_timeout_s) ist in derselben Karte.
+  // v3.13.0 (K2d) — Härtung: Bildmodell und Zeitlimit wirken für alle (App::ADMIN_SETTINGS); Mitglieder sehen sie gesperrt
   { gkey: 'ocr', page: 'connections:reading', icon: 'suche', fields: [
-    { key: 'ocr_model',     type: 'text', placeholderKey: 'settings.placeholder.ocrModel' },
-    { key: 'ocr_timeout_s', unitKey: 'settings.unit.seconds', step: '1' },
+    { key: 'ocr_model',     type: 'text', placeholderKey: 'settings.placeholder.ocrModel', admin: true },
+    { key: 'ocr_timeout_s', unitKey: 'settings.unit.seconds', step: '1', admin: true },
   ]},
   // v3.2.0 (F1022) — Ladevorgänge aus evcc abrufen, nur im Heimnetz
-  { gkey: 'evcc', page: 'connections:evcc', icon: 'auto', fields: [
+  // v3.13.0 — `admin` an der Gruppe: Mitglieder sehen statt der Felder, dass ein Verwalter das einrichtet
+  // (die Schlüssel stehen in App::ADMIN_SETTINGS; bis v3.12 standen offene Felder da, Speichern gab 403)
+  { gkey: 'evcc', page: 'connections:evcc', icon: 'auto', admin: true, fields: [
     { key: 'evcc_endpoint', type: 'text', placeholderKey: 'settings.placeholder.evccEndpoint' },
   ]},
   // v3.10.0 (#36) — HTTPS ins Heimnetz mit eigener PKI (Home Assistant, Texterkennung,
   // Auslesen, evcc): eigenes Stammzertifikat zusätzlich, „nicht prüfen“ nur im Heimnetz
-  { gkey: 'homeTls', page: 'connections:homenet', icon: 'schloss', fields: [
+  { gkey: 'homeTls', page: 'connections:homenet', icon: 'schloss', admin: true, fields: [
     { key: 'home_ca_pem', type: 'textarea', placeholderKey: 'settings.placeholder.homeCaPem' },
     { key: 'home_tls_insecure', type: 'bool', warn: true },
   ]},
@@ -200,18 +215,57 @@ export const GROUPS = [
 
 
 export function renderGroup(g, settings) {
+  // v3.13.0 — eine Gruppe nur für Verwalter (`admin`): Mitglieder sehen Titel, Hinweis und wer es einrichtet
+  if (g.admin && sessionRole() !== 'admin') {
+    return `
+    <div class="card settings-card"${g.level ? ` data-min-level="${g.level}"` : ''} data-role="admin-only-group">
+      <h2 class="card__title">${g.icon ? `${icon(g.icon)} ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
+      <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
+      <p class="infobox infobox--info" data-role="admin-only">${escapeHtml(t('settings.adminOnlyCard'))}</p>
+    </div>
+  `;
+  }
   const fields = `<div class="settings-fields">
         ${g.fields.map(f => renderField(f, settings[f.key], settings)).join('')}
       </div>`;
+  // v3.13.0 (Paket wechsel) — `note`: ein Hinweis unter den Feldern (Infobox Achtung), mit `showIf` nur bei einer Wahl
+  const note = g.note ? `<p class="infobox infobox--achtung"${showIfAttrs(g.note)} data-role="${g.gkey}-note">${escapeHtml(t(g.note.key))}</p>` : '';
   // v3.6.0 — `collapse`: Felder in einem Aufklappbereich (zu, bis man ihn öffnet;
   // der Zustand gilt je Gerät)
+  // v3.13.0 (Paket wechsel) — `info`: ⓘ zum Glossarbegriff hinter dem Titel
   return `
     <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}"${g.level ? ` data-min-level="${g.level}"` : ''}${g.collapse ? ` data-collapse="${g.gkey}"` : ''}>
-      <h2 class="card__title">${g.icon ? `${icon(g.icon)} ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
+      <h2 class="card__title">${g.icon ? `${icon(g.icon)} ` : ''}${t('settings.group.' + g.gkey + '.title')}${g.info ? ` ${info(g.info)}` : ''}</h2>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       ${g.collapse ? disclosureHtml({ storageKey: g.collapse, summary: t('settings.group.' + g.gkey + '.list'), body: fields }) : fields}
+      ${note}
     </div>
   `;
+}
+
+
+/**
+ * v3.13.0 (Paket wechsel) — `showIf: [Schlüssel, Wert]` an Feld oder Hinweis: sichtbar nur, solange die Auswahl
+ * diesen Wert hat. Eine Stelle entscheidet: wireShowIf() beim Verdrahten und bei jeder Änderung. Eingesammelt wird ein
+ * verstecktes Feld trotzdem; der Server nimmt den Wert, er wirkt nur mit der passenden Wahl.
+ */
+function showIfAttrs(f) {
+  if (!Array.isArray(f.showIf)) return '';
+  const [key, value] = f.showIf;
+  return ` data-show-if="${escapeHtml(key)}" data-show-value="${escapeHtml(value)}"`;
+}
+
+
+/** v3.13.0 (Paket wechsel) — Felder und Hinweise mit `showIf` folgen der Auswahl, ohne zu speichern. */
+export function wireShowIf(container) {
+  container.querySelectorAll('select[data-key]').forEach(sel => {
+    const key = sel.getAttribute('data-key');
+    const deps = container.querySelectorAll(`[data-show-if="${key}"]`);
+    if (!deps.length) return;
+    const sync = () => deps.forEach(el => { el.hidden = sel.value !== el.getAttribute('data-show-value'); });
+    sel.addEventListener('change', sync);
+    sync();
+  });
 }
 
 
@@ -289,21 +343,27 @@ function renderField(f, value, settings = {}) {
       ${hint}
     </div>`;
   }
+  // v3.13.0 — `lockedBy`: gesperrt für Mitglieder, solange diese Einstellung an ist (Angaben für Briefe)
+  // v3.13.0 (K2d) — `admin` auch an Text- und Zahlfeldern: ändern nur Verwalter (App::ADMIN_SETTINGS), Mitglieder sehen es gesperrt
+  const lockedText = (!!f.admin || (!!f.lockedBy && settings[f.lockedBy] === true)) && sessionRole() !== 'admin';
+  const lockedHint = lockedText ? `<span class="settings-field__hint" data-role="admin-only">${escapeHtml(t('settings.region.adminOnly'))}</span>` : '';
   // v3.12.0 (m4b) — Text in Zeilen (eine Anschrift): Textschrift, nicht Mono
   if (f.type === 'lines') {
     return `<div class="field settings-field">
       ${labelHtml}
       <textarea class="input input--text" id="${fieldId}" data-key="${f.key}" rows="${f.rows || 3}"${f.autocomplete ? ` autocomplete="${f.autocomplete}"` : ''}
-                ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>${escapeHtml(value ?? '')}</textarea>
+                ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}${lockedText ? ' disabled' : ''}>${escapeHtml(value ?? '')}</textarea>
       ${hint}
+      ${lockedHint}
     </div>`;
   }
   if (f.type === 'text') {
     return `<div class="field settings-field">
       ${labelHtml}
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}"
-             value="${escapeHtml(value ?? '')}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${f.maxlength ? ` maxlength="${f.maxlength}"` : ''}${f.autocomplete ? ` autocomplete="${f.autocomplete}"` : ''}${describedBy}>
+             value="${escapeHtml(value ?? '')}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${f.maxlength ? ` maxlength="${f.maxlength}"` : ''}${f.autocomplete ? ` autocomplete="${f.autocomplete}"` : ''}${describedBy}${lockedText ? ' disabled' : ''}>
       ${hint}
+      ${lockedHint}
     </div>`;
   }
   // v2.5.3 (FE-02, FE-04) — Text mit Dezimaltastatur statt type="number"
@@ -322,13 +382,14 @@ function renderField(f, value, settings = {}) {
     : t(example ? 'settings.exampleValue' : 'settings.assumedValue', { value: formatForInput(value) + (unit ? ' ' + unit : '') });
   const assumedHint = assumedText ? `<span class="settings-field__hint" id="${assumedId}" data-role="${example ? 'example' : 'assumed'}">${escapeHtml(assumedText)}</span>` : '';
   const describedNum = assumedText ? ` aria-describedby="${assumedId}${hasHint ? ' ' + hintId : ''}"` : describedBy;
-  return `<div class="field settings-field">
+  return `<div class="field settings-field"${showIfAttrs(f)}>
     ${labelHtml}
     <input class="input" type="text" ${f.signed ? '' : 'inputmode="decimal" '}autocomplete="off" id="${fieldId}" data-key="${f.key}" data-type="number"
-           value="${assumed ? '' : escapeHtml(formatForInput(value))}"${assumed ? ` placeholder="${escapeHtml(formatForInput(value))}"` : ''}${describedNum}>
+           value="${assumed ? '' : escapeHtml(formatForInput(value))}"${assumed ? ` placeholder="${escapeHtml(formatForInput(value))}"` : ''}${describedNum}${lockedText ? ' disabled' : ''}>
     <div class="field-error" id="${fieldId}-err" role="alert" hidden></div>
     ${assumedHint}
     ${hint}
+    ${lockedHint}
   </div>`;
 }
 

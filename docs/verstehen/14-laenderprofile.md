@@ -55,6 +55,13 @@ entscheidet die Sprache (Englisch → Vereinigtes Königreich). Die
 Standardzähler heißen dann gleich in der richtigen Sprache („Compteur
 principal").
 
+**Die Oberfläche schickt die Sprache des Browsers *(v3.13.0)*.** Bis die App
+ihre Sprache kennt (eigene Wahl des Geräts oder Vorgabe der Installation),
+tragen ihre Anfragen die Sprachwünsche des Browsers (`navigator.languages`) und
+keine eigene Wahl. Bis v3.12 schickte sie dabei ihre Vorgabe „de“: Ein
+französischer Browser bekam beim allerersten Start Deutsch, Deutschland und den
+deutschen Wetterort, obwohl der Server die Kopfzeile richtig auswertet.
+
 **Der Gesundheitscheck entscheidet nicht *(v3.12.0)*.** <!-- doc-claim: first-start-health -->
 `/api/health` ohne Sprachangabe legt ein leeres Datenverzeichnis nicht an; als
 Sprachangabe zählt auch `Accept-Language: *` („jede Sprache“, so fragen Programme

@@ -32,7 +32,8 @@ final class ReadingController
     public function index(Request $req): never
     {
         $meterId = $req->queryParam('meter_id');
-        Response::json($this->readings->list($req->param('utility'), $meterId));
+        // v3.13.0 (K2d) — was gespeichert ist, auch ein Stand, den die Rechnung auslässt (zum Finden und Löschen)
+        Response::json($this->readings->stored($req->param('utility'), $meterId));
     }
 
     public function create(Request $req): never
@@ -60,12 +61,12 @@ final class ReadingController
      */
     public function importCsv(Request $req): never
     {
-        // v2.12.0 — ?dry_run=1: nur lesen, Vorschau statt Import
+        // v2.12.0 — ?dry_run=1: nur lesen, Vorschau statt Import; v3.13.0 — nach der einen Regel (Request::flag)
         $report = $this->import->importCsv(
             $req->param('utility'),
             $req->param('id'),
             $req->rawBody,
-            $req->queryParam('dry_run') === '1'
+            $req->flag('dry_run')
         );
         Response::json($report);
     }

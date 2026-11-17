@@ -143,19 +143,22 @@ final class BillTools extends ToolGroup
         $end = $c['boundaries']['end'] ?? null;
         // Menge der eigenen Rechnung: so gut wie die Stände an ihren Rändern
         $qtyBasis = Provenance::weakest(Provenance::boundary($start), Provenance::boundary($end));
-        // Kosten: Menge mal eingetragener Preis (die schwächere Herkunft)
-        $costBasis = Provenance::weakest($qtyBasis, 'entered');
+        // v3.13.0 — Preise des Zeitraums: angenommen, wenn ein Vertrag dort ohne Eintrag weiterlief oder nach der
+        // Preisgarantie rechnete (bis dahin immer eingetragen)
+        $priceBasis = $this->billPriceBasis($u, (array)$raw);
+        // Kosten: Menge mal Preis (die schwächere Herkunft)
+        $costBasis = Provenance::weakest($qtyBasis, $priceBasis);
         $o = $c['ours'];
         $d = $c['delta'];
         $ours = self::compact([
             'quantity'       => self::maybe($o[$qk] ?? null, fn($v) => Num::of($v, $unit, $qtyBasis, ['derived' => true])),
             'quantity_until' => is_string($o['quantity_until'] ?? null) ? $o['quantity_until'] : null,
             'energy_cost'    => self::maybe($o['energy_cost'] ?? null, fn($v) => Num::money($v, $cur, $costBasis, ['derived' => true])),
-            'fixed_cost'     => self::maybe($o['fixed_cost'] ?? null, fn($v) => Num::money($v, $cur, 'entered', ['derived' => true])),
+            'fixed_cost'     => self::maybe($o['fixed_cost'] ?? null, fn($v) => Num::money($v, $cur, $priceBasis, ['derived' => true])),
             'bonus'          => self::maybe($o['bonus'] ?? null, fn($v) => Num::money($v, $cur, 'entered')),
             'items_total'    => self::maybe($o['items_total'] ?? null, fn($v) => Num::money($v, $cur, 'entered')),
             'total'          => self::maybe($o['total'] ?? null, fn($v) => Num::money($v, $cur, $costBasis, ['derived' => true])),
-            'advances'       => self::maybe($o['advances'] ?? null, fn($v) => Num::money($v, $cur, 'entered', ['derived' => true])),
+            'advances'       => self::maybe($o['advances'] ?? null, fn($v) => Num::money($v, $cur, $priceBasis, ['derived' => true])),
         ]);
         $deltaBasis = $costBasis;
         $delta = self::compact([
@@ -210,6 +213,29 @@ final class BillTools extends ToolGroup
      *
      * @return list<array<string,mixed>>
      */
+    /**
+     * v3.13.0 — Herkunft der Preise im Zeitraum einer Rechnung: aus den Monatszeilen des Zählers bzw. der Gruppe
+     * (priceBasisOf), angenommen, sobald ein Monat davon fortgeschrieben ist oder nach der Preisgarantie rechnet.
+     *
+     * @param array<string,mixed> $bill
+     */
+    private function billPriceBasis(string $utility, array $bill): string
+    {
+        $mid = (string)($bill['meter_id'] ?? '');
+        $from = (string)($bill['period_from'] ?? '');
+        $to = (string)($bill['period_to'] ?? '');
+        if ($mid === '' || $from === '' || $to === '') return 'entered';
+        $target = $this->services->get(\Energietracker\Services\MeterService::class)->target($utility, $mid);
+        if ($target === null) return 'entered';
+        $price = $this->priceBasisOf($utility);
+        foreach ($this->memberRows($utility, $this->membersOf($utility, $target)) as $r) {
+            $ym = (string)($r['ym'] ?? '');
+            if ($ym < substr($from, 0, 7) || $ym > substr($to, 0, 7) || ($r['contract_id'] ?? null) === null) continue;
+            if ($price($r) === 'assumed') return 'assumed';
+        }
+        return 'entered';
+    }
+
     private function rightsFor(string $billId, string $today): array
     {
         if (!$this->services->has(RightsService::class)) return [];

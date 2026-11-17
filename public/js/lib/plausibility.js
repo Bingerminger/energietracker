@@ -11,6 +11,8 @@
 //   sameDay    für den Tag gibt es schon einen Stand → ersetzen statt doppeln
 //   lower      kleiner als der vorige Stand → Zählertausch nicht erfasst?
 //   jump       Tagesverbrauch seit dem vorigen Stand > 3 × typisch
+//              v3.13.0 (#65): bei Heizarten mit Temperaturen über der Erwartung
+//              nach dem Wetter (`expected`, GET …/reading-expectation)
 //   magnitude  mehr als 10 × der vorige Stand (solange kein typischer
 //              Tagesverbrauch bekannt ist — „Komma vergessen")
 //
@@ -18,7 +20,7 @@
 // Ausreißer, Verdacht aus Home Assistant) und meldet das als `warnings` —
 // siehe ConsumptionService::plausibleReadings().
 // =====================================================================
-import { t } from './i18n.js';
+import { t, tp } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
 import { openModal } from '../components/modal.js';
 
@@ -84,6 +86,83 @@ export function neighbours(readings, meter, date) {
   };
 }
 
+/** v3.13.0 (Paket K2e) — der bisherige Text ohne Stand danach, je Ansicht (seit letztem Stand, mit Tagen) */
+const SINCE_LAST = {
+  utility: (days, p) => (days > 0 ? tp('utility.preview.sinceLastDays', days, p) : t('utility.preview.sinceLast', p)),
+  readingsEntry: (days, p) => (days > 0 ? tp('readingsEntry.preview.sinceLastDays', days, p) : t('readingsEntry.preview.sinceLast', p)),
+};
+
+/**
+ * v3.13.0 (Paket K2e) — Vorschau beim Eintippen: wie viel seit dem Stand davor und, bei einem Nachtrag, wie viel bis
+ * zum Stand danach, jeweils zum gewählten Datum (neighbours). Eine Regel für den Dialog „+ Ablesung“ und die Seite
+ * „Zählerstände“. Bis v3.12 verglich der Dialog einen Nachtrag mit dem jüngsten Stand: Ein richtiger Stand zwischen zwei
+ * vorhandenen hieß dort etwa „−1.700 m³ seit letztem Stand“. Über einen Gerätetausch hinweg keine Differenz (sie wäre kein
+ * Verbrauch). Ohne Stand danach bleibt der bisherige Text der Ansicht („seit letztem Stand (vor n Tagen)“).
+ *
+ * @param {object} p
+ * @param {number} p.value  eingegebener Stand
+ * @param {string} p.date   gewähltes Datum (YYYY-MM-DD)
+ * @param {?{date:string, counter:number}} p.prev  Stand davor (neighbours)
+ * @param {?{date:string, counter:number}} [p.next]  Stand danach (neighbours)
+ * @param {boolean} [p.deviceChanged]  Gerätetausch zwischen prev und date
+ * @param {boolean} [p.nextDeviceChanged]  Gerätetausch zwischen date und next
+ * @param {string} [p.unit]
+ * @param {(n:number) => string} [p.num]  Zahlenformat der Ansicht
+ * @param {'utility'|'readingsEntry'} [p.view]  Ansicht, deren bisheriger Text gilt (SINCE_LAST)
+ * @returns {?string}
+ */
+export function readingPreview({ value, date, prev = null, next = null, deviceChanged = false, nextDeviceChanged = false, unit = '', num = (n) => fmt.num(n, 2), view = 'utility' }) {
+  if (value == null || !Number.isFinite(Number(value)) || !date) return null;
+  const signed = (d) => `${d < 0 ? '−' : '+'}${num(Math.abs(d))}`;
+  const parts = [];
+  const before = prev && prev.counter != null && prev.date < date && !deviceChanged ? prev : null;
+  const later = next && next.counter != null && date < next.date ? next : null;
+  if (before) {
+    const delta = signed(Number(value) - Number(before.counter));
+    const days = daysBetween(before.date, date);
+    parts.push(later
+      ? t('readingCheck.preview.sincePrev', { delta, unit, date: fmt.date(before.date) })
+      : (SINCE_LAST[view] || SINCE_LAST.utility)(days, { delta, unit, days }));
+  }
+  if (later && !nextDeviceChanged) {
+    parts.push(t('readingCheck.preview.untilNext', { delta: signed(Number(later.counter) - Number(value)), unit, date: fmt.date(later.date) }));
+  }
+  return parts.length ? parts.join(' · ') : null;
+}
+
+/**
+ * v3.13.0 (#65) — Erwartung nach dem Wetter je Abstand, für den Dialog „+ Ablesung“ und die Seite
+ * „Zählerstände“: einmal je (vorher, Datum) geladen und gemerkt. `load(from, to)` fragt den Server
+ * (GET …/reading-expectation); ein Fehler, keine Verbindung oder die Demo geben null, dann prüft
+ * checkReading wie bisher mit dem typischen Tagesverbrauch.
+ *
+ *   has(from, to)   schon geladen oder unterwegs (für „einmal laden, dann neu prüfen“)
+ *   get(from, to)   die geladene Erwartung oder null (sofort, beim Tippen)
+ *   load(from, to)  Promise der Erwartung (beim Speichern abgewartet)
+ *
+ * @param {(from:string, to:string) => Promise<?object>} load
+ */
+export function weatherExpectations(load) {
+  const memo = new Map();
+  const key = (from, to) => `${from}|${to}`;
+  return {
+    has: (from, to) => memo.has(key(from, to)),
+    get: (from, to) => memo.get(key(from, to))?.value ?? null,
+    load(from, to) {
+      const k = key(from, to);
+      if (!from || !to || from >= to) return Promise.resolve(null);
+      if (!memo.has(k)) {
+        const entry = { value: null };
+        entry.ready = Promise.resolve()
+          .then(() => load(from, to))
+          .then(v => (entry.value = v && typeof v === 'object' ? v : null), () => null);
+        memo.set(k, entry);
+      }
+      return memo.get(k).ready;
+    },
+  };
+}
+
 /**
  * Rückfragen zu einem neuen Stand.
  *
@@ -97,17 +176,32 @@ export function neighbours(readings, meter, date) {
  * @param {boolean} [p.deviceChanged]  Gerätetausch zwischen prev und date
  * @param {{date:string, counter:number}|null} [p.next]  v3.12.0 (Skeptiker M7) — nächster Stand (nach `date`)
  * @param {boolean} [p.nextDeviceChanged]  Gerätetausch zwischen date und next
+ * @param {?{basis:?string, from:string, to:string, expected:?number, high:?number}} [p.expected]  v3.13.0 (#65) —
+ *   Erwartung nach dem Wetter für genau den Abstand prev.date → date (ReadingCheckService::expectationFor). Mit
+ *   `basis` ersetzt sie `typical`: Sprung über `high`; `high` null (kälter als alles bisher) nur „Komma vergessen“.
+ *   Dieselbe Regel wie ReadingService::plausibilityIssues (gemeinsame Probe tests/fixtures/reading-plausibility.json).
  * @returns {Array<{type:string, [k:string]:any}>}
  */
-export function checkReading({ value, date, today, prev = null, typical = null, sameDay = null, deviceChanged = false, next = null, nextDeviceChanged = false }) {
+export function checkReading({ value, date, today, prev = null, typical = null, sameDay = null, deviceChanged = false, next = null, nextDeviceChanged = false, expected = null }) {
   const issues = [];
   if (date > today) issues.push({ type: 'future' });
   if (sameDay) issues.push({ type: 'sameDay', reading: sameDay });
   if (prev && prev.date < date && !deviceChanged) {
     const last = Number(prev.counter);
     const days = daysBetween(prev.date, date);
+    const w = expected?.basis && expected.from === prev.date && expected.to === date ? expected : null;
     if (value < last) {
       issues.push({ type: 'lower', last });
+    } else if (w) {
+      if (w.high != null) {
+        const amount = value - last;
+        if (days >= 1 && amount > Number(w.high)) {
+          const e = Number(w.expected ?? 0);
+          issues.push({ type: 'jump', perDay: amount / days, typical: e / days, amount, expected: e, basis: w.basis });
+        }
+      } else if (last >= 10 && value >= last * 10) {
+        issues.push({ type: 'magnitude', last });
+      }
     } else if (typical > 0 && days >= 1 && (value - last) / days > JUMP_FACTOR * typical) {
       issues.push({ type: 'jump', perDay: (value - last) / days, typical });
     } else if (!(typical > 0) && last >= 10 && value >= last * 10) {
@@ -127,7 +221,10 @@ export function issueText(issue, { unit = '', date = '' } = {}) {
     case 'future':    return t('readingCheck.future', { date: fmt.date(date) });
     case 'sameDay':   return t('readingCheck.sameDay', { date: fmt.date(date), counter: fmt.dec(issue.reading.counter, 3), unit });
     case 'lower':     return t('readingCheck.lower', { last: fmt.dec(issue.last, 3), unit });
-    case 'jump':      return t('readingCheck.jump', { perDay: fmt.dec(issue.perDay, 1), typical: fmt.dec(issue.typical, 1), unit });
+    // v3.13.0 (#65) — mit Erwartung nach dem Wetter: Menge seit dem vorigen Stand gegen die erwartete (am Feld, nicht am Text)
+    case 'jump':      return issue.expected != null
+      ? t('readingCheck.jumpWeather', { amount: fmt.dec(issue.amount, 1), expected: fmt.dec(issue.expected, 1), unit })
+      : t('readingCheck.jump', { perDay: fmt.dec(issue.perDay, 1), typical: fmt.dec(issue.typical, 1), unit });
     case 'magnitude': return t('readingCheck.magnitude', { last: fmt.dec(issue.last, 3), unit });
     case 'higher_than_next': return t('readingCheck.higher_than_next', { next: fmt.dec(issue.next, 3), unit });
     default:          return '';

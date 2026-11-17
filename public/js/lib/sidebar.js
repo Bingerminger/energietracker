@@ -20,7 +20,8 @@ import { icon, artIcon } from './icons.js';
 let lastRoute = null;
 // v3.1.0 (H2) — outbox: offline erfasste Stände, die noch nicht beim Server sind
 // v3.7.0 — inbox: Dokumente im Posteingang, die noch Arbeit machen
-const badgeCounts = { reminders: 0, remindersAlert: false, open: 0, outbox: 0, inbox: 0 };
+// v3.13.0 — contractsPast: frühere Verträge (Reiter unter Kosten & Verträge), null = noch nicht gezählt
+const badgeCounts = { reminders: 0, remindersAlert: false, open: 0, outbox: 0, inbox: 0, contractsPast: null };
 
 function itemHtml(item, cls = 'sidebar__item') {
   const attrs = [
@@ -101,17 +102,40 @@ function applyBadges() {
     hints: [badgeCounts.open, badgeCounts.remindersAlert],
     outbox: [badgeCounts.outbox, true],
     inbox: [badgeCounts.inbox, false],
+    // v3.13.0 — eine Zahl ohne Handlungsbedarf: ruhig gefärbt
+    contractsPast: [badgeCounts.contractsPast || 0, false, 'neutral'],
   };
   document.querySelectorAll('[data-badge]').forEach(slot => {
     const kind = slot.getAttribute('data-badge');
-    const [count, alert] = values[kind] || [0, false];
-    const title = kind === 'outbox' || kind === 'inbox' ? ` title="${esc(tp(`nav.badge.${kind}`, count))}"` : '';
+    const [count, alert, tone] = values[kind] || [0, false];
+    const title = ['outbox', 'inbox', 'contractsPast'].includes(kind) ? ` title="${esc(tp(`nav.badge.${kind}`, count))}"` : '';
     slot.innerHTML = count > 0
-      ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : ''}"${title}>${count}</span>`
+      ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : tone ? ` sidebar__badge--${tone}` : ''}"${title}>${count}</span>`
       : '';
   });
 }
-window.addEventListener('et:badges-slots', applyBadges);
+
+/**
+ * v3.13.0 — Zahl am Reiter „Frühere Verträge“: dieselben Verträge wie auf der Seite (contracts-past.js,
+ * countPastContracts). Gezählt, sobald der Reiter steht und noch keine Zahl da ist, und nach einer Änderung an
+ * einem Vertrag (`et:contracts-changed`); nicht bei jedem Seitenwechsel.
+ */
+let pastSeq = 0;
+async function refreshPastContracts() {
+  const seq = ++pastSeq;
+  try {
+    const { countPastContracts } = await import('../views/contracts-past.js');
+    const n = await appScope(() => countPastContracts());
+    if (seq !== pastSeq) return;
+    badgeCounts.contractsPast = n;
+    applyBadges();
+  } catch { /* ohne Zahl bleibt der Reiter, wie er ist */ }
+}
+window.addEventListener('et:badges-slots', () => {
+  applyBadges();
+  if (badgeCounts.contractsPast === null && document.querySelector('[data-badge="contractsPast"]')) refreshPastContracts();
+});
+window.addEventListener('et:contracts-changed', () => { badgeCounts.contractsPast = null; refreshPastContracts(); });
 window.addEventListener('et:outbox', (e) => { badgeCounts.outbox = Number(e.detail) || 0; applyBadges(); });
 
 /**

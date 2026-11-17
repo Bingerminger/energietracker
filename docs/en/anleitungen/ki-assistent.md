@@ -55,7 +55,7 @@ the figures side by side and separates measured from estimated.
 > takes care of the maintenance on 18 Nov.”
 
 **5. “Gas reading 13,200”** Tool: `propose_reading`. It checks with the same questions
-as the form; you confirm in the app.
+as the form, for heating meters also by the weather *(v3.13.0)*; you confirm in the app.
 > *Invented answer:* “Proposal created: gas, reading 13,200 m³ from today, 96 m³ since
 > the last reading, nothing unusual. Nothing has changed yet: confirm it in the app.”
 
@@ -135,9 +135,13 @@ Three more switches on the same card:
 - **Give identifiers to the AI** (`mcp_share_identifiers`), off by default: meter
   number, market and metering location, customer, contract and invoice number. Without
   the switch the app replaces **numbers it knows** wherever the AI receives text: fields,
-  quotes, file names, provider, tariff, notes, names. A quote is dropped if it still holds
-  a long number or a number after a label (“Customer no.”, “Kassenzeichen”). In a file
-  name every run of five or more digits that is not a date is replaced.
+  quotes, file names, provider, tariff, notes, names. *(v3.13.0)* **Also when written
+  differently:** with separators between the digits or right next to letters. A quote
+  is dropped if it still holds a long number or a number
+  after a label (“Customer no.”, “Kassenzeichen”). In **names and titles** (meters,
+  groups, reminders, hints) the app *(v3.13.0)* replaces every such piece, the rest of the
+  name stays readable. In a file name every run of five or more digits that is not a date
+  is replaced. <!-- doc-claim: mcp-identifier-mask (McpKnownNumbersInNamesTest) -->
 
   **The limits:**
 
@@ -177,8 +181,10 @@ The card shows the address. It depends on how Energietracker runs:
 
 Replace the example addresses with yours. The card always names the address
 with `api.php`: it works with every web server; in the Docker image and in the
-app in Home Assistant `/api/mcp` as in the table works as well. A test in the
-browser does not help: the interface only accepts `POST` with a key.
+app in Home Assistant `/api/mcp` as in the table works as well, *(since
+v3.13.0)* and so it does with Apache and the bundled `.htaccess` when
+`mod_rewrite` is on. A test in the browser does not help: the interface only
+accepts `POST` with a key.
 
 ## Step 4 — Connect Open WebUI with Ollama
 
@@ -194,11 +200,19 @@ This is the recommended way: model and data stay in the home network. In all exa
 4. In Open WebUI as an admin: **Settings → Integrations → Tools, External Tool
    Servers → +** (the labels of version 0.12.4; other versions may differ), type
    **MCP (Streamable HTTP)**, the address from step 3 as URL, authentication **Bearer**
-   with the key. You can also import the entry there, with your address and key:
+   with the key. You can also import the entry there: save the text below with your
+   address and key as a file `energietracker.json`, choose **Import** in the same
+   window, load the file and save. The import only fills in the window; the entry
+   is switched on just as when you fill it in by hand.
 
    ```json
    [{"type":"mcp","url":"http://host.docker.internal:8080/api/mcp","spec_type":"url","spec":"","path":"openapi.json","auth_type":"bearer","key":"etk_…","info":{"id":"energietracker","name":"","description":"energietracker"}}]
    ```
+
+   *(v3.13.0)* **Without the interface,** through Open WebUI’s environment variable
+   `TOOL_SERVER_CONNECTIONS`: there each entry also needs `"config":{"enable":true}`.
+   Without it Open WebUI 0.13.3 answered with an error (500) when opening the
+   settings.
 5. Open WebUI often runs in a container. Then `localhost` means the container itself:
    use `http://host.docker.internal:8080/api/mcp` (on Linux with
    `--add-host=host.docker.internal:host-gateway`) or the computer’s address in the home
@@ -426,8 +440,12 @@ The history names both: **AI (key “…”), confirmed by** you.
 - If a question arises after the proposal, for instance because another reading was recorded
   in the meantime, nothing is written and the AI creates a new one.
 - The apply appears in the **history** with the name of the key and the list of changes; a
-  reading carries the source `mcp`. **There is no undo for it:** delete individually in the
-  app what is wrong.
+  reading carries the source `mcp`. **“Undo” takes it back** *(v3.13.0)*: after asking, the
+  app puts the data back to how they were before the change (what the AI created is deleted,
+  what it changed is as before again; the document is ready to apply again). This only works
+  as long as nothing has changed since; otherwise undo the later change first or change it
+  yourself. The undo also shows up in the access log (“undone”), and the AI learns about it if
+  it tries to apply the proposal again. Changes from v3.12 cannot be undone this way.
 
 Open proposals are under **To do**, the log of the accesses (who, when, which tool, without
 content) under **To do → History → AI access**. If a proposal is waiting, the overview also says so

@@ -215,9 +215,14 @@ Feld bleibt markiert, bis du es bestätigst.
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.
 
-- **Listen** (Arbeitspreise, gezahlte Abschläge, Gutschriften) haben diese Knöpfe
-  nicht: Ein markierter Eintrag geht nicht in den Vorschlag, du trägst ihn im
-  Vertrag oder in der Rechnung selbst ein *(Stand v3.12.0)*.
+- **Listen** (Arbeitspreise, Wasserpreise, gezahlte Abschläge, Gas-Umrechnung,
+  Zählerstände je Zähler, Gutschriften, Abschlagstermine) entscheidest du **je
+  Eintrag** *(v3.13.0)*: „Stimmt“ an einem markierten Eintrag, „Korrigieren“ öffnet
+  je Angabe des Eintrags ein Feld, „Verwerfen“ nimmt ihn aus den Vorschlägen. Der
+  Eintrag zeigt danach „bestätigt“, „korrigiert“ (mit dem gelesenen Wert daneben)
+  oder steht durchgestrichen da; „Wie gelesen“ nimmt die Entscheidung zurück. Die
+  Auslesung selbst bleibt, wie sie gelesen wurde; ein neues Auslesen leert die
+  Entscheidungen. Auch der Haushalt aus Dokumenten und die KI sehen sie.
 - **Ein Preis ohne gelesenen Steuersatz** gilt nach „Stimmt“ als Bruttopreis;
   steht er netto auf der Rechnung, korrigiere ihn auf brutto *(v3.12.0: der
   Hinweis steht am Feld)*. Eine Angabe „netto/brutto“ ohne Belegstelle trägt

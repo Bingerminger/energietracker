@@ -59,7 +59,8 @@ function allSectionPages(section, { utilities = [], tenant = false } = {}) {
       const pages = [
         { view: 'contracts-overview', href: '#/contracts', label: t('nav.contracts') },
         // v3.12.0 (M4) — beendete und abgelöste Verträge, eigene Ansicht statt Tabelle je Art
-        { view: 'contracts-past', href: '#/contracts/past', label: t('nav.contractsPast') },
+        // v3.13.0 — mit der Zahl der früheren Verträge am Reiter (lib/sidebar.js, ruhig, ohne Handlungsbedarf)
+        { view: 'contracts-past', href: '#/contracts/past', label: t('nav.contractsPast'), badge: 'contractsPast' },
         { view: 'tariffs', href: '#/tariffs', label: t('nav.tariffs') },
       ];
       // v3.1.0 (H5, UI-35) — für alle Arten mit Zählerständen und Verträgen (bis

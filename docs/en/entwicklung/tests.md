@@ -361,6 +361,38 @@ consistent, that every variant can be imported and that the back-calculation
 delivers all measures for one cut. **It does not check the thresholds**; the
 feature packages do.
 
+**A household with contracts that do not run smoothly (v3.13.0).** The sample
+households have no move-in during a month, no contract end without a successor
+and no advance payment with due dates, and the packages' tests check each case
+on its own with small data. `tests/fixtures/edge-household/` therefore holds a
+second test household with **its own physics** (a boiler with heat loss and a
+heating limit of 13.8 °C, a heat pump whose efficiency depends on the outdoor
+temperature, wallbox charging sessions, watering on hot days), produced by
+`generate.mjs` (fixed seed, `--check` only compares). It is **closed on
+31 October 2026**; the tests calculate with “today” 1 November 2026.
+
+- **Flat A** (rented, 71 m², gas boiler in the flat) until **moving out on
+  14 May 2026**: gas with a final reading on the last day of the contract,
+  electricity with the handover reading five days later, a reading on
+  31 December 2024 estimated by the supplier, the billing year 2024 with
+  29 February, the CO₂ split for part of a year.
+- **House B** from **moving in on 10 May 2026**: a peak/off-peak meter group with
+  different prices per register and different reading days, a wallbox with a
+  unit price only from August and a price at a reading, water with an advance
+  payment every three months, a garden meter read later, an estimated reading at
+  the end.
+- Two contracts end on the **last day of a month** (one and three months'
+  notice).
+
+`EdgeHouseholdTest` checks each case **view against view** (balance card,
+“Balance today”, billing year, “Check bill”, annual report, `/api/summary`, AI)
+and against a **hand calculation from the file's meter readings**, not from the
+app's code; cancellation deadlines against its own forward calculation. It
+describes the three known limits (energy charge to the cent, estimated reading at
+a period boundary, monthly row of a meter group) instead of hiding them.
+`McpConsistencyTest` and `McpOutputSchemaTest` include the household too
+(`McpReadTestCase::edge()`).
+
 **Contracts to the day (v2.9.0).** `ContractDayAccurateTest` checks months with a
 price change, a contract switch and a gap, the renewed and the cancelled
 contract, cancellation deadline and reminder, missed deadlines, price increases,
@@ -561,9 +593,14 @@ This exact sequence runs automated in the **CI pipeline**
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),
 **test** (migration smoke + frontend API shape + browser render via `router.php`)
 and **docker** (build image + container smoke against `/api/health`). Since
-v3.12.0 **lint-php** and **phpunit** each run under PHP 8.3, 8.4 and 8.5: the
-minimum version (also the one in Ubuntu 24.04), 8.4 as in Synology Web Station,
-for example, and 8.5 as in the Docker image. Since v3.4.0 the **docker** job
+v3.13.0 a separate **Zeitreise** workflow (`.github/workflows/zeitreise.yml`)
+checks PHPUnit and the Node suites that depend on the calendar under a shifted
+clock on 15 January, on New Year's night and on 1 March (`tools/zeitreise.sh`
+with libfaketime), **once a week and on demand**, because the round takes 40 to
+50 minutes; before each release the same tool runs locally over eleven dates.
+Since v3.13.0 **lint-php** and **phpunit** each run under PHP 8.4 and 8.5: the
+minimum version (as in Synology Web Station and Debian 13, for example) and 8.5
+as in the Docker image. Since v3.4.0 the **docker** job
 also checks that php-fpm is only reachable inside the container and starts the
 image hardened (example from [Docker operation](../betrieb/docker.md#hardened-operation-v340)),
 since v3.5.0 also the variant without root (`--target rootless`: no

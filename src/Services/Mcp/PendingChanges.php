@@ -122,6 +122,10 @@ final class PendingChanges
         if (($p['status'] ?? null) === 'rejected') {
             throw new LocalizedException('errors.mcp.proposal.rejected', ['id' => $id], 'proposal rejected');
         }
+        // v3.13.0 (Paket F) — in der App zurückgenommen: ein zweites apply_proposal meldet das, statt „übernommen“
+        if (!empty($p['undone'])) {
+            throw new LocalizedException('errors.mcp.proposal.undone', ['id' => $id], 'proposal undone');
+        }
         if (self::normalize($summary) !== self::normalize((string)$p['summary'])) {
             throw new LocalizedException('errors.mcp.proposal.summaryMismatch', [], 'summary differs');
         }
@@ -258,6 +262,24 @@ final class PendingChanges
     }
 
     /**
+     * v3.13.0 (Paket F) — Die Übernahme wurde im Verlauf zurückgenommen (ActivityService::undo): Der Vorschlag
+     * bleibt übernommen stehen (bis er nach KEEP_SECONDS wegfällt), `apply_proposal` meldet aber
+     * `errors.mcp.proposal.undone` statt das alte Ergebnis. Nur die eigene Sperre (wie reject()).
+     */
+    public function markUndone(string $id): bool
+    {
+        if (!preg_match(self::ID_PATTERN, $id)) return false;
+        $now = ($this->clock)();
+        return $this->file->update(function (array $state) use ($id, $now): array {
+            $p = $state[$id] ?? null;
+            if (!is_array($p) || ($p['status'] ?? null) !== 'applied') return [$state, false];
+            $p['undone'] = $now;
+            $state[$id] = $p;
+            return [$state, true];
+        });
+    }
+
+    /**
      * Offene, gültige Vorschläge aller Schlüssel (für die Oberfläche,
      * `GET /api/mcp/proposals`), ohne `payload`, älteste zuerst.
      * v3.12.0 (Skeptiker N8) — `$activeKeys`: Vorschläge widerrufener Schlüssel fallen weg
@@ -280,13 +302,14 @@ final class PendingChanges
     }
 
     /**
-     * `client_ref` einer Ablesung aus einem Vorschlag: Der Bindestrich passt zum
-     * Muster von ReadingService (`[A-Za-z0-9-]{8,64}`), ein zweites Schreiben
-     * desselben Vorschlags wird dort zum Duplikat.
+     * `client_ref` einer Ablesung aus einem Vorschlag: genau die Kennung des Vorschlags (ReadingService::CLIENT_REF
+     * erlaubt `_`); ein zweites Schreiben desselben Vorschlags wird dort zum Duplikat.
+     * v3.13.0 — bis v3.12 mit Bindestrich statt Unterstrich (`mp-…`); wer Ablesung und Vorschlag über die Kennung
+     * verband, fand nichts.
      */
     public static function clientRef(string $id): string
     {
-        return str_replace('_', '-', $id);
+        return $id;
     }
 
     /**

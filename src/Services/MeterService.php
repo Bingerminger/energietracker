@@ -6,9 +6,11 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Support\FieldRules;
 use Energietracker\Support\Input;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Support\LocalizedException;
+use Energietracker\Support\TextLimits;
 
 /**
  * Manages meters per utility.
@@ -62,8 +64,27 @@ final class MeterService
         $m = ResponsibilityService::apply($m, $id);
     }
 
-    /** @return array<int,array<string,mixed>> */
+    /**
+     * Zähler, wie die Rechnung sie sieht. v3.13.0 (K2d) — Bestand nach der gemeinsamen Regel
+     * (Support\FieldRules::view): Ein Feld, das die Schreibwege heute abweisen (Name als Liste, Tankbestand 10³⁰⁰,
+     * Anfangsstand über 10¹²), gilt als nicht eingetragen; ein Zähler ohne Geräteliste fällt aus der Rechnung. Die
+     * Datei bleibt, wie sie ist. Schreibwege lesen stored().
+     *
+     * @return array<int,array<string,mixed>>
+     */
     public function list(string $utility): array
+    {
+        $this->assertUtility($utility);
+        return \Energietracker\Support\FieldRules::view($this->store, "$utility/meters.json", 'meters')[0];
+    }
+
+    /**
+     * v3.13.0 (K2d) — die gespeicherten Zähler, wie sie in der Datei stehen: für jeden Weg, der meters.json liest und
+     * wieder schreibt (sonst fielen Zähler mit einem Altwert beim nächsten Speichern weg).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function stored(string $utility): array
     {
         $this->assertUtility($utility);
         $meters = $this->store->read("$utility/meters.json", []);
@@ -84,17 +105,20 @@ final class MeterService
         $meters = $this->list($utility);
         if (empty($meters)) {
             $this->ensureDefault($utility);
-            $meters = $this->list($utility);
+            // v3.13.0 (K2d) — sind alle gespeicherten Zähler unbrauchbar, bleibt der erste gespeicherte die Vorgabe
+            $meters = $this->list($utility) ?: $this->stored($utility);
         }
         foreach ($meters as $m) {
-            if (!empty($m['active'])) return $m['id'];
+            if (!empty($m['active'])) return (string)$m['id'];
         }
-        return $meters[0]['id'];
+        return (string)($meters[0]['id'] ?? '');
     }
 
     public function ensureDefault(string $utility): void
     {
-        $meters = $this->list($utility);
+        // v3.13.0 (K2d) — gezählt wird, was in der Datei steht: Ein Zähler mit Altwert darf nie durch den Standardzähler
+        // ersetzt werden
+        $meters = $this->stored($utility);
         if (!empty($meters)) return;
         $u = Utilities::get($utility);
         $meterId = 'm_' . $utility . '_default';
@@ -125,15 +149,16 @@ final class MeterService
     {
         $this->assertUtility($utility);
         $u = Utilities::get($utility);
-        if (empty($u['allow_multiple_meters']) && !empty($this->list($utility))) {
+        if (empty($u['allow_multiple_meters']) && !empty($this->stored($utility))) {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.multipleMeters', ['utility' => $this->i18n->utilityLabel($utility)]));
         }
         $isDelivery = Utilities::isDelivery($utility);
         // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
         Input::assertTexts($input, self::TEXT_FIELDS);
+        TextLimits::assert($input, 'meters');   // v3.13.0 (Paket F) — Höchstlängen (Name, Notiz, Zäsur, Peilstand)
         foreach (is_array($input['devices'] ?? null) ? $input['devices'] : [] as $d) {
             if (!is_array($d)) continue;
-            Input::assertTexts($d, ['id', 'installed_on', 'removed_on', 'reason']);
+            Input::assertTexts($d, ['id', 'installed_on', 'removed_on', 'reason', 'serial']);   // v3.13.0 — auch die Gerätenummer
             foreach (['installed_on', 'removed_on'] as $f) if (($d[$f] ?? '') !== '') $this->assertDate((string)$d[$f]);
         }
 
@@ -149,6 +174,10 @@ final class MeterService
                 'digits'          => $input['device']['digits'] ?? null,
             ], fn($v) => $v !== null);
         }
+        // v3.13.0 — Gerätenummer (auch als device.serial): Text bis TextLimits::NUMBER wie Vertrags- und Kundennummer;
+        // bisher ging jede Länge durch, als Liste auch jede Form
+        Input::assertTexts($input, ['device_serial']);
+        self::assertSerialLength($input['device_serial'] ?? null, 'device_serial');
 
         // Devices: entweder explizit als komplettes Array übergeben,
         // oder aus den convenience-Feldern abgeleitet.
@@ -164,9 +193,10 @@ final class MeterService
                 'id'              => (string)($d['id'] ?? 'd_' . bin2hex(random_bytes(4))),
                 'serial'          => $d['serial'] ?? null,
                 'installed_on'    => (string)($d['installed_on'] ?? date('Y-m-d')),
-                'initial_counter' => (float)($d['initial_counter'] ?? 0.0),
+                // v3.13.0 — Stände der Geräte nach der Regel der Ablesung (bisher `(float)`: „abc“ wurde 0, 10³⁰⁰ ging durch)
+                'initial_counter' => $this->parseCounter(($d['initial_counter'] ?? '') === '' ? 0.0 : $d['initial_counter'], 'devices.initial_counter'),
                 'removed_on'      => $d['removed_on'] ?? null,
-                'final_counter'   => isset($d['final_counter']) ? (float)$d['final_counter'] : null,
+                'final_counter'   => isset($d['final_counter']) && $d['final_counter'] !== '' ? $this->parseCounter($d['final_counter'], 'devices.final_counter') : null,
                 'reason'          => $d['reason'] ?? null,
             ] + $this->digitsField($d['digits'] ?? null), $input['devices']);
         } else {
@@ -179,7 +209,7 @@ final class MeterService
                 'installed_on'    => $installedOn,
                 // Leer heißt hier 0: Der Anfangsstand zählt nur für die
                 // Tausch-Überbrückung; den Verbrauch rechnet die erste Ablesung.
-                'initial_counter' => $this->parseCounter(($input['initial_counter'] ?? '') === '' ? 0.0 : $input['initial_counter']),
+                'initial_counter' => $this->parseCounter(($input['initial_counter'] ?? '') === '' ? 0.0 : $input['initial_counter'], 'initial_counter'),
                 'removed_on'      => null,
                 'final_counter'   => null,
                 'reason'          => null,
@@ -230,19 +260,20 @@ final class MeterService
         // Bestand und Tank-Warnung sinnlos. capacity_unit wird per Default
         // aus der Utility-Definition übernommen.
         if ($isDelivery) {
-            if (!isset($input['capacity']) || (float)$input['capacity'] <= 0) {
+            if (!isset($input['capacity']) || (is_numeric($input['capacity']) && (float)$input['capacity'] <= 0)) {
                 throw new \InvalidArgumentException(
                     $this->i18n->t('errors.meter.capacityRequired', ['label' => $u['label']])
                 );
             }
-            if (!isset($input['initial_stock']) || (float)$input['initial_stock'] < 0) {
+            if (!isset($input['initial_stock']) || (is_numeric($input['initial_stock']) && (float)$input['initial_stock'] < 0)) {
                 throw new \InvalidArgumentException(
                     $this->i18n->t('errors.meter.initialStockRequired', ['label' => $u['label']])
                 );
             }
-            $meter['capacity']      = (float)$input['capacity'];
+            // v3.13.0 — Typ und Obergrenze nach der gemeinsamen Regel (bisher `(float)`: „abc“ wurde 0, 10³⁰⁰ ging durch)
+            $meter['capacity']      = self::tankNumber($input, 'capacity');
             $meter['capacity_unit'] = (string)($input['capacity_unit'] ?? $u['volume_unit'] ?? '');
-            $meter['initial_stock'] = (float)$input['initial_stock'];
+            $meter['initial_stock'] = self::tankNumber($input, 'initial_stock');
             // v2.10.0 — Tankbuch: Peilstände und Preis des Anfangsbestands
             if (array_key_exists('tank_levels', $input)) {
                 $meter['tank_levels'] = $this->normalizeTankLevels($input['tank_levels'], $meter['capacity']);
@@ -252,7 +283,7 @@ final class MeterService
         }
 
         // v2.10.0 (CALC-07) — Wärmepumpen-Stromzähler
-        if ($utility === 'strom' && self::flag($input['heat_source'] ?? false)) {
+        if ($utility === 'strom' && self::flag($input['heat_source'] ?? false, 'heat_source')) {
             $meter['heat_source'] = true;
         }
         // v3.1.0 (H3, B9) — Rolle des Zählers (strom: heat_pump ⇔ heat_source)
@@ -276,7 +307,7 @@ final class MeterService
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.nameEmpty'));
         }
 
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $all[] = $meter;
         $this->store->write("$utility/meters.json", $all);
         return $meter;
@@ -284,7 +315,7 @@ final class MeterService
 
     public function update(string $utility, string $meterId, array $input): array
     {
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist (Altwerte anderer Zähler bleiben)
         $found = false;
         $isDelivery = Utilities::isDelivery($utility);
         Input::assertTexts($input, self::TEXT_FIELDS);   // v3.12.0
@@ -295,6 +326,7 @@ final class MeterService
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
             $found = true;
+            TextLimits::assert($input, 'meters', $m);   // v3.13.0 (Paket F) — nur Mitgeschicktes; Bestand bleibt
             foreach (['name', 'icon', 'notes', 'active'] as $f) {
                 if (array_key_exists($f, $input)) {
                     $m[$f] = $f === 'active' ? $input[$f] : (string)$input[$f];
@@ -303,7 +335,7 @@ final class MeterService
             // v2.10.0 (CALC-07) — Stromzähler einer Wärmepumpe: zählt in der
             // Effizienzkennzahl mit (BenchmarkService)
             if ($utility === 'strom' && array_key_exists('heat_source', $input)) {
-                if (self::flag($input['heat_source'])) $m['heat_source'] = true;
+                if (self::flag($input['heat_source'], 'heat_source')) $m['heat_source'] = true;
                 else unset($m['heat_source']);
             }
             // v3.1.0 (H3, B9) — Rolle; (B2) Erfassungsart, gesperrt solange
@@ -360,14 +392,19 @@ final class MeterService
             }
             // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
             if ($isDelivery) {
+                // v3.13.0 — beim Ändern dieselben Regeln wie beim Anlegen: Größe über 0, Bestand ab 0, beide eine Zahl
+                // bis FieldRules::TANK_MAX (bisher `(float)` ohne Prüfung: −1, „abc“ als 0 und 10³⁰⁰ gespeichert)
                 if (array_key_exists('capacity', $input)) {
-                    $m['capacity'] = (float)$input['capacity'];
+                    $m['capacity'] = self::tankNumber($input, 'capacity');
+                    if ($m['capacity'] <= 0) {
+                        throw new \InvalidArgumentException($this->i18n->t('errors.meter.capacityRequired', ['label' => Utilities::get($utility)['label']]));
+                    }
                 }
                 if (array_key_exists('capacity_unit', $input)) {
                     $m['capacity_unit'] = (string)$input['capacity_unit'];
                 }
                 if (array_key_exists('initial_stock', $input)) {
-                    $m['initial_stock'] = (float)$input['initial_stock'];
+                    $m['initial_stock'] = self::tankNumber($input, 'initial_stock');
                 }
                 // v2.10.0 — Tankbuch: Peilstände (immer die ganze Liste) und
                 // Preis des Anfangsbestands (leer entfernt ihn)
@@ -402,7 +439,8 @@ final class MeterService
     {
         // v3.12.0 — unbekannter Zähler: 404 wie bei GET und PATCH (bisher 200 `deleted: true`,
         // und meters.json wurde trotzdem neu geschrieben)
-        if ($this->get($utility, $meterId) === null) throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
+        // v3.13.0 (K2d) — gesucht in der Datei: Auch ein Zähler, den die Rechnung auslässt, lässt sich löschen
+        if (!in_array($meterId, array_column($this->stored($utility), 'id'), true)) throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
         $readings = $this->store->read("$utility/readings.json", []);
         foreach ($readings as $r) {
             if (($r['meter_id'] ?? null) === $meterId) {
@@ -430,12 +468,12 @@ final class MeterService
         }
         // v1.2.0 — F1006: ein Elternzähler mit Subzählern kann nicht gelöscht
         // werden, ohne die Kinder zu verwaisen. Erst Subzähler auflösen.
-        foreach ($this->list($utility) as $m) {
+        foreach ($this->stored($utility) as $m) {
             if (($m['parent_meter_id'] ?? null) === $meterId) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.isParent'));
             }
         }
-        $all = array_values(array_filter($this->list($utility), fn($m) => ($m['id'] ?? null) !== $meterId));
+        $all = array_values(array_filter($this->stored($utility), fn($m) => ($m['id'] ?? null) !== $meterId));
         $this->store->write("$utility/meters.json", $all);
     }
 
@@ -463,8 +501,9 @@ final class MeterService
             'serial'              => $new['serial'] ?? null,
             'digits'              => $new['digits'] ?? null,
         ], fn($v) => $v !== null);
+        self::assertSerialLength($input['serial'] ?? null, 'serial');   // v3.13.0 — Gerätenummer bis TextLimits::NUMBER
 
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $found = false;
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
@@ -509,9 +548,9 @@ final class MeterService
                     $this->i18n->t('errors.meter.oldFinalRequired')
                 );
             }
-            $oldFinal = $this->parseCounter($input['old_final_counter']);
+            $oldFinal = $this->parseCounter($input['old_final_counter'], 'old_final_counter');
             $newInit  = isset($input['new_initial_counter']) && $input['new_initial_counter'] !== ''
-                        ? $this->parseCounter($input['new_initial_counter'])
+                        ? $this->parseCounter($input['new_initial_counter'], 'new_initial_counter')
                         : 0.0;
 
             $devices[$openIdx]['removed_on']    = $date;
@@ -559,7 +598,7 @@ final class MeterService
     {
         // v3.12.0 — nie vor den Eingabebereich: Eine Ablesung im Jahr 0001 verlegte den Einbau dauerhaft
         if (!Dates::isInputDate($date)) return null;
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
             $devices = $m['devices'] ?? [];
@@ -589,10 +628,10 @@ final class MeterService
     public function setDeviceSerial(string $utility, string $meterId, string $deviceId, string $serial): array
     {
         $serial = trim($serial);
-        if ($serial === '' || mb_strlen($serial) > 64) {
+        if ($serial === '' || mb_strlen($serial) > TextLimits::NUMBER) {
             throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'serial', 'value' => mb_substr($serial, 0, 40)], 'serial');
         }
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         foreach ($all as $mi => $m) {
             if (($m['id'] ?? null) !== $meterId) continue;
             foreach ($m['devices'] ?? [] as $di => $d) {
@@ -681,7 +720,7 @@ final class MeterService
                 $this->i18n->t('errors.meter.invalidAlias', ['alias' => $alias])
             );
         }
-        foreach ($this->list($utility) as $m) {
+        foreach ($this->stored($utility) as $m) {   // v3.13.0 (K2d) — eindeutig unter allen gespeicherten
             if (($m['id'] ?? null) === $selfId) continue;
             if (($m['external_id'] ?? null) === $alias) {
                 throw new \InvalidArgumentException(
@@ -694,15 +733,15 @@ final class MeterService
 
     // ── v1.4.0 — F1011 Analyse-Zäsur (baseline_events) ────────────────────
 
-    /** Höchstlänge der Bezeichnung einer Zäsur. */
-    private const BASELINE_LABEL_MAX = 80;
+    /** Höchstlänge der Bezeichnung einer Zäsur (v3.13.0: Support\TextLimits, Fehler statt Abschneiden). */
+    private const BASELINE_LABEL_MAX = TextLimits::MARK;
 
     /**
      * Normalisiert und validiert die Zäsur-Liste eines Zählers:
      *  - null/leer → `[]` (keine Zäsur, Verhalten wie vor v2.4.0),
      *  - `date` muss ein gültiges ISO-Datum sein (`YYYY-MM-DD`),
      *  - je Zähler darf ein Datum nur einmal vorkommen,
-     *  - `label` ist optional, wird getrimmt und gekappt,
+     *  - `label` ist optional, wird getrimmt (Länge: TextLimits, seit v3.13.0 Fehler statt Kappen),
      *  - die Liste wird aufsteigend nach Datum sortiert gespeichert.
      *
      * Künftig datierte Ereignisse sind ausdrücklich erlaubt: Wer den
@@ -722,6 +761,8 @@ final class MeterService
             if (!is_array($raw)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidBaselineList'));
             }
+            // v3.13.0 — Liste oder Objekt im Eintrag: 400 statt 500 (Support\Input), wie auf oberster Ebene
+            Input::assertTexts($raw, ['date', 'label']);
             $date = trim((string)($raw['date'] ?? ''));
             if (!self::isIsoDate($date)) {
                 throw new \InvalidArgumentException(
@@ -735,10 +776,8 @@ final class MeterService
             }
             $seen[$date] = true;
 
+            // v3.13.0 (Paket F) — die Länge prüft TextLimits::assert() vor dem Aufruf (bisher still gekappt)
             $label = trim((string)($raw['label'] ?? ''));
-            if (mb_strlen($label) > self::BASELINE_LABEL_MAX) {
-                $label = mb_substr($label, 0, self::BASELINE_LABEL_MAX);
-            }
             $out[] = ['date' => $date, 'label' => $label];
         }
 
@@ -768,6 +807,7 @@ final class MeterService
             if (!is_array($raw)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidTankLevels'));
             }
+            Input::assertTexts($raw, ['date', 'note']);   // v3.13.0 — Liste oder Objekt im Eintrag: 400 statt 500
             $date = trim((string)($raw['date'] ?? ''));
             if (!self::isIsoDate($date)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidTankLevelDate', ['date' => $date]));
@@ -779,21 +819,19 @@ final class MeterService
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.duplicateTankLevel', ['date' => $date]));
             }
             $seen[$date] = true;
-            $rawLevel = $raw['level'] ?? null;
-            if (is_string($rawLevel)) $rawLevel = str_replace(',', '.', trim($rawLevel));
-            if (is_bool($rawLevel) || !is_numeric($rawLevel) || !is_finite((float)$rawLevel) || (float)$rawLevel < 0) {
+            // v3.13.0 — die gemeinsame Regel (Support\FieldRules), mit Obergrenze auch ohne gepflegte Tankgröße
+            $level = FieldRules::number($raw['level'] ?? null, 0, FieldRules::TANK_MAX);
+            if ($level === null) {
                 $shown = is_scalar($raw['level'] ?? null) ? (string)$raw['level'] : '';
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.tankLevelInvalid', ['value' => $shown]));
             }
-            $level = (float)$rawLevel;
             if ($capacity > 0 && $level > $capacity * 1.02) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.tankLevelAboveCapacity', [
                     'level' => (string)$level, 'capacity' => (string)$capacity,
                 ]));
             }
-            $note = trim((string)($raw['note'] ?? ''));
-            if (mb_strlen($note) > self::BASELINE_LABEL_MAX) $note = mb_substr($note, 0, self::BASELINE_LABEL_MAX);
-            $out[] = ['date' => $date, 'level' => round($level, 2), 'note' => $note];
+            $note = trim((string)($raw['note'] ?? ''));   // v3.13.0 (Paket F) — Länge: TextLimits::assert()
+            $out[] =['date' => $date, 'level' => round($level, 2), 'note' => $note];
         }
         usort($out, fn(array $a, array $b) => strcmp($a['date'], $b['date']));
         return $out;
@@ -803,11 +841,13 @@ final class MeterService
      * Ja/Nein aus JSON oder Formular. `!empty()` hielt die Zeichenkette
      * "false" für ein Ja — wie `fill_to_full` (DeliveryService) gilt nur ein
      * ausdrückliches Ja.
+     *
+     * v3.13.0 — die eine Regel (Input::flag): „Ja“ war hier still nein, Unsinn ebenso; jetzt gilt ja/nein wie an
+     * jedem Schreibweg, Unlesbares ist 400 mit dem Feld.
      */
-    private static function flag(mixed $v): bool
+    private static function flag(mixed $v, string $field): bool
     {
-        return $v === true || $v === 1
-            || (is_string($v) && in_array(strtolower(trim($v)), ['1', 'true', 'on', 'yes'], true));
+        return Input::flag($v, $field);
     }
 
     /**
@@ -831,7 +871,7 @@ final class MeterService
                 throw new LocalizedException('errors.meter.roleInvalid', ['role' => $role], 'unknown role');
             }
         } elseif ($utility === 'strom' && array_key_exists('heat_source', $input)) {
-            $role = self::flag($input['heat_source']) ? 'heat_pump' : (($meter['role'] ?? null) === 'heat_pump' ? $roles[0] : ($meter['role'] ?? $roles[0]));
+            $role = self::flag($input['heat_source'], 'heat_source') ? 'heat_pump' : (($meter['role'] ?? null) === 'heat_pump' ? $roles[0] : ($meter['role'] ?? $roles[0]));
         } else {
             return;
         }
@@ -857,7 +897,7 @@ final class MeterService
     {
         if ($utility === 'pv_erzeugung') {
             if (array_key_exists('plug_in', $input)) {
-                if (self::flag($input['plug_in'])) $meter['plug_in'] = true; else unset($meter['plug_in']);
+                if (self::flag($input['plug_in'], 'plug_in')) $meter['plug_in'] = true; else unset($meter['plug_in']);
             }
             foreach (['investment_eur' => 10000000.0, 'battery_capacity_kwh' => 10000.0] as $f => $max) {
                 if (!array_key_exists($f, $input)) continue;
@@ -1093,13 +1133,15 @@ final class MeterService
     private function normalizeInitialPrice(mixed $raw): ?float
     {
         if ($raw === null || $raw === '') return null;
-        $v = is_string($raw) ? str_replace(',', '.', trim($raw)) : $raw;
-        if (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v < 0) {
+        // v3.13.0 — die gemeinsame Regel (Support\FieldRules): auch mit Obergrenze (bisher ging 10³⁰⁰ durch, der
+        // Jahresbericht antwortete danach mit 500)
+        $v = FieldRules::number($raw, 0, FieldRules::PRICE_MAX);
+        if ($v === null) {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.initialPriceInvalid', [
                 'value' => is_scalar($raw) ? (string)$raw : '',
             ]));
         }
-        return round((float)$v, 4);
+        return round($v, 4);
     }
 
     /**
@@ -1136,14 +1178,46 @@ final class MeterService
         return ['digits' => (int)$raw];
     }
 
-    /** Zählerstand als Zahl ≥ 0 (gleiche Regel wie ReadingService). */
-    private function parseCounter(mixed $raw): float
+    /**
+     * Zählerstand als Zahl ≥ 0 (gleiche Regel wie ReadingService).
+     * v3.13.0 — wirklich dieselbe: Support\FieldRules::counter, auch mit der Obergrenze 10¹² (bisher nahm der
+     * Anfangsstand eines Zählers 10¹⁴ und 10³⁰⁰ an, die Ablesung daneben nicht).
+     */
+    /**
+     * v3.13.0 — Gerätenummer eines neuen Geräts (device_serial, device.serial, Zählertausch): höchstens TextLimits::NUMBER
+     * Zeichen, sonst 400 `errors.common.tooLong` mit Feld, Grenze und Länge. Die Geräteliste prüft TextLimits::assert
+     * (`devices.serial`), der Backup-Import und der Bestand dieselbe Grenze.
+     */
+    private static function assertSerialLength(mixed $serial, string $field): void
     {
-        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0) {
+        if (($n = TextLimits::length($serial)) > TextLimits::NUMBER) throw TextLimits::tooLong($field, TextLimits::NUMBER, $n);
+    }
+
+    private function parseCounter(mixed $raw, string $field): float
+    {
+        $v = FieldRules::counter($raw);
+        if ($v === null) {
+            // v3.13.0 — eine Zahl über der Grenze nennt die Grenze (errors.common.numberOutOfRange mit Feld, Wert, min,
+            // max), wie die API-Referenz zusagt; bisher hieß es „Erwartet wird eine Zahl ab 0“ auch weit über der Grenze
+            $n = is_numeric($raw) && !is_bool($raw) ? (float)$raw : null;
+            if ($n !== null && $n > ReadingService::MAX_COUNTER) throw FieldRules::error('counter', $field, $raw, ['number', 0, ReadingService::MAX_COUNTER]);
             $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
             throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterInvalid', ['value' => $shown]));
         }
-        return (float)$raw;
+        return $v;
+    }
+
+    /**
+     * v3.13.0 — Größe, Bestand und Preis eines Tanks nach der gemeinsamen Regel (Support\FieldRules): eine Zahl
+     * (Komma als Dezimaltrenner), nie negativ, höchstens FieldRules::TANK_MAX bzw. PRICE_MAX. Bisher machte der
+     * Weg beim Ändern `(float)` daraus: „abc“ wurde 0, −1 blieb −1, 10³⁰⁰ legte Übersicht und Jahresbericht lahm.
+     */
+    private static function tankNumber(array $input, string $field): float
+    {
+        $rule = FieldRules::FIELDS['meters'][$field];
+        $v = FieldRules::number($input[$field] ?? null, (float)$rule[1], (float)$rule[2]);
+        if ($v === null) throw FieldRules::error('number', $field, $input[$field] ?? null, $rule);
+        return $v;
     }
 
     /**
@@ -1275,12 +1349,29 @@ final class MeterService
         }
     }
 
-    /** @return array<int,array<string,mixed>> */
+    /**
+     * Gruppen, wie die Rechnung sie sieht. v3.13.0 (K2d) — Bestand nach der gemeinsamen Regel
+     * (Support\FieldRules::view): Ein Name als Liste aus einer älteren Version gilt als nicht eingetragen (bisher 500
+     * bei jeder Auswertung der Gruppe). Schreibwege lesen storedGroups().
+     *
+     * @return array<int,array<string,mixed>>
+     */
     public function listGroups(string $utility): array
     {
         $this->assertUtility($utility);
-        $groups = $this->store->read("$utility/meter_groups.json", []);
-        return is_array($groups) ? array_values($groups) : [];
+        return \Energietracker\Support\FieldRules::view($this->store, "$utility/meter_groups.json", 'meter_groups')[0];
+    }
+
+    /**
+     * v3.13.0 (K2d) — die gespeicherten Gruppen, wie sie dastehen (Schreibwege): Ein Speichern daneben lässt einen
+     * Altwert in der Datei.
+     *
+     * @return array<int,mixed>
+     */
+    private function storedGroups(string $utility): array
+    {
+        $this->assertUtility($utility);
+        return array_values(\Energietracker\Support\FieldRules::stored($this->store, "$utility/meter_groups.json", 'meter_groups'));
     }
 
     public function getGroup(string $utility, string $groupId): ?array
@@ -1340,12 +1431,13 @@ final class MeterService
         if ($name === '') {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNameEmpty'));
         }
+        TextLimits::assert($input, 'meter_groups');   // v3.13.0 (Paket F)
         $group = [
             'id'         => 'g_' . $utility . '_' . bin2hex(random_bytes(4)),
             'name'       => $name,
             'created_at' => date('Y-m-d'),
         ];
-        $all = $this->listGroups($utility);
+        $all = $this->storedGroups($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $all[] = $group;
         $this->store->write("$utility/meter_groups.json", $all);
         return $group;
@@ -1353,11 +1445,12 @@ final class MeterService
 
     public function updateGroup(string $utility, string $groupId, array $input): array
     {
-        $all = $this->listGroups($utility);
+        $all = $this->storedGroups($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $found = false;
         foreach ($all as &$g) {
-            if (($g['id'] ?? null) !== $groupId) continue;
+            if (!is_array($g) || ($g['id'] ?? null) !== $groupId) continue;
             $found = true;
+            TextLimits::assert($input, 'meter_groups', $g);   // v3.13.0 (Paket F)
             if (array_key_exists('name', $input)) {
                 $name = trim((string)Input::text($input, 'name'));
                 if ($name === '') {
@@ -1391,7 +1484,7 @@ final class MeterService
             }
         }
         // Mitglieder lösen
-        $meters = $this->list($utility);
+        $meters = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $changed = false;
         foreach ($meters as &$m) {
             if (($m['meter_group_id'] ?? null) === $groupId) {
@@ -1404,8 +1497,8 @@ final class MeterService
             $this->store->write("$utility/meters.json", $meters);
         }
         $all = array_values(array_filter(
-            $this->listGroups($utility),
-            fn($g) => ($g['id'] ?? null) !== $groupId
+            $this->storedGroups($utility),   // v3.13.0 (K2d) — die Datei, wie sie ist
+            fn($g) => !is_array($g) || ($g['id'] ?? null) !== $groupId
         ));
         $this->store->write("$utility/meter_groups.json", $all);
     }
@@ -1426,39 +1519,45 @@ final class MeterService
         if (!is_array($meterIds) || count($meterIds) < 2) {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.mergeNeedTwo'));
         }
-
-        // Zielgruppe bestimmen oder anlegen.
-        if (!empty($input['group_id'])) {
-            $group = $this->getGroup($utility, (string)$input['group_id']);
-            if ($group === null) {
-                throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFoundId', ['group' => $input['group_id']]));
-            }
-        } else {
-            $group = $this->createGroup($utility, ['name' => $input['name'] ?? '']);
-        }
-
-        $meters = $this->list($utility);
+        // v3.13.0 — erst alles prüfen, dann schreiben: Bisher legte der Weg die neue Gruppe an, bevor er die
+        // Zähler prüfte; ein unbekannter Zähler (400) oder eine Liste als Kennung (500) ließ eine leere Gruppe
+        // zurück. Kennungen als Text (Input::text), jeder Zähler bekannt, die Gruppe vorhanden bzw. ihr Name gültig.
+        Input::assertTexts($input, ['group_id', 'name']);
+        $meterIds = array_map(fn($mid) => (string)Input::text(['meter_ids' => $mid], 'meter_ids'), array_values($meterIds));
+        $meters = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $known = [];
         foreach ($meters as $m) {
             if (isset($m['id'])) $known[(string)$m['id']] = true;
         }
         foreach ($meterIds as $mid) {
-            if (!isset($known[(string)$mid])) {
+            if (!isset($known[$mid])) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFoundId', ['id' => $mid]));
             }
         }
 
-        $want = array_fill_keys(array_map('strval', $meterIds), true);
-        $members = 0;
-        foreach ($meters as &$m) {
-            if (isset($want[(string)($m['id'] ?? '')])) {
-                $m['meter_group_id'] = $group['id'];
-                $members++;
+        // Zielgruppe bestimmen oder anlegen; die Gruppe und die Mitglieder in einem Stapel (beides oder nichts)
+        return $this->store->batch(function () use ($utility, $input, $meters, $meterIds): array {
+            if (!empty($input['group_id'])) {
+                $group = $this->getGroup($utility, (string)$input['group_id']);
+                if ($group === null) {
+                    throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFoundId', ['group' => (string)$input['group_id']]));
+                }
+            } else {
+                $group = $this->createGroup($utility, ['name' => $input['name'] ?? '']);
             }
-        }
-        unset($m);
-        $this->store->write("$utility/meters.json", $meters);
 
-        return ['group' => $group, 'members' => $members];
+            $want = array_fill_keys($meterIds, true);
+            $members = 0;
+            foreach ($meters as &$m) {
+                if (isset($want[(string)($m['id'] ?? '')])) {
+                    $m['meter_group_id'] = $group['id'];
+                    $members++;
+                }
+            }
+            unset($m);
+            $this->store->write("$utility/meters.json", $meters);
+
+            return ['group' => $group, 'members' => $members];
+        });
     }
 }

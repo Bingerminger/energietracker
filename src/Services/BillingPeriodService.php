@@ -127,7 +127,7 @@ final class BillingPeriodService
                 if (!in_array((string)($m['id'] ?? ''), $ids, true) && $this->consumption->isDeductingSubmeter($utility, $m)) $meters[] = $m;
             }
         }
-        return $this->compute($utility, $meters, $withMonths, $today) + ['target_id' => (string)($target['id'] ?? '')];
+        return $this->compute($utility, $meters, $withMonths, $today, [], false, $target) + ['target_id' => (string)($target['id'] ?? '')];
     }
 
     /** v3.11.0 (D, #54) — nur abgeschlossene Perioden ab diesem Ende rechnen (closedPeriods), sonst null. */
@@ -178,6 +178,27 @@ final class BillingPeriodService
     }
 
     /**
+     * v3.13.0 — Die erste Ablesung eines Zählers oder einer Gruppe (der früheste Stand ihrer Mitglieder), mit denselben
+     * Ablesungen wie der Beginn der Abrechnungsjahre (dataSpan: ohne künftige, verdächtige und nach dem Stichtag). Davor ist
+     * der Verbrauch unbekannt; der Vertragsstatus beginnt einen Saldo nicht früher (Vertrag, der vor der ersten Ablesung
+     * beginnt). Eine Zäsur zählt hier nicht: Sie trennt die Auswertung, nicht das Geld. Null ohne Ablesung.
+     */
+    public function firstReading(string $utility, array $target, ?string $today = null): ?string
+    {
+        if (!Utilities::supportsBillCheck($utility) || ($target['capture'] ?? null) === 'period') return null;
+        $today ??= date('Y-m-d');
+        $first = null;
+        foreach (!empty($target['is_group']) ? $this->meters->groupSumMembers($utility, (string)$target['id']) : [$target] as $m) {
+            foreach ($this->readings->list($utility, (string)($m['id'] ?? '')) as $r) {
+                $d = (string)($r['date'] ?? '');
+                if (!empty($r['is_future']) || !empty($r['is_suspect']) || !Dates::isIsoDate($d) || $d > $today) continue;
+                if ($first === null || $d < $first) $first = $d;
+            }
+        }
+        return $first;
+    }
+
+    /**
      * v3.9.0 (V1) — Die laufende Abrechnungsperiode eines Zählers oder einer
      * Gruppe (die Periode, in der heute liegt), ohne Summen: dieselben Grenzen
      * wie forTarget() (Rechnungen, Stichtag, Lieferantenwechsel, Kurzreste).
@@ -194,7 +215,7 @@ final class BillingPeriodService
         $today ??= date('Y-m-d');
         $meters = !empty($target['is_group']) ? $this->meters->groupSumMembers($utility, (string)$target['id']) : [$target];
         if ($meters === []) return null;
-        $st = $this->structure($utility, $meters, $today);
+        $st = $this->structure($utility, $meters, $today, $target);
         $periods = $st['periods'];
         // v3.9.0 (Skeptiker M7) — der Stichtag-Vorschlag auch an Saldo-Karte und „Kosten & Verträge“
         // (bis dahin nur unter „Abrechnungsjahr“): passt er nicht zur letzten Rechnung bzw. zu den Verträgen
@@ -229,15 +250,16 @@ final class BillingPeriodService
      * Vertragsbeginne, Wechsel) und die Perioden selbst, ohne Summen.
      *
      * @param list<array<string,mixed>> $meters
+     * @param array<string,mixed>|null $target v3.13.0 (Paket K2a) — Zähler oder Gruppe; null = Summe der Art
      * @return array{anchor:string,bills:list<array>,start:?string,end:?string,starts:array<string,string>,switches:list<array>,periods:list<array>}
      */
-    private function structure(string $utility, array $meters, string $today): array
+    private function structure(string $utility, array $meters, string $today, ?array $target = null): array
     {
         $anchor = $this->anchor($utility);
         $ids = array_map(fn($m) => (string)($m['id'] ?? ''), $meters);
         $bills = self::billSpans(array_values(array_filter($this->bills->list($utility),
             fn($b) => in_array((string)($b['meter_id'] ?? ''), $ids, true))));
-        [$start, $end] = $this->dataSpan($utility, $meters, $today);
+        [$start, $end] = $this->dataSpan($utility, $meters, $today, $target);
         // v3.6.0 — Verträge, nach denen die Zähler rechnen: Wechsel teilen die
         // Perioden, ihr Beginn ordnet die Abschläge eines geteilten Monats zu
         $scope = [];
@@ -246,7 +268,124 @@ final class BillingPeriodService
         $switches = self::switches($scope);
         $periods = $start === null || $meters === [] ? [] : self::build($bills, $anchor, $start, $today, $switches);
         return ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
-                'switches' => $switches, 'periods' => $periods];
+                'switches' => $switches, 'periods' => $periods, 'scope' => $scope];
+    }
+
+    /**
+     * v3.13.0 (Paket K2a) — Ist `$day` der letzte Tag, an dem ein Vertrag der Zähler abrechnet (eingetragenes Ende ohne
+     * Verlängerung, abgelöst am Tag vor dem Folgevertrag; ContractService::coverage `to`)? Dieselbe Grenze wie die Karte
+     * (ConsumptionService::balanceProjection: Ende gesetzt, nicht weiterlaufend). Eine Ablesung an diesem Tag ist der
+     * Endstand des Vertrags wie auf der Schlussrechnung. Für die Summe der Art (`$whole`) nur, wenn am Folgetag kein
+     * Vertrag ihrer Zähler mehr rechnet: Die Zähler sind unabhängig, ein anderer liefe weiter und hätte am Ablesetag
+     * keinen Verbrauch.
+     *
+     * @param array<string,list<array<string,mixed>>> $scope Verträge je Zähler (structure)
+     */
+    private function endsContract(array $scope, string $day, string $today, bool $whole): bool
+    {
+        $byId = [];
+        foreach ($scope as $list) foreach ($list as $c) $byId[(string)($c['id'] ?? '')] = $c;
+        $cov = $this->consumption->contractsService()->coverageByTarget(array_values($byId));
+        $ends = false;
+        $next = self::addDays($day, 1);
+        foreach ($cov as $x) {
+            if (($x['to'] ?? null) === $day && ContractService::coveredOn($x, $today) !== true) $ends = true;
+            elseif ($whole && ContractService::coveredOn($x, $next) !== null) return false;
+        }
+        return $ends;
+    }
+
+    /**
+     * v3.13.0 (Paket K3) — Der letzte Tag, an dem ein Vertrag des Ziels rechnet (ContractService::coverage `to`, wie
+     * endsContract()): null, wenn einer weiterläuft (offen, verlängert) oder es keinen gibt. Für die Summe der Art (`$whole`)
+     * nur, wenn jeder ihrer Zähler Verträge hat; ein Zähler ohne Vertrag zählt nach seinen Ablesungen weiter.
+     *
+     * @param array<string,list<array<string,mixed>>> $scope Verträge je Zähler (structure)
+     */
+    private function lastContractDay(array $scope, bool $whole, ?array $withData = null): ?string
+    {
+        $byId = [];
+        foreach ($scope as $mid => $list) {
+            // v3.13.0 — ein Zähler ohne Ablesung (der beim Erststart angelegte Hauptzähler) misst nichts und rechnet nicht weiter
+            if ($whole && $list === [] && $withData !== null && !isset($withData[(string)$mid])) continue;
+            if ($whole && $list === []) return null;
+            foreach ($list as $c) $byId[(string)($c['id'] ?? '')] = $c;
+        }
+        if ($byId === []) return null;
+        $last = null;
+        foreach ($this->consumption->contractsService()->coverageByTarget(array_values($byId)) as $x) {
+            if (($x['from'] ?? null) === null) continue;
+            if (($x['to'] ?? null) === null) return null;
+            if ($last === null || (string)$x['to'] > $last) $last = (string)$x['to'];
+        }
+        return $last;
+    }
+
+    /**
+     * v3.13.0 — Die Ziele der Summe einer Art und ihre Grenzen: Zähler, die nach einem Gruppenvertrag rechnen, als ihre
+     * Gruppe (ConsumptionService::contractScope), jeder andere Zähler für sich. Je Ziel wie in seinem eigenen
+     * Abrechnungsjahr (structure, dataSpan): `end` = letzte echte Ablesung, bei einer Gruppe der früheste letzte Stand ihrer
+     * Mitglieder (ConsumptionService::measuredUntil); `ends` = Schlussablesung am letzten Vertragstag (endsContract);
+     * `last` = letzter Tag seines letzten Vertrags (lastContractDay). Ein Zähler ohne Ablesung hat kein Ende und zählt nichts.
+     *
+     * @param list<array<string,mixed>> $meters Zähler der Summe (mit denen, von denen nur das Geld zählt)
+     * @return list<array{ids:list<string>,end:?string,ends:bool,last:?string}>
+     */
+    private function targetBounds(string $utility, array $meters, string $today): array
+    {
+        $groups = []; $single = [];
+        foreach ($meters as $m) {
+            $mid = (string)($m['id'] ?? '');
+            [$list, $ctx] = $this->consumption->contractScope($utility, $m);
+            $gid = (string)($m['meter_group_id'] ?? '');
+            if ($ctx !== null && $gid !== '') $groups[$gid][$mid] = $list;
+            else $single[] = [$m, [$mid => $list]];
+        }
+        foreach ($groups as $gid => $scope) {
+            $g = $this->meters->groupTarget($utility, (string)$gid);
+            if ($g !== null) $single[] = [$g, $scope];
+            else foreach ($scope as $mid => $list) $single[] = [$this->meters->get($utility, (string)$mid) ?? ['id' => (string)$mid], [$mid => $list]];
+        }
+        $out = [];
+        foreach ($single as [$t, $scope]) {
+            $end = $this->consumption->measuredUntil($utility, $t);
+            $out[] = ['ids' => array_map('strval', array_keys($scope)), 'end' => $end,
+                      'ends' => $end !== null && $this->endsContract($scope, $end, $today, false),
+                      'last' => $end !== null ? $this->lastContractDay($scope, false) : null];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.13.0 — Ende (ausschließlich) eines Ziels in einer Periode: dieselbe Regel wie für ein einzelnes Ziel in computeAt()
+     * (`$cap`): bis zur letzten Ablesung (sie gehört zum Folgetag), am letzten Tag der Periode oder eines Vertrags mit
+     * diesem Tag, höchstens bis zum letzten Tag des letzten Vertrags. Ohne Ablesung der Beginn der Periode (nichts gezählt).
+     *
+     * @param array{from:string,until:string} $p
+     */
+    private static function boundExcl(array $p, ?string $end, bool $endsContract, ?string $lastDay): string
+    {
+        if ($end === null) return (string)$p['from'];
+        $cap = $end === $p['until'] ? self::addDays($p['until'], 1) : $end;
+        if ($endsContract && $cap === $end) $cap = self::addDays($end, 1);
+        if ($lastDay !== null && $lastDay >= $p['from'] && $lastDay <= $p['until'] && self::addDays($lastDay, 1) < $cap) $cap = self::addDays($lastDay, 1);
+        return max((string)$p['from'], min(self::addDays($p['until'], 1), $cap));
+    }
+
+    /**
+     * v3.13.0 — Zähler mit mindestens einer Ablesung bis zum Stichtag (für lastContractDay der Summe der Art).
+     *
+     * @return array<string,true>
+     */
+    private function metersWithData(string $utility, array $meters, string $today): array
+    {
+        $out = [];
+        foreach ($meters as $m) {
+            foreach ($this->readings->list($utility, (string)($m['id'] ?? '')) as $r) {
+                if (Dates::isIsoDate($r['date'] ?? null) && (string)$r['date'] <= $today) { $out[(string)$m['id']] = true; break; }
+            }
+        }
+        return $out;
     }
 
     /**
@@ -255,13 +394,22 @@ final class BillingPeriodService
      * @param bool $measured  v3.9.0 (F1032) — Menge = Messung (Summe der Art) statt Menge der Verträge
      * @return array<string,mixed>
      */
-    private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false): array
+    private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false, ?array $target = null): array
     {
         $today ??= date('Y-m-d');
-        // v3.12.0 — die ganze Rechnung am Stichtag: Monatszeilen und Abschnitte (billBreakdown) sehen nur
-        // Ablesungen bis zu ihm, wie die Perioden selbst (dataSpan). Bis v3.11 rechneten sie am echten Datum.
-        return $this->consumption->atDate($today, fn() => $this->computeAt($utility, $meters, $withMonths, $today, $money, $measured));
+        $outer = $this->target;
+        $this->target = $target;   // v3.13.0 (Paket K2a) — Zähler oder Gruppe (Ende wie die Karte); null = Summe der Art
+        try {
+            // v3.12.0 — die ganze Rechnung am Stichtag: Monatszeilen und Abschnitte (billBreakdown) sehen nur
+            // Ablesungen bis zu ihm, wie die Perioden selbst (dataSpan). Bis v3.11 rechneten sie am echten Datum.
+            return $this->consumption->atDate($today, fn() => $this->computeAt($utility, $meters, $withMonths, $today, $money, $measured));
+        } finally {
+            $this->target = $outer;
+        }
     }
+
+    /** @var array<string,mixed>|null v3.13.0 (Paket K2a) — Ziel der laufenden Rechnung (compute), null = Summe der Art */
+    private ?array $target = null;
 
     /**
      * @param list<array<string,mixed>> $meters
@@ -270,8 +418,16 @@ final class BillingPeriodService
      */
     private function computeAt(string $utility, array $meters, bool $withMonths, string $today, array $money, bool $measured): array
     {
+        $target = $this->target;
         ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
-         'switches' => $switches, 'periods' => $periods] = $this->structure($utility, $meters, $today);
+         'switches' => $switches, 'periods' => $periods, 'scope' => $scope] = $this->structure($utility, $meters, $today, $target);
+        // v3.13.0 (Paket K2a) — Schlussablesung am letzten Tag eines Vertrags: Endstand wie am letzten Tag der Periode
+        $endsContract = $end !== null && $this->endsContract($scope, (string)$end, $today, $target === null);
+        // v3.13.0 (Paket K3) — der letzte Tag, an dem ein Vertrag des Ziels rechnet (null: einer rechnet weiter oder keiner da)
+        $lastDay = $end !== null ? $this->lastContractDay($scope, $target === null, $target === null ? $this->metersWithData($utility, $meters, $today) : null) : null;
+        // v3.13.0 — die Summe der Art je Ziel mit dessen eigener Grenze (targetBounds), nicht alle Zähler bis zum spätesten Stand
+        $bounds = $target === null ? $this->targetBounds($utility, array_merge($meters, $money), $today) : null;
+        $countIds = array_map(fn($m) => (string)($m['id'] ?? ''), $meters);
         // v3.9.0 (F1032) — die Verträge der Subzähler mit eigenem Vertrag ordnen nur ihre Abschläge zu
         foreach ($money as $m) $starts += ConsumptionService::contractStarts($this->consumption->contractScope($utility, $m)[0]);
         // v3.7.0 (#33) — ohne Rechnung ein Vorschlag aus den Vertragsbeginnen
@@ -294,6 +450,7 @@ final class BillingPeriodService
 
         $monthly = [];
         foreach (array_merge($meters, $money) as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m, null, $today);
+        $allMonths = array_merge([], ...array_values($monthly));   // v3.13.0 — Preis fehlt je Vertrag wie an den Monatszeilen
         $contracts = $this->carryingContracts($utility, array_merge($meters, $money));
         $this->money = $money;
         $this->measured = $measured;
@@ -312,9 +469,41 @@ final class BillingPeriodService
             // deren Endstand wie auf der Rechnung: die Periode ist ganz gerechnet (der eine Tag danach hat keinen
             // Verbrauch, ConsumptionService::genericBillRows), nicht bis zum Vortag
             $cap = (string)$end === $p['until'] ? self::addDays($p['until'], 1) : (string)$end;
+            // v3.13.0 (Paket K2a) — ebenso am letzten Tag eines Vertrags (Schlussablesung ohne erfasste Schlussrechnung), wie
+            // Saldo-Karte und Schlussrechnung; bis dahin endete das Abrechnungsjahr dann am Vortag (ganze Rate 540 statt 630 €)
+            if ($endsContract && $cap === (string)$end) $cap = self::addDays((string)$end, 1);
+            // v3.13.0 (Paket K3) — endet der letzte Vertrag in der Periode vor der letzten Ablesung (Übergabe Tage nach dem
+            // Auszug), endet das Abrechnungsjahr an seinem letzten Tag wie Karte und Schlussrechnung: Tage und Menge danach
+            // rechnet kein Vertrag. Bis dahin lief es bis zum Tag vor der Ablesung (mehr Tage und Menge bei gleichem Geld).
+            if ($lastDay !== null && $lastDay >= $p['from'] && $lastDay <= $p['until'] && self::addDays($lastDay, 1) < $cap) {
+                $cap = self::addDays($lastDay, 1);
+            }
             $toExcl = max($p['from'], min(self::addDays($p['until'], 1), $cap));
-            $p += $this->sums($utility, $meters, $monthly, $p['from'], $toExcl, $starts);
+            // v3.13.0 — Summe der Art: jedes Ziel bis zu seiner eigenen Grenze, nach denselben Regeln wie die Zeilen darüber
+            // (boundExcl); die Periode reicht bis zum spätesten Ziel. Bis dahin rechnete sie alle Zähler bis zum spätesten
+            // Stand der Art: Grundpreis und Abschläge einer Gruppe liefen dann über den frühesten Stand ihrer Mitglieder
+            // hinaus, und neben einem Zähler ohne Vertrag zählte die Menge nach dem Ende des letzten Vertrags mit.
+            $caps = null;
+            if ($bounds !== null) {
+                $caps = [];
+                $toExcl = $p['from'];
+                foreach ($bounds as $b) {
+                    $x = self::boundExcl($p, $b['end'], $b['ends'], $b['last']);
+                    foreach ($b['ids'] as $id) {
+                        $caps[$id] = $x;
+                        if (in_array($id, $countIds, true) && $x > $toExcl) $toExcl = $x;
+                    }
+                }
+            }
+            $p += $this->sums($utility, $meters, $monthly, $p['from'], $toExcl, $starts, $caps);
             $p['as_of'] = $toExcl > $p['from'] ? self::addDays($toExcl, -1) : null;
+            // v3.13.0 (additiv, nur an der Summe der Art) — je Zähler der letzte gezählte Tag seines Ziels (null: nichts
+            // gezählt). Die KI leitet daraus die Herkunft der Zeile ab: Endet ein Ziel vor seiner nächsten Ablesung, ist sie
+            // verteilt, auch wenn die Periode an einer Ablesung des spätesten Ziels endet.
+            if ($caps !== null) $p['member_as_of'] = array_map(fn(string $x): ?string => $x > $p['from'] ? self::addDays($x, -1) : null, $caps);
+            // v3.13.0 (Paket K3, additiv) — gerechnet bis zum letzten Tag des letzten Vertrags: eine Ablesung an diesem Tag ist
+            // der Endstand (KI `reading_on`), wie am letzten Tag der Periode
+            if ($lastDay !== null && $p['as_of'] === $lastDay) $p['contract_end'] = $lastDay;
             $sp = self::specialPayments($contracts, $p['from'], min($p['until'], $today));
             $p['special'] = $sp;
             // v3.7.0 (wirklichkeit-2) — ein Vertrag der Periode ohne Arbeitspreis: dieselbe
@@ -323,7 +512,9 @@ final class BillingPeriodService
             foreach ($contracts as $c) {
                 $cEnd = $coverage[(string)($c['id'] ?? '')]['superseded_on'] ?? (string)($c['end'] ?? '');
                 if ((string)($c['start'] ?? '9999') > $p['until'] || ($cEnd !== '' && $cEnd < $p['from'])) continue;
-                if (ConsumptionService::lacksWorkingPrice($utility, $c)) { $p['price_missing'] = true; break; }
+                // v3.13.0 — auch ein Arbeitspreis, der erst nach dem Beginn der Periode gilt; ein Preis je Ablesung, der
+                // diese Monate trägt, zählt wie an den Monatszeilen
+                if (ConsumptionService::lacksWorkingPriceIn($utility, $c, $p['from'], $p['until'], $allMonths)) { $p['price_missing'] = true; break; }
             }
             $p['balance'] = round($p['cost'] - $p['advances'] - $sp['extra_advances'], 2);
             // v3.11.0 (D, #54) — „angenommen“: Abschnitte, in denen ein Vertrag nur durch Fortschreibung
@@ -341,7 +532,7 @@ final class BillingPeriodService
                 $inv = (array)($billById[$p['bill_id']]['invoice'] ?? []);
                 $p['invoice'] = array_intersect_key($inv, array_flip(['energy_kwh', 'volume_m3', 'amount_eur', 'advances_paid_eur', 'result_eur']));
             }
-            if ($withMonths) $p['months'] = $this->months($utility, $meters, $monthly, $p['from'], $toExcl, $starts);
+            if ($withMonths) $p['months'] = $this->months($utility, $meters, $monthly, $p['from'], $toExcl, $starts, $caps);
         }
         unset($p);
         // v3.10.0 (GitHub #36) — die jüngste Periode mit Daten (die der Übersicht) gegen dieselbe
@@ -674,9 +865,16 @@ final class BillingPeriodService
      * Daten von–bis: erste Ablesung, frühestens die wirksame Zäsur (die späteste
      * der Zähler); letzte Ablesung bis heute. [null, null] ohne Ablesung.
      *
+     * v3.13.0 (Paket K2a) — „bis“ ist gemessen: die letzte echte Ablesung, ein als geschätzt erfasster Stand zählt nicht
+     * (wie „Saldo am …“ der Karte seit v3.12.0). Für einen Zähler oder eine Gruppe dieselbe Funktion wie die Karte
+     * (ConsumptionService::measuredUntil; Gruppe: der früheste letzte Stand der Mitglieder). Die Summe der Art bleibt
+     * beim spätesten Stand ihrer Zähler: Sie sind unabhängig, ein still gelegter Zähler hielte sonst die Art an. Seit
+     * v3.13.0 rechnet sie jedes Ziel bis zu seiner eigenen Grenze (targetBounds); dieser Tag ist nur noch `measured_until`.
+     *
+     * @param array<string,mixed>|null $target
      * @return array{0:?string,1:?string}
      */
-    private function dataSpan(string $utility, array $meters, string $today): array
+    private function dataSpan(string $utility, array $meters, string $today, ?array $target = null): array
     {
         $first = null; $last = null; $baseline = null;
         foreach ($meters as $m) {
@@ -684,12 +882,14 @@ final class BillingPeriodService
                 $d = (string)($r['date'] ?? '');
                 if (!empty($r['is_future']) || !empty($r['is_suspect']) || !Dates::isIsoDate($d) || $d > $today) continue;
                 if ($first === null || $d < $first) $first = $d;
+                if (!empty($r['is_estimated'])) continue;
                 if ($last === null || $d > $last) $last = $d;
             }
             $b = MeterService::activeBaselineDate($m, $today);
             if ($b !== null && ($baseline === null || $b > $baseline)) $baseline = $b;
         }
         if ($first === null) return [null, null];
+        if ($target !== null) $last = $this->consumption->atDate($today, fn() => $this->consumption->measuredUntil($utility, $target));
         return [$baseline !== null && $baseline > $first ? $baseline : $first, $last];
     }
 
@@ -803,9 +1003,10 @@ final class BillingPeriodService
      * (ConsumptionService::advanceBetween, wie „Rechnung prüfen“).
      *
      * @param array<string,string> $starts Vertragsbeginn je ID
+     * @param array<string,string>|null $caps v3.13.0 — Summe der Art: Ende (ausschließlich) je Zähler nach seinem Ziel (targetBounds)
      * @return array<string,mixed>
      */
-    private function sums(string $utility, array $meters, array $monthly, string $from, string $toExcl, array $starts = []): array
+    private function sums(string $utility, array $meters, array $monthly, string $from, string $toExcl, array $starts = [], ?array $caps = null): array
     {
         $qk = $utility === 'wasser' ? 'm3' : 'kwh';
         $t = ['days' => max(0, self::days($from, $toExcl)), $qk => 0.0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
@@ -817,7 +1018,11 @@ final class BillingPeriodService
         if ($qk === 'kwh') $t['measured_kwh'] = 0.0;
         if ($toExcl <= $from) return $t;
         $moneyIds = array_map(fn($m) => (string)($m['id'] ?? ''), $this->money);
+        $periodEnd = $toExcl;
         foreach (array_merge($meters, $this->money) as $m) {
+            // v3.13.0 — Summe der Art: dieser Zähler nur bis zum Ende seines Ziels
+            $toExcl = $caps !== null ? min($periodEnd, $caps[(string)($m['id'] ?? '')] ?? $from) : $periodEnd;
+            if ($toExcl <= $from) continue;
             $bt = $this->consumption->billBreakdown($utility, $m, $from, $toExcl)['totals'] ?? [];
             // v3.9.0 (F1032) — von Subzählern mit eigenem Vertrag nur das Geld; die Summe der Art
             // zählt die Messung (`measured_kwh`), ein Zähler oder eine Gruppe die Menge der Verträge
@@ -860,12 +1065,12 @@ final class BillingPeriodService
      *
      * @return list<array<string,mixed>>
      */
-    private function months(string $utility, array $meters, array $monthly, string $from, string $toExcl, array $starts = []): array
+    private function months(string $utility, array $meters, array $monthly, string $from, string $toExcl, array $starts = [], ?array $caps = null): array
     {
         $out = [];
         for ($p = $from; $p < $toExcl;) {
             $next = min($toExcl, date('Y-m-01', (int)strtotime(substr($p, 0, 7) . '-01 +1 month')));
-            $s = $this->sums($utility, $meters, $monthly, $p, $next, $starts);
+            $s = $this->sums($utility, $meters, $monthly, $p, $next, $starts, $caps);
             $ym = substr($p, 0, 7);
             $row = ['ym' => $ym, 'year' => (int)substr($p, 0, 4), 'month' => (int)substr($p, 5, 2),
                     'from' => $p, 'until' => self::addDays($next, -1), 'days' => $s['days'],

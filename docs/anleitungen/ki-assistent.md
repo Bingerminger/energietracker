@@ -57,7 +57,8 @@ Geschätztes.
 > fällig, Anna kümmert sich um die Wartung am 18.11.“
 
 **5. „Gasstand 13.200“** Werkzeug: `propose_reading`. Es prüft mit denselben
-Rückfragen wie das Formular; bestätigt wird in der App.
+Rückfragen wie das Formular, bei Heizarten auch nach dem Wetter *(v3.13.0)*; bestätigt
+wird in der App.
 > *Erfundene Antwort:* „Vorschlag angelegt: Gas, Stand 13.200 m³ von heute, 96 m³
 > seit der letzten Ablesung, keine Auffälligkeit. Noch nichts geändert: Bestätige
 > ihn in der App.“
@@ -138,10 +139,14 @@ Drei weitere Schalter auf derselben Karte:
 - **Kennnummern an die KI geben** (`mcp_share_identifiers`), ab Werk aus:
   Zählernummer, Markt- und Messlokation, Kunden-, Vertrags- und Rechnungsnummer.
   Ohne den Schalter ersetzt die App **Nummern, die sie kennt**, überall, wo die KI Text
-  bekommt: Felder, Zitate, Dateinamen, Anbieter, Tarif, Notizen, Namen. Ein Zitat fällt
+  bekommt: Felder, Zitate, Dateinamen, Anbieter, Tarif, Notizen, Namen. *(v3.13.0)*
+  **Auch anders geschrieben:** mit Trennzeichen zwischen den Ziffern oder direkt an
+  Buchstaben. Ein Zitat fällt
   weg, wenn danach noch eine lange Nummer oder eine Nummer hinter einer Bezeichnung
-  („Kunden-Nr.“, „Kassenzeichen“) darin steht. Im Dateinamen wird jede Ziffernfolge ab
-  fünf Stellen ersetzt, die kein Tag ist.
+  („Kunden-Nr.“, „Kassenzeichen“) darin steht. In **Namen und Titeln** (Zähler, Gruppen,
+  Termine, Hinweise) ersetzt die App *(v3.13.0)* jedes solche Stück, der Rest des Namens
+  bleibt lesbar. Im Dateinamen wird jede Ziffernfolge ab fünf Stellen ersetzt, die kein
+  Tag ist. <!-- doc-claim: mcp-identifier-mask (McpKnownNumbersInNamesTest) -->
 
   **Die Grenzen:**
 
@@ -183,8 +188,9 @@ Die Karte zeigt die Adresse. Sie hängt davon ab, wie der Energietracker läuft:
 
 Die Beispieladressen ersetzt du durch deine. Die Karte nennt immer die Adresse
 mit `api.php`: Sie geht mit jedem Webserver; im Docker-Image und in der App in
-Home Assistant geht auch `/api/mcp` wie in der Tabelle. Ein Test im Browser
-hilft nicht: Die Schnittstelle nimmt nur `POST` mit Schlüssel an.
+Home Assistant geht auch `/api/mcp` wie in der Tabelle, *(seit v3.13.0)* ebenso
+mit Apache und der mitgelieferten `.htaccess`, wenn `mod_rewrite` an ist. Ein
+Test im Browser hilft nicht: Die Schnittstelle nimmt nur `POST` mit Schlüssel an.
 
 ## Schritt 4 — Open WebUI mit Ollama verbinden
 
@@ -204,11 +210,19 @@ Beispielen steht `etk_…` für deinen Schlüssel.
    Englisch „External Tool Servers“, andere Versionen können abweichen), Typ
    **MCP (Streamable HTTP)**, als URL die Adresse aus Schritt 3,
    Authentifizierung **Bearer** mit dem Schlüssel. Du kannst den Eintrag dort auch
-   importieren, dann mit deiner Adresse und deinem Schlüssel:
+   importieren: den Text unten mit deiner Adresse und deinem Schlüssel als Datei
+   `energietracker.json` speichern, im selben Fenster **Importieren** wählen, die
+   Datei laden und speichern. Der Import füllt nur das Fenster aus; eingeschaltet ist
+   der Eintrag wie beim Ausfüllen von Hand.
 
    ```json
    [{"type":"mcp","url":"http://host.docker.internal:8080/api/mcp","spec_type":"url","spec":"","path":"openapi.json","auth_type":"bearer","key":"etk_…","info":{"id":"energietracker","name":"","description":"energietracker"}}]
    ```
+
+   *(v3.13.0)* **Ohne Oberfläche,** über die Umgebungsvariable
+   `TOOL_SERVER_CONNECTIONS` von Open WebUI: Dort gehört in jeden Eintrag
+   zusätzlich `"config":{"enable":true}`. Ohne das antwortete Open WebUI 0.13.3
+   beim Öffnen der Einstellungen mit einem Fehler (500).
 5. Open WebUI läuft oft im Container. Dann heißt `localhost` der Container selbst:
    Nimm `http://host.docker.internal:8080/api/mcp` (unter Linux mit
    `--add-host=host.docker.internal:host-gateway`) oder die Adresse des Rechners im
@@ -445,8 +459,14 @@ Der Verlauf nennt beides: **KI (Schlüssel „…“), bestätigt von** dir.
 - Kommt nach dem Vorschlag eine Rückfrage dazu, etwa weil inzwischen ein anderer Stand
   erfasst ist, wird nichts geschrieben und die KI legt neu an.
 - Die Übernahme steht im **Verlauf** mit dem Namen des Schlüssels und der Liste der
-  Änderungen; eine Ablesung trägt die Quelle `mcp`. **Rückgängig gibt es dafür nicht:**
-  Einzeln in der App löschen, was nicht stimmt.
+  Änderungen; eine Ablesung trägt die Quelle `mcp`. **„Rückgängig“ nimmt sie zurück**
+  *(v3.13.0)*: Nach einer Rückfrage stellt die App die Daten auf den Stand vor der Übernahme
+  (was die KI angelegt hat, wird gelöscht, was sie geändert hat, steht wieder wie vorher;
+  das Dokument steht wieder zum Übernehmen bereit). Das geht nur, solange sich seitdem
+  nichts daran geändert hat; sonst nimm zuerst die spätere Änderung zurück oder ändere
+  einzeln. Die Rücknahme steht auch im Protokoll der Zugriffe („zurückgenommen“), und die
+  KI erfährt sie, wenn sie den Vorschlag noch einmal übernehmen will. Übernahmen aus
+  v3.12 lassen sich so nicht zurücknehmen.
 
 Offene Vorschläge stehen unter **Zu tun**, das Protokoll der Zugriffe (wer, wann, welches
 Werkzeug, ohne Inhalte) unter **Zu tun → Verlauf → Zugriffe der KI**. Wartet ein Vorschlag,

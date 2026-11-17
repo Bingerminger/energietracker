@@ -18,7 +18,10 @@
      • je Kalenderjahr ein Vertrag für Gas, Strom und Wasser, eine
        Einspeisevergütung über 20 Jahre,
      • Viertelstunden der letzten vollen Kalenderjahre für Strom, PV-Erzeugung
-       und PV-Einspeisung (Summe je Tag = Ablesung) und Börsenpreise dazu.
+       und PV-Einspeisung (Summe je Tag = Ablesung) und Börsenpreise dazu,
+     • mit --tank (v3.13.0) zusätzlich ein Heizöltank: jedes Jahr eine Lieferung
+       „bis voll“ und vierteljährlich ein Peilstand (Tankbuch mit vielen
+       Stützstellen).
    Gemessen wird mit tools/measure-large-household.mjs; das Ergebnis steht in
    docs/entwicklung/messung-grosse-daten.md.
 
@@ -60,28 +63,39 @@ const isoLocal = (ms) => { const off = berlinOffset(ms); return new Date(ms + of
  * Baut den Haushalt in `dir` (muss leer sein oder fehlen).
  *
  * @param {string} dir
- * @param {{years?: number, qhYears?: number, end?: string}} [o]  end = letzter Tag mit Ablesung (Standard: gestern)
- * @returns {{readings: number, days: number, intervals: number, from: string, to: string, qhYearsList: number[]}}
+ * @param {{years?: number, qhYears?: number, end?: string, tank?: boolean, tankYears?: number}} [o]  end = letzter Tag mit Ablesung
+ *   (Standard: gestern), tank = Heizöltank dazu, tankYears = Jahre des Tanks (Standard: years; mehr Jahre bringen
+ *   die Temperaturen davor mit, v3.13.0)
+ * @returns {{readings: number, days: number, intervals: number, from: string, to: string, qhYearsList: number[], deliveries: number, tankLevels: number}}
  */
-export function buildLargeHousehold(dir, { years = 10, qhYears = 2, end = iso(Date.now() - DAY) } = {}) {
+export function buildLargeHousehold(dir, { years = 10, qhYears = 2, end = iso(Date.now() - DAY), tank = false, tankYears = years } = {}) {
   if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} ist nicht leer`);
   mkdirSync(dir, { recursive: true });
   const write = (rel, data) => { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), JSON.stringify(data)); };
   const endMs = parse(end);
-  const from = iso(Date.UTC(new Date(endMs).getUTCFullYear() - years, new Date(endMs).getUTCMonth(), new Date(endMs).getUTCDate() + 1));
+  const yearsBack = (n) => iso(Date.UTC(new Date(endMs).getUTCFullYear() - n, new Date(endMs).getUTCMonth(), new Date(endMs).getUTCDate() + 1));
+  const from = yearsBack(years);
   const days = [];
   for (let t = parse(from); t <= endMs; t += DAY) days.push(iso(t));
+  // v3.13.0 — Tage des Tanks: so viele Jahre wie der Haushalt, auf Wunsch mehr (Temperaturen davor dazu)
+  const tankFrom = tank && tankYears > years ? yearsBack(tankYears) : from;
+  const earlyDays = [];
+  for (let t = parse(tankFrom); t < parse(from); t += DAY) earlyDays.push(iso(t));
 
   // ── Wetter ──
   const rT = seeded('temperatur');
   const temps = {};
   const hdd = {};
-  for (const d of days) {
-    const avg = 9.5 + 9.5 * Math.sin(2 * Math.PI * (doy(d) - 110) / 365.25) + 2.6 * gauss(rT);
-    const spread = 3 + 2.5 * rT();
+  const weather = (d, rnd) => {
+    const avg = 9.5 + 9.5 * Math.sin(2 * Math.PI * (doy(d) - 110) / 365.25) + 2.6 * gauss(rnd);
+    const spread = 3 + 2.5 * rnd();
     temps[d] = { min: round(avg - spread, 1), avg: round(avg, 1), max: round(avg + spread, 1), source: 'import' };
     hdd[d] = Math.max(0, 15 - avg);
-  }
+  };
+  // die Tage vor dem Haushalt aus einer eigenen Reihe: Die Temperaturen des Haushalts bleiben dieselben
+  const rEarly = seeded('temperatur-frueh');
+  for (const d of earlyDays) weather(d, rEarly);
+  for (const d of days) weather(d, rT);
   write('temperatures.json', temps);
 
   // ── Tagesverbrauch je Art ──
@@ -152,6 +166,46 @@ export function buildLargeHousehold(dir, { years = 10, qhYears = 2, end = iso(Da
     base_prices: [], advance_payments: [], special_payments: [], bonuses: [], is_shadow: false, shadow_label: null,
   }]);
 
+  // ── v3.13.0 — auf Wunsch ein Heizöltank (Tankbuch über alle Jahre) ──
+  // Verbrauch je Tag aus Grundlast und Heizgradtagen (rund 2.300 L im Jahr); jedes Jahr am 1. Juli
+  // „bis voll“, fällt der Bestand vorher unter 800 L, am Tag darauf. Am 15. von Januar, April, Juli und
+  // Oktober ein Peilstand (Bestand zu Beginn des Tages, wie im Tankbuch). Kein Vertrag: Heizöl rechnet
+  // über die Lieferpreise.
+  let deliveryCount = 0, levelCount = 0;
+  if (tank) {
+    const rO = seeded('heizoel');
+    const CAP = 6000, START_STOCK = 3200;
+    let stock = START_STOCK;
+    const deliveries = [], levels = [];
+    const tankFirstYear = +tankFrom.slice(0, 4);
+    [...earlyDays, ...days].forEach((d, i) => {
+      if (i > 0 && (stock < 800 || d.slice(5, 10) === '07-01')) {
+        const q = Math.round(CAP - stock);
+        const y = +d.slice(0, 4);
+        const price = round(60 + 40 * (y - tankFirstYear) / Math.max(1, tankYears) + (y === 2022 ? 55 : y === 2023 ? 25 : 0) + 6 * gauss(rO), 1);
+        deliveries.push({ id: `del_heizoel_${String(deliveries.length + 1).padStart(3, '0')}`, meter_id: 'm_heizoel_gross', date: d,
+          quantity: q, unit_price_cents: price, total_eur: round(q * price / 100, 2), supplier: 'Brennstoffhandel Beispieltal',
+          note: '', is_planned: false, fill_to_full: true });
+        stock = CAP;
+      }
+      if (i > 0 && d.slice(8, 10) === '15' && ['01', '04', '07', '10'].includes(d.slice(5, 7))) {
+        levels.push({ date: d, level: Math.round(stock), note: '' });
+      }
+      stock -= Math.max(0, (1.2 + 0.85 * hdd[d]) * (1 + 0.1 * gauss(rO)));
+    });
+    write('heizoel/meters.json', [{
+      id: 'm_heizoel_gross', name: 'Öltank Keller', icon: '🛢️', created_at: tankFrom, active: true, notes: '',
+      capacity: CAP, capacity_unit: 'L', initial_stock: START_STOCK, tank_levels: levels,
+      devices: [{ id: 'd_heizoel_gross', serial: null, installed_on: tankFrom, initial_counter: 0, removed_on: null, final_counter: null, reason: null }],
+      parent_meter_id: null, meter_group_id: null, external_id: null, baseline_events: [],
+    }]);
+    write('heizoel/deliveries.json', deliveries);
+    write('heizoel/contracts.json', []);
+    write('heizoel/meter_groups.json', []);
+    deliveryCount = deliveries.length;
+    levelCount = levels.length;
+  }
+
   // ── Viertelstunden der letzten vollen Kalenderjahre ──
   const qhYearsList = [];
   for (let y = lastYear - qhYears; y < lastYear; y++) if (y >= firstYear && `${y}-01-01` >= from) qhYearsList.push(y);
@@ -202,7 +256,7 @@ export function buildLargeHousehold(dir, { years = 10, qhYears = 2, end = iso(Da
   write('settings.json', {
     ...base,
     gas_conversion_factors: [{ from: null, zustandszahl: null, brennwert: null, kwh_per_m3: KWH_PER_M3 }],
-    location_name: 'Beispieltal', active_utilities: ['gas', 'strom', 'wasser', 'pv_einspeisung', 'pv_erzeugung'],
+    location_name: 'Beispieltal', active_utilities: ['gas', 'strom', 'wasser', 'pv_einspeisung', 'pv_erzeugung', ...(tank ? ['heizoel'] : [])],
     weather_auto_fill: false, setup_pending: false, ui_level: 'expert', wohnflaeche_m2: 135, wasser_personen_anzahl: 3,
   });
   const { SCHEMA } = schemaVersion();
@@ -210,7 +264,7 @@ export function buildLargeHousehold(dir, { years = 10, qhYears = 2, end = iso(Da
   for (const f of ['reminders.json', 'activity.json', 'people.json', 'attachments.json', 'tenancies.json', 'tenancy_statements.json', 'market_prices.json']) {
     if (!existsSync(join(dir, f))) write(f, []);
   }
-  return { readings: readingCount, days: days.length, intervals: intervalCount, from, to: end, qhYearsList };
+  return { readings: readingCount, days: days.length, intervals: intervalCount, from, to: end, qhYearsList, deliveries: deliveryCount, tankLevels: levelCount };
 }
 
 /** Schemaversion aus dem Migrator (Quelle, keine Kopie — Lektion 34). */
@@ -226,10 +280,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const args = process.argv.slice(2);
   const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
   if (args.includes('--help') || !opt('out')) {
-    console.log('node tools/large-household.mjs --out <leeres Verzeichnis> [--years 10] [--qh-years 2] [--end JJJJ-MM-TT]');
+    console.log('node tools/large-household.mjs --out <leeres Verzeichnis> [--years 10] [--qh-years 2] [--end JJJJ-MM-TT] [--tank [--tank-years 75]]');
     process.exit(args.includes('--help') ? 0 : 1);
   }
   const t0 = Date.now();
-  const r = buildLargeHousehold(resolve(opt('out')), { years: Number(opt('years', 10)), qhYears: Number(opt('qh-years', 2)), ...(opt('end') ? { end: opt('end') } : {}) });
-  console.log(`${r.days} Tage (${r.from} bis ${r.to}), ${r.readings} Ablesungen, ${r.intervals} Viertelstundenwerte (${r.qhYearsList.join(', ') || '–'}) in ${Date.now() - t0} ms → ${opt('out')}`);
+  const r = buildLargeHousehold(resolve(opt('out')), { years: Number(opt('years', 10)), qhYears: Number(opt('qh-years', 2)),
+    ...(opt('end') ? { end: opt('end') } : {}), tank: args.includes('--tank'), ...(opt('tank-years') ? { tankYears: Number(opt('tank-years')) } : {}) });
+  console.log(`${r.days} Tage (${r.from} bis ${r.to}), ${r.readings} Ablesungen, ${r.intervals} Viertelstundenwerte (${r.qhYearsList.join(', ') || '–'})`
+    + (args.includes('--tank') ? `, Tank mit ${r.deliveries} Lieferungen und ${r.tankLevels} Peilständen` : '') + ` in ${Date.now() - t0} ms → ${opt('out')}`);
 }

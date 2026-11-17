@@ -45,7 +45,7 @@
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
 | [Share CO₂ costs with the landlord](anleitungen/co2-aufteilung.md) | The landlord’s share under the CO2KostAufG: work it out and claim it with your own gas boiler, check the statement with central heating; deadline and letter |
-| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor; *since v3.12.0* the HACS integration (sensors without YAML) |
+| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor; *since v3.12.0* the integration from the Marketplace (formerly HACS), sensors without YAML |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Send readings from other systems: the common contract and one recipe each |
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
 | [Writing a letter](anleitungen/brief-schreiben.md) | Three ways to a letter (note, check a bill, contract card); *v3.12.0:* advance adjustment and termination without a note too; *v3.11.0:* a letter for a note “Your rights as a customer”: five fixed templates, always in German, prefilled from contract and meter, as PDF for a window envelope or as text; nothing stored; mark as sent |
@@ -112,6 +112,8 @@
 | [Release process](entwicklung/release-prozess.md) | Versioning, CHANGELOG, documentation upkeep, lessons learned |
 | [Screenshots](entwicklung/screenshots.md) | How the images in these docs are made |
 | [Measuring with large amounts of data](entwicklung/messung-grosse-daten.md) | Response times with ten and twenty years of daily values, threshold for N1006 (caching and storage rework) |
+| [Measurement: normal of the solar radiation](entwicklung/messung-einstrahlung.md) | Which estimator hits next year's solar radiation (eight large cities, 2001 to 2025): trend instead of flat mean |
+| [Measurement: temperature trend](entwicklung/messung-temperaturtrend.md) | Which normal hits next year's heating degree days (ten DWD stations, 2001 to 2025): trend instead of flat mean, only for the heat pump |
 
 Contributing: [CONTRIBUTING.md](../../CONTRIBUTING.md) ·
 Security issues: [SECURITY.md](../../SECURITY.md) ·

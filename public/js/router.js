@@ -101,8 +101,8 @@ const FIELD_TARGETS = [
   [/^(language|country|currency|timezone)$/, '/settings/region'],
   [/^person_name$/, '/household/people'],   // „Personen verwalten“ aus v3.11 (Zugang)
   [/^(dashboard_months|forecast_months|alert_days_since_reading|update_check|support_hint|env_name|contract_remind_days_[123]|reminder_(warn_days_before|overdue_days))$/, '/settings/display'],
-  [/^(wohnflaeche_m2|gebaeudetyp|beheizter_keller|warmwasser_\w+|wohnverhaeltnis|waerme_energietraeger|reference_\w+|wasser_\w+|letter_\w+)$/, '/household/building'],   // m4b: letter_* (Angaben für Briefe)
-  [/^(active_utilities|billing_cycle_anchor_\w+|gas_\w+|hdd_base_temp|heizoel_kwh_per_l|pellets_kwh_per_kg|tank_warn_pct|flex_\w+|pv_assumed_self_consumption_pct)$/, '/household/utilities'],
+  [/^(wohnflaeche_m2|gebaeudetyp|beheizter_keller|warmwasser_\w+|wohnverhaeltnis|waerme_energietraeger|reference_\w+|wasser_\w+|letters?_\w+)$/, '/household/building'],   // m4b: letter_* (Angaben für Briefe), v3.13.0 letters_admin_only
+  [/^(active_utilities|billing_cycle_anchor_\w+|advance_(counting|due_day)|gas_\w+|hdd_base_temp|heizoel_kwh_per_l|pellets_kwh_per_kg|tank_warn_pct|flex_\w+|pv_assumed_self_consumption_pct)$/, '/household/utilities'],   // v3.13.0 advance_* (Paket wechsel)
   [/^(co2_\w+|min_days_period|min_hdd_regression|blend_max|forecast_model|segmented_\w+|confidence_band_sigma|anomaly_threshold|recommendation_\w+|delivery_baseload_share)$/, '/settings/calculation'],
   [/^attachments_max_mb$/, '/settings/data'],
 ];

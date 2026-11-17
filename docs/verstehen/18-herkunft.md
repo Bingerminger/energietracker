@@ -57,6 +57,17 @@ liegt eine Ablesung) heißt **gemessen**, auch wenn alle ihre Monate `distribute
 Das Verteilen auf Monate gleicht sich innerhalb jedes Abstands aus, die Summe ist so gut
 wie ihre Ablesungen.
 
+**Auch die Preise zählen** *(seit v3.13.0)*: Ein Betrag aus angenommenen Preisen
+(der Vertrag läuft ohne Eintrag weiter, oder die Preisgarantie ist vorbei) heißt
+nie gemessen und nie eingetragen, sondern **angenommen**. Das gilt für den Saldo,
+die Kosten eines Jahres oder Abrechnungsjahrs und für Summen über mehrere Zähler.
+Ein eingetragener Preis schwächt einen Saldo nicht: Die Kosten bis zur letzten
+Ablesung heißen weiter gemessen. Zeilen mit Geld nennen die Herkunft des Geldes in
+`money_basis`, Monate mit angenommenem Preis dazu `price_basis: assumed`. Eine Summe
+über mehrere Zähler ist in einem Monat **geschätzt**, sobald ein Zähler dahinter den
+Monat an einer geschätzten Ablesung verteilt; ein kleiner geschätzter Rest fällt aus
+`parts` nicht mehr weg. <!-- doc-claim: weakest-input (McpWeakestInputTest) -->
+
 ## Das Zahl-Objekt
 
 Jede Kennzahl kommt als Objekt:
@@ -99,10 +110,16 @@ Daneben steht es in Klartext, weil Modelle ein Vorzeichen falsch lesen können: 
 (`credit`, `back_payment`, `balanced`, `payout`, `reclaim`, ohne Arbeitspreis `no_price`) und
 `text`, ein fertiger Satz in der Sprache des Servers, etwa „Guthaben von 828,01 €“; bei 0
 „Ausgeglichen“, bei geschätzten Werten mit „Geschätzt:“ davor. Eine Antwort mit Saldo nennt
-diese Sätze zusätzlich in einem eigenen Textblock.
+diese Sätze zusätzlich in einem eigenen Textblock. Bei `no_price` nennt der Satz seit v3.13.0
+keinen Betrag: In der Zahl können Grundpreis und Monate mit Preis stecken, sie sind also nicht
+„nur die Abschläge“, und ohne Arbeitspreis fehlen ihr Verbrauchskosten.
 
 Bei Einspeisung steht Geld im Feld `revenue` (`accounting_kind: feed_in`), bei Erzeugung
 gar nicht. Gilt kein Vertrag, fehlt der Betrag (`no_contract: true`): Er ist nicht 0.
+*(Seit v3.13.0)* Gilt ein Vertrag **ohne Arbeitspreis**, fehlt der Betrag ebenso: nicht
+0 € und nicht nur der Grundpreis, sondern `price_missing: true`, auch für die Monate vor
+einem später eingetragenen Preis. Die Oberfläche sagt dort „Preis fehlt“. Ein Preis je
+Ablesung trägt den Monat: Dann gibt es einen Betrag.
 
 So rechnen auch API und CSV-Export
 ([Glossar: Saldo](09-glossar.md#begriffe)). Die Oberfläche zeigt die

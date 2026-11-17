@@ -428,15 +428,26 @@ final class Evidence
      * v3.12.0 — ebenso eine Zahl direkt hinter der Bezeichnung einer Nummer, auch mit Leerraum oder Doppelpunkt
      * („Kundennummer 0001“, „Vertragskonto: 300042“): Sie ist die Nummer, kein Betrag und kein Stand. Die
      * Bezeichnungen sind dieselben wie in der Maske der KI-Schnittstelle (Mcp\IdentifierMask::LABEL_STRICT).
+     * v3.13.0 — ebenso eine Kennung, die mit Ziffern beginnt: direkt dahinter Buchstaben, auf die wieder eine Ziffer
+     * folgt („3QXZ0098765432“, „9KLM-55“), oder Großbuchstaben bis zum Wortende („5208K“), jeweils ohne Bezeichnung
+     * davor oder hinter „Zähler“. Bis v3.12 zählte die führende Ziffer als eigene Zahl und belegte einen falsch
+     * gelesenen Stand. Eine Einheit direkt an der Zahl („1.250m³“, „1000KWh“, „100EUR“, „5L“) und ein Wort
+     * („30Tage“) bleiben eine Zahl; die Einheiten sind die der Maske (IdentifierMask::UNITS) und dazu elektrische,
+     * die in Rechnungen am Wert stehen können (kW, W, V, h).
      */
+    /** Währungen, die direkt vor oder hinter einer Zahl stehen dürfen („CHF1500“, „1500CHF“), ohne sie zur Kennung zu machen */
+    private const CURRENCIES = ['EUR', 'CHF', 'GBP'];
+
     private static function inIdentifier(string $text, int $at, int $len): bool
     {
         $before = substr($text, 0, $at);
         $after = substr($text, $at + $len);
         if (preg_match('/(?<![\p{L}\p{N}])' . \Energietracker\Services\Mcp\IdentifierMask::LABEL_STRICT . '[\s:#.]*$/iu', $before) === 1) return true;
-        if (preg_match('/(\p{Lu}+)$/u', $before, $m) === 1 && !in_array($m[1], ['EUR', 'CHF', 'GBP'], true)) return true;
+        if (preg_match('/(\p{Lu}+)$/u', $before, $m) === 1 && !in_array($m[1], self::CURRENCIES, true)) return true;
         if (preg_match('/[\p{L}\d][-\/_#]$/u', $before) === 1) return true;
-        return preg_match('/^[-\/_]\p{L}/u', $after) === 1;
+        if (preg_match('/^[-\/_]\p{L}/u', $after) === 1) return true;
+        if (preg_match('/^(?:' . \Energietracker\Services\Mcp\IdentifierMask::UNITS . '|kw|w|v|h|' . strtolower(implode('|', self::CURRENCIES)) . ')(?![\p{L}\p{N}])/iu', $after) === 1) return false;
+        return preg_match('/^\p{L}+[-\/_]?\d/u', $after) === 1 || preg_match('/^\p{Lu}+(?![\p{L}\p{N}])/u', $after) === 1;
     }
 
     /** @return list<float> alle Lesarten aller Zahlen im Zitat */
@@ -1616,12 +1627,16 @@ final class Evidence
      *
      * @param array<string,mixed> $edits
      */
-    public static function flagCount(array $fields, array $edits = []): int
+    public static function flagCount(array $fields, array $edits = [], array $itemEdits = []): int
     {
         $n = 0;
         foreach ($fields as $name => $f) {
             if (array_key_exists($name, $edits)) continue;
-            if (!empty($f['items'])) { foreach ($f['items'] as $i) $n += ($i['status'] ?? '') === 'check' ? 1 : 0; continue; }
+            // v3.13.0 (Paket F) — ein Eintrag mit Entscheidung (Inbox\ItemEdits) ist geprüft
+            if (!empty($f['items'])) {
+                foreach ($f['items'] as $k => $i) $n += ($i['status'] ?? '') === 'check' && !is_array($itemEdits[$name][(string)$k] ?? null) ? 1 : 0;
+                continue;
+            }
             $n += ($f['status'] ?? '') === 'check' ? 1 : 0;
         }
         return $n;

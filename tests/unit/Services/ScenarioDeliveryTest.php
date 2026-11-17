@@ -230,6 +230,30 @@ final class ScenarioDeliveryTest extends ServiceTestCase
     }
 
     /**
+     * v3.13.0 (Paket waermepumpe, §4.6 B) — mit Klimanormal verteilt die Werkstatt die Arbeitszahl nach dem Wetter:
+     * im Winter mehr Strom als JAZ 3 sagt, im Sommer weniger, im Jahr genau Öl × 0,9 ÷ 3. Ohne Normal (oben) gleich.
+     */
+    public function testHeizungstauschVerteiltDieArbeitszahlNachDemWetter(): void
+    {
+        $means = [];
+        foreach ($this->store->read('temperatures.json', []) as $d => $t) $means[$d] = (float)$t['avg'];
+        $this->store->write(\Energietracker\Services\ClimateNormalService::FILE,
+            \Energietracker\Services\ClimateNormalService::compute($means, 51.0, 10.0, ['from' => array_key_first($means), 'to' => array_key_last($means)]));
+        $id = $this->tank();
+        $r = $this->run_($id, ['replace' => ['to' => 'heat_pump', 'jaz' => 3.0, 'power_ct' => 30.0, 'efficiency_old' => 0.9]]);
+        self::assertSame('carnot', $r['replacement']['jaz_shape']);
+        self::assertCount(12, $r['replacement']['jaz_months']);
+        self::assertEqualsWithDelta($r['totals']['base']['qty'] * 0.3, $r['totals']['scenario']['qty'], 0.5, 'Jahr: Wärme ÷ JAZ');
+        self::assertEqualsWithDelta($r['totals']['scenario']['qty'] * 0.30, $r['totals']['scenario']['cost'], 0.05);
+        foreach ($r['months'] as $i => $m) {
+            $mo = (int)substr($m['ym'], 5, 2);
+            $jaz = $r['replacement']['jaz_months'][$i];
+            if (in_array($mo, [12, 1, 2], true)) { self::assertLessThan(3.0, $jaz, $m['ym']); self::assertGreaterThan($m['base_qty'] * 0.3, $m['scen_qty'], $m['ym']); }
+            if (in_array($mo, [6, 7, 8], true)) { self::assertGreaterThan(3.0, $jaz, $m['ym']); self::assertLessThan($m['base_qty'] * 0.3, $m['scen_qty'], $m['ym']); }
+        }
+    }
+
+    /**
      * Billige Pellets (30 ct/kg bei 4,8 kWh/kg = 6,25 ct/kWh, Wärme 6,94 ct) gegen die Wärmepumpe mit
      * 30 ct ÷ JAZ 3 = 10 ct: Die Wärmepumpe kostet mehr, das Beispiel sagt es mit eigenem Satz.
      */

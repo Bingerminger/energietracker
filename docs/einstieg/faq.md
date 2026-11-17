@@ -355,8 +355,10 @@ PDF-Datei in der Standardsprache der Installation.
 Für Excel, LibreOffice oder Numbers die **Tabelle in der Standardsprache**
 (Einstellungen → Daten und Sicherung → Datenexport, empfohlen): Spaltennamen, Dezimalzeichen
 und Datum passen zur Sprache, die Datei öffnet sich mit einem Doppelklick
-richtig. Für Skripte **CSV-Format 1** — es bleibt Byte für Byte, wie es ist.
-Beide lassen sich wieder importieren ([CSV-Formate](../referenz/api.md#csv-formate-v310)).
+richtig. Für Skripte **CSV-Format 1**: <!-- doc-claim: csv-format-1 -->Neue
+Spalten kommen nur hinten hinzu, die bestehenden bleiben, wie sie sind; lies
+eine Spalte am besten nach ihrem Namen.<!-- /doc-claim --> Beide lassen sich
+wieder importieren ([CSV-Formate](../referenz/api.md#csv-formate-v310)).
 
 ### Wie aktualisiere ich?
 

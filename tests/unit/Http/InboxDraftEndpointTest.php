@@ -159,6 +159,7 @@ final class InboxDraftEndpointTest extends HttpServerTestCase
         self::assertCount(1, $sb, 'die Kopie zählt nicht');
         self::assertSame($sc[1]['id'], $sb[0]['contract_id'], 'die Rechnung am neuen Vertrag');
         $states = array_count_values(array_column($this->json('GET', '/api/inbox')['entries'], 'status'));
+        ksort($states);   // die Liste ordnet nach Eingang auf die Sekunde; wechselt die Sekunde beim Laden, tauscht die Reihenfolge
         self::assertSame(['done' => 7, 'filed' => 1], $states, 'abgedeckt: übernommen; die Kopie: abgelegt');
     }
 

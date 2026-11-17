@@ -248,8 +248,11 @@ final class McpSkeptikerReadTest extends McpReadTestCase
             self::assertSame('no_price', $c['status'][$k]['meaning'], $k);
             self::assertContains('price_missing', $c['status'][$k]['uncertain'], $k);
         }
-        // 9 × 55 € = 495,00 €
-        self::assertSame('Kein Saldo: Der Arbeitspreis fehlt, 495,00 € sind nur die Abschläge', $c['status']['balance_measured']['text']);
+        // v3.13.0 — der Satz nennt keinen Betrag mehr: Er stimmt auch, wenn Grundpreis oder Monate mit Preis darin stecken
+        // (McpNoPriceSentenceTest); die Zahl steht in `value` (hier 9 × 55 € Abschläge)
+        self::assertSame('Kein Saldo: Der Arbeitspreis fehlt. Die Zahl enthält nicht alle Verbrauchskosten und ist weder Guthaben noch Nachzahlung',
+            $c['status']['balance_measured']['text']);
+        self::assertEqualsWithDelta(-495.0, (float)$c['status']['balance_measured']['value'], 0.005);
         self::assertSame('entered', $c['status']['balance_measured']['basis'], 'v3.12.0 (Nachprüfung C5): nur Abschläge, nichts gemessen');
     }
 

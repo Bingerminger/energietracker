@@ -87,8 +87,8 @@ An area shows as tabs only the pages of its level, none if just one is left;
 “Insights” in the sidebar takes beginners to the forecast workshop since v3.6.0, next to the annual report. A link, a
 bookmark or an old address still opens a hidden page. A notice then sits on
 top: “This page belongs to the “Experienced” level. It is open anyway.” with
-**“Switch to “Experienced””** and ✕ — for example when a beginner taps
-“Meters” in the consumption view. Details:
+**“Switch to “Experienced””** and ✕ — for example when a beginner follows a
+recommendation to “Tariff switch”. Details:
 [Setup and experience levels](../einstieg/einrichtung.md#3-experience-levels).
 
 ![Navigation on the Mac](../../ui/screenshots/en/navigation-mac.png)
@@ -395,6 +395,9 @@ shows the welcome.
   contract with advance payments yet.” with the link “Add contract”.
   *(v3.9.0)* A group contract appears once with the group’s name, for example
   “Electricity (Heat pump (HT/NT))”, even when its meters are sub-meters.
+  *(v3.13.0)* If the contract has no unit price, it says “Price missing” with the link
+  “Enter the unit price in the contract” instead of an amount “back”; so does the tile of
+  the utility.
 - **“More or less than last year?”** — per utility the last twelve months
   against the same months a year earlier, from six comparable months on: “…
   more than last year”, “… less than last year” or, below 2 %, “about the
@@ -556,6 +559,9 @@ already a reading for that day. On save the app asks per conspicuous card (title
 utility · meter); "Replace" updates the existing reading instead of creating a
 second one. Whoever declines keeps the input; the card shows "Not saved – please
 check". Details: [Meter readings → plausibility](../verstehen/11-zaehlerstaende.md).
+*(v3.13.0)* For gas, district heating, heat and heat pump the jump is measured by the weather: the expected
+amount follows the temperatures since the previous reading, and the start of the heating season no longer
+counts as a typo ([By the weather](../verstehen/11-zaehlerstaende.md#by-the-weather-v3130)).
 
 **Since v2.12.0:**
 
@@ -655,8 +661,9 @@ comes from (bill or settlement date) and up to which reading it is
 calculated. Figures, monthly chart and monthly table follow the period; the
 first and last month are partial months when the settlement date falls within
 a month. The server calculates quantity and cost like *Check bill* (pro rata
-per day), the advance payments pro rata per day; the balance deducts extra
-advance payments. The chart compares with the **previous period**. The address
+per day), the advance payments pro rata per day (with “Counting advance
+payments: full payment on the due day” each payment in full in the period of its
+day, since v3.13.0); the balance deducts extra advance payments. The chart compares with the **previous period**. The address
 carries the period (`?period=2025-09-01`). Only gas, electricity, water and
 district heating with meter readings have billing years; the other utilities
 stay with the calendar year and say so when the device shows billing years.
@@ -734,6 +741,10 @@ estimate about … to about … (80 %, … days estimated).” With an uncertain
 estimate it stays a range with its reason
 ([basics §10](../verstehen/00-overview.md#10-balance-to-date)). Without a
 contract the “Costs” tile has shown “no contract” instead of €0.00 since v3.9.0.
+*(v3.13.0)* If a contract without a unit price applies in a month of the year (or in the
+billing year), it shows “Price missing” with the link “Enter the unit price in the
+contract” instead of an amount (which would only be the standing charge); so do the
+“Balance” line below it and the short balance card in the overview.
 
 **Measured and estimated kept apart (v3.10.0, GitHub #49):** the card’s
 balance only counts up to the last reading: above the card it says “Measured
@@ -969,8 +980,7 @@ monthly table, for PV the energy flow and the cards “Check a bill” and
 the heat pump and, for PV generation, battery, payback and notes (up to v3.6
 Expert). Only “Expert” shows hot-water heat and CO₂ price in the fuel.
 The button “Meters” in the header of the view
-leads to the meter management; it belongs to the “Experienced” level, and
-beginners see it with the notice described above.
+leads to Household → Meters; since v3.12.0 that page is open at every level (up to v3.11 from Experienced).
 
 ![Gas view](../../ui/screenshots/en/gas-view.png)
 
@@ -1697,7 +1707,7 @@ per calendar app: [Deadlines in your calendar](../anleitungen/kalender.md).
 
 ### Done (v3.4.0, under Reminders & tips)
 
-The third tab under **Reminders & tips**, from the “Experienced” level: the
+Since v3.12.0 **To do → History**, at every level (up to v3.11 the third tab under Reminders & tips, from Experienced): the
 history of done notices, grouped by month, newest first, with the number of
 entries per month.
 
@@ -1762,19 +1772,31 @@ area, the average the line inside it.
 
 ## 11. Settings
 
-Since v2.12.0 **nine sub-pages** instead of one long page:
+Since v2.12.0 sub-pages instead of one long page; since **v3.12.0** Household and Connections are areas of their
+own, and the settings have seven pages. A test checks the level of every page against the code
+(`tests/levels.test.mjs`):
 
-| Page | Contents | From level (v3.2.0) |
+| Page | Contents | From level |
 |---|---|---|
-| General | since v3.2.0 at the top “Experience level and setup” and, with sign-in, “My account”; Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders | Beginner; the groups “Display” and “Reminders” from Experienced |
-| Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); water reference values with the number of people in the household; since v3.9.0 “People in the household”: add, rename and delete names for “Responsible”, also without sign-in ([Users in the household](../anleitungen/benutzer.md#people-in-the-household-v390)) | Beginner; “Own reference values” and “Water reference values” from Experienced |
-| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar), since v3.9.0 “Metering concept” (assistant, below) | Beginner; physical constants, calorific values and since v3.7.0 Photovoltaics from Experienced, CO₂ factors from Expert |
-| Weather data | §10 | Experienced |
-| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data; link to the annual report | Beginner |
-| Integrations | Home Assistant integration; since v3.9.0 “Notifications to Home Assistant”; since v3.12.0 “AI assistants (MCP)” (admins only, below) | Experienced |
-| Access | since v3.4.0 “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in & access with “Sign out everywhere”, since v3.2.0 “Users and roles”, embedding, since v3.4.0 “Host names” | Expert |
-| Expert | since v3.7.0 at the top the “Reading documents” card (Local \| Cloud), since v3.1.0 receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”, since v3.10.0 “Connections in the home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
-| System | version, licence, since v3.4.0 “Support Energietracker”, security check (v3.4.0), system diagnostics | Expert |
+| Settings → Overview | search, “For you”: experience level and setup, your own language, appearance, with sign-in “My account”; corrected defaults | Beginner |
+| Settings → Region and language | default language, country, currency, time zone | Beginner |
+| Settings → Display and reminders | notice of new versions, support, environment; display (months, forecast horizon, warn after days without a reading), contract reminders | Beginner; the groups “Display” and “Reminders” from Experienced |
+| Settings → Data and backup | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, sample data, receipts (storage limit); link to the annual report | Beginner; receipts from Expert |
+| Settings → Access and security | “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in with “Sign out everywhere”, “Users and roles”, embedding, “Host names” | Expert |
+| Settings → Calculation | with a warning: regression, forecast model, anomaly and recommendation thresholds, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), CO₂ price, corrected defaults | Expert |
+| Settings → System | version, licence, “Support Energietracker”, system diagnostics | Expert |
+| Household → Meters | every meter in one place, filter per utility (§12) | Beginner |
+| Household → People | “People in the household”: add, rename and delete names for “Responsible”, also without sign-in ([Users in the household](../anleitungen/benutzer.md#people-in-the-household-v390)) | Beginner |
+| Household → Building | living area, building type, heated basement, hot water; “Details for letters”; “Home and hot water”; “Own reference values” (for the benchmark); water reference values with the number of people in the household | Beginner; “Own reference values” and “Water reference values” from Experienced |
+| Household → Utilities | active utilities (since v3.1.0 including heat), “Metering concept” (assistant, below), all billing dates in one card, “Counting advance payments” (below), physical constants (gas factors, heating threshold), calorific values and tank warning, own flexibility values, “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; counting advance payments, physical constants, calorific values, flexibility and Photovoltaics from Experienced |
+| Connections → Reading mail and photos | the “Reading documents” card (Local \| Cloud), text recognition of meter photos, input channels | Beginner |
+| Connections → Home Assistant | token, assigning meters, “Notifications to Home Assistant”, templates | Experienced |
+| Connections → Weather data | §10 | Experienced |
+| Connections → evcc | “evcc in your home network” | Expert |
+| Connections → Calendar | calendar subscription | Beginner |
+| Connections → AI assistants | “AI assistants (MCP)”, admins only (below) | Experienced |
+| Connections → Keys | API keys for scripts, admins only | Expert |
+| Connections → Home network security | “Connections in the home network”: your own root certificate, “do not verify” | Expert |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
 only after a change. Leaving the page with unsaved changes asks first.
@@ -1818,11 +1840,24 @@ the forecast models carry names instead of keys, and the **forecast band
 width** can be set (effective since v2.8.0, until now only via the API). The
 Home Assistant card links the guide in the matching language.
 
+**Counting advance payments (v3.13.0, Household → Utilities):** one choice for
+all contracts, from Experienced. **“Pro rata by day (default)”** counts a monthly
+advance payment by the contract days in the month, as up to v3.12. **“Full
+payment on the due day”** counts a full payment on every due day within the
+contract; only then the field **“Due day”** (1 to 31, the last day in shorter
+months) and a warning appear: whoever booked the full payment as a special
+payment following the advice from v3.12.0 counts it twice after switching. The
+hint below the choice works through the example from
+[Balance to date](../verstehen/00-overview.md#10-balance-to-date), the ⓘ at the
+title explains the advance payment. With full payments the balance card names
+the next due date (“next due date: …”) as for an advance payment with a rhythm
+([Settings](einstellungen.md#counting-advance-payments-v3130)).
+
 The PDF annual report sits under Insights since v2.11.0. After demo data, backup import
 or a restore the app restarts, so that sidebar, language and cache match the
 new state.
 
-**Experience level and setup (v3.2.0, General page):** the card
+**Experience level and setup (v3.2.0, Overview page):** the card
 “Experience level and setup” sits at the very top. Its hint reads “Decides what the interface shows — every level
 calculates everything.” and says who the level applies to: “Applies to all
 devices of this installation.” or, with sign-in, “Applies to you (…) on all
@@ -1838,14 +1873,14 @@ buttons **“Start the setup assistant”** (§16), **“Guide”**
 ([Setup and experience levels](../einstieg/einrichtung.md)) and since v3.7.0
 **“What can I do at each level?”** ([feature table](stufen.md)) close the card.
 
-**My account (v3.2.0, General page):** only with sign-in and a person signed
+**My account (v3.2.0, Overview page):** only with sign-in and a person signed
 in — **“My account: {name}”** with the role (“Admin” or “Member”). Whoever
 signs in with a password changes it here with “Current password”, “New
 password” (at least 8 characters) and **“Change password”**; in proxy mode it
 says “Signed in through the service in front of the app; change the password
 there.” instead ([Users in the household](../anleitungen/benutzer.md)).
 
-Below that the card **Language & country** (v2.7.0): language, country, currency
+**Language & country (v2.7.0, Region and language page):** language, country, currency
 and time zone, all taking effect immediately. Since v3.1.0 there are two
 language fields:
 
@@ -1878,9 +1913,9 @@ default values, **"Newer default values available"** appears at the top with the
 old and the new value and the button "Use the new values". If only the default
 gas factor 11.5 is active, the gas factor table points this out.
 
-**Embedding** (since v2.6.0, Access page): addresses allowed to embed the app,
+**Embedding** (since v2.6.0, Access and security page): addresses allowed to embed the app,
 such as a Home Assistant dashboard. The **Home Assistant integration
-(F1009)** on the Integrations page — manage the API token, maintain meter aliases and copy three
+(F1009)** under Connections → Home Assistant — manage the API token, maintain meter aliases and copy three
 ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
 an automation built from the aliases that checks `has_value` before every push.
 Since v3.3.0 the REST command also sends
@@ -1917,16 +1952,16 @@ above the buttons reads “Receipts: 12 files, 3.4 MB of 500 MB – included in
 the backup.”; from 80 % of the limit in the warning colour with “The storage
 for receipts is almost full.”
 
-**Home and hot water (v3.1.0, Household & building page):** the card sits
+**Home and hot water (v3.1.0, Household → Building):** the card sits
 between “Building & efficiency” and the water reference values. “I live” — “in
 my own home” or “in a rented home”; renting adds the [Tenancy](#tenancy-v310)
 page under Costs & contracts. “Heat comes from” and “Hot water is heated by” —
 a choice of energy sources, first option “not specified”; “Hot water
 temperature” in °C ([Settings](einstellungen.md#home-and-hot-water-v310)).
 
-**Receipts and text recognition (v3.1.0, Expert page):** two groups at the top
-of the page, before the collapsed part “Show calculation parameters” — they are
-not calculation parameters. **Receipts** with “Storage for receipts, at
+**Receipts and text recognition (v3.1.0; since v3.12.0 the receipts under Settings → Data and backup, from
+Expert, the text recognition under Connections → Reading mail and photos):** two groups, not calculation
+parameters. **Receipts** with “Storage for receipts, at
 most” (`attachments_max_mb`). **Text recognition in the home network** with
 “Model” and “Time limit”; “Service address” and “Interface” (Ollama or
 “OpenAI-compatible (LM Studio, LocalAI)”) have been in the **Reading
@@ -1935,8 +1970,8 @@ Left empty, text recognition stays off
 ([Settings](einstellungen.md#text-recognition-in-the-home-network-v310),
 [guide](../anleitungen/texterkennung.md)).
 
-**Reading documents (v3.7.0, Expert page):** the card comes first, before the
-collapsed part. The switch **Local | Cloud (experimental)** is the choice of who
+**Reading documents (v3.7.0; since v3.12.0 under Connections → Reading mail and photos, at every level):** the
+card comes first there. The switch **Local | Cloud (experimental)** is the choice of who
 reads the post in the inbox (`inbox_provider`). “Local”: address and interface
 of your own service (with the sentence that they also apply to meter photos),
 “Check connection”, text model and time limit per step. “Cloud”: the
@@ -1946,8 +1981,7 @@ list or by hand, time limit and “Switched on”. A **Save** button of its own;
 admins change the switch and the cloud fields
 ([Inbox](../anleitungen/posteingang.md#setting-up-reading)).
 
-**evcc in your home network (v3.2.0, Expert page):** the group sits next to
-receipts and text recognition, before the collapsed part. Its field **“evcc
+**evcc in your home network (v3.2.0; since v3.12.0 under Connections → evcc, from Expert):** the field **“evcc
 address”** (`evcc_endpoint`) takes the address you open evcc at in the
 browser, such as `http://192.168.178.30:7070` or `http://evcc.local:7070`;
 only addresses in your own network. Left empty, fetching stays off — the CSV
@@ -1955,8 +1989,8 @@ file from evcc always works. With an address, the card “Charging sessions from
 evcc” shows the button “Fetch from evcc” (§3,
 [Charging sessions from evcc](../anleitungen/evcc.md)).
 
-**Connections in the home network (v3.10.0, Expert page):** the group sits
-next to evcc, before the collapsed part, for Home Assistant, text recognition,
+**Connections in the home network (v3.10.0; since v3.12.0 under Connections → Home network security, from
+Expert):** for Home Assistant, text recognition,
 reading in the home network and evcc over `https://` with self-issued
 certificates. **“Own root certificate (PEM)”** is a text field for the text
 from `-----BEGIN CERTIFICATE-----`; it applies in addition to the usual root
@@ -1968,7 +2002,7 @@ and whether the file from `ET_CA_FILE` can be read. Only admins change either
 
 ![Connections in the home network](../../ui/screenshots/en/einstellungen-heimnetz.png)
 
-**CO₂ price (v3.1.0, Expert page, under “Show calculation parameters”):** the
+**CO₂ price (v3.1.0; since v3.12.0 under Settings → Calculation):** the
 group with “CO₂ price per year” — a table year → €/t with delete per row and
 the fields year and €/t for adding; your own values take precedence over the
 country profile —, “Scenario: CO₂ price” (default for the forecast, empty = off)
@@ -1987,10 +2021,10 @@ Once people have been added (v3.2.0), the fields for changing the password are
 gone here; instead it says “Each person changes their password under Settings → For you →
 My account.”
 
-**People in the household (v3.9.0, Household & building page):** the card
+**People in the household (v3.9.0, Household → People):** the card
 appears at every level and without sign-in too. It lists everyone with their
 number; people without sign-in have **“Rename”** and **“Delete person”** (the
-same dialog as under Access), people with sign-in the note “with sign-in” and no
+same dialog as under Access and security), people with sign-in the note “with sign-in” and no
 buttons. Below it the field **“New person”** (placeholder “Name, e.g. Anna”)
 with **“Add”**; Enter is enough, the focus then stays in the field, and the
 message says “… can now be chosen under “Responsible”.” Members only see the
@@ -2001,7 +2035,7 @@ index has since been called “Number of people”
 
 ![People in the household](../../ui/screenshots/en/personen.png)
 
-**Users and roles (v3.2.0, Access page):** with sign-in switched on,
+**Users and roles (v3.2.0, Access and security page):** with sign-in switched on,
 the card **“Users and roles”** follows “Sign-in & access”, with the
 hint “Each person signs in with name and password and has their own level and
 language. Everyone shares the household’s data.” — in proxy mode “… the app
@@ -2021,7 +2055,7 @@ card shows, since v3.9.0, only the note that own accounts only come with
 sign-in and the button **“Go to people”**; there is no second list of people
 there any more.
 
-To a **member** the Access page shows only “Access is managed by whoever
+To a **member** the Access and security page shows only “Access is managed by whoever
 manages the installation. Change your own password under Settings → For you.”
 What only admins may do — people, API keys and sign-in, restoring a backup or
 snapshot, loading sample data, the addresses for embedding, text recognition
@@ -2029,7 +2063,7 @@ and evcc, since v3.9.0 the notifications to Home Assistant — the server refuse
 for members with “Only someone who manages this
 installation may do that.” ([Users in the household](../anleitungen/benutzer.md)).
 
-**Notifications to Home Assistant (v3.9.0, Integrations page):** the card
+**Notifications to Home Assistant (v3.9.0, Connections → Home Assistant):** the card
 sits next to the Home Assistant integration. At the top a sentence on what is
 reported and “The messages only go to your Home Assistant. Nothing leaves your
 home network unless you enter an address outside it yourself.” Below it the
@@ -2047,7 +2081,7 @@ may change it
 
 ![Notifications to Home Assistant](../../ui/screenshots/en/ha-benachrichtigungen.png)
 
-**AI assistants (MCP) (v3.12.0, Integrations page, admins only):** three cards.
+**AI assistants (MCP) (v3.12.0, Connections → AI assistants, admins only):** three cards.
 The narrow card **“AI assistants (MCP)”** sits next to the Home Assistant
 cards: at the top the state (“Switched off”, “Switched on, but there is no key
 yet”, “Switched on” or “Locked” when the operator has set `ET_MCP=off`; the
@@ -2087,7 +2121,7 @@ it the **access log** (time, key, program, call, result, duration), newest first
 paged from 51 entries. “Refresh” reloads both. Members do not see the three
 cards.
 
-**Metering concept (v3.9.0, Utilities & billing page):** the card “Metering concept” asks
+**Metering concept (v3.9.0, Household → Utilities):** the card “Metering concept” asks
 “Solar, heat pump or EV charger with its own tariff?” and opens the assistant
 from §12 with **“Set up metering concept”**, in the public demo too (where it
 saves nothing).
@@ -2340,7 +2374,9 @@ preview shows each row with its effect — new, replaces the existing reading
 (with the old value) or unchanged — and the checks of manual entry: decrease,
 jump, order of magnitude, future, duplicate date. Conspicuous rows are always
 listed, others up to 50. Only "Import N rows" writes; "Choose another file"
-starts over.
+starts over. *(v3.13.0)* For heating meters the jump is measured by the weather as
+in manual entry; the expectation for all rows comes in one request
+([Meter readings → By the weather](../verstehen/11-zaehlerstaende.md#by-the-weather-v3130)).
 
 Since v3.1.0 the import reads spreadsheets in every language of the app: column
 names such as "Date", "Index" or "Lectura", dates as `DD.MM.YYYY`,

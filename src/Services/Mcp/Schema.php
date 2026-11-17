@@ -43,15 +43,58 @@ final class Schema
         return array_slice($errors, 0, self::MAX_ERRORS);
     }
 
+    /**
+     * v3.13.0 — Prüft eine Ausgabe so, wie sie über die Leitung geht: `{}` ist ein Objekt, `[]` eine Liste
+     * (nie beides). validate() ist dort nachsichtig, wo PHP nach json_decode beides als `[]` sieht; für
+     * Eingaben bleibt es dabei. Leer = gültig.
+     *
+     * @param array<string,mixed> $schema
+     * @return list<array{path:string, rule:string, expected?:mixed}>
+     */
+    public static function validateJson(string $json, array $schema): array
+    {
+        $errors = [];
+        self::walk(json_decode($json, false, 512, JSON_THROW_ON_ERROR), $schema, '', $errors, true);
+        return array_slice($errors, 0, self::MAX_ERRORS);
+    }
+
+    /**
+     * v3.13.0 — Eine Ausgabe in die Form ihres Schemas bringen: Ein leeres PHP-Feld an einer Stelle, an der das
+     * Schema ein Objekt verlangt, wird `{}` statt `[]`. Die eine Stelle für alle Werkzeuge (Server::callTool),
+     * damit ein Zahl- oder Teilobjekt ohne Inhalt nie als Liste hinausgeht. Werte ändern sich nicht.
+     *
+     * @param array<string,mixed> $schema
+     */
+    public static function shape(mixed $value, array $schema): mixed
+    {
+        if (!is_array($value)) return $value;
+        $types = (array)($schema['type'] ?? []);
+        if ($value === []) return $types === ['object'] ? new \stdClass() : $value;
+        if (array_is_list($value)) {
+            if (!is_array($schema['items'] ?? null)) return $value;
+            return array_map(fn($v) => self::shape($v, $schema['items']), $value);
+        }
+        $props = (array)($schema['properties'] ?? []);
+        $extra = $schema['additionalProperties'] ?? null;
+        foreach ($value as $k => $v) {
+            $sub = $props[(string)$k] ?? (is_array($extra) ? $extra : null);
+            if ($sub !== null) $value[$k] = self::shape($v, $sub);
+        }
+        return $value;
+    }
+
     /** @param list<array<string,mixed>> $errors */
-    private static function walk(mixed $value, array $schema, string $path, array &$errors): void
+    private static function walk(mixed $value, array $schema, string $path, array &$errors, bool $strict = false): void
     {
         if (count($errors) >= self::MAX_ERRORS) return;
         $at = $path === '' ? '/' : $path;
+        // v3.13.0 — streng (validateJson): ein Objekt kommt als stdClass, ein Feld ist immer eine Liste
+        $object = $value instanceof \stdClass;
+        if ($object) $value = get_object_vars($value);
         if (isset($schema['type'])) {
             $types = (array)$schema['type'];
             $ok = false;
-            foreach ($types as $t) if (self::isType($value, (string)$t)) { $ok = true; break; }
+            foreach ($types as $t) if (self::isType($value, (string)$t, $strict ? $object : null)) { $ok = true; break; }
             if (!$ok) { $errors[] = ['path' => $at, 'rule' => 'type', 'expected' => implode('|', $types)]; return; }
         }
         if (array_key_exists('const', $schema) && !self::same($value, $schema['const'])) {
@@ -80,36 +123,42 @@ final class Schema
             if (isset($schema['exclusiveMinimum']) && $n <= (float)$schema['exclusiveMinimum']) $errors[] = ['path' => $at, 'rule' => 'exclusiveMinimum', 'expected' => $schema['exclusiveMinimum']];
             if (isset($schema['exclusiveMaximum']) && $n >= (float)$schema['exclusiveMaximum']) $errors[] = ['path' => $at, 'rule' => 'exclusiveMaximum', 'expected' => $schema['exclusiveMaximum']];
         }
-        if (is_array($value) && array_is_list($value) && (isset($schema['items']) || isset($schema['minItems']) || isset($schema['maxItems']))) {
+        $isList = $strict ? is_array($value) && !$object : is_array($value) && array_is_list($value);
+        $isObject = $strict ? $object : is_array($value) && ($value === [] || !array_is_list($value));
+        if ($isList && (isset($schema['items']) || isset($schema['minItems']) || isset($schema['maxItems']))) {
             $n = count($value);
             if (isset($schema['minItems']) && $n < (int)$schema['minItems']) $errors[] = ['path' => $at, 'rule' => 'minItems', 'expected' => (int)$schema['minItems']];
             if (isset($schema['maxItems']) && $n > (int)$schema['maxItems']) { $errors[] = ['path' => $at, 'rule' => 'maxItems', 'expected' => (int)$schema['maxItems']]; return; }
             if (isset($schema['items']) && is_array($schema['items'])) {
-                foreach ($value as $i => $item) self::walk($item, $schema['items'], "$path/$i", $errors);
+                foreach ($value as $i => $item) self::walk($item, $schema['items'], "$path/$i", $errors, $strict);
             }
         }
-        if (is_array($value) && (isset($schema['properties']) || isset($schema['required']) || array_key_exists('additionalProperties', $schema))
-            && ($value === [] || !array_is_list($value))) {
+        if ($isObject && (isset($schema['properties']) || isset($schema['required']) || array_key_exists('additionalProperties', $schema))) {
             $props = (array)($schema['properties'] ?? []);
             foreach ((array)($schema['required'] ?? []) as $req) {
                 if (!array_key_exists((string)$req, $value)) $errors[] = ['path' => "$path/$req", 'rule' => 'required'];
             }
             foreach ($value as $k => $v) {
                 $k = (string)$k;
-                if (isset($props[$k])) { self::walk($v, $props[$k], "$path/$k", $errors); continue; }
+                if (isset($props[$k])) { self::walk($v, $props[$k], "$path/$k", $errors, $strict); continue; }
                 $extra = $schema['additionalProperties'] ?? true;
                 if ($extra === false) $errors[] = ['path' => "$path/$k", 'rule' => 'additionalProperties'];
-                elseif (is_array($extra)) self::walk($v, $extra, "$path/$k", $errors);
+                elseif (is_array($extra)) self::walk($v, $extra, "$path/$k", $errors, $strict);
             }
         }
         if (isset($schema['oneOf'])) {
             $matches = 0;
-            foreach ((array)$schema['oneOf'] as $alt) if (self::validate($value, (array)$alt, $path) === []) $matches++;
+            foreach ((array)$schema['oneOf'] as $alt) {
+                $sub = [];
+                self::walk($object ? (object)$value : $value, (array)$alt, $path, $sub, $strict);
+                if ($sub === []) $matches++;
+            }
             if ($matches !== 1) $errors[] = ['path' => $at, 'rule' => 'oneOf', 'expected' => $matches === 0 ? 'one' : 'only_one'];
         }
     }
 
-    private static function isType(mixed $v, string $type): bool
+    /** @param bool|null $wireObject streng: war der Wert auf der Leitung ein Objekt? (null = nachsichtig) */
+    private static function isType(mixed $v, string $type, ?bool $wireObject = null): bool
     {
         return match ($type) {
             'string'  => is_string($v),
@@ -117,8 +166,8 @@ final class Schema
             'integer' => is_int($v) || (is_float($v) && is_finite($v) && floor($v) === $v && abs($v) < 2 ** 53),
             'boolean' => is_bool($v),
             'null'    => $v === null,
-            'object'  => is_array($v) && ($v === [] || !array_is_list($v)),
-            'array'   => is_array($v) && array_is_list($v),
+            'object'  => $wireObject ?? (is_array($v) && ($v === [] || !array_is_list($v))),
+            'array'   => $wireObject !== null ? is_array($v) && !$wireObject : is_array($v) && array_is_list($v),
             default   => false,
         };
     }

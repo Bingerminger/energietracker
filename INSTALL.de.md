@@ -12,8 +12,11 @@
 
 ## Voraussetzungen
 
-- PHP ≥ 8.3 (seit v3.12.0, 8.2 von v3.1.0 bis v3.11.0; die CI prüft 8.3 bis 8.5, das Docker-Image bringt
-  seit v3.4.0 8.5 mit; CLI ist für die Entwicklung ausreichend)
+- PHP ≥ 8.4 (seit v3.13.0, 8.3 in v3.12, 8.2 von v3.1.0 bis v3.11.0; die CI prüft 8.4 und 8.5, das
+  Docker-Image bringt seit v3.4.0 8.5 mit; CLI ist für die Entwicklung ausreichend). Ubuntu 24.04 und
+  RHEL/AlmaLinux/Rocky Linux 10 bringen 8.3 mit: PHP 8.4 unter Ubuntu 24.04 aus dem PPA `ondrej/php`,
+  unter RHEL 10 und den Nachbauten ab 10.2 aus AppStream (Paket `php8.4`) oder aus dem Remi-Repository,
+  sonst Docker ([Webserver](docs/betrieb/webserver.md#apache))
 - Web-Browser mit ES Modules (alles ab Mitte 2020)
 - Optional: Apache, nginx, Caddy für Produktivbetrieb
 
@@ -30,7 +33,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.12.0
+├── VERSION                ← 3.13.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein

@@ -40,8 +40,21 @@ final class IdentifierMask
     /** v3.12.0 (Nachprüfung A2) — hinter einer strengen Bezeichnung harmlos: nur ein Tag oder ein Jahr; ein Betrag nur mit Währung (STRICT_MONEY) */
     private const STRICT_PLAIN = '/^(?:\d{1,2}\.\d{1,2}\.\d{2,4}|\d{4}-\d{2}-\d{2}|(?:19|20)\d{2})$/';
     private const STRICT_MONEY = '/^\d[\d.,]*\s*(?:€|eur|euro)/iu';
+    /** v3.13.0 — Einheiten direkt an einer Zahl („100kWh“); dieselbe Liste nimmt die Belegprüfung (Inbox\Evidence) */
+    public const UNITS = 'kwh|mwh|wh|m3|m³|eur|euro|ct|cent|l|kg|km';
     /** Menge mit Einheit in einem Stück („100kWh“) */
-    private const WITH_UNIT = '/^\d[\d.,]*(?:kwh|mwh|wh|m3|m³|eur|euro|ct|cent|l|kg|km|%|€)$/iu';
+    private const WITH_UNIT = '/^\d[\d.,]*(?:' . self::UNITS . '|%|€)$/iu';
+
+    /**
+     * v3.13.0 — Trenner zwischen den Zeichen einer bekannten Nummer: kurze Werte (unter LONG_DIGITS Zeichen) wie
+     * bisher nur Leerraum, Punkt, Bindestrich, Unterstrich und Schrägstrich, damit eine vierstellige Nummer keine
+     * Uhrzeit („12:34“) trifft; längere auch Doppelpunkt, jeder Gedankenstrich, Minus, Mittelpunkt und Apostroph.
+     * Nie das Komma: Es stünde sonst in jedem Betrag.
+     */
+    private const SEP_SHORT = '[\s\p{Z}.\-_\/]*';
+    private const SEP_LONG = '[\s\p{Z}.\-_\/:\p{Pd}\x{2212}\x{00B7}\'\x{2019}]*';
+    /** v3.13.0 — ab so vielen Zeichen darf eine Nummer mit einem Buchstaben am Rand auch an Buchstaben kleben („MeLoDE…“) */
+    private const GLUED_LETTERS = 8;
 
     /**
      * @param bool $active Kennnummern zurückhalten (ohne `mcp_share_identifiers`)
@@ -58,7 +71,7 @@ final class IdentifierMask
      */
     public static function off(iterable $personal = []): self
     {
-        return new self(false, self::patterns($personal));
+        return new self(false, self::sorted(self::patterns($personal)));
     }
 
     /**
@@ -67,7 +80,8 @@ final class IdentifierMask
      */
     public static function of(iterable $known, iterable $personal = []): self
     {
-        return new self(true, self::patterns([...$known, ...$personal]));
+        // v3.13.0 — Nummern nach eigener Regel (auch an Buchstaben, mehr Trenner), Angaben für Briefe wie bisher
+        return new self(true, self::sorted(self::patterns($known, true) + self::patterns($personal)));
     }
 
     /**
@@ -96,18 +110,43 @@ final class IdentifierMask
         return $out;
     }
 
-    /** @param iterable<mixed> $values @return list<string> */
-    private static function patterns(iterable $values): array
+    /**
+     * @param iterable<mixed> $values
+     * @param bool $identifier v3.13.0 — Kennnummer (Gerät, Markt- und Messlokation, Vertrags- und Kundennummer):
+     *        auch an Buchstaben (eine Bezeichnung oder ein Länderkürzel direkt davor) und mit weiteren Trennern; sonst (Angaben für Briefe) nie
+     *        als Teil eines längeren Worts („Muster“ nicht in „Musterstadt“)
+     * @return array<string,string> Wert in Kleinbuchstaben → Muster
+     */
+    private static function patterns(iterable $values, bool $identifier = false): array
     {
         $patterns = [];
         foreach ($values as $v) {
             if (!is_scalar($v)) continue;
             $chars = preg_split('//u', (string)preg_replace('/[^\p{L}\p{N}]+/u', '', (string)$v), -1, PREG_SPLIT_NO_EMPTY);
             if (!is_array($chars) || count($chars) < self::MIN_KNOWN) continue;
-            // auch mit Leerzeichen oder Trennzeichen dazwischen, Groß und klein egal, nie als Teil eines längeren Worts
-            $patterns[mb_strtolower(implode('', $chars))] = '/(?<![\p{L}\p{N}])' . implode('[\s.\-_\/]*', array_map(fn(string $c) => preg_quote($c, '/'), $chars)) . '(?![\p{L}\p{N}])/iu';
+            $quoted = array_map(fn(string $c) => preg_quote($c, '/'), $chars);
+            if (!$identifier) {
+                // auch mit Leerzeichen oder Trennzeichen dazwischen, Groß und klein egal, nie als Teil eines längeren Worts
+                $patterns[mb_strtolower(implode('', $chars))] = '/(?<![\p{L}\p{N}])' . implode('[\s.\-_\/]*', $quoted) . '(?![\p{L}\p{N}])/iu';
+                continue;
+            }
+            $long = count($chars) >= self::LONG_DIGITS;
+            $glued = count($chars) >= self::GLUED_LETTERS;
+            // am Rand eine Ziffer: keine Ziffer daneben (sonst eine andere Zahl), Buchstaben dürfen kleben;
+            // ein Buchstabe am Rand: bei langen Nummern egal, bei kurzen keine Buchstaben und Ziffern daneben
+            $edge = fn(string $c, bool $before): string => preg_match('/\p{N}/u', $c)
+                ? ($before ? '(?<!\p{N})' : '(?!\p{N})')
+                : ($glued ? '' : ($before ? '(?<![\p{L}\p{N}])' : '(?![\p{L}\p{N}])'));
+            $key = mb_strtolower(implode('', $chars));
+            $patterns[$key] = '/' . $edge($chars[0], true) . implode($long ? self::SEP_LONG : self::SEP_SHORT, $quoted)
+                . $edge($chars[count($chars) - 1], false) . '/iu';
         }
-        // längere zuerst: „12345 Musterstadt“ vor einem Wort daraus
+        return $patterns;
+    }
+
+    /** @param array<string,string> $patterns @return list<string> längere zuerst: „12345 Musterstadt“ vor einem Wort daraus */
+    private static function sorted(array $patterns): array
+    {
         uksort($patterns, fn($a, $b) => mb_strlen((string)$b) <=> mb_strlen((string)$a));
         return array_values($patterns);
     }
@@ -131,6 +170,73 @@ final class IdentifierMask
         if ($text === null) return $text;
         $clean = $this->known($text);
         return $this->active && self::looksLikeIdentifier($clean) ? null : $clean;
+    }
+
+    /**
+     * v3.13.0 — Härtung: Name oder Titel (Zähler, Gruppe, Termin, Hinweis). Bekannte Werte ersetzt wie überall, dazu
+     * ohne den Schalter derselbe zweite Schritt wie bei Zitaten und Notizen: Was danach noch wie eine Nummer
+     * aussieht (looksLikeIdentifier), wird ersetzt. Anders als ein Zitat fällt ein Name nicht ganz weg, nur das
+     * Stück: Die KI braucht ihn, um den Zähler oder Termin zu nennen. Bleibt trotzdem etwas, der ganze Text.
+     */
+    public function name(string $text): string
+    {
+        $clean = $this->known($text);
+        if (!$this->active || !self::looksLikeIdentifier(self::settled($clean))) return $clean;
+        $clean = self::maskPieces($clean);
+        return self::looksLikeIdentifier(self::settled($clean)) ? self::MASK : $clean;
+    }
+
+    /**
+     * Für die Prüfung eines Namens: Eine Bezeichnung, deren Wert schon ersetzt ist („Vertragskonto[…]“), ist erledigt. Sonst
+     * hielte looksLikeIdentifier() das nächste Stück dahinter („/“, ein Wort) für ihren Wert.
+     */
+    private static function settled(string $text): string
+    {
+        $mask = preg_quote(self::MASK, '/');
+        return (string)preg_replace('/(?<![\p{L}\p{N}])(?:' . self::LABEL_STRICT . '|' . self::LABEL_DIGITS . ')[\s:#.]*(?:\p{L}{0,3})' . $mask . '/iu', self::MASK, $text);
+    }
+
+    /**
+     * Jedes Stück, das looksLikeIdentifier() als Nummer sähe, durch MASK ersetzt (dieselben Regeln, in derselben
+     * Reihenfolge): Wert hinter einer Bezeichnung, lange Ziffernfolge, Ziffern in Gruppen, mit Bindestrich oder
+     * Schrägstrich, ein Stück aus Buchstaben und mindestens drei Ziffern. Tage, Jahre, Beträge und Mengen mit
+     * Einheit bleiben.
+     */
+    private static function maskPieces(string $text): string
+    {
+        $m = self::MASK;
+        $punct = ".,;:()[]\"'„“”‚‘’«»";
+        // Wert hinter einer strengen Bezeichnung (nur Tag, Jahr oder Betrag mit Währung sind harmlos)
+        $text = (string)preg_replace_callback('/(?<![\p{L}\p{N}])(' . self::LABEL_STRICT . ')([\s:#.]*)(\S+)((?:\s*(?:€|eur\b|euro\b))?)/iu',
+            function (array $x) use ($m, $punct): string {
+                $v = trim($x[3] . $x[4], $punct);
+                if ($v === '' || str_contains($x[3], $m) || preg_match(self::STRICT_PLAIN, $v) || preg_match(self::STRICT_MONEY, $v)) return $x[0];
+                return $x[1] . $x[2] . $m;
+            }, $text);
+        $text = (string)preg_replace_callback('/(?<![\p{L}\p{N}])(' . self::LABEL_DIGITS . ')([\s:#]+)([^\s,;]+)/iu',
+            function (array $x) use ($m, $punct): string {
+                $v = trim($x[3], $punct);
+                return preg_match('/\p{N}/u', $v) && !preg_match(self::PLAIN_VALUE, $v) ? $x[1] . $x[2] . $m : $x[0];
+            }, $text);
+        $text = (string)preg_replace('/\d{' . self::LONG_DIGITS . ',}/u', $m, $text);
+        $text = (string)preg_replace_callback('/(?<![\d.,])\d{2,5}(?:[ \x{00A0}]\d{2,5}){2,}(?![\d,.])/u',
+            fn(array $x): string => strlen((string)preg_replace('/\D/', '', $x[0])) >= 9 ? $m : $x[0], $text);
+        $text = (string)preg_replace_callback('/(?<![\d.,\-\/])\d{2,}(?:[\-\/]\d{2,})+(?![\d,.\-\/])/u', function (array $x) use ($m): string {
+            $g = $x[0];
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $g) || preg_match('/^(?:19|20)\d{2}(?:[\-\/](?:19|20)\d{2})*$/', $g)) return $g;
+            return strlen((string)preg_replace('/\D/', '', $g)) >= 7 ? $m : $g;
+        }, $text);
+        $tokens = preg_split('/(\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
+        foreach ($tokens as $i => $token) {
+            if ($i % 2 === 1) continue;
+            $t = trim($token, $punct);
+            if ($t === '' || !preg_match('/\p{N}/u', $t) || !preg_match('/\p{L}/u', $t) || preg_match(self::WITH_UNIT, $t)) continue;
+            foreach (preg_split('/[-_\/]/u', $t) ?: [] as $part) {
+                if (preg_match('/^(?:19|20)\d{2}$/', $part)) continue;
+                if (strlen((string)preg_replace('/\D/u', '', $part)) >= 3) { $tokens[$i] = str_replace($t, $m, $token); break; }
+            }
+        }
+        return implode('', $tokens);
     }
 
     /** Dateiname: bekannte Werte und (ohne den Schalter) was wie eine Nummer aussieht ersetzt, Endung bleibt. */

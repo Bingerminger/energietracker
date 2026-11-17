@@ -10,7 +10,7 @@ sponsorship or endorsement by the respective owners.
 | Name | Owner (in essence) | Mentioned for |
 |---|---|---|
 | **Home Assistant** | Open Home Foundation | sending meter readings to the Energietracker |
-| **HACS** | the HACS project | installing the Energietracker integration in Home Assistant (since 3.12.0) |
+| **HACS** | the HACS project | installing the Energietracker integration in Home Assistant (since 3.12.0); from Home Assistant 2026.11 through the Marketplace (formerly HACS) |
 | **ioBroker** | ioBroker GmbH | sending meter readings to the Energietracker |
 | **Node-RED** | OpenJS Foundation | sending meter readings to the Energietracker |
 | **openHAB** | openHAB Foundation e.V. | sending meter readings to the Energietracker |

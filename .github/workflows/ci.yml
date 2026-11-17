@@ -157,9 +157,9 @@ jobs:
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
       # v3.12.0 — Browser-Render und Sichten prüfen gegen demo-data/ (Stand 31.05.2026) mit der echten
-      # Uhr. Ab Ende Dezember 2026 kippen Stichtage darin (fällige Ablesungen, Vorjahr, Viertelstunden).
-      # Ein fester Tag per libfaketime machte die Oberflächentests auf den Linux-Runnern unzuverlässig
-      # (zufällige Rotläufe beim Neuzeichnen); die Lösung über die Beispieldaten kommt mit v3.13.
+      # Uhr. Ein fester Tag per libfaketime machte die Oberflächentests auf den Linux-Runnern unzuverlässig
+      # (zufällige Rotläufe beim Neuzeichnen). v3.13.0 — die Prüfungen mit Kalenderbezug leiten ihre Erwartung
+      # aus dem Stand der Daten ab und kippen zum Jahreswechsel nicht mehr; der Workflow „Zeitreise“ (zeitreise.yml, wöchentlich) prüft das.
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)
         run: |
           set -euo pipefail

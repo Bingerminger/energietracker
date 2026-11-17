@@ -58,7 +58,8 @@ final class McpPromptsTest extends McpTestCase
             }
         }
         $en = $this->rpc('prompts/list', [], $this->context(locale: 'en'))['body']['result']['prompts'];
-        self::assertSame(['Monthly report', 'Yearly report', 'Check a bill', 'What is coming up?'], array_column($en, 'title'));
+        // v3.13.0 — „Annual report“ wie das Menü (bis v3.12 „Yearly report“)
+        self::assertSame(['Monthly report', 'Annual report', 'Check a bill', 'What is coming up?'], array_column($en, 'title'));
         // moderne Fassung: dieselbe Liste
         $modern = $this->rpc('prompts/list', [], null, true)['body']['result']['prompts'];
         self::assertSame(array_column($list, 'name'), array_column($modern, 'name'));

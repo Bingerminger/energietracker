@@ -39,7 +39,7 @@ Nutzerdaten, keine Fremdpakete (auf Englisch).
 
 ## Einrichten
 
-PHP ab 8.3 genügt zum Laufen (die CI prüft 8.3 bis 8.5), ohne Composer,
+PHP ab 8.4 genügt zum Laufen (die CI prüft 8.4 und 8.5), ohne Composer,
 ohne Build-Schritt:
 
 ```bash

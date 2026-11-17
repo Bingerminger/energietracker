@@ -33,15 +33,26 @@ const freePort = () => new Promise((res, rej) => {
   s.on('error', rej);
   s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); });
 });
+const port = Number(process.env.ET_SICHT_PORT) || await freePort();
+// v3.13.0 — der eigene Server oder keiner (wie box-raster): Lauscht auf dem Port schon ein anderer, scheitert der
+// eigene still, und die Prüfung liefe gegen fremden Code und fremde Daten. Lieber rot.
+// Ein gerade beendeter Vorgänger auf demselben Port (Zeitreise: box-raster, sichtung-layout) gibt ihn nach einem
+// Augenblick frei: bis zu 10 s warten.
+const portBelegt = (p) => fetch(`http://127.0.0.1:${p}/`).then(() => true, () => false);
+const portFrei = async (p) => {
+  for (let i = 0; i < 40; i++) { if (!(await portBelegt(p))) return true; await new Promise(r => setTimeout(r, 250)); }
+  return false;
+};
+if (!(await portFrei(port))) { console.log(`  ✗ Port ${port} ist schon belegt (fremder Server)`); process.exit(1); }
 const dataDir = mkdtempSync(join(tmpdir(), 'et-sicht-'));
 cpSync(join(ROOT, 'demo-data'), dataDir, { recursive: true });
-const port = Number(process.env.ET_SICHT_PORT) || await freePort();
 const proc = spawn('php', ['-S', `127.0.0.1:${port}`, 'router.php'], { cwd: ROOT, env: { ...process.env, ET_DATA_DIR: dataDir, ET_LOG_DEST: 'null', ET_AUTH: 'off' }, stdio: 'ignore' });
 const BASE = `http://127.0.0.1:${port}/`;
 for (let i = 0; i < 40; i++) {
   if (await fetch(`${BASE}api.php/api/health`).then(r => r.status < 500).catch(() => false)) break;
   await new Promise(r => setTimeout(r, 250));
 }
+if (proc.exitCode !== null) { console.log(`  ✗ eigener Server auf Port ${port} nicht gestartet`); rmSync(dataDir, { recursive: true, force: true }); process.exit(1); }
 const H = { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 await fetch(`${BASE}api.php/api/demo/import`, { method: 'POST', headers: H, body: JSON.stringify({ force: true }) });
 await fetch(`${BASE}api.php/api/settings`, { method: 'PATCH', headers: H, body: JSON.stringify({ ui_level: 'expert', setup_pending: false }) });
@@ -119,11 +130,20 @@ try {
     ok('Kachel: letzte Ablesung im Fuß', /Letzte Ablesung vor/.test(await gas.locator('[data-role="tile-last-reading"]').textContent()));
     ok('Kachel: Füllstand im Fuß', /Tank \d+\s*%, .+ von .+ L/.test(await page.locator('.art-kachel[data-utility="heizoel"] [data-role="tile-stock"]').textContent()));
     ok('Kachel: Lager bei Pellets', /Lager \d+\s*%/.test(await page.locator('.art-kachel[data-utility="pellets"] [data-role="tile-stock"]').textContent()));
-    const trend = gas.locator('.kpi__trend[data-trend]').first();
-    ok('Trend: eigene Grafik statt Zeichen', await trend.locator('svg use').count() === 1 && !/[▲▼]/.test(await trend.textContent()));
-    ok('Trend: Vorzeichen und Wert sichtbar', /^[+−]\d+\s%$/.test((await trend.textContent()).trim().replace(/ /g, ' ')), await trend.textContent());
-    ok('Trend: Vergleichszeitraum als Tooltip', /gegenüber denselben Monaten ein Jahr zuvor/.test(await trend.getAttribute('title')));
-    ok('Trend: Satz für Vorleser mit Richtung', /% (mehr|weniger): /.test(await trend.getAttribute('aria-label')));
+    // v3.13.0 — nicht mehr an Gas gebunden: Das Schaufenster wird bis heute fortgeschrieben und wiederholt dabei das Jahr
+    // davor. Liegen beide verglichenen Jahre in diesem Teil (etwa ab Anfang 2028), steht bei Gas „etwa gleich“ statt eines
+    // Pfeils. Die Grafik prüft die Gas-Kachel in jeder Form, Vorzeichen, Wert und Satz den ersten Pfeil der Übersicht.
+    // Grenze: Danach tragen nur Heizöl und Pellets einen Pfeil (±1 %, gemessen bis 29.02.2032); fehlt er einmal, meldet
+    // „mindestens ein Pfeil“ das als Fehler.
+    const gasTrend = gas.locator('.kpi__trend').first();
+    ok('Trend: eigene Grafik statt Zeichen', await gasTrend.count() === 1 && await gasTrend.locator('svg use').count() === 1 && !/[▲▼]/.test(await gasTrend.textContent()));
+    const trend = page.locator('.art-kachel .kpi__trend[data-trend]').first();
+    const arrows = await trend.count();
+    ok('Trend: mindestens ein Pfeil auf der Übersicht', arrows === 1);
+    ok('Trend: Pfeil als eigene Grafik', arrows === 1 && await trend.locator('svg use').count() === 1 && !/[▲▼]/.test(await trend.textContent()));
+    ok('Trend: Vorzeichen und Wert sichtbar', arrows === 1 && /^[+−]\d+\s%$/.test((await trend.textContent()).trim().replace(/ /g, ' ')), arrows ? await trend.textContent() : 'kein Pfeil');
+    ok('Trend: Vergleichszeitraum als Tooltip', arrows === 1 && /gegenüber denselben Monaten ein Jahr zuvor/.test(await trend.getAttribute('title')));
+    ok('Trend: Satz für Vorleser mit Richtung', arrows === 1 && /% (mehr|weniger): /.test(await trend.getAttribute('aria-label')));
     ok('Trend: Bezug steht sichtbar daneben', /zum Vorjahr/.test(await gas.locator('.kpi__trend-bezug').first().textContent()));
     const bgOk = await page.evaluate(() => { const up = document.querySelector('.kpi__trend--danger'); const dn = document.querySelector('.kpi__trend--success'); return !up || !dn || getComputedStyle(up).color !== getComputedStyle(dn).color; });
     ok('Trend: Ton nach Richtung', bgOk);
@@ -328,6 +348,28 @@ try {
     await page.locator('[data-past-view]').first().click();
     await page.waitForSelector('.modal', { timeout: 6000 });
     ok('Ansehen öffnet den Vertrag', await page.locator('.modal [name="provider"], .modal #water-form, .modal form').count() >= 1);
+    await page.keyboard.press('Escape');
+    // v3.13.0 — die Zahl am Reiter: dieselben Verträge wie die Tabelle („Alle n“), aus anderen Anfragen gezählt
+    const alle = Number((await page.locator('[data-past-art=""] .muted').textContent()).trim());
+    await page.waitForFunction(() => document.querySelector('.section-tabs [data-badge="contractsPast"] .sidebar__badge'), null, { timeout: 8000 }).catch(() => {});
+    const badge = await page.evaluate(() => { const b = document.querySelector('.section-tabs [data-badge="contractsPast"] .sidebar__badge'); return b ? { n: Number(b.textContent), title: b.getAttribute('title'), cls: b.className } : null; });
+    ok('Reiter „Frühere Verträge“ trägt die Zahl der Tabelle, ruhig gefärbt, mit Titel', !!badge && badge.n === alle && alle === n && /sidebar__badge--neutral/.test(badge.cls)
+      && new RegExp(`^${alle} früherer? Vertr`).test(badge.title || ''), `${JSON.stringify(badge)} / Tabelle ${alle}`);
+    // dieselbe Zahl unter den anderen Reitern von Kosten & Verträge
+    await go(page, '/tariffs');
+    ok('Zahl am Reiter auch unter „Wechsel prüfen“', Number(await page.locator('.section-tabs [data-badge="contractsPast"] .sidebar__badge').textContent().catch(() => '0')) === alle);
+    // „Neuer Vertrag“ im Kopf von Kosten & Verträge: erst die Art, dann der Dialog der Art
+    await go(page, '/contracts');
+    const kopf = page.locator('.view-header [data-role="new-contract"] .zeilenmenue__knopf');
+    ok('Kosten & Verträge: Knopf „Neuer Vertrag“ im Kopf', await kopf.count() === 1 && /Neuer Vertrag/.test(await kopf.textContent()), String(await kopf.count()));
+    await kopf.click();
+    const arten = await page.locator('.view-header [data-new-contract]').evaluateAll(bs => bs.filter(b => b.getBoundingClientRect().height > 1).map(b => b.dataset.newContract));
+    ok('„Neuer Vertrag“ fragt die Verbrauchsart (nur Arten mit Verträgen)', arten.includes('gas') && arten.includes('strom') && !arten.includes('heizoel'), arten.join(', '));
+    await page.locator('.view-header [data-new-contract="gas"]').click();
+    await page.waitForSelector('.modal', { timeout: 6000 }).catch(() => {});
+    ok('„Neuer Vertrag“ → Gas öffnet den leeren Vertragsdialog von Gas', await page.locator('.modal [name="provider"]').count() === 1
+      && (await page.locator('.modal [name="provider"]').inputValue()) === '', await page.locator('.modal .modal__title, .modal h2').first().textContent().catch(() => 'kein Dialog'));
+    await page.keyboard.press('Escape');
     ok('Frühere Verträge: keine Seitenfehler', errs.length === 0, errs.join(' | '));
     await ctx.close();
     const m = await open(390, 844);
@@ -378,6 +420,179 @@ try {
     ok('Schaubilder laufen an, sobald sie im Bild sind', await page.locator('.dash-explainers .explainer.ex--ready').count() >= 1);
     ok('Kennzahlen: keine Seitenfehler', errs.length === 0, errs.join(' | '));
     await ctx.close();
+  }
+  // ── v3.13.0 — Rückfrage beim Speichern: nach „Abbrechen“ steht der Fokus wieder auf dem Knopf ──────
+  // Dialog „+ Ablesung“ (Gas, Strom; Abbrechen per Klick und per Escape) und Seite „Zählerstände“. Bis v3.12 fiel er im
+  // Dialog auf <body> (der Dialog darunter war noch offen), seit der Erwartung nach dem Wetter auch auf der Seite (der
+  // gesperrte Knopf verlor ihn, während die Seite wartete). Im echten Browser geprüft (Lektion 95).
+  {
+    const wo = () => { const a = document.activeElement; return !a || a === document.body ? 'BODY' : (a.dataset.act || a.dataset.action || a.tagName); };
+    for (const art of ['gas', 'strom']) {
+      for (const how of ['Klick', 'Escape']) {
+        const { ctx, page, errs } = await open(1280, 900);
+        await go(page, `/utility/${art}`);
+        await page.click('#header-new-reading, #btn-new-reading');
+        await page.waitForSelector('.modal #reading-form');
+        await page.fill('.modal input[name="counter"]', '88888888');
+        await page.focus('.modal [data-act="save"]');
+        await page.keyboard.press('Enter');
+        await page.waitForSelector('.modal .check-list', { timeout: 8000 });
+        if (how === 'Klick') await page.click('.modal-backdrop:last-child [data-act="cancel"]'); else await page.keyboard.press('Escape');
+        await page.waitForTimeout(400);
+        ok(`Dialog „+ Ablesung“ ${art}, Rückfrage abgebrochen (${how}): Fokus auf „Anlegen“, Dialog offen`,
+          await page.evaluate(wo) === 'save' && await page.locator('.modal-backdrop').count() === 1, await page.evaluate(wo));
+        ok(`Dialog „+ Ablesung“ ${art}: keine Seitenfehler`, errs.length === 0, errs.join(' | '));
+        await ctx.close();
+      }
+    }
+    for (const how of ['Klick', 'Escape']) {
+      const { ctx, page } = await open(1280, 900);
+      await go(page, '/zaehlerstaende');
+      await page.fill('.reading-card[data-utility="gas"] [data-role="counter"]', '88888888');
+      await page.focus('[data-action="save-all"]');
+      await page.keyboard.press('Enter');
+      await page.waitForSelector('.modal .check-list', { timeout: 8000 });
+      if (how === 'Klick') await page.click('.modal-backdrop:last-child [data-act="cancel"]'); else await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      ok(`Seite „Zählerstände“, Rückfrage abgebrochen (${how}): Fokus auf „Alle speichern“`, await page.evaluate(wo) === 'save-all', await page.evaluate(wo));
+      await ctx.close();
+    }
+  }
+  // ── v3.13.0 (Paket K2e) — Frühere Verträge zwischen 900 und 1280 px: „Rechnung …“ und „Ansehen“ im sichtbaren Rahmen ──
+  // Die Tabelle wischt über 900 px in ihrem Rahmen quer; die Spalte der Aktionen ist angeheftet. Dazu die Sprache mit
+  // dem längsten Knopf (nl), die Ränder 899 px (gestapelt) und 1440 px (passt ganz).
+  {
+    const imRahmen = () => {
+      const wrap = document.querySelector('.past__tabelle')?.closest('.table-wrap');
+      if (!wrap) return null;
+      const w = wrap.getBoundingClientRect();
+      const left = w.left + wrap.clientLeft, right = left + wrap.clientWidth;
+      const knoepfe = [...wrap.querySelectorAll('[data-role="past-bill"], [data-past-view]')];
+      const draussen = knoepfe.filter(b => { const r = b.getBoundingClientRect(); return r.right > right + 1 || r.left < left - 1; });
+      const row = document.querySelector('.past__tabelle tbody tr');
+      return { n: knoepfe.length, draussen: draussen.map(b => b.textContent.trim()), seite: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+        gestapelt: !!row && getComputedStyle(row).display === 'block', wischt: wrap.scrollWidth > wrap.clientWidth + 1 };
+    };
+    for (const [breite, sprache] of [[900, 'de'], [1024, 'de'], [1180, 'de'], [1280, 'de'], [1024, 'nl'], [899, 'de'], [1440, 'de']]) {
+      const { ctx, page } = await open(breite, 900);
+      if (sprache !== 'de') {
+        await go(page, '/dashboard');
+        await page.evaluate((l) => localStorage.setItem('et-language', l), sprache);
+        await page.goto(`${BASE}?sprache=${sprache}#/contracts/past`, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(500);
+      } else await go(page, '/contracts/past');
+      const r = await page.evaluate(imRahmen);
+      ok(`Frühere Verträge ${breite} px (${sprache}): alle Knöpfe im sichtbaren Rahmen, die Seite wischt nicht`, !!r && r.n >= 6 && r.draussen.length === 0 && r.seite, JSON.stringify(r));
+      if (breite === 899) ok('Frühere Verträge 899 px: gestapelt wie bisher', !!r && r.gestapelt && !r.wischt, JSON.stringify(r));
+      if (breite === 1440) ok('Frühere Verträge 1440 px: die Tabelle passt ganz', !!r && !r.gestapelt && !r.wischt, JSON.stringify(r));
+      await ctx.close();
+    }
+  }
+  // ── v3.13.0 (Paket K2e) — Abzeichen „Schatten“, „Angebot“, „künftig“: mindestens 4,5:1 auf der Fläche, auf der sie
+  // stehen, im Dunkel- und Hellmodus, auch mit dem Zeilen-Hover und bei 390 px. Bis v3.12 im Dunkeln 3,1 bis 4,1:1
+  // (aus den Tokens gerechnet, tests/contrast.test.mjs).
+  {
+    const messen = () => {
+      const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+      const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+      const farbe = (s) => {
+        let m = s.match(/^rgba?\(([^)]+)\)$/);
+        if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; }
+        m = s.match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/);
+        if (m) return [m[1] * 255, m[2] * 255, m[3] * 255, m[4] != null ? Number(m[4]) : 1];
+        return null;
+      };
+      const ueber = (oben, unten) => [0, 1, 2].map(i => oben[i] * oben[3] + unten[i] * (1 - oben[3]));
+      const flaeche = (el) => {
+        const stapel = [];
+        for (let n = el; n; n = n.parentElement) {
+          const c = farbe(getComputedStyle(n).backgroundColor);
+          if (c && c[3] > 0) { stapel.push(c); if (c[3] >= 1) break; }
+        }
+        let grund = [255, 255, 255];
+        for (const c of stapel.reverse()) grund = ueber(c, grund);
+        return grund;
+      };
+      const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
+      return [...document.querySelectorAll('.badge--shadow, .status-pill.shadow, .badge--info, .status-pill.future')].filter(vis).map(el => {
+        const fg = farbe(getComputedStyle(el).color), bg = flaeche(el);
+        const a = lum(fg), b = lum(bg);
+        return { text: el.textContent.trim().slice(0, 20), kontrast: Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100 };
+      });
+    };
+    for (const schema of ['dark', 'light']) {
+      for (const [breite, hoehe] of [[1280, 900], [390, 844]]) {
+        const mobile = breite < 500;
+        const ctx = await browser.newContext({ viewport: { width: breite, height: hoehe }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, locale: 'de-DE', colorScheme: schema, serviceWorkers: 'block' });
+        const page = await ctx.newPage();
+        const alle = [];
+        for (const route of ['/tariffs', '/utility/gas/contracts']) {
+          await go(page, route);
+          alle.push(...(await page.evaluate(messen)).map(x => ({ ...x, route })));
+          // Zeilen-Hover (--bg-2) unter dem ersten Abzeichen in einer Tabellenzeile
+          const zeile = page.locator('tr:has(.badge--shadow), tr:has(.status-pill.shadow)').first();
+          if (!mobile && await zeile.count()) { await zeile.hover(); await page.waitForTimeout(150); alle.push(...(await page.evaluate(messen)).map(x => ({ ...x, route: route + ' (Hover)' }))); }
+        }
+        const schwach = alle.filter(x => x.kontrast < 4.5);
+        ok(`Abzeichen ${schema}, ${breite} px: Schatten/Angebot/künftig gefunden`, alle.some(x => /Schatten/.test(x.text)) && alle.some(x => /Angebot/i.test(x.text)), JSON.stringify(alle.slice(0, 6)));
+        ok(`Abzeichen ${schema}, ${breite} px: mindestens 4,5:1 auf jeder Fläche`, alle.length > 0 && schwach.length === 0, JSON.stringify(schwach.slice(0, 6)));
+        await ctx.close();
+      }
+    }
+  }
+  // ── v3.13.0 (Paket K2e) — Erster Start im Browser: Sprache und Land aus dem Browser (fr-CH, de-AT, en-GB) ──────
+  // Leerer Datenordner, keine Anfrage vorher. Bis v3.12 schickte die Oberfläche bei den ersten Anfragen selbst „de“:
+  // Ein französischer Browser bekam Deutsch, Deutschland und den deutschen Wetterort. Maßstab ist ein zweiter leerer
+  // Ordner, den der Server allein mit derselben Kopfzeile anlegt.
+  {
+    // v3.13.0 — je Server ein freier Port des Systems: ET_SICHT_PORT + 1 und + 2 lagen in der Zeitreise auf dem Port des
+    // nachgebauten Home Assistant und eins über dem eigenen Bereich; dort lief ein fremder Server mit Beispieldaten,
+    // der eigene scheiterte still, und der Vergleich verglich mit dessen Daten
+    const serve = async () => {
+      const p = await freePort();
+      if (await portBelegt(p)) throw new Error(`Erststart: Port ${p} ist schon belegt`);
+      const dir = mkdtempSync(join(tmpdir(), 'et-erst-'));
+      const srv = spawn('php', ['-S', `127.0.0.1:${p}`, 'router.php'], { cwd: ROOT, env: { ...process.env, ET_DATA_DIR: dir, ET_LOG_DEST: 'null', ET_AUTH: 'off' }, stdio: 'ignore' });
+      const B = `http://127.0.0.1:${p}/`;
+      // bereit, sobald er Dateien ausliefert: ohne API-Aufruf (der legte sonst an)
+      for (let w = 0; w < 40; w++) { if (await fetch(`${B}public/locales/languages.json`).then(r => r.ok).catch(() => false)) break; await new Promise(r => setTimeout(r, 250)); }
+      const done = () => { srv.kill(); rmSync(dir, { recursive: true, force: true }); };
+      if (srv.exitCode !== null) { done(); throw new Error(`Erststart: eigener Server auf Port ${p} nicht gestartet`); }
+      return { B, done };
+    };
+    const kern = async (B) => {
+      const s = (await (await fetch(`${B}api.php/api/settings`)).json()).data || {};
+      const gas = ((await (await fetch(`${B}api.php/api/utility/gas/meters`)).json()).data || []).map(m => m.name);
+      return { language: s.language, country: s.country, currency: s.currency, location_name: s.location_name, gas };
+    };
+    for (const [locale, lang, country] of [['fr-CH', 'fr', 'CH'], ['de-AT', 'de', 'AT'], ['en-GB', 'en', 'GB']]) {
+      let app = null, ref = null;
+      try {
+        app = await serve();
+        ref = await serve();
+        const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale, serviceWorkers: 'block' });
+        const page = await ctx.newPage();
+        await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
+        await page.route(/sync-open-meteo|geocode|update-check/, r => r.abort());
+        let first = null;
+        page.on('request', req => { if (!first && /api\.php\/api\//.test(req.url())) first = req.headers(); });
+        await page.goto(app.B, { waitUntil: 'networkidle' });
+        await page.waitForSelector('#setup-lang', { timeout: 15000 });
+        const wahl = await page.evaluate(() => {
+          const c = document.querySelector('#setup-country');
+          return { lang: document.querySelector('#setup-lang')?.value, country: c?.value || c?.dataset.country, html: document.documentElement.lang };
+        });
+        ok(`Erststart ${locale}: erste Anfrage mit der Sprache des Browsers, ohne eigene Wahl`,
+          !!first && String(first['accept-language'] || '').startsWith(locale) && !first['x-et-language'], JSON.stringify(first && { al: first['accept-language'], xl: first['x-et-language'] }));
+        ok(`Erststart ${locale}: Assistent mit ${lang} und ${country}, Seite in ${lang}`, wahl.lang === lang && wahl.country === country && wahl.html === lang, JSON.stringify(wahl));
+        const got = await kern(app.B);
+        await fetch(`${ref.B}api.php/api/settings`, { headers: { 'Accept-Language': first?.['accept-language'] || locale } });
+        const want = await kern(ref.B);
+        ok(`Erststart ${locale}: Einstellungen und erster Zähler wie beim Server allein mit derselben Kopfzeile`,
+          JSON.stringify(got) === JSON.stringify(want) && got.language === lang && got.country === country, `${JSON.stringify(got)} / ${JSON.stringify(want)}`);
+        await ctx.close();
+      } finally { app?.done(); ref?.done(); }
+    }
   }
   // ── Weiterleitung und alte Wege ────────────────────────────────────
   {

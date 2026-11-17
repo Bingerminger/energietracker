@@ -2,6 +2,9 @@
 // Websocket von Home Assistant, Erwartung der Integration aus /api/summary.
 // Node 22 oder neuer: fetch und WebSocket sind eingebaut, keine Pakete.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 
@@ -158,8 +161,37 @@ export async function haEinrichten(base, benutzer) {
     return access;
 }
 
-/** Was die Integration aus der Übersicht macht (logic.py: all_meters, meter_sensor_keys, meter_value). */
-export function erwartung(summary) {
+// ── Integration ─────────────────────────────────────────────────────────────
+/** Version der Integration aus ihrem manifest.json (`null`, wenn unlesbar). */
+export function integrationVersion(dir) {
+    try {
+        return String(JSON.parse(readFileSync(join(dir, 'custom_components', 'energietracker', 'manifest.json'), 'utf8')).version ?? '') || null;
+    } catch { return null; }
+}
+/** `a` mindestens `b` (SemVer ohne Zusatz); unlesbar zählt als alt. */
+export function versionMindestens(a, b) {
+    const p = (v) => String(v ?? '').split('.').map((n) => parseInt(n, 10));
+    const x = p(a); const y = p(b);
+    if (x.length < 3 || x.some(Number.isNaN)) return false;
+    for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+    return true;
+}
+/** Sensoren von „Zu tun“ am Gerät „Energietracker“ ohne Wert aus der Übersicht (todo_count prüft der Vergleich selbst). */
+const TODO_OHNE_WERT = new Set(['todo_next', 'todo_next_date', 'todo_upcoming', 'todo_upcoming_date']);
+
+/**
+ * Was die Integration aus der Übersicht macht (logic.py: all_meters, meter_sensor_keys, meter_value, meter_kind).
+ * Ab Integration 1.1.0 zusätzlich: Bestand und Füllstand je Tank (`tank`), Prognose und Kosten der Gruppe
+ * (`group_forecast_12m`, nur wenn die App den Schlüssel schickt), Auszahlungen der Einspeisung
+ * (`contract.payouts_*`, wenn `payouts_received` nicht null ist). `version` = Version der Integration, sonst
+ * gilt der Stand 1.0 (so bleibt die Farm mit der veröffentlichten 1.0.x grün).
+ *
+ * `werte`: Suffix der unique_id → Wert; `einheiten`: Suffix → erwartete Einheit (nur die Sensoren ab 1.1.0);
+ * `neu`: Zahl der neuen Sensoren je Art.
+ */
+export function erwartung(summary, version = null) {
+    const ab11 = versionMindestens(version, '1.1.0');
+    const waehrung = String(summary?.currency || 'EUR');
     const meters = (summary?.meters ?? []).filter((m) => isObj(m) && m.key);
     const gruppen = []; const seen = new Set();
     for (const m of summary?.meters ?? []) {
@@ -168,35 +200,65 @@ export function erwartung(summary) {
         const key = `${m.utility}.group.${gc.group_id}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        gruppen.push({ key, contract: gc.contract, group: true });
+        const g = { key, contract: gc.contract, group: true, consumption_unit: m.consumption_unit };
+        if (ab11 && 'group_forecast_12m' in m) g.forecast_12m = m.group_forecast_12m;
+        gruppen.push(g);
     }
     const werte = new Map();
+    const einheiten = new Map();
+    const neu = { tank: 0, gruppenPrognose: 0, auszahlungen: 0 };
     for (const m of [...meters, ...gruppen]) {
-        const keys = m.group ? ['balance'] : ['balance', 'year_to_date', 'forecast_12m', 'days_since_reading']
-            .filter((k) => !(k === 'balance' && m.contract == null) && !(k === 'forecast_12m' && m.tank != null));
+        let keys;
+        if (m.group) {
+            keys = ['balance', ...('forecast_12m' in m ? ['forecast_12m', 'forecast_12m_cost'] : [])];
+        } else {
+            keys = ['balance', 'year_to_date', 'forecast_12m', 'days_since_reading']
+                .filter((k) => !(k === 'balance' && m.contract == null) && !(k === 'forecast_12m' && m.tank != null));
+            if (ab11 && isObj(m.tank)) keys.push('tank_stock', 'tank_level');
+            if (ab11 && isObj(m.contract) && m.contract.payouts_received != null) {
+                keys.push('payouts_received', 'payouts_open', 'payouts_open_at_settle');
+            }
+        }
         for (const k of keys) {
             const wert = k === 'balance' ? m.contract?.balance
-                : k === 'days_since_reading' ? m.days_since_reading : m[k]?.value;
-            werte.set(`${m.key}_${k}`, wert ?? null);
+                : k === 'days_since_reading' ? m.days_since_reading
+                : k === 'forecast_12m_cost' ? m.forecast_12m?.cost
+                : k === 'tank_stock' ? m.tank?.stock
+                : k === 'tank_level' ? m.tank?.percent
+                : k.startsWith('payouts_') ? m.contract?.[k]
+                : m[k]?.value;
+            const sw = `${m.key}_${k}`;
+            werte.set(sw, wert ?? null);
+            if (k === 'tank_stock') { einheiten.set(sw, m.tank?.unit || null); neu.tank++; }
+            else if (k === 'tank_level') { einheiten.set(sw, '%'); neu.tank++; }
+            else if (k.startsWith('payouts_')) { einheiten.set(sw, waehrung); neu.auszahlungen++; }
+            else if (m.group && k === 'forecast_12m') { einheiten.set(sw, m.consumption_unit || null); neu.gruppenPrognose++; }
+            else if (m.group && k === 'forecast_12m_cost') { einheiten.set(sw, waehrung); neu.gruppenPrognose++; }
         }
     }
-    return { geraete: 1 + meters.length + gruppen.length, sensoren: 5 + werte.size, werte };
+    return { geraete: 1 + meters.length + gruppen.length, sensoren: 5 + werte.size, werte, einheiten, neu, ab11 };
 }
 
-/** Sensoren der Integration gegen die API: falsche Werte (leer nur bei null). */
-export function sensorAbweichungen(sensoren, zustand, summary, todo) {
-    const soll = erwartung(summary);
+/**
+ * Sensoren der Integration gegen die API: falsche Werte (leer nur bei null), ab 1.1.0 die Einheiten der neuen
+ * Sensoren. Ein Sensor, den die Erwartung nicht kennt, ist ein Fehler (sonst bliebe ein falscher Name grün, ohne
+ * dass etwas verglichen wurde). `zustand`: entity_id → Zustand aus /api/states (Text oder ganzes Objekt).
+ */
+export function sensorAbweichungen(sensoren, zustand, summary, todo, version = null) {
+    const soll = erwartung(summary, version);
     const prefix = `${summary?.instance_id}_`;
-    const falsch = []; let leer = 0;
+    const falsch = []; let leer = 0; let einheitenGeprueft = 0;
     for (const e of sensoren) {
         const uid = String(e.unique_id ?? '');
         const sw = uid.startsWith(prefix) ? uid.slice(prefix.length) : uid;
-        const ist = zustand.get(e.entity_id);
+        const roh = zustand.get(e.entity_id);
+        const ist = isObj(roh) ? roh.state : roh;
         if (sw === 'todo_count') {
             if (Number(ist) !== Number(todo?.count)) falsch.push(`${sw}=${ist}`);
             continue;
         }
-        if (!soll.werte.has(sw)) continue;
+        if (TODO_OHNE_WERT.has(sw)) continue;
+        if (!soll.werte.has(sw)) { falsch.push(`${sw} unerwartet`); continue; }
         const wert = soll.werte.get(sw);
         if (wert === null) {
             leer++;
@@ -204,6 +266,11 @@ export function sensorAbweichungen(sensoren, zustand, summary, todo) {
         } else if (!(Math.abs(Number(ist) - Number(wert)) <= 1e-6 * Math.max(1, Math.abs(Number(wert))))) {
             falsch.push(`${sw}=${ist} statt ${wert}`);
         }
+        if (soll.einheiten.has(sw) && isObj(roh)) {
+            einheitenGeprueft++;
+            const einheit = roh.attributes?.unit_of_measurement ?? null;
+            if (einheit !== soll.einheiten.get(sw)) falsch.push(`${sw} in ${einheit} statt ${soll.einheiten.get(sw)}`);
+        }
     }
-    return { falsch, leer };
+    return { falsch, leer, einheitenGeprueft };
 }

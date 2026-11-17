@@ -297,6 +297,10 @@ final class LetterService
      */
     private function terminationDate(string $u, array $c, string $today): ?string
     {
+        // v3.13.0 — Grundversorgung: Lücke, für jeden Eintrag (mit und ohne Ende, mit und ohne Frist). Die zwei Wochen
+        // (§ 20 Abs. 1 StromGVV/GasGVV) laufen ab dem Zugang des Briefs, den die App nicht kennt; ein Tag „heute + 14“
+        // stünde als „nach meinen Unterlagen“ im Brief. Bis v3.12 bekam sie den nur mit eingetragenem Ende.
+        if ($this->basicSupply($u, $c)) return null;
         $timing = $this->terminationTiming($u, $c, $today);
         if ($timing['switch_date'] === null) return null;
         if ($timing['basis'] === 'fixed_end' && $timing['cancel_by'] !== null && $timing['cancel_by'] < $today && !isset($timing['renewal_term'])) return null;
@@ -338,10 +342,22 @@ final class LetterService
     }
 
     /**
+     * v3.13.0 — Grundversorgung im Land mit Rechtsregeln, Strom oder Gas: Der Kündigungstermin hängt am Zugang des
+     * Briefs (§ 20 Abs. 1 StromGVV/GasGVV, zwei Wochen), er bleibt eine Lücke (terminationDate, termGap).
+     */
+    private function basicSupply(string $u, array $c): bool
+    {
+        $country = $this->rights->country();
+        return ($c['supply_kind'] ?? null) === 'basic' && Rights::supports($country) && Rights::isEnergy($country, $u);
+    }
+
+    /**
      * v3.12.0 — Warum der Kündigungstermin eine Lücke bleibt (für den Satz im Dialog):
-     *   missed     der Stichtag zum Vertragsende ist verpasst (`cancel_by`); wie es danach weitergeht, steht im Vertrag;
-     *   renewed    der Vertrag läuft nach seinem Ende weiter, ohne eingetragene Regel für die Kündigung;
-     *   no_notice  weder ein Ende noch eine Kündigungsfrist ist eingetragen.
+     *   missed        der Stichtag zum Vertragsende ist verpasst (`cancel_by`); wie es danach weitergeht, steht im Vertrag;
+     *   renewed       der Vertrag läuft nach seinem Ende weiter, ohne eingetragene Regel für die Kündigung;
+     *   no_notice     keine Kündigungsfrist eingetragen; `end` sagt, ob ein Ende eingetragen ist (der Dialog
+     *                 unterscheidet „keine Frist“ und „weder Ende noch Frist“, v3.13.0);
+     *   basic_supply  (v3.13.0) Grundversorgung: zwei Wochen ab Zugang, den Tag kennt die App nicht.
      * Einen Termin nach einer verpassten Frist oder in der Verlängerung rechnet die App bewusst nicht
      * (Rechtsgrundlagen Nr. 59: für Strom und Gas nicht sicher belegt).
      *
@@ -352,6 +368,7 @@ final class LetterService
         $t = $this->terminationTiming($u, $c, $today);
         $end = Dates::isIsoDate($c['end'] ?? null) ? (string)$c['end'] : null;
         $reason = match (true) {
+            $this->basicSupply($u, $c)                                                           => 'basic_supply',
             $t['basis'] === 'fixed_end' && $t['cancel_by'] !== null && $t['cancel_by'] < $today => 'missed',
             $t['basis'] === 'renewed' && $end !== null                                          => 'renewed',
             default                                                                              => 'no_notice',

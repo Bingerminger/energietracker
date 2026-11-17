@@ -33,6 +33,7 @@ import { copyText } from '../lib/clipboard.js';
 import { info, billPortal } from '../components/info.js';
 import { bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 import { icon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -414,7 +415,8 @@ export function breakEvenLabel(direction, value) {
   return String(value);
 }
 
-function candidateRowHtml(c, unit, d) {
+// v3.13.0 — exportiert für tests/rights.test.mjs (Bonus mit Datum in Jahr 1)
+export function candidateRowHtml(c, unit, d) {
   if (!c.computable) {
     return `<tr class="${c.is_shadow ? 'row-shadow' : ''}" data-contract="${esc(c.contract_id)}">
       <td>${badgeFor(c)}${esc(c.label)}</td>
@@ -446,8 +448,10 @@ function candidateRowHtml(c, unit, d) {
         ? `<div class="muted small">${esc(t('tariff.switch.breakEvenDelta', {
              pct: (c.break_even_delta_pct > 0 ? '+' : '') + f.num(c.break_even_delta_pct, 0) }))}</div>` : ''}`;
 
-  const bonusLine = c.signup_bonus_eur
-    ? `<div class="muted small">${esc(t('tariff.switch.bonusIncluded', { value: f.eur(c.signup_bonus_eur) }))}</div>`
+  // v3.13.0 — alle Boni, die Jahr 1 senken (Neukundenbonus und Boni mit Datum im ersten Jahr); ältere Server nur der Neukundenbonus
+  const bonusY1 = c.bonus_year1_eur ?? c.signup_bonus_eur;
+  const bonusLine = bonusY1
+    ? `<div class="muted small">${esc(t('tariff.switch.bonusIncluded', { value: f.eur(bonusY1) }))}</div>`
     : '';
 
   const guaranteeLine = c.guarantee_ends_in_window
@@ -769,7 +773,7 @@ function openShadowForm(container, existing) {
            „Umsatzsteuer" standen auch ohne dynamischen Tarif im Formular -->
       <div class="fgrid">
         <div class="field"><label for="s-label">${esc(t('tariff.shadow.label'))}</label><input class="input input--text" type="text" id="s-label"
-          value="${esc(existing?.shadow_label || existing?.tariff_name || '')}"
+          ${maxAttr('contracts', 'shadow_label')} value="${esc(existing?.shadow_label || existing?.tariff_name || '')}"
           placeholder="${esc(t('tariff.shadow.labelPlaceholder'))}"></div>
         <div class="field"><label for="s-prov">${esc(t('tariff.shadow.provider'))}</label><input class="input input--text" type="text" id="s-prov"
           value="${esc(existing?.provider || '')}"

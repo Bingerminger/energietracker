@@ -125,7 +125,9 @@ final class McpPendingChangesTest extends McpTestCase
     {
         $p = $this->propose();
         $ref = PendingChanges::clientRef($p['id']);
-        self::assertMatchesRegularExpression('/^[A-Za-z0-9-]{8,64}$/', $ref);
+        // v3.13.0 — genau die Kennung des Vorschlags, und ReadingService nimmt sie an (mit `_`)
+        self::assertSame($p['id'], $ref);
+        self::assertMatchesRegularExpression(\Energietracker\Services\ReadingService::CLIENT_REF, $ref);
         $in = ['meter_id' => 'm_gas_default', 'date' => date('Y-m-d'), 'counter' => 100.0, 'client_ref' => $ref, 'source' => 'mcp'];
         $first = $this->readings->create('gas', $in);
         $second = $this->readings->create('gas', $in);

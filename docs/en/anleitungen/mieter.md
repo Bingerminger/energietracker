@@ -197,7 +197,10 @@ paid     = prepayment heating + operating costs
 - **The other months are estimated:** heat from the heating model with the
   long-term average weather (climate normal), otherwise from the same month last
   year, otherwise from the daily average of the known months. In the table
-  “Month by month” they carry the note “estimated”.
+  “Month by month” they carry the note “estimated”. *(since v3.13.0)* An ended
+  month covered by the readings only in part (reading on 31 December, moving in
+  or out during the month) counts its measured days as measured; only the
+  missing days are estimated.
 - Months at the edge of the period count in proportion.
 - If something is missing, it is listed below the card: no price for heat, hot
   water or cold water, no prepayment for part of the period, no meters

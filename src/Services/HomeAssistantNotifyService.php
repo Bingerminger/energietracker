@@ -186,7 +186,7 @@ final class HomeAssistantNotifyService
      * „Testnachricht senden“ — auch vor dem Einschalten, sobald das Ziel
      * vollständig ist. Zählt nicht als gesendeter Punkt.
      *
-     * @return array{ok:bool, status:?int, error:?string, target:string}
+     * @return array{ok:bool, status:?int, error:?string, location?:string, target:string}
      */
     public function sendTest(): array
     {
@@ -388,7 +388,7 @@ final class HomeAssistantNotifyService
      * Eine Nachricht an das eingestellte Ziel.
      *
      * @param array<string,mixed> $n {key, category, kind, date, severity, title, message, items?}
-     * @return array{ok:bool, status:?int, error:?string}
+     * @return array{ok:bool, status:?int, error:?string, location?:string}
      */
     private function send(array $n): array
     {
@@ -410,10 +410,16 @@ final class HomeAssistantNotifyService
         return $this->transport->post("$base/services/$domain/$service", $data, ['Authorization: Bearer ' . $token]);
     }
 
-    /** @param array{ok:bool, status:?int, error:?string} $r */
+    /**
+     * v3.13.0 — bei einer Umleitung dazu `location` (nur Ursprung, ohne Pfad), damit
+     * auch „Letzter Versuch gescheitert“ die neue Adresse nennt.
+     *
+     * @param array{ok:bool, status:?int, error:?string, location?:string} $r
+     */
     private function lastEntry(array $r, string $category): array
     {
-        return ['at' => date('c', ($this->clock)()), 'ok' => $r['ok'], 'status' => $r['status'], 'error' => $r['error'], 'category' => $category];
+        return ['at' => date('c', ($this->clock)()), 'ok' => $r['ok'], 'status' => $r['status'], 'error' => $r['error'], 'category' => $category]
+            + (isset($r['location']) ? ['location' => $r['location']] : []);
     }
 
     private function inInstallationLanguage(callable $fn): void

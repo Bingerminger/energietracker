@@ -11,7 +11,7 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Twenty-nine keys can then
+([Users in the household](../anleitungen/benutzer.md)). Thirty-nine keys can then
 only be changed by admins, because they make the app talk to other addresses,
 let it be embedded, block names, shorten the history or hand data to the
 outside: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
@@ -23,8 +23,8 @@ v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` and
 (since v3.10.0) `home_ca_pem` and `home_tls_insecure`, whom connections into
 the home network trust, (since v3.12.0) `mcp_enabled`,
 `mcp_share_identifiers`, `mcp_share_documents` and `mcp_apply_in_app`, whether and what an AI may
-read and who confirms a change, `language`, `country`, `currency` and `timezone`, the default for everyone, and `update_check`, `location_name`, `latitude`, `longitude` and `weather_auto_fill`, whether the app asks for new versions and which location it gives the weather service. A member who sends one of them gets `403` `errors.auth.adminOnly`; members may
-change every other key. Without sign-in the restriction does not apply.
+read and who confirms a change, `language`, `country`, `currency` and `timezone`, the default for everyone, and `update_check`, `location_name`, `latitude`, `longitude` and `weather_auto_fill`, whether the app asks for new versions and which location it gives the weather service, and (since v3.13.0) `letters_admin_only`; while it is on, the details for letters join them (`letter_sender_name`, `letter_sender_address`, `letter_supply_address`). Since v3.13.0 also the remaining settings of text recognition and of reading documents, `ocr_api`, `ocr_model`, `ocr_timeout_s`, `inbox_model`, `inbox_timeout_s` and `inbox_cloud_timeout_s`, and of the Home Assistant notification, `ha_notify_events` and `ha_notify_hour`, and the storage for receipts, `attachments_max_mb` (they apply to everyone). A member who sends one of them **changed** gets `403` `errors.auth.adminOnly`; an unchanged value that a page sends along goes through. Members may
+change every other key; a test assigns every key to one of the two roles. Without sign-in the restriction does not apply.
 
 The defaults apply to a new installation in Germany. Another country sets its
 profile on the first start (location, currency, time zone, heating limit, CO₂
@@ -38,6 +38,10 @@ Address `#/settings`. First page of the settings, with the search across all set
 **A result leads to the field**, even above your own level. If it sits in a
 part that is hidden right now, for example under “Cloud”, a note on the card
 says where it is; **“Show” opens that part and saves nothing** *(v3.12.0)*.
+
+**The search also knows earlier names and the heading of a card:** “HDD base
+temperature” leads to the heating limit, “weather location” and “location” to
+the place under Connections → Weather data *(v3.13.0)*.
 
 ### Experience level and setup *(v3.2.0)*
 
@@ -214,6 +218,7 @@ even with the switch for identifiers
 | `letter_sender_name` | empty | Name (sender) | One line; first line of the sender and the signature under the letter. Empty: no sender, the letter shows the gap `[…]`. |
 | `letter_sender_address` | empty | Address (sender) | Up to four lines, for example street and number, then postcode and town. If the last line starts with a postcode, the letter suggests the town for “place, date”. Only appears in the letter when there is a name too. |
 | `letter_supply_address` | empty | Supply address (point of consumption) | One line; appears in the letter among the references as “Lieferanschrift” (the letter is always German). |
+| `letters_admin_only` | off | Only admins change these details | *(v3.13.0)* Only applies with [sign-in](../anleitungen/benutzer.md): then only admins change the name, address and supply address; members see them locked, and the letter dialog does not offer them “take over” (a letter with a different sender still works). The API then answers members with `403`. Only an admin sets the switch. |
 
 ### Home and hot water *(v3.1.0)*
 
@@ -301,13 +306,24 @@ Address `#/household/utilities`.
 | `billing_cycle_anchor_fernwaerme` | `01-01` | Settlement date district heating: first day of the billing period | like gas |
 | `billing_cycle_anchor_pv_einspeisung` | `01-01` | Settlement date PV feed-in: first day of the billing period | First day of the billing period of the feed-in remuneration (since v2.13.0; before, 1 January applied). |
 
+### Counting advance payments (v3.13.0)
+
+Household → Utilities, card “Counting advance payments”, from Experienced. One setting for all contracts with a monthly
+advance payment; an advance payment with due dates (every two or three months, dates from the bill) always counts in
+full on its day. Calculation and example: [Balance to date](../verstehen/00-overview.md#10-balance-to-date).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `advance_counting` | `pro_rata` | Count the advance payment | `pro_rata` “Pro rata by day (default)”: if a contract starts or ends mid-month, that month’s advance payment counts by the contract days, as up to v3.12. `due_day` “Full payment on the due day”: every monthly row of the payment plan counts a full payment on each due day within the contract (start and end included), with the amount that applies on that day; the current month, the last reading and a billing year that starts mid-month also count the payment only on its day. Whoever booked the full payment as a special payment following the advice from v3.12.0 deletes it after switching (otherwise it counts twice). Other values: `400` `errors.settings.valueInvalid`. Country profiles do not set it. |
+| `advance_due_day` | 1 | Due day | Day of the month from 1 to 31, a whole number, only effective with `due_day`; the last day in shorter months (31 means 28 or 29 February). Empty (`null`, `""`) means the 1st again. Other values: `400` `errors.settings.valueInvalid`. |
+
 ### Physical constants
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
 | `gas_conversion_factors` | 11.5 kWh/m³ (undated) | Gas conversion factors | One entry per calorific-value period, as on the gas bill: valid from, volume correction factor and calorific value. The app derives the kWh/m³ factor from them; without a breakdown, enter the factor directly. The undated entry applies to everything before the first effective date. At each effective date the app splits the reading interval to the day. List with "valid from", volume correction factor and calorific value per period; one entry may be undated. Default: undated 11.5 kWh/m³. |
 | `gas_cv_unit` | `kwh` | Enter calorific value in | Unit in which the calorific value is entered: `kwh` (kWh/m³), `mj` (MJ/m³) or `gj` (GJ/Smc). Always stored as kWh/m³. |
-| `hdd_base_temp` | 15 | HDD base temperature | Heating limit: days below count as heating days. |
+| `hdd_base_temp` | 15 | Heating limit | Base temperature of the heating degree days: days below count as heating days. *(v3.13.0)* Up to v3.12 the field was called “HDD base temperature”. |
 
 ### Fuels (delivery)
 
@@ -460,7 +476,7 @@ Address `#/connections/weather`.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `location_name` | `Leipzig Zentrum` | Place name | Name of the location, for display. Set under Connections → Weather data by place search. **Admins only** *(v3.12.0)*. |
+| `location_name` | `Leipzig Zentrum` | Place name | Name of the location, for display. Set under Connections → Weather data by place search. **Admins only** *(v3.12.0)*. At most 120 characters *(v3.13.0)*. |
 | `latitude` | 51.3397 | Latitude | Latitude for temperatures and climate normal (sent to Open-Meteo rounded to two decimals, about 1 km). **Admins only** *(v3.12.0)*. |
 | `longitude` | 12.3731 | Longitude | Longitude, like latitude. **Admins only** *(v3.12.0)*. |
 | `weather_auto_fill` | on | Fill weather automatically | Fetches temperatures from Open-Meteo at most once a day when the app opens (location rounded to about 1 km). **Admins only** *(v3.12.0)*. |

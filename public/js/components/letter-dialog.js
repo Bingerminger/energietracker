@@ -30,7 +30,8 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { saveSettings } from '../state.js';
+import { saveSettings, getSettingsSync } from '../state.js';
+import { sessionRole } from '../lib/levels.js';
 import { openModal, guardSubmit } from './modal.js';
 import { markEventDone } from './done-dialog.js';
 import { toastOk, toastErr } from './toast.js';
@@ -281,24 +282,34 @@ export function openLetterDialog(finding) {
         // v3.12.0 — der Termin steht als Lücke im Brief: warum, und wo man ihn einträgt (Frist am Vertrag oder hier)
         if (kind === 'termination' && m.term_gap && !m.term_assumed) {
           const g = m.term_gap;
-          $('[data-role="letter-termination-note"]').insertAdjacentHTML('afterend', `<p class="small" data-role="letter-term-gap">${rich(`letters.dialog.termGap.${g.reason}`,
+          // v3.13.0 — ohne Frist: „weder Ende noch Frist“ nur, wenn auch kein Ende eingetragen ist
+          const reason = g.reason === 'no_notice' && !g.end ? 'no_noticeNoEnd' : g.reason;
+          $('[data-role="letter-termination-note"]').insertAdjacentHTML('afterend', `<p class="small" data-role="letter-term-gap">${rich(`letters.dialog.termGap.${reason}`,
             { cancelBy: g.cancel_by ? fmt.date(g.cancel_by) : '', end: g.end ? fmt.date(g.end) : '' })}</p>`);
         }
       };
 
       // v3.12.0 (m4b) — je Angabe: woher sie kommt, wo man sie einträgt, und „übernehmen“, wenn sie hier geändert ist
       const btnHtml = (role, key) => `<button type="button" class="btn btn--ghost btn--sm" data-role="${role}">${esc(t(key))}</button>`;
+      // v3.13.0 — „Angaben für Briefe nur Verwalter“: Mitglieder übernehmen nichts in den Haushalt (der Server
+      // antwortete sonst 403); der Brief selbst nimmt, was im Feld steht
+      const locked = getSettingsSync()?.letters_admin_only === true && sessionRole() !== 'admin';
+      const lockedNote = `<p class="muted small" data-role="letter-locked">${rich('letters.dialog.lockedHousehold')}</p>`;
       const sources = () => {
         const sender = lines($('#lt-sender').value);
         const changed = !same(sender, stored.sender);
-        $('[data-role="letter-sender-source"]').innerHTML = stored.sender.length
+        $('[data-role="letter-sender-source"]').innerHTML = locked
+          ? (changed || !stored.sender.length ? lockedNote : `<p class="muted small">${rich('letters.dialog.senderFromHousehold')}</p>`)
+          : stored.sender.length
           ? `<p class="muted small">${rich(changed ? 'letters.dialog.senderChanged' : 'letters.dialog.senderFromHousehold')}</p>${changed && sender.length ? btnHtml('letter-save-sender', 'letters.dialog.takeOver') : ''}`
           : `<p class="muted small">${rich(legacy ? 'letters.dialog.senderFromDevice' : 'letters.dialog.senderMissing')}</p>${sender.length ? btnHtml('letter-save-sender', 'letters.dialog.saveHousehold') : ''}`;
         const supplyEl = $('[data-ref="supply_address"]');
         const supplySrc = $('[data-role="letter-supply-source"]');
         if (supplyEl && supplySrc) {
           const supply = supplyEl.value.trim();
-          supplySrc.innerHTML = stored.supply
+          supplySrc.innerHTML = locked
+            ? (supply !== stored.supply || !stored.supply ? lockedNote : `<p class="muted small">${rich('letters.dialog.supplyFromHousehold')}</p>`)
+            : stored.supply
             ? `<p class="muted small">${rich(supply === stored.supply ? 'letters.dialog.supplyFromHousehold' : 'letters.dialog.supplyChanged')}</p>${supply && supply !== stored.supply ? btnHtml('letter-save-supply', 'letters.dialog.takeOver') : ''}`
             : `<p class="muted small">${rich('letters.dialog.supplyMissing')}</p>${supply ? btnHtml('letter-save-supply', 'letters.dialog.saveHousehold') : ''}`;
         }

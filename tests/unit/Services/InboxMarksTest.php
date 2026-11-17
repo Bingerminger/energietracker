@@ -578,6 +578,10 @@ final class InboxMarksTest extends ServiceTestCase
         $this->readings->create('gas', ['meter_id' => 'm_gas_default', 'date' => '2024-06-30', 'counter' => 12500]);
         [, $q] = $this->read('invoice', InboxFixture::invoicePages(), InboxFixture::invoiceAnswer(), 'Jahresabrechnung', 'r2');
         self::assertFalse($old($q)['checked'], 'nicht monoton');
+        // v3.13.0 (Paket gegenproben) — `checked` ist hier immer false: monotonicBreak markiert den Stand
+        // (check). Ob er zwischen die Stände passt (fitsBetween), zeigt allein `optional`: kleiner als der
+        // vorige Stand passt nicht, der Anfangsstand bleibt ein Angebot.
+        self::assertTrue($old($q)['optional'] ?? false, 'kleiner als der vorige Stand: bleibt ein Angebot (optional)');
         // größer als der nächste bekannte Stand: nur als Angebot
         $this->store->write('gas/readings.json', []);
         $this->readings->create('gas', ['meter_id' => 'm_gas_default', 'date' => '2025-03-31', 'counter' => 12000]);

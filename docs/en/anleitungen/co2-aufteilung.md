@@ -91,6 +91,20 @@ card then says "Part of the year: … days". Example (made up): moving in on
 22 × 184 ÷ 365 = 11.09 kg, so **stage 4, 30 %** instead of stage 1 for a whole
 year.
 
+<!-- doc-claim: co2-part-year-window -->
+*(v3.13.0)* **Emissions and costs over the same days:** in a part of the year,
+emissions and CO₂ costs **only count on the days of the tenancy**, day by day
+from your meter readings or the tank log (§ 5(1) sentence 5 with (3) sentence 4:
+convert the emissions to the period). Readings before moving in or after moving
+out therefore change nothing. Emissions from a gas bill are converted by the
+quantity in both periods, without readings by days. Up to v3.12 emissions and
+costs came from the whole calendar year: whoever moved in in July and had
+spring readings on the meter got the stage for a whole year’s emissions against
+the limits of half a year. Example (made up): 75 m², moving in on 1 July,
+1,100 m³ of gas in the year, 500 m³ of it after moving in: 5,000 kWh ×
+0.18139 kg ÷ 75 m² = 12.1 kg per m², **stage 4, 30 %** (before: 26.6 kg per m²,
+stage 10, 95 %).
+
 ## 5. Self-contained heating: work it out and claim it
 
 **1. Record consumption.** Gas as usual with readings and a contract, heating

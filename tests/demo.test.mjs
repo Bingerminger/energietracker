@@ -73,7 +73,12 @@ function checkComparison(out, meta) {
     if (persona !== 'eigenheim-klassisch') continue;
     const c = get('/api/benchmarks/comparison');
     const ratings = [c.strom?.rating, c.heating?.[0]?.rating, c.water?.rating];
-    t('Einordnung eigenheim-klassisch: volle Ampel ohne Einladung', ratings.every(Boolean) && c.missing.length === 0, `${c.year}: ${ratings.join(',')} · ${c.missing.join(',')}`);
+    // v3.13.0 — aus dem Stand abgeleitet: Die Ampel braucht ein volles Jahr; in den ersten Tagen eines Jahres ist das
+    // Vorjahr der fortgeschriebenen Beispieldaten noch nicht ganz abgelesen, dann stehen die Zeilen ohne Ampel da
+    const complete = c.strom?.complete !== false && c.heating?.[0]?.complete !== false;
+    t(`Einordnung eigenheim-klassisch: ${complete ? 'volle Ampel' : 'Zeilen ohne Ampel (Jahr noch nicht vollständig)'} ohne Einladung`,
+      (complete ? ratings.every(Boolean) : c.strom?.own_value != null && (c.heating || []).some(h => h.own_value != null)) && c.missing.length === 0,
+      `${c.year}: ${ratings.join(',')} · ${c.missing.join(',')} · vollständig ${complete}`);
   }
 }
 
@@ -352,15 +357,27 @@ function serve(dir, port) {
     // v3.10.0 (Hauptfunktion „Saldo aus einem Guss“, #49) — im Schaufenster an jedem Tag sichtbar: Gas wird
     // höchstens bis zwölf Tage vor dem Bautag abgelesen; die Saldo-Karte zeigt den gemessenen Saldo mit Beginn
     // und Ende und die Schätzung bis heute als Zusatzzeile (vorberechnete Antworten)
+    // v3.13.0 — aus dem Stand der Demo abgeleitet: Zu Beginn eines Abrechnungsjahrs (Gas ab 01.01.) hat die laufende
+    // Periode noch keinen gemessenen Teil, dann heißt die Spalte „Saldo heute (geschätzt)“. Bis dahin wurde die
+    // Prüfung ab Mitte Januar rot, ohne dass sich etwas geändert hatte.
     {
       w.location.hash = '#/utility/gas?meter=m_gas_main';
       await settle();
       const view = w.document.getElementById('view');
       const span = view.querySelector('[data-role="balance-span"]')?.textContent || '';
       const est = view.querySelector('[data-role="balance-estimate-today"]')?.textContent || '';
-      t('Schaufenster: Saldo-Karte Gas trennt Gemessenes (bis zur letzten Ablesung) und Geschätztes (bis heute)',
-        /bis zur letzten Ablesung am/.test(span) && /^Bis heute geschätzt:/.test(est.trim()) && !!view.querySelector('[data-role="balance-current"]'),
-        `${span} | ${est.trim().slice(0, 120)}`);
+      const status = await api.contractStatus('gas', 'm_gas_main').catch(() => null);
+      const cur = (status?.contracts || []).find(c => c.is_current);
+      const meas = cur?.settle_measured?.until ? cur.settle_measured : cur?.balance_measured?.until ? cur.balance_measured : null;
+      const label = view.querySelector('[data-role="balance-current-label"]')?.textContent.trim() || '';
+      t(meas ? 'Schaufenster: Saldo-Karte Gas trennt Gemessenes (bis zur letzten Ablesung) und Geschätztes (bis heute)'
+        : 'Schaufenster: Saldo-Karte Gas ohne gemessenen Teil der Periode — „Saldo heute (geschätzt)“, keine Spanne',
+      !!cur && !!view.querySelector('[data-role="balance-current"]') && (meas
+        ? /bis zur letzten Ablesung am/.test(span) && (meas.until >= (cur.balance_as_of || '') || /^Bis heute geschätzt:/.test(est.trim()))
+        : !span && /^Saldo heute \(geschätzt\)/.test(label)),
+      `${meas ? `gemessen bis ${meas.until}` : 'ohne Messung'} · ${span} | ${est.trim().slice(0, 100)} | ${label}`);
+      // Sonst bliebe die Hauptfunktion von v3.10.0 in der Demo unsichtbar: mindestens ein Monat im Jahr zeigt sie
+      t('Schaufenster: Gas hat einen Vertrag mit Saldo-Karte', !!cur, status ? `${(status.contracts || []).length} Verträge` : 'kein Status');
     }
 
     // v3.9.0 (F1032) — Messkonzept im Schaufenster: Wärmepumpe mit Doppeltarifzähler hinter dem

@@ -153,14 +153,19 @@ final class ImageSupplyChainTest extends TestCase
         self::assertMatchesRegularExpression("/cron: '\\d+ \\d+ \\* \\* \\d'/", self::file('.github/workflows/docker-rebuild.yml'), 'wöchentlich');
     }
 
-    /** PHPUnit bleibt vorerst bei 11 (seit v3.12.0 ist PHP 8.3 die Mindestversion; 12 wäre möglich, 13 verlangt 8.4). */
+    /**
+     * PHPUnit bleibt vorerst bei 11 (seit v3.13.0 ist PHP 8.4 die Mindestversion; 12 und 13 wären möglich).
+     * v3.13.0 — composer.json und composer.lock (platform) nennen dieselbe Mindestversion.
+     */
     public function testDependabotKeepsPhpUnitOnItsMajorVersion(): void
     {
         $dep = self::file('.github/dependabot.yml');
         self::assertSame(1, preg_match('/package-ecosystem: "composer"\n(.*?)(?=\n  - package-ecosystem|\z)/s', $dep, $c));
         self::assertMatchesRegularExpression('/- dependency-name: "phpunit\/phpunit"\n\s+update-types: \["version-update:semver-major"\]/', $c[1]);
         $composer = json_decode(self::file('composer.json'), true);
-        self::assertSame('>=8.3', $composer['require']['php'] ?? null);
+        self::assertSame('>=8.4', $composer['require']['php'] ?? null);
+        $lock = json_decode(self::file('composer.lock'), true);
+        self::assertSame('>=8.4', $lock['platform']['php'] ?? null, 'composer.lock: platform wie composer.json (composer update --lock)');
         self::assertStringStartsWith('^11.', $composer['require-dev']['phpunit/phpunit'] ?? '');
         // dieselbe Version von docker/login-action überall (#50)
         $refs = [];

@@ -381,10 +381,14 @@ globalThis.fetch = async (url, init) => {
       const stored = (wc?.special_payments || []).find(p => p.id === wBooked.data?.special_payment_id);
       const wst = await j(`/api/utility/wasser/meters/${wc0.meter_id}/contract-status`);
       const wrow = (wst.contracts || []).find(c => c.contract_id === wc?.id);
+      // v3.13.0 — der Vertrag ist beendet: Sein Saldo zählt ab dem Tag nach der gebuchten Rechnung, ihr Ergebnis nicht mehr
+      // mit. Die Sonderzahlung steht im Vertrag, nicht unter den Zahlungen, die der Saldo zählt (bis v3.12 dort mitgezählt)
       check('wasser: bills/{id}/book → Sonderzahlung im Wasservertrag, contract-status mit special_payments[] (v3.5.0, #34)',
         wBooked.status === 200 && stored?.kind === 'nachzahlung_ohne' && stored?.amount_eur === 20
-          && Array.isArray(wrow?.special_payments) && wrow.special_payments.some(p => p.kind === 'nachzahlung_ohne' && p.amount_eur === 20),
-        `${wBooked.status} ${wBooked.code || ''} ${stored ? 'gespeichert' : 'nicht im Vertrag'}`);
+          && Array.isArray(wrow?.special_payments) && (wrow.is_past
+            ? !wrow.special_payments.some(p => p.kind === 'nachzahlung_ohne' && p.amount_eur === 20) && wrow.balance_from > wc0.start
+            : wrow.special_payments.some(p => p.kind === 'nachzahlung_ohne' && p.amount_eur === 20)),
+        `${wBooked.status} ${wBooked.code || ''} ${stored ? 'gespeichert' : 'nicht im Vertrag'} ab ${wrow?.balance_from}`);
       if (wc) await send(`/api/utility/wasser/contracts/${wc.id}`, { special_payments: (wc.special_payments || []).filter(p => p.id !== wBooked.data.special_payment_id) }, 'PATCH');
       if (wb.data?.id) await fetch(`${BASE}/api/utility/wasser/bills/${wb.data.id}`, { method: 'DELETE' });
     }

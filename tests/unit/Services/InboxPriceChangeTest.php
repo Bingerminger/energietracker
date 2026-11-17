@@ -72,13 +72,14 @@ final class InboxPriceChangeTest extends ServiceTestCase
 
     public function testSpecialContractAnnouncedTwentyFiveDaysAheadIsLateAndTheTerminIsTheDayBefore(): void
     {
-        // 07.12.2026 → 01.01.2027: 24 Tage im Dezember + 1 = 25; ein Monat vorher wäre der 01.12.2026
+        // 07.12.2026 → 01.01.2027: 24 Tage im Dezember + 1 = 25; rechtzeitig bis 30.11.2026 (v3.13.0: Vorwärtsprobe,
+        // alter Preis bis 31.12.), am 01.12. knapp
         $a = $this->assess(['valid_from' => '2027-01-01', 'document_date' => '2026-12-07', 'working_price_new' => 12.8],
             self::contract(['supply_kind' => 'special']));
         self::assertSame('up', $a['direction']);
         self::assertSame('2026-12-31', $a['legal_deadline']);
         self::assertSame('2026-12-31', $a['termin']);
-        self::assertSame(['days_before' => 25, 'announce_by' => '2026-12-01', 'late' => true, 'required' => 'month', 'month_start' => null], $a['announcement']);
+        self::assertSame(['days_before' => 25, 'announce_by' => '2026-11-30', 'late' => true, 'tight' => false, 'required' => 'month', 'month_start' => null], $a['announcement']);
         $lines = PriceChange::lines($a);
         self::assertSame(['terminationSpecial', 'lateSpecial'], self::keys($a));
         self::assertSame(['date' => '2027-01-01', 'deadline' => '2026-12-31'], $lines[0]['params']);
@@ -88,10 +89,12 @@ final class InboxPriceChangeTest extends ServiceTestCase
         foreach (PriceChange::norms($lines, 'DE') as $n) self::assertStringStartsWith('https://', $n['url']);
     }
 
-    public function testExactlyOneMonthAheadIsInTimeAlsoAtTheEndOfAMonth(): void
+    public function testExactlyOneMonthAheadIsTightNotLateAlsoAtTheEndOfAMonth(): void
     {
         $ct = self::contract(['supply_kind' => 'special']);
-        self::assertFalse($this->assess(['valid_from' => '2027-01-01', 'document_date' => '2026-12-01', 'working_price_new' => 12.8], $ct)['announcement']['late']);
+        // v3.13.0 — bewusst umgestellt: genau ein Kalendermonat ist knapp (nicht zu spät, nicht rechtzeitig)
+        $tight = $this->assess(['valid_from' => '2027-01-01', 'document_date' => '2026-12-01', 'working_price_new' => 12.8], $ct)['announcement'];
+        self::assertSame([false, true], [$tight['late'], $tight['tight']]);
         // Lektion 26: 31.03. − 1 Monat = 28.02. (nicht 03.03.); Termin 30.03.
         $in = $this->assess(['valid_from' => '2027-03-31', 'document_date' => '2027-02-28', 'working_price_new' => 12.8], $ct, '2027-03-01');
         self::assertSame(['2027-02-28', false, '2027-03-30'], [$in['announcement']['announce_by'], $in['announcement']['late'], $in['legal_deadline']]);
@@ -100,10 +103,10 @@ final class InboxPriceChangeTest extends ServiceTestCase
 
     public function testBasicSupplyOnTheFifteenthNeedsTheStartOfAMonthAndSixWeeks(): void
     {
-        // Grundversorgung laut Schreiben; 15.01.2027 − 42 Tage = 04.12.2026
+        // Grundversorgung laut Schreiben; alter Preis bis 14.01.2027 − 42 Tage = 03.12.2026 (v3.13.0: Vorwärtsprobe)
         $a = $this->assess(['valid_from' => '2027-01-15', 'document_date' => '2026-11-20', 'working_price_new' => 12.8, 'basic_supply' => true], null, '2026-11-25');
         self::assertSame('basic', $a['kind']);
-        self::assertSame(['2026-12-04', false, false], [$a['announcement']['announce_by'], $a['announcement']['late'], $a['announcement']['month_start']]);
+        self::assertSame(['2026-12-03', false, false], [$a['announcement']['announce_by'], $a['announcement']['late'], $a['announcement']['month_start']]);
         self::assertSame('2027-01-14', $a['legal_deadline']);
         self::assertSame(['terminationBasic', 'monthStart'], self::keys($a));
         self::assertSame(['de.gasgvv.5.3', 'de.gasgvv.20', 'de.vz.special_termination'], PriceChange::lines($a)[0]['rules']);

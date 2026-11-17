@@ -125,7 +125,7 @@ fragt die Erfassung — Karte wie Ablese-Dialog der Verbrauchsansicht —
 
 | Rückfrage | Wann | Hinweis |
 |---|---|---|
-| **Sprung** | Tagesverbrauch seit der letzten Ablesung > **3 ×** der typische | „Das wären 400 kWh am Tag, sonst sind es etwa 8. Tippfehler?" |
+| **Sprung** | Tagesverbrauch seit der letzten Ablesung > **3 ×** der typische; *(v3.13.0)* bei Heizarten mit Temperaturen die Menge über der Erwartung **nach dem Wetter** ([unten](#nach-dem-wetter-v3130)) | „Das wären 400 kWh am Tag, sonst sind es etwa 8. Tippfehler?“ bzw. „… nach dem Wetter erwartet etwa 39,7 m³.“ |
 | **Komma vergessen?** | noch kein typischer Wert bekannt und neuer Stand > 10 × der letzte | nur ohne Vergleichswert, sonst greift der Sprung |
 | **Rückgang** | kleiner als der letzte Stand — außer dazwischen wurde ein neues Gerät eingebaut | mit Link zum Zählertausch |
 | **Zukunft** | Datum nach heute | Tippfehler im Jahr? |
@@ -136,6 +136,17 @@ fragt die Erfassung — Karte wie Ablese-Dialog der Verbrauchsansicht —
 **vorigen und den nächsten Stand zu diesem Datum**, mit derselben Regel. Bis v3.11 kannte die Karte der Seite
 „Zählerstände“ nur den letzten Stand; ein Nachtrag zwischen zwei Ständen ging dort ohne Rückfrage durch.
 
+**Vorschau beim Tippen** *(v3.13.0)*: Unter dem Feld steht die Menge **seit dem Stand davor** und bei einem
+Nachtrag auch **bis zum Stand danach**, beide zum gewählten Datum, etwa „+1.400,00 m³ seit dem Stand vom
+31.03.2024 · +1.700,00 m³ bis zum Stand vom 31.01.2026“. Über einen Zählertausch hinweg steht keine Differenz.
+Bis v3.12 verglich der Dialog „+ Ablesung“ einen Nachtrag mit dem jüngsten Stand (im Beispiel „−1.700,00 m³ seit
+letztem Stand“ für einen richtigen Stand), die Seite „Zählerstände“ zeigte bei einem Nachtrag nichts.
+
+**Ersetzen am selben Tag** *(v3.13.0)*: Ersetzt ein neuer Stand einen gespeicherten desselben Tags (Knopf
+„Ersetzen“ in Dialog und Seite, eine Zeile der CSV-Datei mit einem anderen Wert), zählt der alte Stand nicht zur
+Erwartung [nach dem Wetter](#nach-dem-wetter-v3130), wie beim Bearbeiten eines Stands und beim Vorschlag einer KI.
+Eine Zeile mit demselben Wert ändert nichts und bleibt in der Vorgeschichte.
+
 Der **typische Tagesverbrauch** ist der Median der letzten bis zu zehn
 Ableseintervalle desselben Geräts (mindestens zwei) — robust gegen einen
 einzelnen Ausreißer. Das Backend liefert ihn in `readings-overview` als
@@ -144,6 +155,46 @@ Die Hinweise erscheinen schon beim Tippen; die Rückfrage beim Speichern nennt
 den Zähler im Titel. Wer in der Sammelerfassung ablehnt, behält die Eingabe;
 die Karte zeigt „Nicht gespeichert: bitte prüfen", eine Meldung zählt die
 zurückgestellten Karten.
+
+### Nach dem Wetter (v3.13.0)
+
+Bei **Gas, Fernwärme, Heizwärme und dem Strom einer Wärmepumpe** kennt die Rückfrage die Jahreszeit. Bis
+v3.12 fragte sie bei jedem Heizbeginn nach einem Tippfehler: Nach einem Sommer mit Kochen und Warmwasser ist
+die erste Heizwoche schnell das Zehnfache (GitHub #65).
+
+Dialog und Karte fragen den Server nach der **erwarteten Menge zwischen dem vorigen und dem neuen Stand**
+(`GET …/reading-expectation`), aus derselben Quelle wie
+[„Ablesung prüfen“](#ein-stand-der-zu-niedrig-oder-zu-hoch-liegt-v390). Der erste Weg, der etwas liefert, gilt:
+
+1. **Heizmodell** (Grundlast plus Anteil je Gradtag) mit den Temperaturen der Tage seit dem vorigen Stand,
+   wenn es so kaltes Wetter schon kennt: mindestens zwei seiner Stücke mit höchstens einem halben Gradtag je
+   Tag weniger. Ein Modell aus Sommer und ungeheiztem Herbst kennt das Heizen noch nicht.
+2. **Dieselben Tage früherer Jahre** (Median).
+3. **Die Gradtage allein**, für eine kurze Vorgeschichte: die letzten bis zu zehn Abstände mit mindestens so
+   viel Heizwetter je Tag (höchstens einem halben Gradtag weniger), Median, mindestens zwei. Gibt es sie
+   nicht, weil die Tage kälter sind als alles bisher, weiß die App noch nicht, wie viel das Heizen braucht.
+   Dann fragt sie nur bei „Komma vergessen?“ (mindestens zehnmal der letzte Stand). Eine Kennlinie erfindet
+   sie nicht.
+
+Gefragt wird, wenn die Menge seit dem vorigen Stand **über dem Dreifachen der Erwartung** liegt und
+zugleich mindestens **ein Viertel eines typischen Monats** und **drei Streuungen** des Modells (bzw. der
+Jahre) darüber. Der Hinweis nennt die Erwartung. Beispiel:
+
+<!-- doc-claim: reading-expectation-example (ReadingExpectationTest) -->
+```text
+Gas: Grundlast 7 kWh am Tag, dazu 3,5 kWh je Gradtag (Heizgrenze 15 °C), 10,5 kWh je m³
+erste Januarwoche bei 0 °C:  7 × (7 + 3,5 × 15) = 416,5 kWh = 39,7 m³ erwartet
+Rückfrage ab dem Dreifachen:  1.249,5 kWh = 119,0 m³ seit dem vorigen Stand
+```
+
+**Ohne Temperaturen** (kein Ort eingetragen, kein Normal) und bei allen anderen Arten gilt die Regel oben wie
+bisher.
+
+**Dieselbe Regel** gilt für den **Vorschlag einer KI** (`propose_reading`, auch Stände aus einem Dokument, und noch
+einmal beim Übernehmen) und für die **Vorschau eines CSV-Imports**. Die Vorschau holt die Erwartung für alle Zeilen
+der Datei in **einer** Anfrage (`POST …/reading-expectations`, höchstens 4.000 Abstände). Verglichen wird mit den
+gespeicherten Ständen, nicht mit früheren Zeilen derselben Datei: Ein erster Import in einen leeren Zähler prüft
+deshalb nach der Regel oben. Ohne Antwort (Demo, keine Verbindung) gilt ebenfalls die Regel oben.
 
 ### Nach dem Speichern: Ausreißer, Verdacht, Überlauf
 

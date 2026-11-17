@@ -199,6 +199,14 @@ contract; without that, it names both routes briefly. Additional sentences:
 - **Notice too late:** if you enter the date of the letter and it was closer to
   the change than one month (special contract) or six weeks (basic supply), the
   app says so. It does not say whether the increase is therefore void.
+- **Notice tight** *(v3.13.0)*: counted like the cancellation deadline under the
+  time-limit rules of German civil law: the full period must lie between the
+  letter and the day of the change (change on 1 March, special contract: in time
+  up to 31 January). A letter exactly one calendar month or 42 days ahead
+  (1 February) is **“tight, please check”**, not “too late”: under this count
+  one day is missing, counted the usual way it is just enough, and no court has
+  decided it. What counts is when the letter reached you (in basic supply the
+  day of the public announcement).
 - **Only the tax changes:** if the old and the new price carry a VAT rate, the
   net price stays the same and only the rate changes, the app reports no right
   to terminate and no note.
@@ -321,6 +329,15 @@ calendar years, otherwise projected from the bill, otherwise no check), from the
 capacity of the feed-in meters and from an agreement under § 14a EnWG on the
 contract. More than 1 € above the cap gives a note. Only the days from
 2026-01-01 are checked; the amounts of older versions are not documented.
+
+<!-- doc-claim: metering-one-year --> **A year stays a year** *(v3.13.0)*: a bill
+covering **exactly one year** (anniversary to anniversary, 365 or 366 days) and
+a calendar year from your readings are taken as they are; only a shorter or
+longer period is converted to 365 days, quantity and amount alike (366 days
+from 01.01. to 01.01.: times 365/366). So the same year lands in the same group
+either way. The annual value from readings comes from the unrounded daily
+amounts: exactly 6,000 kWh between two year-start readings stay in the group up
+to 6,000 kWh.
 
 **Limits.** If the charge is hidden in the standing charge, the app cannot check
 it. For a conventional meter and for gas it checks nothing. Additional services
@@ -491,7 +508,7 @@ Examples, recalculated with the code by a test:
 | Case | Input | Result |
 |---|---|---|
 | Bill came late <!-- doc-claim: rights-example bill_late --> | Period ends 2026-03-31 | Deadline ends 2026-05-12; a bill dated 2026-05-14 gets no note, from 2026-05-15 there is one |
-| Special termination <!-- doc-claim: rights-example special_termination --> | Price change on 2026-12-01 | Termination must arrive by 2026-11-30, appears under “To do” from 2026-11-16; notice in a special contract by 2026-11-01 at the latest, in basic supply 2026-10-20 |
+| Special termination <!-- doc-claim: rights-example special_termination --> | Price change on 2026-12-01 | Termination must arrive by 2026-11-30, appears under “To do” from 2026-11-16; notice in a special contract by 2026-10-31 at the latest, in basic supply 2026-10-19 (the day after is “tight, please check”, v3.13.0) |
 | Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-27 | notified 2026-01-31, by the calendar 2026-02-28 (a Saturday), deadline ends 2026-03-02 at the earliest, possibly expired until 2026-03-09 |
 | Fee assessment <!-- doc-claim: rights-example fee_notice --> | Notice dated 2026-01-28 | notified 2026-02-01, by the calendar 2026-03-01 (a Sunday), deadline ends 2026-03-02 at the earliest, possibly expired until 2026-03-09 |
 | Fee assessment, received later <!-- doc-claim: rights-example fee_notice_received --> | Notice dated 2026-09-28, received on 2026-10-13 | notified 2026-10-13 at the earliest, by the calendar 2026-11-13 (a Friday), deadline ends 2026-11-13 at the earliest, possibly expired until 2026-11-17 (month from the fourth day after the receipt) |

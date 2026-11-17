@@ -138,9 +138,11 @@ final class McpReadToolsTest extends McpReadTestCase
         $year = $this->call('get_consumption', ['utility' => 'gas', 'meter' => 'm_gas_default', 'granularity' => 'year']);
         self::assertSame([['2026', 'estimated', 0.943]], array_map(fn($r) => [$r['period'], $r['basis'], $r['measured_share']], $year['rows']));
 
-        // Abrechnungsjahre: die Rechnung Januar bis Mai liegt an echten Ablesungen (01.01., 01.06.): gemessen
+        // Abrechnungsjahre: die Rechnung Januar bis Mai liegt an echten Ablesungen (01.01., 01.06.): gemessen. v3.13.0 (Paket
+        // K2a) — die laufende Periode endet wie „Saldo am …“ an der letzten echten Ablesung (01.06.): Nach ihr gibt es nur den
+        // geschätzten Stand, also keinen gemessenen Tag und keine Zeile (bis dahin 200 kWh „estimated“ bis zur Schätzung)
         $bp = $this->call('get_consumption', ['utility' => 'gas', 'meter' => 'm_gas_default', 'granularity' => 'billing_period']);
-        self::assertSame([['2026-01-01/2026-05-31', 3300.0, 390.0, -110.0, 'measured', 'bill'], ['2026-06-01/2026-12-31', 200.0, 32.0, -68.0, 'estimated', 'anchor']],
+        self::assertSame([['2026-01-01/2026-05-31', 3300.0, 390.0, -110.0, 'measured', 'bill']],
             array_map(fn($r) => [$r['period'], $r['value'], $r['cost'], $r['balance'], $r['basis'], $r['source']], $bp['rows']));
         $part = $this->call('get_consumption', ['utility' => 'gas', 'meter' => 'm_gas_default', 'from' => '2026-02', 'to' => '2026-03']);
         self::assertSame(['2026-02', '2026-03'], array_column($part['rows'], 'period'));

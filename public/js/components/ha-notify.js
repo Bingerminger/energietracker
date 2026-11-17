@@ -45,7 +45,8 @@ export function reasonText(r) {
   if (!r?.error) return '';
   if (r.error === 'http' && r.status === 401) return t('settings.haNotify.error.unauthorized');
   if (CERT_REASONS[r.error]) return t(CERT_REASONS[r.error], { host: 'Home Assistant' });
-  const text = t(`settings.haNotify.error.${r.error}`, { status: r.status ?? '' });
+  // v3.13.0 — redirect: die neue Adresse (nur Schema, Host, Port) aus `location`
+  const text = t(`settings.haNotify.error.${r.error}`, { status: r.status ?? '', location: r.location ?? '' });
   return text === `settings.haNotify.error.${r.error}` ? t('settings.haNotify.error.network') : text;
 }
 
@@ -122,7 +123,7 @@ export function renderHaNotifyCard(status, isAdmin = true) {
         <input class="input input--text" type="password" id="han-token" autocomplete="new-password" spellcheck="false"
                value="" placeholder="${escapeHtml(s.has_token ? t('settings.haNotify.secretStored') : '')}" aria-describedby="han-token-hint"${dis}>
         <span class="settings-field__hint" id="han-token-hint">${escapeHtml(t('settings.haNotify.tokenHint'))}</span>
-        ${isAdmin && s.has_token ? `<div><button type="button" class="btn btn--ghost btn--sm" data-role="han-clear-token">${escapeHtml(t('settings.haNotify.secretClear'))}</button></div>` : ''}
+        ${isAdmin && s.has_token ? `<div class="section-actions"><button type="button" class="btn btn--ghost btn--sm" data-role="han-clear-token">${escapeHtml(t('settings.haNotify.secretClear'))}</button></div>` : ''}
       </div>
       <div class="field settings-field" data-role="han-service-field" data-shown-by="han-target=token han-target=supervisor">
         <label for="han-service">${escapeHtml(t('settings.haNotify.service'))}</label>

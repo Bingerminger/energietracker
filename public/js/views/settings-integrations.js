@@ -88,7 +88,18 @@ export function copyText(text, okMsg) {
 
 // ── F1009 — Home-Assistant-Anbindung ─────────────────────────────────────
 // v3.12.0 (M2) — je Unterseite eine Karte: Token, Zähler-Aliase, Vorlagen.
-export function renderHaTokenCard(authStatus, session = null) {
+export function renderHaTokenCard(authStatus, session = null, isAdmin = true) {
+  // v3.13.0 — Mitglieder sehen nur, was sie ändern dürfen: Den Token erzeugt und widerruft ein Verwalter, und seinen
+  // Stand liest nur er (GET /api/auth/… ist adminOnly; bis v3.12 stand für Mitglieder immer „kein Token“ da)
+  if (!isAdmin) {
+    return `
+    <div class="card settings-card" id="ha-card">
+      <h2 class="card__title">${icon('home')} ${t('settings.ha.title')}</h2>
+      <p class="settings-card__hint">${t('settings.ha.intro')}
+        <a href="${escapeHtml(docUrl('homeAssistant'))}">${escapeHtml(t('settings.ha.guide'))}</a></p>
+      <p class="infobox infobox--info" data-role="ha-token-admin-only">${escapeHtml(t('settings.ha.memberToken'))}</p>
+    </div>`;
+  }
   const enabled = !!authStatus?.enabled;
   // v2.6.0 — Hilfe bei der Fehlersuche („kommt überhaupt etwas an?") und der
   // Hinweis, dass der Push mit eingeschalteter Anmeldung einen Token braucht.

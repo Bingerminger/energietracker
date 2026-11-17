@@ -27,6 +27,12 @@ final class ReadingService
     /** v2.6.0 — erlaubte Werte für das optionale Feld `source` */
     // v3.7.0 — `inbox`: aus einem Dokument im Posteingang; v3.12.0 (F1037) — `mcp`: von einer KI vorgeschlagen und übernommen
     private const SOURCES = ['ingest', 'csv', 'inbox', 'mcp'];
+    /**
+     * v3.13.0 — Kennung einer Erfassung (`client_ref`) für Ablesungen und Zeiträume: 8 bis 64 Zeichen aus Buchstaben,
+     * Ziffern, `-` und `_`. Mit `_` kann eine übernommene Ablesung genau die Kennung ihres KI-Vorschlags tragen
+     * (`mp_…`); bis v3.12 stand dort `mp-…`.
+     */
+    public const CLIENT_REF = '/^[A-Za-z0-9_-]{8,64}$/';
 
     public function __construct(
         private JsonStore $store,
@@ -48,12 +54,18 @@ final class ReadingService
      *
      * @param array<int,array<string,mixed>> $all Ablesungen der Verbrauchsart
      */
+    /** v3.13.0 (K2d) — Tag einer gespeicherten Ablesung zum Sortieren und Vergleichen: nur Text, sonst ''. */
+    private static function dateKey(mixed $r): string
+    {
+        return is_array($r) && is_string($r['date'] ?? null) ? $r['date'] : '';
+    }
+
     private static function lastRealDate(array $all, string $meterId): ?string
     {
         $last = null;
         foreach ($all as $r) {
             if (($r['meter_id'] ?? null) !== $meterId || !empty($r['is_future']) || !empty($r['is_suspect'])) continue;
-            $d = (string)($r['date'] ?? '');
+            $d = self::dateKey($r);   // v3.13.0 (K2d) — ein Tag als Liste aus einer älteren Version zählt nicht
             if ($d !== '' && ($last === null || $d > $last)) $last = $d;
         }
         return $last;
@@ -67,18 +79,63 @@ final class ReadingService
         }
     }
 
-    /** @return array<int,array<string,mixed>> */
+    /**
+     * Ablesungen, wie die Rechnung sie sieht. v3.13.0 (K2d) — Bestand nach der gemeinsamen Regel
+     * (Support\FieldRules::view): Eine Ablesung, die die Schreibwege heute abweisen (Tag außerhalb 1900 bis 2100,
+     * Stand über 10¹², Liste statt Text), fällt aus der Rechnung; die Datei bleibt, wie sie ist. Bisher erschöpfte ein
+     * Stand im Jahr 0150 beim Abrechnungsjahr den Speicher, einer im Jahr 1200 ergab achthundert Abrechnungsjahre.
+     * Was gespeichert ist (Liste der Ablesungen, CSV-Export, Bearbeiten), liefert stored().
+     *
+     * @return array<int,array<string,mixed>>
+     */
     public function list(string $utility, ?string $meterId = null): array
     {
         if (!Utilities::exists($utility)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
-        $all = $this->store->read("$utility/readings.json", []);
-        if (!is_array($all)) $all = [];
+        return self::sorted(\Energietracker\Support\FieldRules::view($this->store, "$utility/readings.json", 'readings')[0], $meterId);
+    }
+
+    /**
+     * v3.13.0 (K2d) — die gespeicherten Ablesungen ohne Auswahl (Liste der Oberfläche, CSV-Export): Ein Stand aus einer
+     * älteren Version bleibt sichtbar, damit man ihn findet, korrigiert oder löscht.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function stored(string $utility, ?string $meterId = null): array
+    {
+        if (!Utilities::exists($utility)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
+        }
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
+        return self::sorted(is_array($all) ? array_values(array_filter($all, 'is_array')) : [], $meterId);
+    }
+
+    /**
+     * v3.13.0 (K2d) — Ablesungen eines Zählers, die die Rechnung auslässt, mit ihren Funden (`art:feld`).
+     *
+     * @return list<array{reading: array<string,mixed>, problems: list<string>}>
+     */
+    public function excluded(string $utility, string $meterId): array
+    {
+        $issues = \Energietracker\Support\FieldRules::view($this->store, "$utility/readings.json", 'readings')[1];
+        if ($issues === []) return [];
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
+        $out = [];
+        foreach ($issues as $i) {
+            $r = is_array($all) ? ($all[$i['index']] ?? null) : null;
+            if ($i['excluded'] && is_array($r) && ($r['meter_id'] ?? null) === $meterId) $out[] = ['reading' => $r, 'problems' => $i['problems']];
+        }
+        return $out;
+    }
+
+    /** @param list<array<string,mixed>> $all */
+    private static function sorted(array $all, ?string $meterId): array
+    {
         if ($meterId !== null) {
             $all = array_values(array_filter($all, fn($r) => ($r['meter_id'] ?? null) === $meterId));
         }
-        usort($all, fn($a, $b) => strcmp($a['date'] ?? '', $b['date'] ?? ''));
+        usort($all, fn($a, $b) => strcmp(is_string($a['date'] ?? null) ? $a['date'] : '', is_string($b['date'] ?? null) ? $b['date'] : ''));
         return $all;
     }
 
@@ -88,12 +145,20 @@ final class ReadingService
      */
     public function create(string $utility, array $input): array
     {
+        // v3.13.0 — ein Stapel (JsonStore::batch): Wirft eine spätere Prüfung (etwa ein unbekannter Beleg), bleibt
+        // auch der vorverlegte Einbau des ersten Geräts ungeschrieben. Bisher stand er nach dem 400 in meters.json.
+        return $this->store->batch(fn(): array => $this->createNow($utility, $input));
+    }
+
+    private function createNow(string $utility, array $input): array
+    {
         if (empty($input['date'])) throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateMissing'));
         if (!array_key_exists('counter', $input)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterMissing'));
 
         // v3.12.0 — Typen an einer Stelle (Support\Input): eine Liste oder ein Objekt statt
         // Text ergab bisher 500 („Array to string conversion“)
         Input::assertTexts($input, ['meter_id', 'note', 'client_ref', 'attachment_id', 'reported_on', 'source']);
+        \Energietracker\Support\TextLimits::assert($input, 'readings');   // v3.13.0 (Paket F) — Notiz bis 2000 Zeichen
         $date = (string)Input::text($input, 'date');
         $this->assertDate($date);
         $counter = $this->parseCounter($input['counter']);
@@ -111,7 +176,7 @@ final class ReadingService
         $clientRef = null;
         if (isset($input['client_ref']) && $input['client_ref'] !== '') {
             $clientRef = (string)Input::text($input, 'client_ref');
-            if (!preg_match('/^[A-Za-z0-9-]{8,64}$/', $clientRef)) {
+            if (!preg_match(self::CLIENT_REF, $clientRef)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.reading.clientRefInvalid'));
             }
             foreach ($this->list($utility, (string)$meterId) as $existing) {
@@ -163,11 +228,11 @@ final class ReadingService
             $reading['attachment_id'] = (string)$input['attachment_id'];
         }
 
-        $all = $this->store->read("$utility/readings.json", []);
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
         if (!is_array($all)) $all = [];
         $prevLast = self::lastRealDate($all, (string)$meterId);   // v3.4.0 (F1024)
         $all[] = $reading;
-        usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
+        usort($all, fn($a, $b) => strcmp(self::dateKey($a), self::dateKey($b)));   // v3.13.0 (K2d) — auch neben einem Altwert
         $this->store->write("$utility/readings.json", $all);
         if ($this->activity !== null && empty($reading['is_suspect']) && !$reading['is_future']) {
             $this->activity->readingRecorded($utility, $meter, $date, $prevLast);
@@ -177,9 +242,16 @@ final class ReadingService
 
     public function update(string $utility, string $id, array $input): array
     {
+        // v3.13.0 — ein Stapel wie create(): Beleg und vorverlegter Einbau nur, wenn alles gelingt
+        return $this->store->batch(fn(): array => $this->updateNow($utility, $id, $input));
+    }
+
+    private function updateNow(string $utility, string $id, array $input): array
+    {
         // v3.12.0 — dieselben Prüfungen wie beim Anlegen: Typen, Datum mit Jahresbereich,
         // Preis mit Dezimalkomma, „geschätzt“ als Wahrheitswert
         Input::assertTexts($input, ['date', 'meter_id', 'note', 'attachment_id', 'reported_on', 'source']);
+        \Energietracker\Support\TextLimits::assert($input, 'readings');   // v3.13.0 (Paket F)
         if (array_key_exists('date', $input)) $this->assertDate((string)Input::text($input, 'date'));
         if (array_key_exists('counter', $input)) $input['counter'] = $this->parseCounter($input['counter']);
         if (array_key_exists('price_cents', $input)) $input['price_cents'] = $this->parsePrice($input['price_cents']);
@@ -200,7 +272,7 @@ final class ReadingService
             $input['meter_id'] = (string)$target['id'];
         }
 
-        $all = $this->store->read("$utility/readings.json", []);
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
         if (!is_array($all)) $all = [];
         $found = null;
         foreach ($all as &$r) {
@@ -211,7 +283,7 @@ final class ReadingService
                 if (!array_key_exists($f, $input)) continue;
                 if ($f === 'counter') $r['counter'] = (float)$input['counter'];
                 elseif ($f === 'price_cents') $r['price_cents'] = $input['price_cents'];   // parsePrice() oben
-                elseif ($f === 'is_estimated') $r['is_estimated'] = (bool)$input['is_estimated'];
+                elseif ($f === 'is_estimated') $r['is_estimated'] = $input['is_estimated'] === true;   // oben nach der einen Regel gelesen (parseFlag)
                 else $r[$f] = $input[$f];
             }
             // v2.6.0 — Verdacht: ausdrücklich gesetzt oder bestätigt; wer den
@@ -278,7 +350,7 @@ final class ReadingService
             }
             unset($t);
         }
-        usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
+        usort($all, fn($a, $b) => strcmp(self::dateKey($a), self::dateKey($b)));   // v3.13.0 (K2d) — auch neben einem Altwert
         $this->store->write("$utility/readings.json", $all);
         return $found;
     }
@@ -310,11 +382,12 @@ final class ReadingService
             }
         }
 
-        $all = $this->store->read("$utility/readings.json", []);
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
         if (!is_array($all)) $all = [];
         $byDate = [];
         foreach ($all as $idx => $r) {
-            if (($r['meter_id'] ?? null) === $meterId && isset($r['date'])) $byDate[$r['date']] = $idx;
+            // v3.13.0 (K2d) — nur ein Tag als Text ist ein Schlüssel (eine Liste aus einer älteren Version brach den Import)
+            if (($r['meter_id'] ?? null) === $meterId && self::dateKey($r) !== '') $byDate[self::dateKey($r)] = $idx;
         }
 
         $imported = $overwritten = $skipped = 0;
@@ -328,13 +401,17 @@ final class ReadingService
                 $date = (string)($row['date'] ?? '');
                 $this->assertDate($date);
                 $counter = $this->parseCounter($row['counter'] ?? null);
+                \Energietracker\Support\TextLimits::assert($row, 'readings');   // v3.13.0 (Paket F) — Notiz, auch evcc und Portale
+                // v3.13.0 (K2d) — „gemeldet am“ aus dem CSV wie beim Anlegen: ein Tag im Eingabebereich
+                if (is_string($row['reported_on'] ?? null) && $row['reported_on'] !== '') $this->assertDate($row['reported_on']);
                 $device = $this->meters->deviceOnDate($meter, $date);
                 if (!$device) {
                     throw new \InvalidArgumentException($this->i18n->t('errors.reading.noDevice', ['date' => $date]));
                 }
             } catch (\InvalidArgumentException $e) {
                 $skipped++;
-                $errors[] = $this->i18n->t('errors.import.rowError', ['line' => $line, 'message' => $e->getMessage()]);
+                $msg = $e instanceof LocalizedException ? $this->i18n->t($e->key, $e->params) : $e->getMessage();
+                $errors[] = $this->i18n->t('errors.import.rowError', ['line' => $line, 'message' => $msg]);
                 continue;
             }
             $fields = [
@@ -346,16 +423,26 @@ final class ReadingService
             ];
             // v3.12.0 — Preis nur, wenn die Zeile einen trägt (CSV mit Preisspalte); sonst bleibt er
             if (isset($row['price_cents']) && is_numeric($row['price_cents'])) $fields['price_cents'] = (float)$row['price_cents'];
+            // v3.13.0 (K2d) — Merker aus dem CSV (verlustfreie Rundreise): nur, wenn die Datei die Spalte hat; gesetzt
+            // wie beim Anlegen nur, wenn ja (bzw. ein Tag), sonst entfernt
+            $marks = array_intersect_key($row, ['is_billing_only' => true, 'is_verified' => true, 'reported_on' => true]);
+            $withMarks = function (array $r) use ($marks): array {
+                foreach ($marks as $f => $v) {
+                    if ($f === 'reported_on' ? (is_string($v) && $v !== '') : $v === true) $r[$f] = $f === 'reported_on' ? $v : true;
+                    else unset($r[$f]);
+                }
+                return $r;
+            };
             if (isset($byDate[$date])) {
                 $r = $all[$byDate[$date]];
                 unset($r['is_suspect']);
                 // v3.9.0 (ablesung-pruefen) — ein anderer Stand ist nicht mehr der bestätigte
                 if ((float)($r['counter'] ?? 0) !== $counter) unset($r['is_verified']);
-                $all[$byDate[$date]] = array_merge($r, $fields);
+                $all[$byDate[$date]] = $withMarks(array_merge($r, $fields));
                 $overwritten++;
             } else {
-                $new = array_merge(['id' => date('Ymd', strtotime($date) ?: time()) . '-' . bin2hex(random_bytes(4)),
-                        'meter_id' => $meterId, 'date' => $date, 'price_cents' => null], $fields);
+                $new = $withMarks(array_merge(['id' => date('Ymd', strtotime($date) ?: time()) . '-' . bin2hex(random_bytes(4)),
+                        'meter_id' => $meterId, 'date' => $date, 'price_cents' => null], $fields));
                 if (in_array($source, self::SOURCES, true)) $new['source'] = $source;
                 $all[] = $new;
                 $byDate[$date] = array_key_last($all);
@@ -366,7 +453,7 @@ final class ReadingService
 
         if ($imported + $overwritten > 0) {
             $all = array_values($all);
-            usort($all, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+            usort($all, fn($a, $b) => strcmp(self::dateKey($a), self::dateKey($b)));   // v3.13.0 (K2d) — auch neben einem Altwert
             $this->store->write("$utility/readings.json", $all);
             // v3.4.0 (F1024) — einmal je Import, mit dem neuesten neuen Stand
             if ($this->activity !== null && $newest !== null) $this->activity->readingRecorded($utility, $meter, $newest, $prevLast);
@@ -376,7 +463,7 @@ final class ReadingService
 
     public function delete(string $utility, string $id): void
     {
-        $all = $this->store->read("$utility/readings.json", []);
+        $all = \Energietracker\Support\FieldRules::stored($this->store, "$utility/readings.json", 'readings');   // v3.13.0 (K2d) — dasselbe gelesene Array wie die Sicht
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
         if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.reading.notFound'));
@@ -490,8 +577,9 @@ final class ReadingService
     private function lastPeriod(string $utility, string $meterId): ?array
     {
         $last = null;
-        $all = $this->store->read("$utility/periods.json", []);
-        foreach (is_array($all) ? $all : [] as $p) {
+        // v3.13.0 (K2d) — wie die Rechnung (Support\FieldRules::view): ein unbrauchbarer Zeitraum ist nicht der letzte
+        $all = \Energietracker\Support\FieldRules::view($this->store, "$utility/periods.json", 'periods')[0];
+        foreach ($all as $p) {
             if (!is_array($p) || ($p['meter_id'] ?? null) !== $meterId) continue;
             if ($last === null || (string)$p['to'] > (string)$last['to']) $last = $p;
         }
@@ -543,19 +631,39 @@ final class ReadingService
      * Ein Gerätetausch zwischen beiden Ständen erklärt Rückgang und Sprung.
      * Datum in der Zukunft und „schon ein Stand an dem Tag“ prüft der Aufrufer.
      *
+     * v3.13.0 (#65) — `$expected`: die Erwartung nach dem Wetter für genau diesen Abstand
+     * (ReadingCheckService::expectationFor, `from` = Datum des vorigen Stands, `to` = `$date`). Mit
+     * `basis` ersetzt sie den typischen Tagesverbrauch: Sprung, wenn die Menge seit dem vorigen Stand
+     * über `high` liegt; ist `high` null (kälter als alles bisher, die Höhe offen), nur „Komma
+     * vergessen“. Ohne `basis` oder für einen anderen Abstand gilt die alte Regel.
+     *
      * @param array{date:string, counter:float|int}|null $prev voriger echter Stand (vor `$date`)
      * @param array{date:string, counter:float|int}|null $next nächster echter Stand (nach `$date`)
-     * @return list<array{type:string, last?:float, per_day?:float, typical?:float, next?:float}>
+     * @param array{basis:?string, from:string, to:string, expected:?float, high:?float}|null $expected
+     * @return list<array{type:string, last?:float, per_day?:float, typical?:float, next?:float, amount?:float, expected?:float, basis?:string}>
      */
     public static function plausibilityIssues(float $value, string $date, ?array $prev, ?float $typical, bool $deviceChanged = false,
-                                              ?array $next = null, bool $nextDeviceChanged = false): array
+                                              ?array $next = null, bool $nextDeviceChanged = false, ?array $expected = null): array
     {
         $out = [];
         if ($prev !== null && (string)$prev['date'] < $date && !$deviceChanged) {
             $last = (float)$prev['counter'];
             $days = (int)round((strtotime($date . 'T00:00:00Z') - strtotime((string)$prev['date'] . 'T00:00:00Z')) / 86400);
+            $w = $expected !== null && !empty($expected['basis']) && (string)($expected['from'] ?? '') === (string)$prev['date']
+                && (string)($expected['to'] ?? '') === $date ? $expected : null;
             if ($value < $last) $out[] = ['type' => 'lower', 'last' => $last];
-            elseif ($typical !== null && $typical > 0 && $days >= 1 && ($value - $last) / $days > self::JUMP_FACTOR * $typical) {
+            elseif ($w !== null) {
+                if (isset($w['high']) && is_numeric($w['high'])) {
+                    $amount = $value - $last;
+                    if ($days >= 1 && $amount > (float)$w['high']) {
+                        $e = (float)($w['expected'] ?? 0);
+                        $out[] = ['type' => 'jump', 'per_day' => $amount / $days, 'typical' => $e / $days,
+                                  'amount' => $amount, 'expected' => $e, 'basis' => (string)$w['basis']];
+                    }
+                } elseif ($last >= 10 && $value >= $last * 10) {
+                    $out[] = ['type' => 'magnitude', 'last' => $last];
+                }
+            } elseif ($typical !== null && $typical > 0 && $days >= 1 && ($value - $last) / $days > self::JUMP_FACTOR * $typical) {
                 $out[] = ['type' => 'jump', 'per_day' => ($value - $last) / $days, 'typical' => $typical];
             } elseif (!($typical !== null && $typical > 0) && $last >= 10 && $value >= $last * 10) {
                 $out[] = ['type' => 'magnitude', 'last' => $last];
@@ -571,11 +679,16 @@ final class ReadingService
      * v3.12.0 (Skeptiker M7) — Rückfragen zu einem Stand gegen die echten Stände des Zählers:
      * voriger und nächster Stand, Gerätetausch dazwischen, typischer Tagesverbrauch. Für den
      * Vorschlag einer KI und noch einmal beim Übernehmen (ein Vorschlag kann lange warten).
+     * v3.13.0 (#65, Paket K1) — mit `$checks` nach dem Wetter wie die Erfassung: die Erwartung für genau den
+     * Abstand voriger Stand → `$date` (ReadingCheckService::expectationFor, Stand der Daten `$today`) geht als
+     * `$expected` an plausibilityIssues(). Ein Stand am selben Tag (etwa aus derselben Rechnung von Hand
+     * erfasst) bestimmt sie nicht mit (Lektion 46). Als Parameter, nicht im Konstruktor: ReadingCheckService
+     * hängt selbst an diesem Dienst. Ohne `$checks` die bisherige Regel. `expected`: die Erwartung oder null.
      *
      * @param array<string,mixed> $meter
-     * @return array{issues: list<array<string,mixed>>, prev: ?array<string,mixed>, next: ?array<string,mixed>, typical: ?float, device_changed: bool, real: list<array<string,mixed>>}
+     * @return array{issues: list<array<string,mixed>>, prev: ?array<string,mixed>, next: ?array<string,mixed>, typical: ?float, device_changed: bool, real: list<array<string,mixed>>, expected: ?array<string,mixed>}
      */
-    public function plausibilityFor(string $utility, array $meter, string $date, float $value): array
+    public function plausibilityFor(string $utility, array $meter, string $date, float $value, ?ReadingCheckService $checks = null, ?string $today = null): array
     {
         $real = array_values(array_filter($this->list($utility, (string)$meter['id']), fn($r) => empty($r['is_future']) && empty($r['is_suspect'])
             && is_numeric($r['counter'] ?? null) && Dates::isIsoDate($r['date'] ?? null)));
@@ -594,8 +707,14 @@ final class ReadingService
         $swapped = $prev !== null && $changed((string)$prev['date'], $date);
         $swappedNext = $next !== null && $changed($date, (string)$next['date']);
         $typical = $this->typicalPerDay($real);
-        return ['issues' => self::plausibilityIssues($value, $date, $prev, $typical, $swapped, $next, $swappedNext), 'prev' => $prev, 'next' => $next,
-                'typical' => $typical, 'device_changed' => $swapped, 'real' => $real];
+        $expected = null;
+        if ($checks !== null && $prev !== null && !$swapped) {
+            $same = null;
+            foreach ($real as $r) if ($r['date'] === $date && (string)($r['id'] ?? '') !== '') { $same = (string)$r['id']; break; }
+            $expected = $checks->expectationFor($utility, $meter, (string)$prev['date'], $date, $same, $today);
+        }
+        return ['issues' => self::plausibilityIssues($value, $date, $prev, $typical, $swapped, $next, $swappedNext, $expected), 'prev' => $prev, 'next' => $next,
+                'typical' => $typical, 'device_changed' => $swapped, 'real' => $real, 'expected' => $expected];
     }
 
     /**
@@ -640,14 +759,21 @@ final class ReadingService
      * Zählerstand als Zahl ≥ 0. Zahlen und Zahl-Strings mit Punkt sind gültig;
      * „12,5" nicht — mehrdeutig (Dezimal- oder Tausenderkomma) und bisher still
      * zu 12 abgeschnitten. Das Frontend wandelt Kommas vorher selbst um.
+     * v3.13.0 — bewusst so gelassen; die Meldung nennt den Punkt als Dezimaltrenner.
      */
     private function parseCounter(mixed $raw): float
     {
-        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0 || (float)$raw > self::MAX_COUNTER) {
+        // v3.13.0 — die eine Regel für Zählerstände (Support\FieldRules::counter): Ablesung, Anfangsstand am Zähler,
+        // Zählertausch, Backup-Import und Bestand
+        $v = \Energietracker\Support\FieldRules::counter($raw);
+        if ($v === null) {
+            // v3.13.0 — über der Grenze: die Grenze nennen (errors.common.numberOutOfRange), nicht „eine Zahl ab 0“
+            $n = is_numeric($raw) && !is_bool($raw) ? (float)$raw : null;
+            if ($n !== null && $n > self::MAX_COUNTER) throw \Energietracker\Support\FieldRules::error('counter', 'counter', $raw, ['number', 0, self::MAX_COUNTER]);
             $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
             throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterInvalid', ['value' => $shown]));
         }
-        return (float)$raw;
+        return $v;
     }
 
     /**

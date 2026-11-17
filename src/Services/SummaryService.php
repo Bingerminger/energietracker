@@ -127,6 +127,17 @@ final class SummaryService
             $ytdEst = $ytdEst || $est;
             if (($r['ym'] ?? '') === $ym) $mtd = ['value' => round((float)($r[$vf] ?? 0), 3), 'estimated' => $est];
         }
+        // v3.13.0 — die Jahressumme aus den ungerundeten Tagesabschnitten (ConsumptionService::amountBetween, wie das
+        // Messentgelt nach dem Jahresverbrauch), erst am Ende gerundet. Bis dahin summierte sie die je Monat auf 0,1
+        // gerundeten Zeilen und wich um bis zu 0,1 je Monat von der Messung ab. Nur, wenn die Abschnitte die
+        // Zeilen bis auf deren Rundung tragen (sonst bleibt die Summe der Zeilen).
+        if ($hasYear && !$isPeriod) {
+            try {
+                $exact = (float)$this->consumption->amountBetween($u, $m, sprintf('%04d-01-01', $year), sprintf('%04d-01-01', $year + 1))['kwh'];
+                $rowsInYear = count(array_filter($monthly, fn($r) => (int)($r['year'] ?? 0) === $year));
+                if (abs($exact - $ytd) <= 0.05 * $rowsInYear + 1e-6) $ytd = $exact;
+            } catch (\Throwable) { /* Summe der Zeilen */ }
+        }
 
         return [
             'key'                => "$u.{$m['id']}",
@@ -151,8 +162,32 @@ final class SummaryService
             // v3.9.0 (F1033) — Name der Verbrauchsart (HACS-Integration: „Strom Hauptzähler“ statt dreimal „Hauptzähler“)
             'utility_label'      => $this->i18n?->utilityLabel($u) ?? (string)($def['label'] ?? $u),
             // v3.9.0 (Gruppenverträge) — additiv: rechnet der Zähler über einen Gruppenvertrag, Gruppe und Vertrag
-            'group_contract'     => Utilities::hasContracts($u) ? $this->groupContract($u, $m, $today) : null,
+            'group_contract'     => $gc = (Utilities::hasContracts($u) ? $this->groupContract($u, $m, $today) : null),
+            // v3.13.0 (Paket vertrag, #40) — additiv: die Prognose der Gruppe mit Grundpreis und Abschlag
+            // (`forecast_12m` des Zählwerks bleibt ohne beides)
+            'group_forecast_12m' => $gc !== null ? $this->groupForecast($u, (string)$gc['group_id'], $vf, $today) : null,
         ];
+    }
+
+    /** @var array<string,array<string,mixed>|null> v3.13.0 — Prognose je Art und Gruppe (eine Anfrage) */
+    private array $groupForecastMemo = [];
+
+    /**
+     * v3.13.0 (Paket vertrag, #40) — Prognose der zwölf Monate einer Gruppe mit laufendem Gruppenvertrag
+     * (HT/NT), in derselben Form wie `forecast_12m` und mit `group_id`. Sie steht an jedem Mitglied; wer über
+     * Zähler summiert, zählt sie je `group_id` einmal (wie `group_contract`) und statt der Zählwerke.
+     *
+     * @return array{group_id:string,value:?float,cost:?float,low:?float,high:?float}|null
+     */
+    private function groupForecast(string $u, string $gid, string $vf, string $today): ?array
+    {
+        $key = "$u|$gid|$today";
+        if (!array_key_exists($key, $this->groupForecastMemo)) {
+            $target = $this->meters->groupTarget($u, $gid);
+            $f = $target !== null ? $this->forecast($u, $target, $vf) : null;
+            $this->groupForecastMemo[$key] = $f !== null ? ['group_id' => $gid] + $f : null;
+        }
+        return $this->groupForecastMemo[$key];
     }
 
     /** @var array<string,array<string,mixed>|null> Gruppenvertrag je Art, Gruppe und Tag (eine Anfrage) */
@@ -207,7 +242,10 @@ final class SummaryService
                 'suggestion_withheld'       => $c['suggestion_withheld'] ?? null,
                 // v3.7.0 (wirklichkeit-2) — Spanne statt Vorschlag, wenn die Schätzung unsicher ist
                 'projection_uncertain'      => $c['projection_uncertain'] ?? null,
-                'balance'                   => $c['current_balance'] ?? null,
+                // v3.13.0 — noch zu wenig Ablesungen (`projection_missing`): kein Saldo, wie die Karte. Der Stand wäre Grundpreis
+                // minus Abschläge gegen einen Verbrauch von null seit dem Anfangsstand, ein Guthaben, das es nicht gibt. Die
+                // Integration macht aus null „unbekannt“.
+                'balance'                   => is_string($c['projection_missing'] ?? null) ? null : ($c['current_balance'] ?? null),
                 'projected_end_balance'     => $c['projected_end_balance'] ?? null,
                 // v3.10.0 (additiv) — Breite der sicheren Schätzung (eine Quelle mit der Saldo-Karte),
                 // Saldo bis zur letzten Ablesung (#49) und die Summe einer Abrechnung über mehrere Verträge
@@ -235,7 +273,20 @@ final class SummaryService
                 'cancel_by'                 => $dated ? ($c['cancel_by'] ?? null) : null,
                 'days_to_cancel'            => $dated ? ($c['days_to_cancel'] ?? null) : null,
                 'price_increase_from'       => $c['price_increase']['from'] ?? null,
-            ];
+                // v3.13.0 (Paket vertrag, additiv) — Einspeisung: im Abrechnungsjahr erhaltene Auszahlungen und was
+                // offen ist (bis heute, zur Abrechnung); `balance` bleibt der Anspruch ohne Auszahlungen. Sonst null.
+                'payouts_received'          => $c['payouts']['received'] ?? null,
+                'payouts_open'              => $c['payouts']['open'] ?? null,
+                'payouts_open_at_settle'    => $c['payouts']['open_at_settle'] ?? null,
+            ] + (!empty($c['price_missing']) ? [
+                // v3.13.0 (additiv, nur wenn wahr) — der Vertrag hat keinen Arbeitspreis: `balance` und die Salden sind nur
+                // Grundpreis und Abschläge, keine Verbrauchskosten. Die Übersicht sagt dann „Preis fehlt“ statt „zurück“.
+                'price_missing'             => true,
+            ] : []) + (is_string($c['projection_missing'] ?? null) ? [
+                // v3.13.0 (additiv, nur wenn gesetzt) — zu wenig Ablesungen für eine Erwartung (`too_few_readings`):
+                // `projected_end_balance`, `verdict` und `suggested_advance` sind dann null
+                'projection_missing'        => (string)$c['projection_missing'],
+            ] : []);
         }
         return null;
     }
@@ -258,14 +309,16 @@ final class SummaryService
             'cost'  => Utilities::isGenerationOnly($u) ? null : round($cost, 2),
             'low'   => $f['annual']['low'] ?? null,
             'high'  => $f['annual']['high'] ?? null,
-        ];
+        // v3.13.0 (additiv, nur wenn wahr) — in einem der zwölf Monate rechnet ein Vertrag ohne Arbeitspreis: `cost` sind
+        // dann keine Verbrauchskosten
+        ] + (!Utilities::isGenerationOnly($u) && $this->consumption->priceMissingIn($u, $m, $months) !== [] ? ['price_missing' => true] : []);
     }
 
     /** @return array<string,mixed>|null */
     private function tank(string $u, array $m): ?array
     {
         try {
-            $h = $this->deliveries->stockHistory($u, (string)$m['id'], $this->consumption);
+            $h = $this->deliveries->stockLatest($u, (string)$m['id'], $this->consumption);   // v3.13.0 — nur der Stand
         } catch (\Throwable) {
             return null;
         }

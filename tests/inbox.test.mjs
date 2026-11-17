@@ -522,6 +522,42 @@ console.log('Felder: Preis ohne Steuersatz');
   t('… mit erkanntem Nettopreis kein solcher Satz', !li('base_price')?.querySelector('[data-role="gross-note"]'));
 }
 
+// v3.13.0 (Paket F) — Listenfelder je Eintrag: markiert mit „Stimmt / Korrigieren / Verwerfen“, korrigiert mit dem
+// gelesenen Wert daneben und „Wie gelesen“, verworfen durchgestrichen; die Knöpfe tragen die gespeicherte Stelle
+console.log('Felder: Listeneinträge einzeln');
+{
+  const V = await import(`${JS}/views/inbox.js`);
+  const pv = { schema: { working_prices: { kind: 'list', items: { from: 'date', ct: 'price_ct' } } }, entry: { edits: {}, extraction: { flags: 1 } } };
+  const fields = { working_prices: { status: 'check', reasons: ['price_from_invoice'], items: [
+    { index: 0, status: 'check', reasons: ['price_from_invoice'], value: { from: '2025-01-01', ct: 11.9 }, origin: 'read', confirmed: false },
+    { index: 1, status: 'ok', reasons: [], value: { from: '2025-07-01', ct: 12.1 }, read_value: { from: '2025-07-01', ct: 21.1 }, origin: 'corrected', decision: 'correct' },
+    { index: 4, status: 'discarded', reasons: [], value: { from: '2025-09-01', ct: 99 }, origin: 'read', decision: 'discard' },
+  ] } };
+  const box = document.createElement('div');
+  box.innerHTML = V.fieldsHtml(pv, fields);
+  const items = [...box.querySelectorAll('[data-item]')];
+  const btns = (el) => ['confirm', 'correct', 'discard', 'reset'].filter(b => el.querySelector(`[data-item-${b}]`));
+  t('markiert: Stimmt, Korrigieren, Verwerfen', JSON.stringify(btns(items[0])) === JSON.stringify(['confirm', 'correct', 'discard']), JSON.stringify(btns(items[0])));
+  t('korrigiert: „korrigiert“, gelesener Wert, Wie gelesen', /korrigiert/.test(items[1].textContent) && /Ausgelesen war/.test(items[1].querySelector('[data-role="item-read"]')?.textContent || '')
+    && JSON.stringify(btns(items[1])) === JSON.stringify(['correct', 'reset']), items[1].textContent.replace(/\s+/g, ' '));
+  t('verworfen: durchgestrichen, nur Wie gelesen', !!items[2].querySelector('s') && JSON.stringify(btns(items[2])) === JSON.stringify(['reset']));
+  t('… die Knöpfe nennen Feld und gespeicherte Stelle', items[2].querySelector('[data-item-reset]')?.dataset.itemIndex === '4'
+    && items[0].querySelector('[data-item-confirm]')?.dataset.itemField === 'working_prices');
+}
+
+// v3.13.0 (Paket F) — Zähler unter langen Feldern (lib/text-limits.js): ab 80 % der Grenze, über der Grenze rot
+console.log('Längengrenzen: Zähler am Feld');
+{
+  const L = await import(`${JS}/lib/text-limits.js`);
+  t('unter 80 %: kein Zähler', L.counterText('x'.repeat(1599), 2000) === '');
+  t('ab 80 %: „1.600 von 2.000 Zeichen“', /1\.600 von 2\.000 Zeichen/.test(L.counterText('x'.repeat(1600), 2000)), L.counterText('x'.repeat(1600), 2000));
+  const box = document.createElement('div');
+  box.innerHTML = `<textarea maxlength="2000" data-counter>${'y'.repeat(2100)}</textarea>`;
+  L.attachCounters(box);
+  const c = box.querySelector('.char-count');
+  t('Bestand über der Grenze: Zähler sichtbar und rot', !!c && !c.hidden && c.classList.contains('char-count--over'), c?.textContent);
+}
+
 // v3.12.0 — Erfassung: Ein nachgetragener, älterer Stand wird nicht gegen den jüngeren verglichen („−75,5 m³ seit letztem Stand“)
 console.log('Erfassung: Vorschau beim Nachtrag');
 {

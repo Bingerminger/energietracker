@@ -101,6 +101,73 @@ final class WebrootRulesTest extends TestCase
     }
 
     /**
+     * v3.13.0 — Apache schreibt /api/… auf api.php um wie nginx (`location ~
+     * ^/api(\.php)?(/|$)`). Bis v3.12 gab …/api/ingest mit der mitgelieferten
+     * .htaccess 404 (Farm, Paket M), die Doku versprach es aber.
+     *
+     * Geprüft wird das Muster selbst (mod_rewrite nutzt PCRE wie PHP; in der
+     * .htaccess sieht es den Pfad ohne führenden Schrägstrich, relativ zum
+     * Verzeichnis), die Lage (nach den Sperren, nur im mod_rewrite-Block, also
+     * ohne mod_rewrite kein 500) und dass Request danach dieselbe Route sieht,
+     * auch im Unterverzeichnis und mit dem Token unter REDIRECT_HTTP_AUTHORIZATION.
+     */
+    public function testApacheRewritesApiToApiPhpLikeNginx(): void
+    {
+        $ht = self::htaccess();
+        self::assertSame(1, preg_match('#<IfModule mod_rewrite\.c>(.*?)</IfModule>#s', $ht, $block), 'mod_rewrite-Block fehlt');
+        self::assertSame(1, preg_match_all('#^\s*RewriteRule (\S+) (api\.php\S*) \[L\]$#m', $ht, $all), 'genau eine Regel /api/ → api.php');
+        self::assertSame(1, preg_match('#^\s*RewriteRule (\S+) (api\.php\S*) \[L\]$#m', $block[1], $m), 'die Regel steht im mod_rewrite-Block');
+        self::assertGreaterThan(strrpos($block[1], '[R=404,L]'), strpos($block[1], $m[0]), 'nach den Sperren');
+        $apache = '#' . $m[1] . '#';
+        // Ziel wie Apache es bildet ($1 aus dem Muster), als Pfad ab dem Verzeichnis
+        $target = fn(string $p): string => '/' . preg_replace($apache, $m[2], ltrim($p, '/'));
+        $nginx = '#^/api(\.php)?(/|$)#';
+        foreach (['/api', '/api/', '/api/ingest', '/api/mcp', '/api/health', '/api/utility/strom/meters/m1/readings'] as $p) {
+            self::assertSame(1, preg_match($apache, ltrim($p, '/')), "$p: Apache schreibt nicht auf api.php um");
+            self::assertSame(1, preg_match($nginx, $p), "$p: nginx-Muster");
+            self::assertSame('/api.php' . $p, $target($p), "$p: Ziel ist api.php mit der Route als Pfad-Suffix");
+            self::assertSame(0, preg_match($apache, ltrim($target($p), '/')), "$p: das Ziel wird nicht noch einmal umgeschrieben");
+        }
+        // api.php selbst bleibt eine Datei (Pfad-Suffix wie bisher), alles andere geht nicht an die API
+        foreach (['/api.php', '/api.php/api/ingest', '/apidocs', '/api-x', '/public/js/api.js', '/public/api/x', '/index.php'] as $p) {
+            self::assertSame(0, preg_match($apache, ltrim($p, '/')), "$p: darf nicht auf api.php umgeschrieben werden");
+        }
+
+        // Größe des Körpers: Apache prüft LimitRequestBody am Ziel des Umschreibens. Die Ausnahme der
+        // Doku (LocationMatch, 256 MB) muss am Ziel genau die Routen treffen, die die App groß nennt
+        // (Farm v3.13.0: mit dem Ziel „api.php“ ohne Pfad gaben 9 MB an /api/backup/import 413).
+        $ws = (string)file_get_contents(self::root() . '/docs/betrieb/webserver.md');
+        self::assertSame(1, preg_match('#<LocationMatch "([^"]+)">\s*LimitRequestBody 268435456#', $ws, $loc), 'LocationMatch der Doku');
+        $src = (string)file_get_contents(self::root() . '/src/bootstrap.php');
+        preg_match_all('/\$r->(post|patch|put)\(\'([^\']+)\'/', $src, $routes);
+        $large = 0;
+        foreach (array_unique($routes[2]) as $route) {
+            $path = preg_replace('/\{[a-zA-Z_]+\}/', 'x1', $route);
+            $app = (bool)preg_match(\Energietracker\App::LARGE_BODY_ROUTES, $path);
+            $large += (int)$app;
+            self::assertSame($app, (bool)preg_match('#' . $loc[1] . '#', $target($path)), "$path: Apache am Ziel und App uneinig über die Körpergröße");
+        }
+        self::assertGreaterThanOrEqual(8, $large);
+
+        // Was PHP nach dem Umschreiben sieht (Apache: REQUEST_URI wie gesendet, SCRIPT_NAME das Ziel)
+        $saved = $_SERVER;
+        try {
+            foreach (['' => '/api/ingest', '/energietracker-acc' => '/api/ingest', '/energietracker' => '/api/mcp'] as $base => $route) {
+                $_SERVER = ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => "$base$route?x=1", 'SCRIPT_NAME' => "$base/api.php",
+                            'REDIRECT_HTTP_AUTHORIZATION' => 'Bearer et_probe'];
+                $req = new \Energietracker\Http\Request();
+                self::assertSame($route, $req->path, "$base: Route nach dem Umschreiben");
+                self::assertSame('et_probe', $req->bearerToken(), "$base: Token nach dem Umschreiben");
+                // der bisherige Weg bleibt
+                $_SERVER = ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => "$base/api.php$route", 'SCRIPT_NAME' => "$base/api.php"];
+                self::assertSame($route, (new \Energietracker\Http\Request())->path, "$base: api.php im Pfad");
+            }
+        } finally {
+            $_SERVER = $saved;
+        }
+    }
+
+    /**
      * v3.4.0 (N1020) — Größe des Körpers: nginx klein für alles, groß nur für
      * die Routen, die die App selbst als groß kennt (App::LARGE_BODY_ROUTES).
      * Abgeglichen an allen Routen aus bootstrap.php, unter /api/… und /api.php/api/….

@@ -5,6 +5,7 @@ namespace Energietracker\Tests\Http;
 
 use Energietracker\Tests\Support\HttpServerTestCase;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 /**
  * v3.12.0 — Eingabefehler über HTTP: falscher Typ → 400 mit Code (nie 500), kaputtes JSON
@@ -92,10 +93,32 @@ final class InputErrorsEndpointTest extends HttpServerTestCase
 
     /**
      * Ein gespeicherter Preis von 10³⁰⁸ ct (der Schreibweg und der Backup-Import nehmen ihn seit v3.12.0 nicht
-     * mehr an) macht die Kosten unendlich. Die Antwort war dann 200 mit leerem Körper, bei `/api/summary`
-     * sogar mit fünf Minuten Zwischenspeicher; jetzt ein ehrlicher Fehler mit ID, ohne Cache-Kopfzeile.
+     * mehr an) machte die Kosten unendlich. Die Antwort war dann 200 mit leerem Körper, bei `/api/summary`
+     * sogar mit fünf Minuten Zwischenspeicher; v3.12.0 machte daraus einen ehrlichen Fehler mit ID.
+     *
+     * v3.13.0 (K2d, bewusst geändert, Lektion 51) — derselbe Bestand bricht keinen Leseweg mehr: Die gemeinsame Regel
+     * (Support\FieldRules) liest den Preis als nicht eingetragen, die Antwort ist 200 mit endlichen Zahlen, und
+     * /api/health nennt den Fund. Dass eine Antwort, die sich nicht als JSON schreiben lässt, ein Fehler mit ID ist
+     * (keine leere 200), sichert der zweite Teil direkt an Response::json und ErrorHandler.
+     *
+     * Response::json beendet den Prozess. Im eigenen Prozess wird ein Fehlen der Ausnahme rot, statt PHPUnit still
+     * mit Exit 0 zu beenden.
      */
+    #[RunInSeparateProcess]
     public function testAResponseThatIsNoJsonIsAnErrorNotAnEmpty200(): void
+    {
+        try {
+            \Energietracker\Http\Response::json(['kosten' => INF]);
+            self::fail('INF als Antwort angenommen');
+        } catch (\RuntimeException $e) {
+            $d = \Energietracker\Http\ErrorHandler::describe($e, 'err_0123abcd');
+            self::assertSame(500, $d['status']);
+            self::assertSame('errors.http.internal', $d['payload']['code'] ?? null);
+            self::assertSame('err_0123abcd', $d['payload']['error_id'] ?? null);
+        }
+    }
+
+    public function testAVeryLargeStoredPriceIsLeftOutAndReported(): void
     {
         $this->startServer();
         $gas = $this->id('/api/utility/gas/meters');
@@ -115,11 +138,11 @@ final class InputErrorsEndpointTest extends HttpServerTestCase
         foreach (["/api/utility/gas/meters/$gas/consumption", '/api/summary'] as $p) {
             $r = $this->request('GET', $p, ['X-ET-Language: de']);
             $j = json_decode($r['body'], true);
-            self::assertSame(500, $r['status'], $p);
-            self::assertSame('errors.http.internal', $j['code'] ?? null, $p);
-            self::assertMatchesRegularExpression('/^err_[0-9a-f]{8}$/', (string)($j['error_id'] ?? ''), $p);
-            self::assertStringNotContainsString('max-age=300', (string)($r['headers']['cache-control'] ?? ''), "$p: ein Fehler wird nicht zwischengespeichert");
+            self::assertSame(200, $r['status'], "$p: " . substr($r['body'], 0, 300));
+            self::assertTrue($j['success'] ?? false, $p);
         }
+        $h = json_decode($this->request('GET', '/api/health')['body'], true)['data'] ?? [];
+        self::assertSame(1, $h['data_issues']['kinds']['number'] ?? null, json_encode($h['data_issues'] ?? null));
     }
 
     /**

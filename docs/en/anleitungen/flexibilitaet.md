@@ -592,8 +592,8 @@ data”
 This replaces all data of the installation; the app takes a snapshot first.
 Then **Insights → Flexibility**, year 2025.
 
-**Your lever.** The result card — and the tile on the overview — shows **€91**
-a year on the contract as it is, with a dynamic tariff up to **€251**, both
+**Your lever.** The result card — and the tile on the overview — shows **€86**
+a year on the contract as it is, with a dynamic tariff up to **€248**, both
 incl. VAT (wholesale price with the 19 % of the offer “Strom Dynamisch”):
 
 ```text
@@ -601,22 +601,22 @@ Appliance                       Price signal                              shifte
 Electric car (Wallbox)          Wholesale price, with a dynamic tariff   2,316 kWh     €140
 Heat pump                       Wholesale price, with a dynamic tariff     944 kWh      €52
 Heat pump                       Grid fee (module 3), on your tariff        878 kWh      €40
-Dishwasher (sample value)       Solar power, on your tariff                105 kWh      €23
-Battery                         Wholesale price, with a dynamic tariff     327 kWh      €19
-Washing machine (sample value)  Solar power, on your tariff                 78 kWh      €17
+Dishwasher (sample value)       Solar power, on your tariff                101 kWh      €22
+Battery                         Wholesale price, with a dynamic tariff     298 kWh      €19
 Dishwasher (sample value)       Wholesale price, with a dynamic tariff     261 kWh      €16
+Washing machine (sample value)  Solar power, on your tariff                 74 kWh      €16
 Washing machine (sample value)  Wholesale price, with a dynamic tariff     188 kWh      €12
-Electric car (Wallbox)          Solar power, on your tariff                 53 kWh      €11
+Electric car (Wallbox)          Solar power, on your tariff                 38 kWh       €8
 
-on your tariff                €40 (heat pump, module 3) + €23 + €17 (sun) + €11 (car, sun)  ≈ €91
-biggest lever per appliance   €140 (car) + €52 (heat pump) + €23 + €19 (battery) + €17      ≈ €251
+on your tariff                €40 (heat pump, module 3) + €22 + €16 (sun) + €8 (car, sun)  ≈ €86
+biggest lever per appliance   €140 (car) + €52 (heat pump) + €22 + €19 (battery) + €16      ≈ €248
 ```
 
 The car uses its **plug-in times from evcc** (153 charging sessions in 2025,
 all charging inside a charging window). With a dynamic tariff it would bring
 the most, charged at night in the winter half-year instead of right after
 plugging in in the evening, and in the cheapest midday hours in the summer
-half-year. With solar power it brings only €11: in summer it charges at noon
+half-year. With solar power it brings only €8: in summer it charges at noon
 anyway, in winter it is not there at noon. Under the assumption “whole
 charging day” — the way the page calculated before plug-in times — it would
 have been €65 with solar power and €154 with a dynamic tariff: the assumption
@@ -630,8 +630,8 @@ plug-in times from evcc) and “Run the heat pump more in the low grid tariff,
 15 o’clock as the cheapest window of the week, in the summer half-year even
 with prices below zero; the evening is expensive.
 
-**Solar power.** 3,570 of 9,198 kWh used at home (39 %); with the solar-power
-levers about 236 kWh more (41 %), €51 a year.
+**Solar power.** 3,426 of 9,566 kWh used at home (36 %); with the solar-power
+levers about 213 kWh more (38 %), €46 a year.
 
 **Checked** (level “Expert”):
 
@@ -639,10 +639,10 @@ levers about 236 kWh more (41 %), €51 a year.
 Meter                       with price  cheap  negative  own avg.  market avg.  profile factor  advantage
 Heat pump (controllable)     3,891 kWh   55 %   112 kWh   9.60 ct    10.08 ct        0.95          €18.78
 Wallbox (controllable)       2,618 kWh   48 %   469 kWh   9.41 ct     9.07 ct        1.04          −€9.01
-Household (grid import)      2,862 kWh   40 %   303 kWh  10.79 ct     9.41 ct        1.15         −€39.46
+Household (grid import)      2,995 kWh   40 %   284 kWh  10.89 ct     9.53 ct        1.14         −€40.81
 
-Battery      1,695 kWh charged at avg. 8.11 ct, 1,556 kWh discharged at avg. 11.61 ct
-             value = (1,555.91 × 11.612 − 1,694.70 × 8.114) ÷ 100 ≈ €43.15
+Battery      1,552 kWh charged at avg. 8.07 ct, 1,424 kWh discharged at avg. 11.61 ct
+             value = (1,424.16 × 11.609 − 1,551.64 × 8.071) ÷ 100 ≈ €40.09
 Module 3 (heat pump)
              1,512 kWh in the low tariff, 129 kWh in the high tariff, 2,250 kWh in the standard tariff
              saving = (1,511.79 × (8.1 − 2.4) + 129.41 × (8.1 − 11.9)) ÷ 100 ≈ €81.25

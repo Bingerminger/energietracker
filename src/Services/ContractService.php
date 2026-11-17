@@ -107,6 +107,18 @@ final class ContractService
         $this->activity = $activity;
     }
 
+    /**
+     * v3.13.0 (Paket wechsel) — die Einstellungen derselben Daten, für „Abschlag zählen“
+     * (effectiveAdvanceSchedule()). Aus dem eigenen Store, damit jede Instanz sie kennt (Container, Tests,
+     * Werkzeuge) und der Konstruktor bleibt, wie er ist; das Memo der Einstellungen folgt jedem Schreibvorgang.
+     */
+    private ?SettingsService $settings = null;
+
+    private function settings(): SettingsService
+    {
+        return $this->settings ??= new SettingsService($this->store);
+    }
+
     /** v3.7.0 — Zuständigkeit (`assignee_id`) gegen das Personenverzeichnis prüfen. */
     private ?ResponsibilityService $responsibility = null;
 
@@ -178,13 +190,18 @@ final class ContractService
         }
     }
 
+    /**
+     * v3.13.0 (K2d) — Verträge, wie die Rechnung sie sieht (Support\FieldRules::view): Ein Feld, das die Schreibwege
+     * heute abweisen (Vertragsende als Liste, Schatten als Text „false“ …), gilt als nicht eingetragen bzw. nach der
+     * einen Regel; ein Vertrag ohne brauchbaren Beginn fällt aus der Rechnung. Die Datei bleibt, wie sie ist. Bisher
+     * brach ein Vertragsende `[]` aus einer älteren Version Verbrauch, Übersicht und Zu tun mit 500 ab.
+     */
     public function list(string $utility, ?string $meterId = null): array
     {
         if (!Utilities::exists($utility)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
-        $all = $this->store->read("$utility/contracts.json", []);
-        if (!is_array($all)) $all = [];
+        $all = \Energietracker\Support\FieldRules::view($this->store, "$utility/contracts.json", 'contracts')[0];
         if ($meterId !== null) {
             // v3.1.0 (H6, #17) — eine Gruppen-ID liefert die Gruppenverträge
             $all = array_values(array_filter($all, fn($c) => ($c['meter_id'] ?? null) === $meterId
@@ -214,6 +231,7 @@ final class ContractService
         }
         // v3.12.0 — Liste, Objekt oder Zahl statt Text: 400 statt 500 (Support\Input)
         \Energietracker\Support\Input::assertTexts($input, self::TEXT_FIELDS);
+        \Energietracker\Support\TextLimits::assert($input, 'contracts');   // v3.13.0 (Paket F) — Höchstlängen
         // v3.1.0 (H6, #17) — Vertrag für eine Zählergruppe statt für einen Zähler
         $groupId = self::groupTarget($input);
         if ($groupId !== null) {
@@ -400,6 +418,16 @@ final class ContractService
         $oldAttachments = [];
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;
+            // v3.13.0 (Paket F) — Höchstlängen, nur Mitgeschicktes; eine Sonderzahlung oder ein Bonus wie gespeichert
+            // bleibt (BillService::book schickt die ganze Liste)
+            \Energietracker\Support\TextLimits::assert($input, 'contracts', $c);
+            // v3.13.0 — ein leerer oder fehlender Zähler (`""`, null) nur, wenn der Vertrag an einer Gruppe hängt (neu
+            // genannt oder gespeichert). Bisher übersprang die Prüfung oben leere Werte, und der Vertrag hing danach an
+            // nichts: Er fiel aus Saldo und Vertragsübersicht, sein Vorgänger galt als weiterlaufend.
+            if (array_key_exists('meter_id', $input) && ($input['meter_id'] === null || $input['meter_id'] === '')
+                && self::groupTarget($input) === null && empty($c['meter_group_id'])) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => '']));
+            }
             $oldAttachments = (array)($c['attachment_ids'] ?? []);   // v3.7.0
             $c = $this->withAssignee($c, $input, is_string($c['assignee_id'] ?? null) ? $c['assignee_id'] : null);   // v3.7.0
             $fields = $utility === 'wasser' ? $waterFields : $standardFields;
@@ -760,13 +788,14 @@ final class ContractService
         if ($bonus === null || $bonus === '' || $bonus === false) {
             $c['signup_bonus_eur'] = null;
         } else {
-            if (is_bool($bonus) || !is_numeric($bonus) || !is_finite((float)$bonus) || (float)$bonus > self::AMOUNT_MAX) {
+            $bonusNum = \Energietracker\Support\Input::decimal($bonus);   // v3.13.0 — Komma wie an jeder Zahl
+            if ($bonusNum === null || $bonusNum > self::AMOUNT_MAX) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNotNumeric'));
             }
-            if ((float)$bonus < 0) {
+            if ($bonusNum < 0) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNegative'));
             }
-            $c['signup_bonus_eur'] = (float)$bonus;
+            $c['signup_bonus_eur'] = $bonusNum;
         }
 
         // v3.7.0 (Posteingang) — Vertrags-/Kundennummer: kurzer Text, leer entfernt;
@@ -775,7 +804,7 @@ final class ContractService
             if (!array_key_exists($f, $c)) continue;
             $v = is_scalar($c[$f]) ? trim((string)$c[$f]) : '';
             if ($v === '') unset($c[$f]);
-            else $c[$f] = mb_substr($v, 0, 64);
+            else $c[$f] = $v;   // v3.13.0 (Paket F) — Länge prüft TextLimits::assert() (bisher still auf 64 gekürzt)
         }
         // v3.12.0 (m4b) — Anschrift des Anbieters für Briefe: bis zu vier Zeilen wie die Anschrift im
         // Haushalt (SettingsService::cleanLetterValue), leer entfernt; zu lang ist ein Fehler, nicht gekürzt
@@ -900,8 +929,9 @@ final class ContractService
         if (!empty($end) && ($mode === null || $mode === 'term_end')) {
             $switch   = date('Y-m-d', strtotime($end . ' +1 day'));
             $heatLaw  = $notice === null && $heat && self::renews($contract) && Dates::isIsoDate($end);
+            // v3.13.0 — die neun Monate nach § 32 AVBFernwärmeV wie jede Frist in Monaten (lastNoticeDay)
             $cancelBy = $notice !== null ? self::subNotice($end, $notice)
-                : ($heatLaw ? self::addMonthsClamped((string)$end, -self::HEAT_NOTICE_MONTHS) : null);
+                : ($heatLaw ? self::lastNoticeDay((string)$end, self::HEAT_NOTICE_MONTHS) : null);
             $out = [
                 'switch_date'    => $switch,
                 'cancel_by'      => $cancelBy,
@@ -965,23 +995,36 @@ final class ContractService
     /**
      * v3.11.0 (Skeptiker H3) — die laufende Verlängerung eines Fernwärmevertrags nach § 32 Abs. 1
      * AVBFernwärmeV: die erste Verlängerung um fünf Jahre ab dem Laufzeitende, deren Kündigungstag
-     * (neun Monate vor ihrem Ablauf) heute noch nicht vorbei ist. Monate am Monatsende geklemmt
-     * (Lektion 26). Ein abweichender Vertrag geht vor; das sagt der Text dazu.
+     * (neun Monate vor ihrem Ablauf) heute noch nicht vorbei ist. Ein abweichender Vertrag geht vor; das sagt der
+     * Text dazu.
+     * v3.13.0 — Die Verlängerung beginnt am Tag nach dem Ende und läuft fünf Jahre (§§ 187 Abs. 2, 188 Abs. 2 BGB):
+     * `until` = der Tag vor dem Tag mit derselben Zahl fünf Jahre nach dem Beginn; fehlt er (Beginn 29.02.), endet sie
+     * am 28.02. Bis v3.12 Ende + 60 Monate, geklemmt, bei einem Ende am 28.02. vor einem Schaltjahr einen Tag zu früh
+     * (28.02.2027 → 28.02.2032 statt 29.02.2032). Der Kündigungstag ist lastNoticeDay() wie bei jeder Frist in Monaten.
      *
      * @return array{until:string, cancel_by:string}
      */
     public static function heatRenewalTerm(string $end, string $today): array
     {
+        $next = (new \DateTimeImmutable($end))->modify('+1 day');
         for ($k = 1; $k <= 40; $k++) {
-            $until = self::addMonthsClamped($end, self::HEAT_RENEWAL_MONTHS * $k);
-            $cancelBy = self::addMonthsClamped($until, -self::HEAT_NOTICE_MONTHS);
+            // ohne Klemmen: Beginn 29.02. + fünf Jahre läuft auf den 01.03. über, der Tag davor ist der 28.02.
+            $until = $next->modify('+' . (self::HEAT_RENEWAL_MONTHS * $k) . ' months')->modify('-1 day')->format('Y-m-d');
+            $cancelBy = self::lastNoticeDay($until, self::HEAT_NOTICE_MONTHS);
             if ($cancelBy >= $today) return ['until' => $until, 'cancel_by' => $cancelBy];
         }
         return ['until' => $until, 'cancel_by' => $cancelBy];
     }
 
-    public static function hasFixedCancelBy(array $contract, bool $renewed = false): bool
+    /**
+     * v3.4.0 (F1024) — siehe oben. v3.13.0 — `$basis` aus switchTiming(): Die Verlängerung eines Fernwärmevertrags
+     * nach § 32 Abs. 1 AVBFernwärmeV (`renewal_term`) hat einen festen Kündigungstag, auch wenn der Vertrag schon
+     * weiterläuft. Bis v3.12 blendete `$renewed` ihn aus: „Kündigen bis …“ fehlte in „Zu tun“, im Kalender und in der
+     * Erinnerung. Ohne `$basis` wie bisher.
+     */
+    public static function hasFixedCancelBy(array $contract, bool $renewed = false, ?string $basis = null): bool
     {
+        if ($basis === 'renewal_term') return !empty($contract['end']);
         return !$renewed && !empty($contract['end'])
             && in_array($contract['notice_mode'] ?? null, [null, '', 'term_end'], true);
     }
@@ -1103,29 +1146,39 @@ final class ContractService
         return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
     }
 
-    /** Datum minus Frist — der letzte Tag, an dem die Kündigung zugehen muss. */
+    /**
+     * Ende minus Frist: der letzte Tag, an dem die Kündigung zugehen kann (Kündigungsstichtag). Tage: Ende minus
+     * Tage (§ 188 Abs. 1 BGB: Zugang am Tag D, die Frist endet mit Ablauf von D + Tage). Monate: lastNoticeDay().
+     */
     private static function subNotice(string $date, array $notice): string
     {
         if (($notice['days'] ?? null) !== null) {
             return (new \DateTimeImmutable($date))->modify('-' . (int)$notice['days'] . ' days')->format('Y-m-d');
         }
-        return self::subMonthsClamped($date, (int)($notice['months'] ?? 0));
+        return self::lastNoticeDay($date, (int)($notice['months'] ?? 0));
     }
 
     /**
-     * Monate abziehen, ohne in den Folgemonat zu rutschen.
+     * v3.13.0 — Kündigungsstichtag einer Frist von `$months` Monaten zum Ende `$end` (Rechtsgrundlagen Nr. 52): der
+     * letzte Tag, an dem die Kündigung zugehen kann, damit die Frist nach §§ 187 Abs. 1, 188 Abs. 2, 3 BGB spätestens
+     * mit dem Ablauf von `$end` endet. Vorwärts gerechnet: Zugang am Tag D, die Frist endet am Tag mit derselben Zahl
+     * `$months` Monate später, im kürzeren Monat an dessen Letztem.
+     *   - Endet der Vertrag am Monatsletzten, ist der Stichtag der Letzte des Monats `$months` davor: Jeder Zugang in
+     *     diesem Monat lässt die Frist spätestens am Monatsletzten enden (Ende 29.02.2028, ein Monat → 31.01.2028;
+     *     Ende 30.09.2029, sechs Monate → 31.03.2029).
+     *   - Sonst der Tag mit derselben Zahl, im kürzeren Monat dessen Letzter (Ende 15.05.2028 → 15.04.2028).
+     * Bis v3.12 immer der Tag mit derselben Zahl: bei einem Ende am Monatsletzten 1 bis 3 Tage zu früh, und an diesen
+     * Tagen hieß die Frist schon „verpasst“. § 193 BGB verschiebt den Stichtag nicht (BGH, III ZR 172/04).
      *
-     * PHPs `strtotime('2026-03-31 -1 month')` liefert **2026-03-03**: Es zieht
-     * den Monat ab, landet auf dem nicht existierenden 31. Februar und lässt
-     * den Überlauf stehen. Für eine Kündigungsfrist ist das Ergebnis nicht nur
-     * ungenau, sondern gefährlich — es nennt einen Stichtag vier Wochen nach
-     * dem echten. Deshalb wird der Tag auf den letzten des Zielmonats geklemmt.
+     * Über den Monatsersten gerechnet (den es in jedem Monat gibt): PHPs `strtotime('2026-03-31 -1 month')` liefert
+     * 2026-03-03, einen Stichtag vier Wochen nach dem echten (Lektion 26).
      */
-    private static function subMonthsClamped(string $date, int $months): string
+    public static function lastNoticeDay(string $end, int $months): string
     {
-        $d      = new \DateTimeImmutable($date);
-        $target = $d->modify('first day of this month')->sub(new \DateInterval("P{$months}M"));
-        $day    = min((int)$d->format('j'), (int)$target->format('t'));
+        $d      = new \DateTimeImmutable($end);
+        $target = $d->modify('first day of this month')->sub(new \DateInterval('P' . max(0, $months) . 'M'));
+        $len    = (int)$target->format('t');
+        $day    = (int)$d->format('j') === (int)$d->format('t') ? $len : min((int)$d->format('j'), $len);
         return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
     }
 
@@ -1153,19 +1206,22 @@ final class ContractService
      */
     private function parseAmount(mixed $value, string $label, int $n, bool $nonNegative = false): float
     {
-        if (is_bool($value) || !is_numeric($value) || !is_finite((float)$value)) {
+        // v3.13.0 — gelesen wie jede Zahl (Support\Input::decimal): „12,5“ ct ist 12,5 wie am Preis je Ablesung, an der
+        // Auszahlung und im Backup-Import (bis v3.12 wies nur der Vertrag das Komma ab)
+        $num = \Energietracker\Support\Input::decimal($value);
+        if ($num === null) {
             throw new \InvalidArgumentException(
                 $this->i18n->t('errors.contract.amountInvalid', ['label' => $label, 'n' => $n, 'value' => is_scalar($value) ? (string)$value : gettype($value)])
             );
         }
         // v3.12.0 — Grenzen: nie über AMOUNT_MAX (10³⁰⁸ legte Ansichten lahm), Preise und Abschläge nie negativ
         // (−1 ct/kWh oder −1 €/Monat wurden bisher angenommen)
-        if (abs((float)$value) > self::AMOUNT_MAX || ($nonNegative && (float)$value < 0)) {
+        if (abs($num) > self::AMOUNT_MAX || ($nonNegative && $num < 0)) {
             throw new LocalizedException('errors.contract.amountOutOfRange', [
                 'label' => $label, 'n' => $n, 'value' => (string)$value, 'min' => $nonNegative ? '0' : (string)-self::AMOUNT_MAX, 'max' => (string)self::AMOUNT_MAX,
             ], "contract amount out of range");
         }
-        return (float)$value;
+        return $num;
     }
 
     /**
@@ -1344,10 +1400,15 @@ final class ContractService
         return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
     }
 
-    /** v3.9.0 (F1034) — Hat die Zeile eines Abschlagsplans einen Rhythmus (nicht monatlich)? */
+    /**
+     * v3.9.0 (F1034) — Hat die Zeile eines Abschlagsplans einen Rhythmus (nicht monatlich)? Ihre Raten zählen dann
+     * ganz an ihrem Tag (installments()), nicht als Monatsanteil.
+     * v3.13.0 (Paket wechsel) — ebenso eine monatliche Zeile mit `due_day`: Das Kennzeichen setzt nur
+     * effectiveAdvanceSchedule() bei „ganze Rate am Fälligkeitstag“; gespeichert wird es nie.
+     */
     public static function hasRhythm(array $row): bool
     {
-        return (int)($row['every_months'] ?? 1) > 1 || !empty($row['due_dates']);
+        return (int)($row['every_months'] ?? 1) > 1 || !empty($row['due_dates']) || isset($row['due_day']);
     }
 
     /** Rhythmus einer Zeile zur Anzeige: every_months, sonst 1. */
@@ -1379,6 +1440,8 @@ final class ContractService
      * danach jährlich zu denselben Tagen: Die Rechnung nennt die Termine eines
      * Abrechnungsjahrs (etwa fünf, weil die sechste Rate die nächste Rechnung
      * ist); ohne neuen Plan geht es im selben Takt weiter.
+     * v3.13.0 (Paket wechsel) — eine monatliche Zeile mit `due_day` (ganze Rate am Fälligkeitstag): jeden Monat
+     * am Tag `due_day`, je Monat neu auf sein Ende geklemmt (31 → 28.02. → 31.03.), mit ihrem Betrag.
      *
      * @param array<int,array<string,mixed>> $plan Abschlagsplan (effectiveAdvanceSchedule)
      * @return list<array{date:string, amount_eur:float}>
@@ -1407,6 +1470,15 @@ final class ContractService
                         if ($x >= $lo) $dates[$x] = true;
                     }
                 }
+            } elseif (isset($r['due_day']) && self::everyMonths($r) === 1) {
+                $day = max(1, min(31, (int)$r['due_day']));
+                $month = new \DateTimeImmutable(substr($lo, 0, 7) . '-01');
+                for ($k = 0; $k <= 1200; $k++) {
+                    $m = $month->modify("+$k months");   // vom Monatsersten aus: kein Überlauf (Lektion 26)
+                    $x = $m->format('Y-m-') . sprintf('%02d', min($day, (int)$m->format('t')));
+                    if ($x >= $hi) break;
+                    if ($x >= $lo) $dates[$x] = true;
+                }
             } else {
                 $every = self::everyMonths($r);
                 for ($k = 0; $k <= 1200; $k++) {
@@ -1432,6 +1504,9 @@ final class ContractService
      *            sind, ganz an ihrem Tag (installments())
      *   planned  gilt überhaupt ein Plan (sonst ist der Abschlag null, nicht 0)
      * Ohne Zeilen mit Rhythmus ist `monthly` genau der bisherige Wert.
+     * v3.13.0 (Paket wechsel) — „ganze Rate am Fälligkeitstag“: Jede monatliche Zeile trägt dann `due_day` und zählt
+     * nur noch über `rates` (hasRhythm()); `monthly` bleibt null. Eine Rate am letzten Vertragstag zählt, eine vor
+     * dem Beginn nicht: Die Aufrufer übergeben die Vertragstage des Monats als [von, bis).
      *
      * @param array<int,array<string,mixed>> $plan
      * @return array{monthly: ?float, rates: list<array{date:string, amount_eur:float}>, planned: bool}
@@ -1451,6 +1526,21 @@ final class ContractService
         }
         $rates = self::installments($plan, $from, $toExcl);
         return ['monthly' => $monthly, 'rates' => $rates, 'planned' => $row !== null || $rates !== []];
+    }
+
+    /**
+     * v3.13.0 (Paket wechsel, Nachtrag 13.11.) — „Saldo heute“ und der nächste Termin: „Saldo heute“ zählt die Raten bis
+     * einschließlich heute (calendarSums, `<= $asOf`, seit v3.9); der nächste Termin der Karte und der Rechte-Prüfung ist
+     * darum der erste **nach** heute. Gibt die ausschließliche Grenze zurück, den Folgetag. Gilt für Raten mit Rhythmus
+     * und ganze Raten gleich.
+     * Nicht für einen Stand am Ablesetag: Eine Ablesung am Tag D ist die Grenze zu Beginn von D (`as_of` = D − 1); „Saldo
+     * am ‹Ablesung›“, Kachel und Abrechnungsjahr zählen nur die Raten **vor** D, wie den tagesanteiligen Teil. Eine Rate
+     * am Tag D gehört zum nächsten Zeitraum (Nachtrag 2: sonst zählte eine Jahresablesung am 01.01. mit Fälligkeitstag 1
+     * dreizehn Raten im alten Jahr).
+     */
+    public static function ratesThrough(string $day): string
+    {
+        return (new \DateTimeImmutable($day))->modify('+1 day')->format('Y-m-d');
     }
 
     /** advanceParts() als Betrag: Monatsanteil plus Raten, null ohne Plan. */
@@ -1664,6 +1754,13 @@ final class ContractService
      * Abschlagsbildung einfließt — ohne Sonderlogik in der Saldo-
      * Aggregation. Ohne Sonderzahlungen ist er `advance_payments`.
      *
+     * v3.13.0 (Paket wechsel) — **die eine Stelle für „Abschlag zählen“** (Einstellung `advance_counting`): Bei
+     * „ganze Rate am Fälligkeitstag“ trägt jede monatliche Zeile (auch eine aus einer Sonderzahlung „mit
+     * Auswirkung“) `due_day`. Sie zählt dann wie eine Zeile mit Rhythmus eine ganze Rate an jedem Fälligkeitstag in
+     * den Tagen, die der Aufrufer zählt (hasRhythm(), installments(), advanceParts()): Saldo, Monatszeilen, Prognose,
+     * Abrechnungsjahr, „Rechnung prüfen“, Werkstatt und Jahresbericht ziehen mit, weil sie ihren Plan von hier holen.
+     * Zeilen mit Rhythmus bleiben, wie sie sind. Tagesanteilig (Standard): der Plan wie bisher, Feld für Feld.
+     *
      * @return array<int,array{from:string,amount_eur:float}>
      */
     public function effectiveAdvanceSchedule(array $contract): array
@@ -1693,6 +1790,14 @@ final class ContractService
             ] + self::rhythmFields(self::planRowOn($base, (string)$from) ?? []);
         }
         usort($schedule, fn($a, $b) => strcmp($a['from'], $b['from']));
+        // v3.13.0 (Paket wechsel) — erst nach dem Einmischen: auch die Zeile einer Sonderzahlung „mit Auswirkung“
+        $dueDay = $schedule === [] ? null : $this->settings()->advanceDueDay();
+        if ($dueDay !== null) {
+            foreach ($schedule as &$row) {
+                if (!self::hasRhythm($row)) $row['due_day'] = $dueDay;
+            }
+            unset($row);
+        }
         return $schedule;
     }
 
@@ -2379,8 +2484,8 @@ final class ContractService
         $others = [];
         foreach (Utilities::keys() as $u) {
             if ($u === $utility || !Utilities::hasContracts($u)) continue;
-            $rows = $this->store->read("$u/contracts.json", []);
-            $others[$u] = is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
+            // v3.13.0 (K2d) — wie list(): die Sicht der Rechnung (Support\FieldRules::view)
+            $others[$u] = \Energietracker\Support\FieldRules::view($this->store, "$u/contracts.json", 'contracts')[0];
         }
         $documents = [];
         $inbox = $this->store->exists('inbox.json') ? $this->store->read('inbox.json', []) : [];
@@ -2744,7 +2849,8 @@ final class ContractService
         // v3.7.0 — Schalter „ohne USt“: die Beträge stehen netto am Vertrag; gerechnet
         // wird brutto (FlexibilityService::gridTouByMonth). Fehlt er, gelten sie wie
         // eingetragen (brutto) — so bleiben gespeicherte Verträge, wie sie sind.
-        if (filter_var($in['net'] ?? false, FILTER_VALIDATE_BOOLEAN)) $out['net'] = true;
+        // v3.13.0 — nach der einen Regel (Input::flag): FILTER_VALIDATE_BOOLEAN kannte „ja“ nicht und nahm Unsinn als nein
+        if (\Energietracker\Support\Input::flag($in['net'] ?? false, 'grid_tou.net')) $out['net'] = true;
         return $out;
     }
 

@@ -35,7 +35,7 @@ final class ExportController
         $utility = (string)$req->param('utility');
         [$format, $lang] = $this->options($req);
         Response::csv(
-            $this->export->periods($utility, $this->periods?->list($utility) ?? [], $format, $lang),
+            $this->export->periods($utility, $this->periods?->stored($utility) ?? [], $format, $lang),
             $this->export->filename('periods', $utility, $format, $lang)
         );
     }

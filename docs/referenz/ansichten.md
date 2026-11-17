@@ -91,8 +91,8 @@ Seite gar keine; „Auswertungen“ in der Seitenleiste führt Einsteiger seit v
 Jahresbericht. Ein Link, ein Lesezeichen oder eine alte Adresse öffnet eine
 ausgeblendete Seite trotzdem. Darüber steht dann der Hinweis „Diese Seite
 gehört zur Stufe „Erfahren“. Sie ist trotzdem offen.“ mit **„Auf „Erfahren“
-umstellen“** und ✕ — so etwa, wenn ein Einsteiger in der Verbrauchsansicht
-auf „Zähler“ tippt. Einzelheiten:
+umstellen“** und ✕ — so etwa, wenn ein Einsteiger einer Empfehlung zu
+„Wechsel prüfen“ folgt. Einzelheiten:
 [Einrichten und Nutzungsstufen](../einstieg/einrichtung.md#3-nutzungsstufen).
 
 ![Navigation am Mac](../ui/screenshots/navigation-mac.png)
@@ -410,6 +410,9 @@ Stufe das Willkommen.
   „Noch kein Vertrag mit Abschlag erfasst.“ mit dem Link „Vertrag eintragen“.
   *(v3.9.0)* Ein Gruppenvertrag steht einmal mit dem Namen der Gruppe, etwa
   „Strom (Wärmepumpe (HT/NT))“, auch wenn seine Zähler Subzähler sind.
+  *(v3.13.0)* Hat der Vertrag keinen Arbeitspreis, steht dort „Preis fehlt“ mit dem
+  Link „Arbeitspreis im Vertrag eintragen“ statt eines Betrags „zurück“; ebenso in der
+  Kachel der Verbrauchsart.
 - **„Mehr oder weniger als im Vorjahr?“** — je Verbrauchsart die letzten
   zwölf Monate gegen dieselben Monate ein Jahr zuvor, ab sechs vergleichbaren
   Monaten: „… mehr als im Vorjahr“, „… weniger als im Vorjahr“ oder unter 2 %
@@ -574,6 +577,9 @@ die App je auffälliger Karte nach (Titel: Verbrauchsart · Zähler); „Ersetze
 aktualisiert den vorhandenen Stand statt einen zweiten anzulegen. Wer ablehnt,
 behält die Eingabe, die Karte zeigt „Nicht gespeichert: bitte prüfen".
 Details: [Zählerstände → Plausibilität](../verstehen/11-zaehlerstaende.md).
+*(v3.13.0)* Bei Gas, Fernwärme, Heizwärme und Wärmepumpe misst der Sprung am Wetter: erwartet wird die Menge
+nach den Temperaturen seit dem vorigen Stand, der Heizbeginn gilt nicht mehr als Tippfehler
+([Nach dem Wetter](../verstehen/11-zaehlerstaende.md#nach-dem-wetter-v3130)).
 
 **Seit v2.12.0:**
 
@@ -675,8 +681,9 @@ woher die Periode kommt (Rechnung oder Stichtag) und bis zu welcher Ablesung
 gerechnet ist. Kennzahlen, Monatsdiagramm und Monatstabelle folgen der Periode;
 der erste und der letzte Monat sind Teilmonate, wenn der Stichtag mitten im
 Monat liegt. Menge und Kosten rechnet der Server wie *Rechnung prüfen*
-(tagesanteilig), die Abschläge tagesanteilig; der Saldo zieht zusätzliche
-Abschlagszahlungen ab. Das Diagramm vergleicht mit der **Vorperiode**. Die
+(tagesanteilig), die Abschläge tagesanteilig (mit „Abschläge zählen: ganze Rate
+am Fälligkeitstag“ jede Rate ganz in der Periode ihres Tags, seit v3.13.0); der
+Saldo zieht zusätzliche Abschlagszahlungen ab. Das Diagramm vergleicht mit der **Vorperiode**. Die
 Adresse trägt die Periode (`?period=2025-09-01`). Nur Gas, Strom, Wasser und
 Fernwärme mit Zählerständen haben Abrechnungsjahre; die übrigen Arten bleiben
 beim Kalenderjahr und sagen das, wenn das Gerät Abrechnungsjahre zeigt.
@@ -757,6 +764,10 @@ Euro da, und ein Satz nennt die Breite: „Je nach Wetter und Schätzung ca. …
 ca. … (80 %, … Tage geschätzt).“ Bei unsicherer Schätzung bleibt es bei der
 Spanne mit Grund ([Grundlagen §10](../verstehen/00-overview.md#10-saldo-bis-heute)).
 Ohne Vertrag zeigt die Kachel „Kosten“ seit v3.9.0 „kein Vertrag“ statt 0,00 €.
+*(v3.13.0)* Gilt in einem Monat des Jahres (bzw. im Abrechnungsjahr) ein Vertrag ohne
+Arbeitspreis, zeigt sie „Preis fehlt“ mit dem Link „Arbeitspreis im Vertrag eintragen“
+statt eines Betrags (der nur Grundpreis wäre); die Zeile „Saldo“ darunter und die
+kurze Saldo-Karte im Überblick ebenso.
 
 **Gemessen und geschätzt getrennt (v3.10.0, GitHub #49):** Der Saldo der
 Karte zählt nur bis zur letzten Ablesung: Über der Karte steht „Gemessen vom
@@ -1004,9 +1015,8 @@ Lieferungen. Ab „Erfahren“ kommen die CO₂-Kachel, der Umschalter
 sowie die Karten „Rechnung prüfen“ und „Ladevorgänge aus evcc“ dazu, seit
 v3.7.0 auch Ladestrom-Nachweis, Wärmepumpe und bei der PV-Erzeugung Speicher,
 Amortisation und Hinweise (bis v3.6 Experte). Erst „Experte“ zeigt
-Warmwasser-Wärme und CO₂-Preis im Brennstoff. Der Knopf „Zähler“ im Kopf der Ansicht führt in die
-Zählerverwaltung; sie gehört zur Stufe „Erfahren“, Einsteiger sehen sie mit
-dem Hinweis von oben.
+Warmwasser-Wärme und CO₂-Preis im Brennstoff. Der Knopf „Zähler“ im Kopf der Ansicht führt nach
+Haushalt → Zähler; die Seite steht seit v3.12.0 jeder Stufe offen (bis v3.11 ab Erfahren).
 
 ![Gas-Ansicht](../ui/screenshots/gas-view.png)
 
@@ -1747,7 +1757,7 @@ Kalender-App: [Fristen im Kalender](../anleitungen/kalender.md).
 
 ### Erledigt (v3.4.0, unter Hinweise)
 
-Der dritte Tab unter **Hinweise**, ab Stufe „Erfahren“: der Verlauf
+Seit v3.12.0 **Zu tun → Verlauf**, in jeder Stufe (bis v3.11 der dritte Tab unter Hinweise, ab Erfahren): der Verlauf
 erledigter Hinweise, nach Monaten gruppiert, das Neueste oben, mit der Zahl
 der Einträge je Monat.
 
@@ -1813,19 +1823,31 @@ Maximum eine gefüllte Fläche, das Mittel die Linie darin.
 
 ## 11. Einstellungen
 
-Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
+Seit v2.12.0 Unterseiten statt einer langen Seite; seit **v3.12.0** sind Haushalt und Verbindungen eigene
+Bereiche, die Einstellungen haben sieben Seiten. Die Stufe je Seite prüft ein Test gegen den Code
+(`tests/levels.test.mjs`):
 
-| Seite | Inhalt | ab Stufe (v3.2.0) |
+| Seite | Inhalt | ab Stufe |
 |---|---|---|
-| Allgemein | seit v3.2.0 oben „Nutzungsstufe und Einrichtung“ und, mit Anmeldung, „Mein Konto“; Sprache & Land, Übersicht (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen | Einsteiger; die Gruppen „Anzeige“ und „Erinnerungen“ ab Erfahren |
-| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; seit v3.1.0 „Wohnen und Warmwasser“ und „Eigene Vergleichswerte“ (für die Einordnung); Wasser-Referenzwerte mit der Zahl der Personen im Haushalt; seit v3.9.0 „Personen im Haushalt“: Namen für „Zuständig“ anlegen, umbenennen und löschen, auch ohne Anmeldung ([Benutzer im Haushalt](../anleitungen/benutzer.md#personen-im-haushalt-v390)) | Einsteiger; „Eigene Vergleichswerte“ und „Wasser-Referenzwerte“ ab Erfahren |
-| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten (seit v3.1.0 auch Heizwärme), alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren (seit v3.1.0 mit „CO₂ vermieden durch PV“), seit v3.1.0 „Photovoltaik“ (angenommener Eigenverbrauch eines Balkonkraftwerks), seit v3.9.0 „Messkonzept“ (Assistent, unten) | Einsteiger; Physikalische Konstanten, Heizwerte und seit v3.7.0 Photovoltaik ab Erfahren, CO₂-Faktoren ab Experte |
-| Wetterdaten | §10 | Erfahren |
-| Daten | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Demo-Daten; Verweis zum Jahresbericht | Einsteiger |
-| Integrationen | Home-Assistant-Anbindung; seit v3.9.0 „Benachrichtigungen an Home Assistant“; seit v3.12.0 „KI-Assistenten (MCP)“ (nur Verwalter, unten) | Erfahren |
-| Zugriff | seit v3.4.0 „Sicherheits-Check“ (liefert der Webserver `data/` aus?, Proxy-Kopfzeile, offener Betrieb ohne Hostliste), Anmeldung & Zugriff mit „Überall abmelden“, seit v3.2.0 „Benutzer und Rechte“, Einbetten, seit v3.4.0 „Hostnamen“ | Experte |
-| Experte | seit v3.7.0 oben die Karte „Auslesen“ (Lokal \| Cloud), seit v3.1.0 Belege (Speichergrenze) und Texterkennung im Heimnetz, seit v3.2.0 „evcc im Heimnetz“, seit v3.10.0 „Verbindungen im Heimnetz“; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis | Experte |
-| System | Version, Lizenz, seit v3.4.0 „Energietracker unterstützen“, Sicherheits-Check (v3.4.0), System-Diagnose | Experte |
+| Einstellungen → Übersicht | Suche, „Für dich“: Nutzungsstufe und Einrichtung, eigene Sprache, Darstellung, mit Anmeldung „Mein Konto“; korrigierte Standardwerte | Einsteiger |
+| Einstellungen → Region und Sprache | Vorgabe der Sprache, Land, Währung, Zeitzone | Einsteiger |
+| Einstellungen → Anzeige und Erinnerungen | Hinweis auf neue Versionen, Unterstützen, Umgebung; Anzeige (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen | Einsteiger; die Gruppen „Anzeige“ und „Erinnerungen“ ab Erfahren |
+| Einstellungen → Daten und Sicherung | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Beispieldaten, Belege (Speichergrenze); Verweis zum Jahresbericht | Einsteiger; Belege ab Experte |
+| Einstellungen → Zugang und Sicherheit | „Sicherheits-Check“ (liefert der Webserver `data/` aus?, Proxy-Kopfzeile, offener Betrieb ohne Hostliste), Anmeldung mit „Überall abmelden“, „Benutzer und Rechte“, Einbetten, „Hostnamen“ | Experte |
+| Einstellungen → Rechnen | mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, CO₂-Faktoren (seit v3.1.0 mit „CO₂ vermieden durch PV“), CO₂-Preis, korrigierte Standardwerte | Experte |
+| Einstellungen → System | Version, Lizenz, „Energietracker unterstützen“, System-Diagnose | Experte |
+| Haushalt → Zähler | alle Zähler an einem Ort, Filter je Art (§12) | Einsteiger |
+| Haushalt → Personen | „Personen im Haushalt“: Namen für „Zuständig“ anlegen, umbenennen und löschen, auch ohne Anmeldung ([Benutzer im Haushalt](../anleitungen/benutzer.md#personen-im-haushalt-v390)) | Einsteiger |
+| Haushalt → Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; „Angaben für Briefe“; „Wohnen und Warmwasser“; „Eigene Vergleichswerte“ (für die Einordnung); Wasser-Referenzwerte mit der Zahl der Personen im Haushalt | Einsteiger; „Eigene Vergleichswerte“ und „Wasser-Referenzwerte“ ab Erfahren |
+| Haushalt → Verbrauchsarten | aktive Verbrauchsarten (seit v3.1.0 auch Heizwärme), „Messkonzept“ (Assistent, unten), alle Abrechnungsstichtage in einer Karte, „Abschläge zählen“ (unten), Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, eigene Werte der Flexibilität, „Photovoltaik“ (angenommener Eigenverbrauch eines Balkonkraftwerks) | Einsteiger; Abschläge zählen, Physikalische Konstanten, Heizwerte, Flexibilität und Photovoltaik ab Erfahren |
+| Verbindungen → Post und Fotos auslesen | Karte „Auslesen“ (Lokal \| Cloud), Texterkennung der Zählerfotos, Eingangskanäle | Einsteiger |
+| Verbindungen → Home Assistant | Token, Zähler zuordnen, „Benachrichtigungen an Home Assistant“, Vorlagen | Erfahren |
+| Verbindungen → Wetterdaten | §10 | Erfahren |
+| Verbindungen → evcc | „evcc im Heimnetz“ | Experte |
+| Verbindungen → Kalender | Kalender-Abo | Einsteiger |
+| Verbindungen → KI-Assistenten | „KI-Assistenten (MCP)“, nur Verwalter (unten) | Erfahren |
+| Verbindungen → Schlüssel | API-Schlüssel für Skripte, nur Verwalter | Experte |
+| Verbindungen → Sicherheit im Heimnetz | „Verbindungen im Heimnetz“: eigenes Stammzertifikat, „nicht prüfen“ | Experte |
 
 Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
 die erst bei einer Änderung erscheint. Wer die Seite mit ungespeicherten
@@ -1861,7 +1883,7 @@ Papier). Höchstens einmal im Quartal je Gerät: Nach einem
 Hinweis vergehen mindestens 92 Tage bis zum nächsten. Nie in der Demo und nie
 als Dialog, der etwas verdeckt. „Nicht mehr zeigen“ schaltet ihn ab, ebenso
 die Einstellung *Hinweis aufs Unterstützen zeigen* unter Einstellungen →
-Allgemein ([`support_hint`](einstellungen.md#unterstützen-v3100)).
+Anzeige und Erinnerungen ([`support_hint`](einstellungen.md#unterstützen-v3100)).
 
 **Seit v2.13.0:** 18 Felder mehr tragen einen Hinweis, was sie bewirken. Die
 Karte der Abrechnungsstichtage führt die **PV-Einspeisung** (ihre Vergütung
@@ -1871,12 +1893,25 @@ stehen die Prognosemodelle mit Namen statt Schlüssel, und die **Breite des
 Prognosebands** ist pflegbar (seit v2.8.0 wirksam, bisher nur per API). Die
 Home-Assistant-Karte verlinkt die Anleitung in der passenden Sprache.
 
+**Abschläge zählen (v3.13.0, Haushalt → Verbrauchsarten):** Eine Auswahl für
+alle Verträge, ab Erfahren. **„Tagesanteilig (Standard)“** zählt einen
+monatlichen Abschlag nach den Vertragstagen im Monat, wie bis v3.12.
+**„Ganze Rate am Fälligkeitstag“** zählt an jedem Fälligkeitstag im Vertrag eine
+ganze Rate; nur dann erscheinen das Feld **„Fälligkeitstag“** (1 bis 31, in
+kürzeren Monaten der letzte Tag) und eine Warnung: Wer nach dem Rat aus v3.12.0
+die volle Rate als Sonderzahlung gebucht hat, zählt sie nach dem Umschalten
+doppelt. Der Hinweis unter der Auswahl rechnet das Beispiel aus
+[Saldo bis heute](../verstehen/00-overview.md#10-saldo-bis-heute) vor, das ⓘ am
+Titel erklärt den Abschlag. Mit ganzer Rate nennt die Saldo-Karte den nächsten
+Termin („nächster Termin: …“) wie bei einem Abschlag mit Rhythmus
+([Einstellungen](einstellungen.md#abschläge-zählen-v3130)).
+
 Der PDF-Jahresbericht steht seit v2.11.0
 unter Auswertungen. Nach Demo-Daten, Backup-Import oder Wiederherstellung
 startet die App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum
 neuen Stand passen.
 
-**Nutzungsstufe und Einrichtung (v3.2.0, Seite Allgemein):** Die Karte
+**Nutzungsstufe und Einrichtung (v3.2.0, Seite Übersicht):** Die Karte
 „Nutzungsstufe und Einrichtung“ steht ganz oben. Der Hinweis sagt „Bestimmt, was die Oberfläche zeigt —
 gerechnet wird in jeder Stufe alles.“ und für wen die Stufe gilt: „Gilt für
 alle Geräte dieser Installation.“ bzw. mit Anmeldung „Gilt für dich (…) auf
@@ -1893,7 +1928,7 @@ API-Schlüssel, System.“ Die Knöpfe **„Einrichtungsassistent starten“** (
 und seit v3.7.0 **„Was kann ich auf welcher Stufe?“**
 ([Funktionstabelle](stufen.md)) schließen die Karte ab.
 
-**Mein Konto (v3.2.0, Seite Allgemein):** Nur mit Anmeldung und einer
+**Mein Konto (v3.2.0, Seite Übersicht):** Nur mit Anmeldung und einer
 angemeldeten Person — **„Mein Konto: {Name}“** mit der Rolle
 („Verwaltung“ oder „Mitglied“). Wer sich mit Passwort anmeldet, ändert es
 hier mit „Bisheriges Passwort“, „Neues Passwort“ (mindestens 8 Zeichen) und
@@ -1901,7 +1936,7 @@ hier mit „Bisheriges Passwort“, „Neues Passwort“ (mindestens 8 Zeichen) 
 vorgeschalteten Dienst; das Passwort wird dort geändert.“
 ([Benutzer im Haushalt](../anleitungen/benutzer.md)).
 
-Darunter die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
+**Sprache & Land (v2.7.0, Seite Region und Sprache):** Sprache, Land, Währung und
 Zeitzone, alle mit sofortiger Wirkung. Seit v3.1.0 gibt es zwei
 Sprachfelder:
 
@@ -1935,9 +1970,9 @@ Standardwerte, steht oben **„Neuere Standardwerte verfügbar"** mit bisher und
 neu und dem Knopf „Neue Werte übernehmen". Ist nur der Standard-Gasfaktor
 11,5 aktiv, weist die Gasfaktor-Tabelle darauf hin.
 
-**Einbetten** (seit v2.6.0, Seite Zugriff): Adressen, die die App einbetten
+**Einbetten** (seit v2.6.0, Seite Zugang und Sicherheit): Adressen, die die App einbetten
 dürfen, etwa ein Home-Assistant-Dashboard. Die **Home-Assistant-Anbindung
-(F1009)** auf der Seite Integrationen
+(F1009)** unter Verbindungen → Home Assistant
 — API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
 kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
 Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft. Der
@@ -1976,7 +2011,7 @@ werden soll. Seit v3.1.0 steht über den Knöpfen, sobald es Belege gibt, die
 Zeile „Belege im Backup: 12 Dateien, 3,4 MB von 500 MB.“; ab
 80 % der Grenze in Warnfarbe mit „Der Speicher für Belege ist fast voll.“
 
-**Wohnen und Warmwasser (v3.1.0, Seite Haushalt & Gebäude):** Die Karte steht
+**Wohnen und Warmwasser (v3.1.0, Haushalt → Gebäude):** Die Karte steht
 zwischen „Gebäude & Effizienz“ und den Wasser-Referenzwerten. „Ich wohne“ — „im
 Eigentum“ oder „zur Miete“; zur Miete erscheint unter Kosten & Verträge die
 Seite [Mietverhältnis](#mietverhältnis-v310). „Heizwärme kommt aus“ und
@@ -1984,8 +2019,8 @@ Seite [Mietverhältnis](#mietverhältnis-v310). „Heizwärme kommt aus“ und
 Angabe“; „Warmwassertemperatur“ in °C
 ([Einstellungen](einstellungen.md#wohnen-und-warmwasser-v310)).
 
-**Belege und Texterkennung (v3.1.0, Seite Experte):** Zwei Gruppen oben auf der
-Seite, vor dem eingeklappten Teil „Rechenparameter anzeigen“ — sie sind keine
+**Belege und Texterkennung (v3.1.0; seit v3.12.0 die Belege unter Einstellungen → Daten und Sicherung, ab
+Experte, die Texterkennung unter Verbindungen → Post und Fotos auslesen):** Zwei Gruppen, keine
 Rechenparameter. **Belege** mit „Speicher für Belege, höchstens“
 (`attachments_max_mb`). **Texterkennung im Heimnetz** mit „Modell“ und
 „Zeitlimit“; „Adresse des Dienstes“ und „Schnittstelle“ (Ollama oder
@@ -1995,8 +2030,8 @@ gelassen bleibt die Texterkennung aus
 ([Einstellungen](einstellungen.md#texterkennung-im-heimnetz-v310),
 [Anleitung](../anleitungen/texterkennung.md)).
 
-**Auslesen (v3.7.0, Seite Experte):** Die Karte steht als erste vor dem
-eingeklappten Teil. Der Umschalter **Lokal | Cloud (experimentell)** ist die
+**Auslesen (v3.7.0; seit v3.12.0 unter Verbindungen → Post und Fotos auslesen, in jeder Stufe):** Die Karte
+steht dort als erste. Der Umschalter **Lokal | Cloud (experimentell)** ist die
 Wahl, wer die Post im Posteingang ausliest (`inbox_provider`). „Lokal“: Adresse
 und Schnittstelle des eigenen Diensts (mit dem Satz, dass sie auch für die
 Zählerfotos gelten), „Verbindung prüfen“, Textmodell und Zeitlimit je Schritt.
@@ -2006,16 +2041,15 @@ OpenRouter, Google Gemini, eigene Adresse), Schlüssel (nie angezeigt, nur
 „Eingeschaltet“. Eigene Taste „Speichern“; Umschalter und Cloud-Felder ändern nur
 Verwalter ([Posteingang](../anleitungen/posteingang.md#auslesen-einrichten)).
 
-**evcc im Heimnetz (v3.2.0, Seite Experte):** Die Gruppe steht neben Belegen
-und Texterkennung vor dem eingeklappten Teil. Ihr Feld **„Adresse von evcc“**
+**evcc im Heimnetz (v3.2.0; seit v3.12.0 unter Verbindungen → evcc, ab Experte):** Das Feld **„Adresse von evcc“**
 (`evcc_endpoint`) nimmt die Adresse, unter der evcc im Browser läuft, etwa
 `http://192.168.178.30:7070` oder `http://evcc.local:7070`; nur Adressen im
 eigenen Netz. Leer bleibt der Abruf aus — die CSV-Datei aus evcc geht immer.
 Mit Adresse zeigt die Karte „Ladevorgänge aus evcc“ den Knopf „Von evcc
 abrufen“ (§3, [Ladevorgänge aus evcc](../anleitungen/evcc.md)).
 
-**Verbindungen im Heimnetz (v3.10.0, Seite Experte):** Die Gruppe steht
-neben evcc vor dem eingeklappten Teil, für Home Assistant, Texterkennung, das
+**Verbindungen im Heimnetz (v3.10.0; seit v3.12.0 unter Verbindungen → Sicherheit im Heimnetz, ab Experte):**
+Für Home Assistant, Texterkennung, das
 Auslesen im Heimnetz und evcc über `https://` mit selbst ausgestellten
 Zertifikaten. **„Eigenes Stammzertifikat (PEM)“** ist ein Textfeld für den
 Text ab `-----BEGIN CERTIFICATE-----`; es gilt zusätzlich zu den üblichen
@@ -2027,7 +2061,7 @@ viele gelten und ob die Datei aus `ET_CA_FILE` lesbar ist. Nur Verwalter
 
 ![Verbindungen im Heimnetz](../ui/screenshots/einstellungen-heimnetz.png)
 
-**CO₂-Preis (v3.1.0, Seite Experte, unter „Rechenparameter anzeigen“):** Die
+**CO₂-Preis (v3.1.0; seit v3.12.0 unter Einstellungen → Rechnen):** Die
 Gruppe mit „CO₂-Preis je Jahr“ — einer Tabelle Jahr → €/t mit Löschen je
 Zeile und den Feldern Jahr und €/t zum Hinzufügen; eigene Werte gehen dem
 Länderprofil vor —, „Szenario: CO₂-Preis“ (Vorbelegung der Prognose, leer =
@@ -2048,10 +2082,10 @@ Personen angelegt (v3.2.0), fehlen hier die Felder zum Ändern des Passworts;
 an ihrer Stelle steht „Jede Person ändert ihr Passwort unter Einstellungen → Für dich →
 Mein Konto.“
 
-**Personen im Haushalt (v3.9.0, Seite Haushalt & Gebäude):** Die Karte steht
+**Personen im Haushalt (v3.9.0, Haushalt → Personen):** Die Karte steht
 in jeder Stufe und auch ohne Anmeldung. Sie listet alle Personen mit Nummer;
 Personen ohne Zugang haben **„Umbenennen“** und **„Person löschen“** (derselbe
-Dialog wie unter Zugriff), Personen mit Zugang den Vermerk „mit Zugang“ ohne
+Dialog wie unter Zugang und Sicherheit), Personen mit Zugang den Vermerk „mit Zugang“ ohne
 Knöpfe. Darunter das Feld **„Neue Person“** (Platzhalter „Name, etwa Anna“) mit
 **„Hinzufügen“**; Enter genügt, danach steht der Fokus wieder im Feld, und die
 Meldung sagt „… steht jetzt unter „Zuständig“ zur Wahl.“ Mitglieder sehen nur
@@ -2062,7 +2096,7 @@ Wasser-Spar-Index heißt seitdem „Anzahl der Personen“
 
 ![Personen im Haushalt](../ui/screenshots/personen.png)
 
-**Benutzer und Rechte (v3.2.0, Seite Zugriff):** Mit eingeschalteter
+**Benutzer und Rechte (v3.2.0, Seite Zugang und Sicherheit):** Mit eingeschalteter
 Anmeldung folgt unter „Anmeldung & Zugriff“ die Karte **„Benutzer und
 Rechte“** mit dem Hinweis „Jede Person meldet sich mit Name und Passwort an
 und hat ihre eigene Stufe und Sprache. Die Daten des Haushalts teilen sich
@@ -2083,7 +2117,7 @@ Installation verwalten.“). Ohne Anmeldung zeigt die Karte seit v3.9.0 nur den
 Hinweis, dass eigene Zugänge erst mit der Anmeldung entstehen, und den Knopf
 **„Zu den Personen“**; eine zweite Personenliste gibt es dort nicht mehr.
 
-Die Seite Zugriff zeigt einem **Mitglied** nur „Den Zugriff verwaltet, wer
+Die Seite Zugang und Sicherheit zeigt einem **Mitglied** nur „Den Zugriff verwaltet, wer
 die Installation verwaltet. Dein eigenes Passwort änderst du unter
 Einstellungen → Für dich.“ Was nur Verwalter dürfen — Personen,
 API-Schlüssel und Anmeldung, Backup oder Snapshot einspielen, Beispieldaten
@@ -2092,7 +2126,7 @@ Benachrichtigungen an Home Assistant —, lehnt der Server
 für Mitglieder mit „Das darf nur, wer die Installation verwaltet.“ ab
 ([Benutzer im Haushalt](../anleitungen/benutzer.md)).
 
-**Benachrichtigungen an Home Assistant (v3.9.0, Seite Integrationen):** Die
+**Benachrichtigungen an Home Assistant (v3.9.0, Verbindungen → Home Assistant):** Die
 Karte steht neben der Home-Assistant-Anbindung. Oben ein Satz, was gemeldet
 wird, und „Die Nachrichten gehen nur an dein Home Assistant. Nichts verlässt das
 Heimnetz, außer du trägst selbst eine Adresse außerhalb ein.“ Darunter der
@@ -2110,7 +2144,7 @@ dürfen nur Verwalter
 
 ![Benachrichtigungen an Home Assistant](../ui/screenshots/ha-benachrichtigungen.png)
 
-**KI-Assistenten (MCP) (v3.12.0, Seite Integrationen, nur Verwalter):** Drei
+**KI-Assistenten (MCP) (v3.12.0, Verbindungen → KI-Assistenten, nur Verwalter):** Drei
 Karten. Die schmale Karte **„KI-Assistenten (MCP)“** steht neben den Karten für
 Home Assistant: oben der Stand („Ausgeschaltet“, „Eingeschaltet, aber noch ohne
 Schlüssel“, „Eingeschaltet“ oder „Gesperrt“, wenn der Betreiber `ET_MCP=off`
@@ -2151,7 +2185,7 @@ das **Zugriffsprotokoll** (Zeit, Schlüssel, Programm, Aufruf, Ergebnis, Dauer),
 neueste zuerst, ab 51 Einträgen zum Blättern. „Aktualisieren“ lädt beides neu.
 Mitglieder sehen die drei Karten nicht.
 
-**Messkonzept (v3.9.0, Seite Verbrauchsarten & Abrechnung):** Die Karte
+**Messkonzept (v3.9.0, Haushalt → Verbrauchsarten):** Die Karte
 „Messkonzept“ fragt „PV, Wärmepumpe oder Wallbox mit eigenem Tarif?“ und öffnet mit
 **„Messkonzept einrichten“** den Assistenten aus §12, auch in der öffentlichen
 Demo (dort speichert er nichts).
@@ -2434,7 +2468,9 @@ Vorschau zeigt jede Zeile mit ihrer Wirkung — neu, ersetzt den vorhandenen
 Stand (mit altem Wert) oder unverändert — und den Rückfragen der Erfassung:
 Rückgang, Sprung, Größenordnung, Zukunft, doppeltes Datum. Auffällige Zeilen
 stehen immer in der Liste, unauffällige bis 50. Erst „N Zeilen importieren"
-schreibt; „Andere Datei wählen" beginnt von vorn.
+schreibt; „Andere Datei wählen" beginnt von vorn. *(v3.13.0)* Bei Heizarten misst
+der Sprung wie in der Erfassung am Wetter; die Erwartung kommt für alle Zeilen in
+einer Anfrage ([Zählerstände → Nach dem Wetter](../verstehen/11-zaehlerstaende.md#nach-dem-wetter-v3130)).
 
 Seit v3.1.0 liest der Import Tabellen in jeder Sprache der App: Spaltennamen
 wie „Date“, „Index“ oder „Lectura“, das Datum als `TT.MM.JJJJ`, `TT/MM/JJJJ`,

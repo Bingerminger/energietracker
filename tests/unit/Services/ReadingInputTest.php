@@ -140,7 +140,8 @@ final class ReadingInputTest extends ServiceTestCase
     public function testAnUnrepresentableCounterOrALineBreakInTheDateIsRejected(): void
     {
         // 1e308 machte Verbrauch und Kosten unendlich (die Antwort blieb leer)
-        self::assertStringStartsWith('msg:', $this->code(fn() => $this->readings->create('strom', ['meter_id' => $this->meterId, 'date' => '2025-02-14', 'counter' => 1e308])));
+        // v3.13.0 — über der Grenze mit der Grenze in der Meldung (numberOutOfRange), nicht mehr „eine Zahl ab 0“
+        self::assertSame('errors.common.numberOutOfRange', $this->code(fn() => $this->readings->create('strom', ['meter_id' => $this->meterId, 'date' => '2025-02-14', 'counter' => 1e308])));
         self::assertSame('ok', $this->code(fn() => $this->readings->create('strom', ['meter_id' => $this->meterId, 'date' => '2025-02-15', 'counter' => 999999999999])));
         self::assertStringStartsWith('msg:', $this->code(fn() => $this->readings->create('strom', ['meter_id' => $this->meterId, 'date' => "2025-02-16\n", 'counter' => 5])));
     }

@@ -59,7 +59,9 @@ final class InboxService
     public const ID = '/^inb_[0-9a-f]{12}$/';
     public const STATUSES = ['new', 'queued', 'read', 'failed', 'done', 'filed'];
     private const CACHE_KEEP = 3;
-    private const NOTE_MAX = 500;
+    private const NOTE_MAX = \Energietracker\Support\TextLimits::SHORT_NOTE;   // v3.13.0 — aus der Liste der Grenzen
+    /** v3.13.0 (Paket F) — korrigierter Text eines Felds (Versorger, Nummer, Tarif); bisher still auf 200 gekürzt */
+    private const EDIT_TEXT_MAX = \Energietracker\Support\TextLimits::DOC_VALUE;
 
     private ?ActivityService $activity = null;
 
@@ -260,8 +262,14 @@ final class InboxService
                     $e['type_confidence'] = null;
                     $e['extraction'] = null;
                     $e['edits'] = [];
+                    unset($e['item_edits']);   // v3.13.0 (Paket F)
                     $e['status'] = InboxSchema::extracts($type) ? 'new' : 'filed';
                 }
+            }
+            // v3.13.0 (Paket F) — Listenfelder je Eintrag: bestätigen, korrigieren, verwerfen (null: wie gelesen)
+            if (array_key_exists('item_edits', $patch)) {
+                $ie = \Energietracker\Services\Inbox\ItemEdits::patch($e, $patch['item_edits']);
+                if ($ie === []) unset($e['item_edits']); else $e['item_edits'] = $ie;
             }
             if (array_key_exists('edits', $patch)) {
                 if (!is_array($patch['edits'])) throw new LocalizedException('errors.inbox.editInvalid', ['field' => '', 'value' => ''], 'edits');
@@ -289,7 +297,12 @@ final class InboxService
                 // v3.12.0 (Nachprüfung C1) — eine Person hat es abgelegt (anders als das Abheften nach dem Erkennen, classify())
                 if ($s === 'filed') $e['filed_by_person'] = true; else unset($e['filed_by_person']);
             }
-            if (array_key_exists('note', $patch)) $e['note'] = mb_substr(trim((string)$patch['note']), 0, self::NOTE_MAX);
+            // v3.13.0 (Paket F) — zu lang ist ein Fehler mit Feld und Grenze (bisher still gekürzt)
+            if (array_key_exists('note', $patch)) {
+                \Energietracker\Support\Input::assertTexts($patch, ['note']);
+                \Energietracker\Support\TextLimits::assert($patch, 'inbox');
+                $e['note'] = trim((string)$patch['note']);
+            }
             return $e;
         })));
     }
@@ -377,7 +390,7 @@ final class InboxService
         }
         $fields = Evidence::check($type, (array)($r['fields'] ?? []), $pages);
         // v3.7.0 (treffsicher) — gespeichert werden die Marken nach dem Bestand (Proposals::marks)
-        $probe = ['type' => $type, 'extraction' => ['fields' => $fields], 'edits' => [], 'assignment' => $e['assignment'] ?? null] + $e;
+        $probe = ['type' => $type, 'extraction' => ['fields' => $fields], 'edits' => [], 'item_edits' => [], 'assignment' => $e['assignment'] ?? null] + $e;
         $probe = $this->proposals->marks($probe, is_array($e['assignment'] ?? null) ? $e['assignment'] : $this->proposals->suggest($probe));
         $fields = $probe['extraction']['fields'];
         $flags = Evidence::flagCount($fields);
@@ -396,6 +409,7 @@ final class InboxService
                 'text' => ['chars' => $prep['text']['chars'], 'kept' => $prep['text']['kept'], 'dropped' => $prep['text']['dropped'], 'truncated' => $prep['text']['truncated']],
             ];
             $x['edits'] = [];
+            unset($x['item_edits']);   // v3.13.0 (Paket F) — neue Auslesung, neue Stellen: Entscheidungen je Eintrag gelten nicht mehr
             if (!in_array($x['status'] ?? 'new', ['done'], true)) $x['status'] = 'read';
             $x['error'] = null;
             return $x;
@@ -432,7 +446,9 @@ final class InboxService
         // v3.12.0 (Nachprüfung C1) — auch nicht, was eine Person abgelegt hat: `read_document` machte daraus wieder `read`, `next: propose_document`.
         // Von früher ohne Kennung: abgelegt, obwohl die Art ausgelesen wird, kann nur eine Person gewesen sein. Nur erkannt (Mahnung, Sonstiges) bleibt offen.
         $filed = ($e['status'] ?? '') === 'filed' && (!empty($e['filed_by_person']) || InboxSchema::extracts((string)($e['type'] ?? '')));
-        if ($filed || (array)($e['edits'] ?? []) !== [] || ($e['status'] ?? '') === 'done' || (array)($e['applied'] ?? []) !== []) {
+        // v3.13.0 (Paket F) — ebenso Entscheidungen je Eintrag einer Liste (bestätigt, korrigiert, verworfen)
+        if ($filed || (array)($e['edits'] ?? []) !== [] || (array)($e['item_edits'] ?? []) !== [] || ($e['status'] ?? '') === 'done'
+            || (array)($e['applied'] ?? []) !== []) {
             throw new LocalizedException('errors.mcp.document.alreadyChecked', ['id' => $id], 'client: already checked');
         }
         $model = mb_substr(trim($model), 0, 80);
@@ -442,7 +458,7 @@ final class InboxService
         if (InboxSchema::extracts($type)) {
             $checked = Evidence::check($type, $fields, $pages);
             // wie extract(): gespeichert werden die Marken nach dem Bestand
-            $probe = ['type' => $type, 'extraction' => ['fields' => $checked], 'edits' => [], 'assignment' => $e['assignment'] ?? null] + $e;
+            $probe = ['type' => $type, 'extraction' => ['fields' => $checked], 'edits' => [], 'item_edits' => [], 'assignment' => $e['assignment'] ?? null] + $e;
             $probe = $this->proposals->marks($probe, is_array($e['assignment'] ?? null) ? $e['assignment'] : $this->proposals->suggest($probe));
             $extraction['fields'] = $probe['extraction']['fields'];
             $extraction['flags'] = Evidence::flagCount($extraction['fields']);
@@ -453,6 +469,7 @@ final class InboxService
             $x['pages'] = count($pages);
             $x['extraction'] = $extraction;
             $x['edits'] = [];
+            unset($x['item_edits']);   // v3.13.0 (Paket F)
             // nur erkannt (Mahnung, Widerruf, Sonstiges): abgelegt wie nach classify()
             $x['status'] = InboxSchema::extracts($type) ? 'read' : 'filed';
             $x['error'] = null;
@@ -556,9 +573,13 @@ final class InboxService
         $schema = [];
         foreach (InboxSchema::fields($type) as $name => $f) {
             $schema[$name] = array_filter(['kind' => $f['kind'], 'core' => !empty($f['core']), 'review' => !empty($f['review']), 'aux' => !empty($f['aux']),
-                'options' => $f['options'] ?? null, 'items' => isset($f['items']) ? array_map(fn($i) => $i['kind'], $f['items']) : null], fn($v) => $v !== null);
+                'options' => $f['options'] ?? null, 'items' => isset($f['items']) ? array_map(fn($i) => $i['kind'], $f['items']) : null,
+                // v3.13.0 (Paket F) — Auswahlwerte der Unterfelder, für das Korrigieren eines Eintrags (additiv)
+                'item_options' => isset($f['items']) ? (array_filter(array_map(fn($i) => $i['options'] ?? null, $f['items'])) ?: null) : null],
+                fn($v) => $v !== null);
         }
-        $entry = $e;
+        // v3.13.0 (Paket F) — Einträge der Listen mit Entscheidung und Herkunft (die Vorschläge rechnen ohne Verworfene)
+        $entry = \Energietracker\Services\Inbox\ItemEdits::annotate($e);
         unset($entry['cache']);
         $proposals = $this->proposals->build($this->withDuplicates($e, $dups), $as);
         return [
@@ -684,7 +705,9 @@ final class InboxService
             $proposals ??= $this->proposals->build($this->withDuplicates($e, $dups), $as);
             $e['duplicates'] = array_map(fn($d) => ['id' => $d['id'], 'name' => $d['name'] ?? '', 'created_at' => $d['created_at'] ?? '',
                 'status' => $d['status'] ?? 'new'], $dups);
-            return $this->gist->describe($e, $as, $proposals);
+            // v3.13.0 (Paket F) — die Kernaussage rechnet wie die Vorschläge mit den Entscheidungen je Listeneintrag
+            // (Summe der Abschläge, Vorzeichen des Ergebnisses)
+            return $this->gist->describe(\Energietracker\Services\Inbox\ItemEdits::apply($e), $as, $proposals);
         } catch (\Throwable) {
             return null;
         }
@@ -793,6 +816,8 @@ final class InboxService
                 $rows = !empty($f['items']) ? $f['items'] : [$f];
                 foreach ($rows as $i => $row) {
                     if (($row['status'] ?? '') !== 'check') continue;
+                    // v3.13.0 (Paket F) — schon entschieden (bestätigt, korrigiert, verworfen)
+                    if (!empty($f['items']) && \Energietracker\Services\Inbox\ItemEdits::decided($e, (string)$name, (int)$i)) continue;
                     $out[] = ['entry_id' => $e['id'], 'name' => $e['name'] ?? '', 'type' => $e['type'], 'field' => $name,
                               'item' => !empty($f['items']) ? $i : null, 'value' => $row['value'] ?? null,
                               'quote' => $row['quote'] ?? null, 'page' => $row['page'] ?? null, 'reasons' => $row['reasons'] ?? []];
@@ -979,7 +1004,9 @@ final class InboxService
             default:
                 $v = is_scalar($value) ? trim((string)$value) : '';
                 if ($v === '') throw $bad();
-                return mb_substr($v, 0, 200);
+                // v3.13.0 (Paket F) — zu lang: Fehler mit Grenze statt still gekürzt
+                if (mb_strlen($v) > self::EDIT_TEXT_MAX) throw \Energietracker\Support\TextLimits::tooLong($field, self::EDIT_TEXT_MAX, mb_strlen($v));
+                return $v;
         }
     }
 }

@@ -60,7 +60,13 @@ final class InboxDraftService
     {
         $all = $this->inbox->all();
         $out = $all;
-        foreach ($all as $i => $e) $out[$i]['duplicate_of'] = $this->inbox->olderDuplicateOf($e, $all);
+        foreach ($all as $i => $e) {
+            // v3.13.0 (Paket F) — Entscheidungen je Listeneintrag gelten auch für den Entwurf (bestätigt, korrigiert,
+            // verworfen); die Sicht ist in sich geschlossen, ihre Stellen sind die der Sicht
+            $out[$i] = \Energietracker\Services\Inbox\ItemEdits::apply($e);
+            unset($out[$i]['item_edits']);
+            $out[$i]['duplicate_of'] = $this->inbox->olderDuplicateOf($e, $all);
+        }
         return $out;
     }
 

@@ -5,7 +5,7 @@
 // Ohne Server. Ob das Feld im echten Browser in den Blick kommt, prüft die Abnahme.
 // =====================================================================
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -48,6 +48,19 @@ const defaults = [...php.match(/const DEFAULTS\s*=\s*\[([\s\S]*?)\n\s*\];/)[1].m
 const OHNE_WIRKUNG = ['min_temp_days_forecast', 'baujahr', 'billing_cycle_anchor_heizoel', 'billing_cycle_anchor_pellets'];
 t('DEFAULTS gelesen', defaults.length > 100, String(defaults.length));
 
+// v3.13.0 — Karten mit Feldern, statisch aus den Ansichten: Überschrift aus t('…'), Felder aus data-field="…"
+const CARDS = [];
+for (const f of readdirSync(resolve(ROOT, 'public/js/views')).filter(x => x.endsWith('.js'))) {
+  for (const block of read(`public/js/views/${f}`).split(/<div class="card[ "]/).slice(1)) {
+    const title = block.match(/card__title">(?:\$\{icon\([^)]*\)\}\s*)?\$\{(?:escapeHtml\()?t\('([^']+)'\)/)?.[1];
+    const fields = [...new Set([...block.matchAll(/data-field="([a-z0-9_]+)"/g)].map(m => m[1]))];
+    if (title && fields.length) CARDS.push({ file: f, title, fields });
+  }
+}
+// Alte Namen eines Begriffs (tests/fixtures/termbase.json, avoid), die zu einer Einstellung gehören
+const TERMS = JSON.parse(read('tests/fixtures/termbase.json')).terms.filter(x => x.setting);
+t('Termbase: mindestens ein Begriff mit Einstellung (Heizgrenze)', TERMS.some(x => x.setting === 'hdd_base_temp'));
+
 const who = { admin: true, login: true, isAllowed: () => true };
 for (const lang of LANGS) {
   await setLang(lang);
@@ -62,6 +75,24 @@ for (const lang of LANGS) {
   for (const e of index) {
     const hit = searchIndex(index, e.title, who).shown.some(x => x.key === e.key);
     t(`${lang}: „${e.title}“ findet ${e.key}`, hit);
+  }
+  const finds = (q, key) => searchIndex(index, q, who).shown.some(x => x.key === key);
+  // v3.13.0 — jede Überschrift einer Karte unter Verbindungen findet ihre Felder, ganz und ohne die Klammer
+  // („Standort (für Open-Meteo)“ und „Standort“); bis v3.12 fand die Suche den Standort nur als „Ortsname“
+  const underConnections = CARDS.map(c => ({ ...c, fields: c.fields.filter(k => index.find(e => e.key === k)?.href.startsWith('#/connections/')) }))
+    .filter(c => c.fields.length);
+  t(`${lang}: Karten mit Feldern unter Verbindungen gefunden`, underConnections.some(c => c.file === 'temperatures.js'), underConnections.map(c => c.title).join(' '));
+  for (const c of underConnections) {
+    const head = i18n.t(c.title);
+    for (const word of new Set([head, head.split(' (')[0]])) {
+      for (const k of c.fields) t(`${lang}: Überschrift „${word}“ (${c.file}) findet ${k}`, finds(word, k));
+    }
+  }
+  // Der Name, den die Einrichtung dem Standort gibt („Wetterort“)
+  for (const k of ['location_name', 'latitude', 'longitude']) t(`${lang}: „${i18n.t('setup.region.weather')}“ findet ${k}`, finds(i18n.t('setup.region.weather'), k));
+  // Frühere Namen einer Einstellung bleiben Suchwörter
+  for (const term of TERMS) {
+    for (const old of term.avoid?.[lang] || []) t(`${lang}: früherer Name „${old}“ findet ${term.setting}`, finds(old, term.setting));
   }
 }
 await setLang('de');
@@ -87,6 +118,22 @@ t('Groß, klein, Akzent', normalize('ZÄHLER Straße') === 'zahler strasse');
 for (const [q, key] of [['Sprache', 'language'], ['Stichtag', 'billing_cycle_anchor_gas'], ['Passwort', 'my_account'], ['zaehler', 'meters'], ['Wohnfläche', 'wohnflaeche_m2'], ['wohnflache', 'wohnflaeche_m2'], ['Rechnung prüfen', 'bill_check'], ['Vertragsfrist', 'contract_remind_days_1'], ['Vorwarnung', 'contract_remind_days_1'], ['Heizgrenze', 'hdd_base_temp'], ['Messkonzept', 'concept'], ['Hell', 'theme']]) {
   t(`Suche „${q}“ findet ${key}`, found(q, who).shown.some(e => e.key === key), found(q, who).shown.slice(0, 4).map(e => e.key).join(' '));
 }
+// v3.13.0 — der Standort heißt in der App „Wetterort“ (Einrichtung) und „Standort (für Open-Meteo)“ (Karte unter
+// Verbindungen › Wetterdaten), die Heizgrenze hieß bis v3.12 „HGT-Basistemperatur“
+for (const [q, key] of [['Wetterort', 'location_name'], ['Standort', 'location_name'], ['Standort', 'latitude'], ['Wetterort', 'weather_auto_fill'],
+  ['HGT-Basistemperatur', 'hdd_base_temp'], ['HGT Basistemperatur', 'hdd_base_temp']]) {
+  t(`Suche „${q}“ findet ${key}`, found(q, who).shown.some(e => e.key === key), found(q, who).shown.slice(0, 4).map(e => e.key).join(' '));
+}
+// … und so sagt es die Referenz (DE): jedes Wort in „…“ des Absatzes findet etwas, die Heizgrenze und den Ort
+{
+  const doc = read('docs/referenz/einstellungen.md');
+  const para = doc.slice(doc.indexOf('**Die Suche kennt auch frühere Namen'), doc.indexOf('*(v3.13.0)*', doc.indexOf('**Die Suche kennt auch frühere Namen')));
+  const words = [...para.matchAll(/„([^“]+)“/g)].map(m => m[1]);
+  t('Referenz: Absatz zur Suche mit drei Beispielen', words.length === 3, words.join(' | '));
+  t('Referenz: jedes Beispiel findet sein Feld', words.length === 3 && found(words[0], who).shown.some(e => e.key === 'hdd_base_temp')
+    && words.slice(1).every(w => found(w, who).shown.some(e => e.key === 'location_name')), words.join(' | '));
+}
+t('Alter Name: nur die Heizgrenze', found('HGT-Basistemperatur', who).shown.map(e => e.key).join(' ') === 'hdd_base_temp', found('HGT-Basistemperatur', who).shown.map(e => e.key).join(' '));
 t('Bester Treffer zuerst', found('Wohnfläche', who).shown[0]?.key === 'wohnflaeche_m2', found('Wohnfläche', who).shown[0]?.key);
 t('Mehrere Wörter: alle müssen passen', found('Gas Stichtag', who).shown.some(e => e.key === 'billing_cycle_anchor_gas') && !found('Gas Stichtag', who).shown.some(e => e.key === 'billing_cycle_anchor_strom'));
 t('Leere Suche: nichts', !found('   ', who).shown.length);

@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.12.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.13.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -47,7 +47,7 @@
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
 | [CO₂-Kosten mit dem Vermieter teilen](anleitungen/co2-aufteilung.md) | Anteil des Vermieters nach CO2KostAufG: bei eigener Gastherme ausrechnen und einfordern, bei Zentralheizung die Abrechnung prüfen; Frist und Anschreiben |
-| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“; *seit v3.12.0* die HACS-Integration (Sensoren ohne YAML) |
+| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“; *seit v3.12.0* die Integration aus dem Marketplace (ehemals HACS), Sensoren ohne YAML |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Zählerstände aus anderen Systemen senden: gemeinsamer Vertrag und je ein Rezept |
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
 | [Einen Brief schreiben](anleitungen/brief-schreiben.md) | Drei Wege zum Brief (Hinweis, Rechnung prüfen, Vertragskarte); *v3.12.0:* Abschlagsanpassung und Kündigung auch ohne Hinweis; *v3.11.0:* Brief zu einem Hinweis „Deine Rechte als Kunde“: fünf feste Vorlagen, immer Deutsch, vorbelegt aus Vertrag und Zähler, als PDF für den Fensterumschlag oder als Text; nichts gespeichert; als verschickt markieren |
@@ -114,6 +114,8 @@
 | [Release-Prozess](entwicklung/release-prozess.md) | Versionierung, CHANGELOG, Doku-Pflege, Lessons Learned |
 | [Screenshots](entwicklung/screenshots.md) | Wie die Bilder dieser Doku entstehen |
 | [Messung mit großen Datenmengen](entwicklung/messung-grosse-daten.md) | Antwortzeiten bei zehn und zwanzig Jahren Tageswerten, Schwelle für N1006 (Caching und Speicher-Umbau) |
+| [Messung: Normal der Einstrahlung](entwicklung/messung-einstrahlung.md) | Welcher Schätzer die Einstrahlung des nächsten Jahres trifft (acht Großstädte, 2001 bis 2025): Trend statt flaches Mittel |
+| [Messung: Trend der Temperatur](entwicklung/messung-temperaturtrend.md) | Welches Normal die Heizgradtage des nächsten Jahres trifft (zehn DWD-Stationen, 2001 bis 2025): Trend statt flaches Mittel, nur für die Wärmepumpe |
 
 Mitwirken: [CONTRIBUTING.de.md](../CONTRIBUTING.de.md) ·
 Sicherheitslücken: [SECURITY.md](../SECURITY.md) ·

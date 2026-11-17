@@ -27,8 +27,18 @@ abstract class ToolGroup
         return $this->householdMask ??= (new Tools\DocumentTools($this->services))->mask([]);
     }
 
+    /** Anbieter und Tarif: nur die bekannten Nummern ersetzt (sie selbst gelten nicht als Kennnummer). */
     protected function masked(string $text): string
     {
         return $this->householdMask()->known($text);
+    }
+
+    /**
+     * v3.13.0 — Härtung: Namen und Titel (Zähler, Gruppe, Termin, Hinweis, Rechte-Hinweis) bekommen dazu den zweiten Schritt
+     * wie Zitate und Notizen: Was danach noch wie eine Nummer aussieht, wird ersetzt (IdentifierMask::name).
+     */
+    protected function maskedName(string $text): string
+    {
+        return $this->householdMask()->name($text);
     }
 }

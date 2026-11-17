@@ -125,7 +125,10 @@ tariff comparison, in the help. The **glossary is the termbase** —
 `glossary.<id>.term` is the canonical form per language.
 `tests/fixtures/termbase.json` lists per term the canonical form (`use`) and
 the variants that must no longer appear (`avoid`); `allowKeys` names deliberate
-exceptions, `csv.*` is exempt. Test: `testTermbase`.
+exceptions, `csv.*` is exempt. Test: `testTermbase`. *(v3.13.0)* A term with
+`follow` also works the other way round: wherever the German text names it,
+every language uses its canonical form (`testTermbaseFollowsTheGermanTerm`,
+for now the heating limit).
 
 | German | English | French | Italian | Spanish | Portuguese | Dutch |
 |---|---|---|---|---|---|---|
@@ -137,6 +140,9 @@ exceptions, `csv.*` is exempt. Test: `testTermbase`.
 | Zustandszahl | correction factor | coefficient de correction | coefficiente di correzione | coeficiente de corrección | coeficiente de correção | volumeherleidingsfactor |
 | Verbrauchsart | utility | type de consommation | utenza | suministro | serviço | verbruikssoort |
 | Subzähler | sub-meter | sous-compteur | sottocontatore | subcontador | subcontador | tussenmeter |
+| Heizgrenze | heating limit | température de non-chauffage | soglia di riscaldamento | umbral de calefacción | limiar de aquecimento | stookgrens |
+| Snapshot | snapshot | instantané | istantanea | instantánea | instantâneo | momentopname |
+| Jahresbericht | annual report | rapport annuel | relazione annuale | informe anual | relatório anual | jaarverslag |
 
 The complete list is in the file. Names of the utilities follow the catalogue
 `utilityNames.*` (heating oil is “Huisbrandolie” in Dutch). What an item is

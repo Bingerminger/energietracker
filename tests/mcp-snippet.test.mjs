@@ -182,6 +182,22 @@ const KEY = 'etk_0123456789abcdef0123456789abcdef0123456789abcdef';
     const fields = mcpBlocks('openwebui', { url: DOC_URL })[0].text;
     ok(fields.includes('Type: MCP (Streamable HTTP)') && web.includes('MCP (Streamable HTTP)'), `${rel}: Open WebUI Typ`);
     ok(fields.includes('Auth: Bearer') && web.includes('**Bearer**'), `${rel}: Open WebUI Bearer`);
+    // v3.13.0 — Import-Text: derselbe Eintrag, mit dem die Farm Open WebUI 0.13.3 über
+    // TOOL_SERVER_CONNECTIONS verbindet (tools/farm/demo.sh), dort nur mit "config". Der Import
+    // im Fenster ergänzt "config" selbst; über die Umgebungsvariable nennt die Anleitung es.
+    const rawWeb = md.slice(md.indexOf('\n### Open WebUI\n'), md.indexOf('\n## ', md.indexOf('\n### Open WebUI\n')));
+    const imp = parse(/```json\s*\n\s*(\[[^\n]*\])\s*\n\s*```/.exec(rawWeb)?.[1] ?? '');
+    const farm = parse((/printf '(\[\{"type":"mcp"[^']*)'/.exec(readFileSync(join(ROOT, 'tools/farm/demo.sh'), 'utf8'))?.[1] ?? '')
+      .replace('%s', 'URL').replace('%s', 'KEY'));
+    ok(Array.isArray(imp) && imp.length === 1 && imp[0].type === 'mcp' && imp[0].auth_type === 'bearer'
+      && imp[0].info?.id === 'energietracker' && /\/api\/mcp$/.test(imp[0].url) && !('config' in imp[0]), `${rel}: Import-Text für Open WebUI`);
+    ok(Array.isArray(farm) && farm[0]?.config?.enable === true, 'tools/farm/demo.sh: Werkzeugserver mit config.enable');
+    if (Array.isArray(imp) && Array.isArray(farm)) {
+      const { config, ...rest } = farm[0];
+      sameJson(JSON.stringify({ ...imp[0], url: 'URL', key: 'KEY' }), JSON.stringify(rest), `${rel}: Import-Text = Eintrag der Farm ohne config`);
+      ok(rawWeb.includes('`TOOL_SERVER_CONNECTIONS`') && rawWeb.includes('`' + JSON.stringify({ config }).slice(1, -1) + '`'),
+        `${rel}: Hinweis auf "config":{"enable":true} bei TOOL_SERVER_CONNECTIONS`);
+    }
     // kein zweiter Name für dieselbe Sache
     ok(!/ET_MCP_KEY|et-key/.test(md), `${rel}: alte Namen`);
     for (const c of MCP_CLIENTS) ok(md.includes(c.label), `${rel}: nennt ${c.label}`);

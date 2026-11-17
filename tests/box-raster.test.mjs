@@ -106,15 +106,103 @@ function pruefe() {
   return befunde;
 }
 
+/**
+ * v3.13.0 (Paket K2e) — Läuft im Browser: Knöpfe und Links einer Tabelle stehen im sichtbaren Rahmen (.table-wrap).
+ * Über 900 px wischt eine breite Tabelle in ihrem Rahmen quer; bis v3.12 lagen dabei „Rechnung erfassen/prüfen“ und
+ * „Ansehen“ der früheren Verträge zwischen 900 und 1280 px rechts außerhalb, ohne Hinweis aufs Wischen, bei Heizöl die
+ * Knöpfe einer Lieferung bei 900 px. Geprüft werden die Zeilen; ein Erklär-Knopf im Kopf gehört zu seiner Spalte und
+ * wischt mit ihr.
+ */
+function knoepfeImRahmen() {
+  const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 1 && r.height > 1 && s.display !== 'none' && s.visibility !== 'hidden'; };
+  const out = [];
+  for (const wrap of document.querySelectorAll('#view .table-wrap')) {
+    if (!vis(wrap)) continue;
+    const w = wrap.getBoundingClientRect();
+    const left = w.left + wrap.clientLeft, right = left + wrap.clientWidth;
+    for (const b of wrap.querySelectorAll('tbody button, tbody a.btn, tbody a[href], tbody [role="button"]')) {
+      if (!vis(b)) continue;
+      const r = b.getBoundingClientRect();
+      if (r.right > right + 1 || r.left < left - 1) out.push(`Knopf außerhalb des Tabellenrahmens|${(b.textContent || b.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().slice(0, 30)}`);
+    }
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * v3.13.0 — Breite Tabellen mit Aktionen am Zeilenende: Wischt die Tabelle in ihrem Rahmen quer, bleiben die Knöpfe
+ * der letzten Spalte im Rahmen (angeheftet, `.spalte-aktionen`). Ob eine Tabelle bei 900 bis 1280 px wirklich wischt,
+ * hängt an Inhalt, Sprache und Schrift; die Prüfung oben fängt das Fehlen der Spalte nur dann. Hier wird die Tabelle
+ * deshalb breiter gemacht als ihr Rahmen, und das Ergebnis hängt nicht mehr an den Beispieldaten.
+ */
+const BREIT = ['/todo/dates', '/contracts/past', '/utility/heizoel?view=readings', '/inbox'];
+
+/** Läuft im Browser: Tabellen mit Knöpfen am Zeilenende, breiter als ihr Rahmen gemacht. */
+function knoepfeBeimWischen() {
+  const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 1 && r.height > 1 && s.display !== 'none' && s.visibility !== 'hidden'; };
+  const out = [];
+  let tabellen = 0;
+  for (const wrap of document.querySelectorAll('#view .table-wrap')) {
+    const table = wrap.querySelector('table');
+    const knoepfe = table ? [...table.querySelectorAll('tbody tr > td:last-child')].flatMap(td => [...td.querySelectorAll('button, a.btn, a[href], [role="button"]')]).filter(vis) : [];
+    if (!vis(wrap) || !knoepfe.length) continue;
+    tabellen++;
+    const vorher = table.style.minWidth;
+    table.style.minWidth = `${wrap.clientWidth + 300}px`;
+    wrap.scrollLeft = 0;
+    const w = wrap.getBoundingClientRect();
+    const left = w.left + wrap.clientLeft, right = left + wrap.clientWidth;
+    if (wrap.scrollWidth <= wrap.clientWidth + 1) out.push('Tabelle wischt trotz Mindestbreite nicht');
+    for (const b of knoepfe) {
+      const r = b.getBoundingClientRect();
+      if (r.right > right + 1 || r.left < left - 1) out.push(`Knopf beim Wischen außerhalb des Rahmens|${(b.getAttribute('aria-label') || b.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30)}`);
+    }
+    table.style.minWidth = vorher;
+  }
+  return { tabellen, out: [...new Set(out)] };
+}
+
+/**
+ * v3.13.0 — zur Route und warten, bis ihre Ansicht steht. Ein neuer Anker lädt kein neues Dokument, `networkidle`
+ * ist dann sofort erfüllt; es blieben 250 ms. Unter Last (php -S beantwortet eine Anfrage nach der anderen, „Rechte“
+ * davor rechnet lange) stand bei der Messung oft noch „Lädt …“ da: keine Tabelle, kein Befund, auch ohne die
+ * angeheftete Spalte der Termine. Gewartet wird auf die neue Ansicht (der Router legt je Navigation einen neuen
+ * `.view-host` an) ohne `.loading`.
+ */
+async function gehe(page, route) {
+  await page.evaluate(x => { document.querySelector('#view .view-host')?.setAttribute('data-vorher', ''); location.hash = '#' + x; }, route);
+  await page.waitForFunction(() => {
+    const host = document.querySelector('#view .view-host:not([data-vorher])');
+    return !!host && !host.querySelector('.loading');
+  }, null, { timeout: 10000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+}
+
 const freePort = () => new Promise((res, rej) => {
   const s = createServer();
   s.on('error', rej);
   s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); });
 });
 
+const port = Number(process.env.ET_BOX_PORT) || await freePort();
+// v3.13.0 — der eigene Server oder keiner: Lauscht auf dem Port schon ein anderer (etwa aus einem abgebrochenen
+// Lauf), scheitert der eigene still, und die Prüfung liefe gegen fremden Code. So blieb das Fehlen der angehefteten
+// Spalte der Termine grün, solange ein Server mit der Spalte auf dem Port lief. Lieber rot. Ein gerade beendeter
+// Vorgänger gibt den Port nach einem Augenblick frei (in der Zeitreise teilen sich box-raster, sichtung-layout und
+// sichten einen Port): bis zu 10 s warten.
+const portFrei = async (p) => {
+  for (let i = 0; i < 40; i++) {
+    if (!(await fetch(`http://127.0.0.1:${p}/`).then(() => true, () => false))) return true;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return false;
+};
+if (!(await portFrei(port))) {
+  console.log(`  ✗ Port ${port} ist schon belegt (fremder Server)`);
+  process.exit(1);
+}
 const dataDir = mkdtempSync(join(tmpdir(), 'et-box-'));
 cpSync(join(ROOT, 'demo-data'), dataDir, { recursive: true });
-const port = Number(process.env.ET_BOX_PORT) || await freePort();
 const proc = spawn('php', ['-S', `127.0.0.1:${port}`, 'router.php'], {
   cwd: ROOT, env: { ...process.env, ET_DATA_DIR: dataDir, ET_LOG_DEST: 'null', ET_AUTH: 'off' }, stdio: 'ignore',
 });
@@ -123,6 +211,11 @@ for (let i = 0; i < 40; i++) {
   const up = await fetch(`${BASE}api.php/api/health`).then(r => r.status < 500).catch(() => false);
   if (up) break;
   await new Promise(r => setTimeout(r, 250));
+}
+if (proc.exitCode !== null) {
+  console.log(`  ✗ eigener Server auf Port ${port} nicht gestartet`);
+  rmSync(dataDir, { recursive: true, force: true });
+  process.exit(1);
 }
 
 const browser = await pw.chromium.launch();
@@ -165,8 +258,7 @@ try {
     }
 
     for (const r of ROUTES) {
-      await page.evaluate(x => { location.hash = '#' + x; }, r);
-      await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+      await gehe(page, r);
       await page.waitForTimeout(350);
       seiten++;
       for (const b of await page.evaluate(pruefe)) {
@@ -174,6 +266,35 @@ try {
         if (ERLAUBT[key]) { benutzt.add(key); continue; }
         befunde++;
         ok(`${r} (${level}, ${width} px)`, false, b);
+      }
+    }
+    await ctx.close();
+  }
+  // v3.13.0 (Paket K2e) — zwischen 900 und 1280 px: Knöpfe der Tabellen im sichtbaren Rahmen, auf jeder Seite
+  for (const width of [900, 1024, 1180, 1280]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1, locale: 'de-DE', colorScheme: 'light', serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(async () => {
+      await fetch('api.php/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ ui_level: 'expert', setup_pending: false }) });
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#primary-nav a'), { timeout: 20000 });
+    for (const r of ROUTES) {
+      await gehe(page, r);
+      await page.waitForTimeout(250);
+      seiten++;
+      for (const b of await page.evaluate(knoepfeImRahmen)) {
+        befunde++;
+        ok(`${r} (Tabellenrahmen, ${width} px)`, false, b);
+      }
+      if (BREIT.includes(r)) {
+        const { tabellen, out } = await page.evaluate(knoepfeBeimWischen);
+        ok(`${r} (beim Wischen, ${width} px): eine Tabelle mit Knöpfen am Zeilenende`, tabellen > 0);
+        for (const b of out) {
+          befunde++;
+          ok(`${r} (beim Wischen, ${width} px)`, false, b);
+        }
       }
     }
     await ctx.close();

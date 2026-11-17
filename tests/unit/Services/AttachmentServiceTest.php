@@ -51,7 +51,15 @@ final class AttachmentServiceTest extends ServiceTestCase
         self::assertSame(self::JPEG, file_get_contents($this->att->path($a['id'])));
         self::assertStringEndsWith('/attachments/' . $a['id'] . '.jpg', $this->att->path($a['id']));
         self::assertCount(1, $this->att->list());
-        self::assertSame('other', $this->att->store(self::PDF, 'quatsch')['kind'], 'unbekannte Art → other');
+        // v3.13.0 — bewusst umgestellt: eine unbekannte Art ist ein Fehler (400), nicht still „other“
+        try {
+            $this->att->store(self::PDF, 'quatsch');
+            self::fail('unbekannte Art angenommen');
+        } catch (\Energietracker\Support\LocalizedException $e) {
+            self::assertSame(['errors.common.valueInvalid', 'kind'], [$e->key, $e->params['field'] ?? null]);
+        }
+        self::assertCount(1, $this->att->list(), 'nichts gespeichert');
+        self::assertSame('other', $this->att->store(self::PDF, 'other')['kind']);
     }
 
     public function testLimitsPerTypeAndTotal(): void

@@ -44,7 +44,7 @@ final class ContractController
     public function importPrices(Request $req): never
     {
         Response::json($this->contracts->importMonthlyPrices((string)$req->param('utility'), (string)$req->param('id'),
-            (string)$req->rawBody, $req->queryParam('dry_run') === '1'));
+            (string)$req->rawBody, $req->flag('dry_run')));
     }
 
     // v3.4.0 (N1021) — je Vertrag additiv `phase` (future, current, renewed,

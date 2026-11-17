@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Countries;
+use Energietracker\Config\Rights;
 use Energietracker\Config\Utilities;
 use Energietracker\Storage\JsonStore;
+use Energietracker\Support\Dates;
 
 /**
  * v3.1.0 (Paket H4, B4/CALC-27) — Der CO₂-Preis im Brennstoff.
@@ -52,8 +54,12 @@ final class Co2CostService
         private ?TenancyService $tenancies = null,
     ) {}
 
-    /** @return array<string,mixed> */
-    public function forYear(int $year): array
+    /**
+     * @param array{from:string,to:string,days:int}|null $window v3.13.0 — nur die Tage [from, to] des Jahres (Mietzeitraum,
+     *        periodOf()); null oder das ganze Jahr: wie bisher
+     * @return array<string,mixed>
+     */
+    public function forYear(int $year, ?array $window = null): array
     {
         $country = (string)$this->settings->get('country', 'DE');
         $scheme = Countries::co2Scheme($country);
@@ -61,12 +67,13 @@ final class Co2CostService
             return ['supported' => false, 'scheme' => null, 'year' => $year, 'rows' => [], 'total' => null, 'per_m2' => null,
                     'price' => null, 'note' => $this->i18n->t('co2cost.notSupported')];
         }
+        if ($window !== null && self::isWholeYear($window, $year)) $window = null;
         $price = self::priceForYear($this->settings, $year);
         $vat = Countries::CO2_VAT[$scheme] ?? 0.0;
         $rows = [];
         foreach (self::UTILITIES as $u) {
             if (!Utilities::exists($u)) continue;
-            $row = $this->row($u, $year, $price['eur_t'], $scheme);
+            $row = $this->row($u, $year, $price['eur_t'], $scheme, $window);
             if ($row !== null) $rows[] = $row;
         }
         $total = null;
@@ -80,12 +87,20 @@ final class Co2CostService
         [$area, $assumed] = $this->area($year);
         $perM2 = null;
         if ($total !== null && $area > 0) {
-            $kg = round($total['emissions_kg'] / $area, 1);
-            // v3.12.0 — Teiljahr (Einzug oder Auszug im Jahr): Grenzen anteilig gekürzt wie in der Aufteilung
-            $days = self::periodDays($this->tenancyOf($year), $year);
+            // v3.12.0 — Teiljahr (Einzug oder Auszug im Jahr): Grenzen anteilig gekürzt wie in der Aufteilung.
+            // v3.13.0 — und die Emissionen über dieselben Tage (§ 5 Abs. 1 Satz 5 CO2KostAufG): Die Kennzahl je m² rechnet
+            // mit dem Ausstoß im Mietzeitraum, wie die Aufteilung. Bis v3.12 stand der Ausstoß des ganzen Jahres gegen
+            // die gekürzten Grenzen. Zeilen und Summe dieser Seite bleiben das ganze Jahr.
+            $period = self::periodOf($this->tenancyOf($year), $year);
+            $emissions = $window === null && !self::isWholeYear($period, $year)
+                ? (float)($this->forYear($year, $period)['total']['emissions_kg'] ?? 0.0) : (float)$total['emissions_kg'];
+            $kg = round($emissions / $area, 1);
+            $days = $period['days'];
             [$stage, $share] = self::stage($kg, $days);
             // v3.6.0 — area_assumed: weder im Mietverhältnis noch in den Einstellungen eingetragen
             $perM2 = ['kg' => $kg, 'area_m2' => $area, 'area_assumed' => $assumed, 'stage' => $stage, 'landlord_share_pct' => $share, 'days' => $days];
+            // v3.13.0 (additiv) — im Teiljahr: der Ausstoß im Mietzeitraum, aus dem `kg` stammt
+            if (!self::isWholeYear($period, $year)) $perM2 += ['emissions_kg' => round($emissions, 1), 'from' => $period['from'], 'to' => $period['to']];
         }
         return ['supported' => true, 'scheme' => $scheme, 'year' => $year, 'rows' => $rows, 'total' => $total,
                 'per_m2' => $perM2, 'price' => $price, 'vat' => $vat, 'note' => null];
@@ -115,14 +130,31 @@ final class Co2CostService
      */
     public static function periodDays(?array $tenancy, int $year): int
     {
-        $first = new \DateTimeImmutable("$year-01-01");
-        $last = new \DateTimeImmutable("$year-12-31");
-        $full = $first->diff($last)->days + 1;
-        if ($tenancy === null) return $full;
+        return self::periodOf($tenancy, $year)['days'];
+    }
+
+    /**
+     * v3.13.0 — Der Zeitraum des Jahres, über den Grenzen und Ausstoß gelten: bei Miete die Tage des Mietverhältnisses im
+     * Kalenderjahr [from, to] (beide eingeschlossen), sonst das ganze Jahr. Eine Regel für die Grenzen (periodDays) und
+     * die Emissionen und Kosten (forYear mit Zeitraum): § 5 Abs. 1 Satz 4 und 5, Abs. 3 Satz 4 CO2KostAufG.
+     *
+     * @return array{from:string, to:string, days:int}
+     */
+    public static function periodOf(?array $tenancy, int $year): array
+    {
+        $whole = ['from' => "$year-01-01", 'to' => "$year-12-31",
+                  'days' => (new \DateTimeImmutable("$year-01-01"))->diff(new \DateTimeImmutable("$year-12-31"))->days + 1];
+        if ($tenancy === null) return $whole;
         $from = max("$year-01-01", (string)($tenancy['start'] ?? "$year-01-01"));
         $to = min("$year-12-31", (string)(($tenancy['end'] ?? null) ?: "$year-12-31"));
-        if ($to < $from) return $full;
-        return min($full, (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days + 1);
+        if ($to < $from) return $whole;
+        return ['from' => $from, 'to' => $to, 'days' => min($whole['days'], (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days + 1)];
+    }
+
+    /** @param array{from:string,to:string} $period */
+    private static function isWholeYear(array $period, int $year): bool
+    {
+        return $period['from'] <= "$year-01-01" && $period['to'] >= "$year-12-31";
     }
 
     /** v3.12.0 — das Mietverhältnis eines Jahres wie für die Fläche (area()): nur bei Miete, sonst null. */
@@ -186,13 +218,34 @@ final class Co2CostService
 
     // ── intern ───────────────────────────────────────────────────────────
 
-    /** @return array<string,mixed>|null */
-    private function row(string $u, int $year, ?float $priceEurT, string $scheme): ?array
+    /**
+     * @param array{from:string,to:string,days:int}|null $window v3.13.0 — nur diese Tage des Jahres (Mietzeitraum): Menge
+     *        tagesgenau aus denselben Tagesabschnitten wie die Monatszeilen (ConsumptionService::amountBetween), Rechnungen
+     *        anteilig (fromBills)
+     * @return array<string,mixed>|null
+     */
+    private function row(string $u, int $year, ?float $priceEurT, string $scheme, ?array $window = null): ?array
     {
         $kwh = 0.0; $days = []; $kwhByMonth = [];
         foreach ($this->meters->list($u) as $meter) {
             if (!MeterService::countsInTotals($meter)) continue;
             if ($u === 'waerme' && Utilities::roleOf('waerme', $meter) !== 'consumption') continue;
+            if ($window !== null) {
+                // je Monat der Teil im Zeitraum [from, to]
+                for ($mo = 1; $mo <= 12; $mo++) {
+                    $a = max(sprintf('%04d-%02d-01', $year, $mo), $window['from']);
+                    $last = date('Y-m-t', (int)strtotime(sprintf('%04d-%02d-01', $year, $mo)));
+                    $b = min($last, $window['to']);
+                    if ($b < $a) continue;
+                    $part = $this->consumption->amountBetween($u, $meter, $a, date('Y-m-d', (int)strtotime("$b +1 day")));
+                    $covered = Rights::daysBetween($a, $b) + 1 - $part['open'];
+                    if ($covered <= 0) continue;
+                    $kwh += $part['kwh'];
+                    $kwhByMonth[$mo] = ($kwhByMonth[$mo] ?? 0.0) + $part['kwh'];
+                    $days[$mo] = max($days[$mo] ?? 0, $covered);
+                }
+                continue;
+            }
             foreach ($this->consumption->forMeter($u, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $kwh += (float)($m['kwh'] ?? 0);
@@ -208,7 +261,7 @@ final class Co2CostService
         $vat = $kwh > 0
             ? array_sum(array_map(fn($m, $k) => $vatOf((int)$m) * $k, array_keys($kwhByMonth), $kwhByMonth)) / $kwh
             : array_sum(array_map($vatOf, range(1, 12))) / 12;
-        $bill = $this->fromBills($u, $year);
+        $bill = $this->fromBills($u, $year, $window);
         $source = 'computed';
         $factor = null;
         if ($bill !== null) {
@@ -248,21 +301,52 @@ final class Co2CostService
         ];
     }
 
-    /** Emissionen und Kosten laut Versorgerrechnungen, deren Zeitraum im Jahr endet (H5). */
-    private function fromBills(string $u, int $year): ?array
+    /**
+     * Emissionen und Kosten laut Versorgerrechnungen, deren Zeitraum im Jahr endet (H5).
+     * v3.13.0 — mit Zeitraum (Mietzeitraum): je Rechnung nur der Teil in [from, to] (§ 5 Abs. 1 Satz 5 CO2KostAufG: die
+     * ausgewiesenen Emissionen auf den Zeitraum umrechnen), nach der Menge des Zählers in beiden Zeiträumen; ohne Menge
+     * nach Tagen. Eine Rechnung ganz im Zeitraum zählt ganz, eine ganz außerhalb nicht.
+     */
+    private function fromBills(string $u, int $year, ?array $window = null): ?array
     {
-        $bills = $this->store->read("$u/bills.json", []);
+        $bills = \Energietracker\Support\FieldRules::view($this->store, "$u/bills.json", 'bills')[0];   // v3.13.0 (K2d) — Sicht der Rechnung
         $em = 0.0; $cost = 0.0; $haveCost = true; $found = false;
         foreach (is_array($bills) ? $bills : [] as $b) {
             if (!is_array($b) || (int)substr((string)($b['period_to'] ?? ''), 0, 4) !== $year) continue;
             if (!isset($b['co2']['emissions_kg']) || !is_numeric($b['co2']['emissions_kg'])) continue;
+            $share = $window === null ? 1.0 : $this->billShare($u, $b, $window);
+            if ($share <= 0.0) continue;
             $found = true;
-            $em += (float)$b['co2']['emissions_kg'];
-            if (isset($b['co2']['cost_eur']) && is_numeric($b['co2']['cost_eur'])) $cost += (float)$b['co2']['cost_eur'];
+            $em += (float)$b['co2']['emissions_kg'] * $share;
+            if (isset($b['co2']['cost_eur']) && is_numeric($b['co2']['cost_eur'])) $cost += (float)$b['co2']['cost_eur'] * $share;
             else $haveCost = false;
         }
         if (!$found) return null;
         return ['emissions_kg' => $em] + ($haveCost ? ['cost_eur' => $cost] : []);
+    }
+
+    /**
+     * v3.13.0 — Anteil einer Rechnung am Zeitraum [from, to]: Menge des Zählers im gemeinsamen Teil ÷ Menge im ganzen
+     * Rechnungszeitraum; ohne Menge (keine Ablesungen) nach Kalendertagen.
+     *
+     * @param array<string,mixed> $b
+     * @param array{from:string,to:string} $window
+     */
+    private function billShare(string $u, array $b, array $window): float
+    {
+        $bf = (string)($b['period_from'] ?? ''); $bt = (string)($b['period_to'] ?? '');
+        if (!Dates::isIsoDate($bf) || !Dates::isIsoDate($bt) || $bt < $bf) return 0.0;
+        $a = max($bf, $window['from']); $z = min($bt, $window['to']);
+        if ($z < $a) return 0.0;
+        if ($a === $bf && $z === $bt) return 1.0;
+        $meter = $this->meters->get($u, (string)($b['meter_id'] ?? ''));
+        if ($meter !== null) {
+            $next = fn(string $d) => date('Y-m-d', (int)strtotime("$d +1 day"));
+            $all = $this->consumption->amountBetween($u, $meter, $bf, $next($bt));
+            $part = $this->consumption->amountBetween($u, $meter, $a, $next($z));
+            if ($all['open'] === 0 && $all['kwh'] > 0) return $part['kwh'] / $all['kwh'];
+        }
+        return (Rights::daysBetween($a, $z) + 1) / (Rights::daysBetween($bf, $bt) + 1);
     }
 
     /**
@@ -274,7 +358,8 @@ final class Co2CostService
     public function claimDeadline(int $year): ?string
     {
         $latest = null;
-        foreach ((array)$this->store->read('gas/bills.json', []) as $b) {
+        // v3.13.0 (K2d) — Sicht der Rechnung: ein Rechnungsdatum als Liste aus einer älteren Version brach bisher die Frist (500)
+        foreach (\Energietracker\Support\FieldRules::view($this->store, 'gas/bills.json', 'bills')[0] as $b) {
             if (!is_array($b) || (int)substr((string)($b['period_to'] ?? ''), 0, 4) !== $year) continue;
             $got = (string)($b['issued_on'] ?? '') ?: date('Y-m-d', (int)strtotime((string)$b['period_to'] . ' +1 day'));
             if ($latest === null || $got > $latest) $latest = $got;

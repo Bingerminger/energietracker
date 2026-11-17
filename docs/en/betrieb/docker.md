@@ -670,7 +670,17 @@ anpassen` (data directory not writable — adjust the rights on the volume) with
 the UID and group that need to write; `GET /api/health` answers `503` with
 `data_dir_writable: false` (Docker shows *unhealthy*), and the app reports
 “Energietracker cannot write to its data directory …”. After the `chown`,
-reloading the page is enough.
+reloading the page is enough. *(v3.13.0)* This also holds for a **folder already
+set up after a change of UID** (for example the image without root on an existing
+volume): **every write path answers `503`** with this message
+(`errors.storage.notWritable`), reading stays `200`, and so does the preview of
+an import (dry run), which writes nothing. Up to v3.12 saving answered
+`500` “Internal error” there. This also holds for the paths that Home Assistant
+and a calendar subscription read (`/api/summary`, `/api/todo`,
+`/api/calendar.ics`): if the identifier of the installation (`instance.json`) is
+missing, one derived from the data folder applies, the same on every request; as
+soon as writing is allowed again, the app stores exactly this one. Up to v3.12
+these three paths then answered `503`.
 
 **Building it yourself:** `docker build --target rootless -t energietracker:rootless .`
 — without `--target` you get the standard image as before. The image sets
@@ -691,7 +701,7 @@ not change it).
 | Container shows "Exited" with an error code, log says "Dienst beendet, Container endet" | nginx or php-fpm failed; the container then ends on purpose (since v3.10.0). With `--restart unless-stopped` or `restart: unless-stopped` Docker starts it again. An error just before that line in the log is the cause. |
 | "403/Permission denied" on `data` | The container sets the permissions on start; with your own host folder, check the write permissions if needed. |
 | Unraid: “data not writable” after *New Permissions* | Restart the container — it hands `/data` back to `www-data` (UID 82). |
-| Without root: log says “Datenverzeichnis nicht beschreibbar”, `/api/health` answers `503` | The data folder does not belong to the container's UID (10001). `sudo chown -R 10001:0 <folder>` or a named volume — [Without root](#without-root-v350). |
+| Without root: log says “Datenverzeichnis nicht beschreibbar”, `/api/health` and every write path answer `503` (since v3.13.0) | The data folder does not belong to the container's UID (10001). `sudo chown -R 10001:0 <folder>` or a named volume — [Without root](#without-root-v350). |
 | Text recognition “cannot be reached” although Ollama runs on the same computer | Inside the container, `localhost` is the container itself. Enter the address of the computer in the home network and start Ollama with `OLLAMA_HOST=0.0.0.0` — [Text recognition in the home network](../anleitungen/texterkennung.md#if-the-energietracker-runs-in-docker). |
 | Text recognition with a long time limit ends with `504` | Since v3.1.0 the image itself waits up to 310 s; a reverse proxy in front waits less. Set its time limit above 300 s or lower `ocr_timeout_s`. |
 

@@ -97,12 +97,18 @@ final class ReadTools extends ToolGroup
         $meters = [];
         // v3.12.0 (Skeptiker N7) — der Vertrag einer Gruppe steht einmal da; zusammenzählen wäre sonst doppelt
         $groupSeen = [];
+        $forecastSeen = [];   // v3.13.0 (Paket vertrag) — ebenso die Prognose der Gruppe
         foreach ($summary['meters'] as $row) {
             $m = $this->overviewMeter($row, $ctx->today);
             $gid = (string)($m['group_contract']['group_id'] ?? '');
             if ($gid !== '') {
                 if (isset($groupSeen[$gid])) $m['group_contract'] = ['group_id' => $gid, 'same_as' => $groupSeen[$gid]];
                 else $groupSeen[$gid] = (string)$m['id'];
+            }
+            $fid = (string)($m['group_forecast_12m']['group_id'] ?? '');
+            if ($fid !== '') {
+                if (isset($forecastSeen[$fid])) $m['group_forecast_12m'] = ['group_id' => $fid, 'same_as' => $forecastSeen[$fid]];
+                else $forecastSeen[$fid] = (string)$m['id'];
             }
             $meters[] = $m;
         }
@@ -115,7 +121,7 @@ final class ReadTools extends ToolGroup
                 'due'     => ['count' => (int)$summary['agenda']['due']],
                 'overdue' => ['count' => (int)$summary['agenda']['overdue']],
                 'next'    => is_array($next) ? ['kind' => (string)$next['kind'], 'date' => (string)$next['date'],
-                                                'untrusted' => Sanitize::untrusted(['title' => $this->masked((string)$next['title'])])] : null,
+                                                'untrusted' => Sanitize::untrusted(['title' => $this->maskedName((string)$next['title'])])] : null,
             ]),
             'suspect_readings' => ['count' => (int)$summary['warnings']],
         ];
@@ -155,7 +161,7 @@ final class ReadTools extends ToolGroup
             'utility_label'      => (string)$row['utility_label'],
             'accounting_kind'    => Utilities::accountingKind($u),
             'id'                 => $id,
-            'untrusted'          => Sanitize::untrusted(['name' => $this->masked((string)$row['name'])]),
+            'untrusted'          => Sanitize::untrusted(['name' => $this->maskedName((string)$row['name'])]),
             'role'               => $row['role'],
             'sub_meter'          => (bool)$row['is_sub_meter'],
             'group_id'           => $meter['meter_group_id'] ?? null,
@@ -172,9 +178,18 @@ final class ReadTools extends ToolGroup
             'forecast_12m'       => $this->overviewForecast($row['forecast_12m'], $cu, $u, $row['contract'] !== null || $row['group_contract'] !== null),
             'contract'           => $row['contract'] !== null ? $this->overviewContract($u, $meter, $today) : null,
             'group_contract'     => $row['group_contract'] !== null ? $this->overviewGroupContract($u, $row['group_contract'], $today) : null,
+            // v3.13.0 (Paket vertrag, #40) — additiv: die Prognose der Gruppe mit Grundpreis und Abschlag
+            'group_forecast_12m' => is_array($row['group_forecast_12m'] ?? null) ? $this->overviewGroupForecast($row['group_forecast_12m'], $cu, $u) : null,
             'tank'               => $row['tank'] !== null ? $this->overviewTank($row['tank']) : null,
         ];
         return self::compact($out);
+    }
+
+    /** @param array{group_id:string,value:?float,cost:?float,low:?float,high:?float} $f */
+    private function overviewGroupForecast(array $f, string $unit, string $utility): ?array
+    {
+        $fc = $this->overviewForecast($f, $unit, $utility, true);
+        return $fc !== null ? ['group_id' => (string)$f['group_id']] + $fc : null;
     }
 
     /** @param array{value:?float,cost:?float,low:?float,high:?float}|null $f */
@@ -184,11 +199,14 @@ final class ReadTools extends ToolGroup
         $range = is_numeric($f['low'] ?? null) && is_numeric($f['high'] ?? null) ? ['range' => [(float)$f['low'], (float)$f['high']]] : [];
         $money = $utility !== '' ? self::moneyField($utility) : 'cost';
         // v3.12.0 (Skeptiker M4) — ohne Vertrag keine 0 € als Kosten
-        $amount = $money !== null && ($hasContract || abs((float)($f['cost'] ?? 0.0)) >= 0.005) ? ($f['cost'] ?? null) : null;
+        // v3.13.0 — ohne Arbeitspreis kein Kostenbetrag, sondern `price_missing` (wie /api/summary)
+        $noPrice = $money === 'cost' && !empty($f['price_missing']);
+        $amount = $money !== null && !$noPrice && ($hasContract || abs((float)($f['cost'] ?? 0.0)) >= 0.005) ? ($f['cost'] ?? null) : null;
         return self::compact([
             'quantity' => Num::of((float)$f['value'], $unit, 'estimated', $range),
             (string)($money ?? 'cost') => self::maybe($amount, fn($v) => Num::money($v, $this->currency(), 'estimated')),
-            'no_contract' => $money !== null && $amount === null ? true : null,
+            'no_contract' => $money !== null && $amount === null && !$noPrice ? true : null,
+            'price_missing' => $noPrice ? true : null,
         ]);
     }
 
@@ -240,7 +258,7 @@ final class ReadTools extends ToolGroup
         if ($target === null) return null;
         $contract = $this->overviewContract($u, $target, $today);
         if ($contract === null) return null;
-        return ['group_id' => (string)$gc['group_id'], 'untrusted' => Sanitize::untrusted(['name' => $this->masked((string)$gc['name'])]), 'contract' => $contract];
+        return ['group_id' => (string)$gc['group_id'], 'untrusted' => Sanitize::untrusted(['name' => $this->maskedName((string)$gc['name'])]), 'contract' => $contract];
     }
 
     /** @param array<string,mixed> $t Tank aus SummaryService */
@@ -285,7 +303,7 @@ final class ReadTools extends ToolGroup
                 'due_now'     => (bool)$e['due_now'],
                 'done'        => $done !== null ? true : null,
                 'ref'         => $ref,
-                'untrusted'   => Sanitize::untrusted(['title' => $this->masked((string)$e['title']), 'assignee' => is_string($e['assignee'] ?? null) ? $e['assignee'] : null]),
+                'untrusted'   => Sanitize::untrusted(['title' => $this->maskedName((string)$e['title']), 'assignee' => is_string($e['assignee'] ?? null) ? $e['assignee'] : null]),
             ]);
         }
         // v3.12.0 (Abnahme Open WebUI) — die Zahl steht dabei, damit ein Modell nicht still Einträge weglassen muss
@@ -385,7 +403,7 @@ final class ReadTools extends ToolGroup
                 'figures'   => $figures,
                 // v3.12.0 (Skeptiker M10) — Text aus dem Katalog: eigene Länge
                 // v3.12.0 — Titel und Text nennen Anbieter und Zähler: dieselbe Maske wie dort (Kennnummern, Angaben für Briefe)
-                'untrusted' => Sanitize::finding($this->masked((string)$r['title']), $this->masked((string)($r['detail'] ?? ''))),
+                'untrusted' => Sanitize::finding($this->maskedName((string)$r['title']), $this->maskedName((string)($r['detail'] ?? ''))),
             ]);
         }
         return ['insights' => $out] + ($truncated ? ['truncated' => true] : []) + $this->rightsChecked();
@@ -436,7 +454,6 @@ final class ReadTools extends ToolGroup
         $meters = $this->services->get(MeterService::class);
         $cur = $this->currency();
         [$start, $end] = ["$year-01-01", ($year + 1) . '-01-01'];
-        $cost = [Provenance::class, 'monthCost'];
         $co2 = static fn(array $r): string => Provenance::weakest(Provenance::month($r), 'assumed');
 
         $utilities = [];
@@ -447,13 +464,18 @@ final class ReadTools extends ToolGroup
             // v3.12.0 (Skeptiker H4, M4) — Einspeisung als `revenue`, Erzeugung ohne Geld; ohne Vertrag keine 0 €
             $money = self::moneyField($u);
             $priced = $this->pricedInYear($rows, $year);
+            // v3.13.0 — Kosten aus Menge und Preis mit den Verträgen (auch nach der Preisgarantie angenommen)
+            $cost = $this->costBasisOf($u);
+            // v3.13.0 — ein Monat mit Vertrag ohne Arbeitspreis: kein Kostenbetrag fürs Jahr, sondern `price_missing`
+            $noPrice = $money === 'cost' && $this->noPriceInYear($rows, $year);
             $utilities[] = self::compact([
                 'utility'     => $u,
                 'label'       => (string)$x['label'],
                 'accounting_kind' => Utilities::accountingKind($u),
                 'consumption' => Provenance::num((float)$x['consumption'], (string)$x['unit'], $this->windowParts($u, $members, $rows, $start, $end) ?: ['measured' => 1.0]),
-                (string)($money ?? 'cost') => $money !== null && $priced ? Provenance::money((float)$x['cost'], $cur, $this->windowParts($u, $members, $rows, $start, $end, 'cost', $cost, 'entered') ?: ['entered' => 1.0]) : null,
+                (string)($money ?? 'cost') => $money !== null && $priced && !$noPrice ? Provenance::money((float)$x['cost'], $cur, $this->windowParts($u, $members, $rows, $start, $end, 'cost', $cost, 'entered') ?: ['entered' => 1.0]) : null,
                 'no_contract' => $money !== null && !$priced ? true : null,
+                'price_missing' => $priced && $noPrice ? true : null,
                 // CO₂ nur beim Verbrauch: Eine Summe über die Arten zählte sonst die Einspeisung als Ausstoß
                 'co2_kg'      => $money === 'cost' && (float)$x['co2_kg'] > 0 ? Provenance::num((float)$x['co2_kg'], 'kg',
                     $this->windowParts($u, $members, $rows, $start, $end, 'co2_kg', $co2, 'assumed') ?: ['assumed' => 1.0], ['decimals' => 1]) : null,
@@ -469,23 +491,31 @@ final class ReadTools extends ToolGroup
             $months = [];
             $money = self::moneyField($u);
             $priced = $this->pricedInYear($rows, $year);
+            $cost = $this->costBasisOf($u);
+            $noPrice = $money === 'cost' && $this->noPriceInYear($rows, $year);
             foreach ($x['months'] as $mo) {
+                $basis = isset($byYm[$mo['ym']]) ? Provenance::month($byYm[$mo['ym']]) : 'distributed';
+                $monthNoPrice = $money === 'cost' && !empty($byYm[$mo['ym']]['price_missing']);
+                // v3.13.0 — Herkunft des Geldes je Monat: die schwächere aus Menge und Preis; ohne Arbeitspreis kein Betrag
                 $months[] = ['ym' => (string)$mo['ym'], 'value' => (float)$mo['value']]
-                    + ($money !== null && $priced ? [$money => (float)$mo['cost']] : [])
-                    + ['basis' => isset($byYm[$mo['ym']]) ? Provenance::month($byYm[$mo['ym']]) : 'distributed'];
+                    + ($money !== null && $priced && $monthNoPrice ? ['price_missing' => true] : [])
+                    + ($money !== null && $priced && !$monthNoPrice ? [$money => (float)$mo['cost'],
+                        'money_basis' => isset($byYm[$mo['ym']]) ? Provenance::weakest('entered', $cost($byYm[$mo['ym']])) : Provenance::weakest('entered', $basis)] : [])
+                    + ['basis' => $basis];
             }
             $outMeters[] = self::compact([
                 'utility'   => $u,
                 'id'        => (string)$x['meter_id'],
-                'untrusted' => Sanitize::untrusted(['name' => $this->masked((string)$x['meter_name'])]),
+                'untrusted' => Sanitize::untrusted(['name' => $this->maskedName((string)$x['meter_name'])]),
                 'unit'      => (string)$x['unit'],
                 'counts_in_totals' => $m !== null ? MeterService::countsInTotals($m) : null,
                 'months'    => $months,
                 'sum'       => Provenance::num((float)$x['kpis']['sum'], (string)$x['unit'],
                     ($m !== null ? $this->windowParts($u, [$m], $rows, $start, $end) : []) ?: ['measured' => 1.0]),
-                (string)($money ?? 'cost') => $money !== null && $priced ? Provenance::money((float)$x['kpis']['cost'], $cur,
+                (string)($money ?? 'cost') => $money !== null && $priced && !$noPrice ? Provenance::money((float)$x['kpis']['cost'], $cur,
                     ($m !== null ? $this->windowParts($u, [$m], $rows, $start, $end, 'cost', $cost, 'entered') : []) ?: ['entered' => 1.0]) : null,
                 'no_contract' => $money !== null && !$priced ? true : null,
+                'price_missing' => $priced && $noPrice ? true : null,
                 'included_in_parent' => $money !== null && !$priced && $m !== null && !empty($m['parent_meter_id']) ? true : null,
             ]);
         }
@@ -512,6 +542,12 @@ final class ReadTools extends ToolGroup
      *
      * @param list<array<string,mixed>> $rows Monatszeilen der Zähler
      */
+    private function noPriceInYear(array $rows, int $year): bool
+    {
+        foreach ($rows as $r) if ((int)substr((string)($r['ym'] ?? ''), 0, 4) === $year && !empty($r['price_missing'])) return true;
+        return false;
+    }
+
     private function pricedInYear(array $rows, int $year): bool
     {
         foreach ($rows as $r) {
@@ -541,10 +577,12 @@ final class ReadTools extends ToolGroup
                 'last_reading' => self::obj(['date' => self::date(), 'counter' => $num], ['date', 'counter']),
                 'last_period_until' => self::date(), 'days_since_reading' => ['type' => 'integer'], 'reading_due' => self::bool(),
                 'month_to_date' => $num, 'year_to_date' => $num,
-                'forecast_12m' => self::obj(['quantity' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool()], ['quantity']),
+                'forecast_12m' => self::obj(['quantity' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(), 'price_missing' => self::bool()], ['quantity']),
                 'contract' => $contract,
                 'group_contract' => self::obj(['group_id' => self::str(), 'untrusted' => self::untrustedSchema('name'), 'contract' => $contract, 'same_as' => self::str()],
                     ['group_id']),
+                'group_forecast_12m' => self::obj(['group_id' => self::str(), 'quantity' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(),
+                    'price_missing' => self::bool(), 'same_as' => self::str()], ['group_id']),
                 'tank' => self::obj(['stock' => $num, 'capacity' => $num, 'percent' => $num, 'estimated_from' => self::date()], ['stock']),
             ], ['utility', 'id', 'capture', 'reading_due'])),
             'deadlines' => self::obj(['due' => $count, 'overdue' => $count,
@@ -603,13 +641,14 @@ final class ReadTools extends ToolGroup
         return self::obj([
             'year' => self::int(2000), 'currency' => self::str(),
             'utilities' => self::arr(self::obj(['utility' => self::utilityArg(), 'label' => self::str(), 'accounting_kind' => self::str(ConsumptionTools::ACCOUNTING_KINDS),
-                'consumption' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(), 'co2_kg' => $num], ['utility', 'consumption'])),
+                'consumption' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(), 'price_missing' => self::bool(), 'co2_kg' => $num], ['utility', 'consumption'])),
             'meters' => self::arr(self::obj([
                 'utility' => self::utilityArg(), 'id' => self::str(), 'untrusted' => self::untrustedSchema('name'), 'unit' => self::str(),
                 'counts_in_totals' => self::bool(),
                 'months' => self::arr(self::obj(['ym' => ['type' => 'string', 'pattern' => '^\d{4}-\d{2}$'], 'value' => self::number(),
-                    'cost' => self::number(), 'revenue' => self::number(), 'basis' => self::basisSchema()], ['ym', 'value', 'basis']), 12),
-                'sum' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(), 'included_in_parent' => self::bool(),
+                    'cost' => self::number(), 'revenue' => self::number(), 'money_basis' => self::basisSchema(), 'price_missing' => self::bool(),
+                    'basis' => self::basisSchema()], ['ym', 'value', 'basis']), 12),
+                'sum' => $num, 'cost' => $num, 'revenue' => $num, 'no_contract' => self::bool(), 'included_in_parent' => self::bool(), 'price_missing' => self::bool(),
             ], ['utility', 'id', 'months'])),
             'billing_periods' => self::arr(self::obj(['utility' => self::utilityArg(), 'unit' => self::str(),
                 'periods' => self::arr(self::billingRowSchema())], ['utility', 'periods'])),

@@ -74,6 +74,12 @@ final class BackupServiceRestoreGuardTest extends ServiceTestCase
     public function testRoundtripPreservesDeliveriesGroupsAndReminders(): void
     {
         // In die bisher ignorierten Töpfe schreiben.
+        // v3.13.0 (K2d) — die Lieferung hängt an einem Tank, den es gibt: Der Import prüft den Verweis wie der
+        // Schreibweg (bisher stand hier eine Lieferung an einem Tank, den der Haushalt nicht hatte)
+        $this->store->write('heizoel/meters.json', [
+            ['id' => 'm_heizoel_tank', 'name' => 'Tank', 'active' => true, 'capacity' => 3000.0, 'initial_stock' => 500.0,
+             'devices' => [['id' => 'd_tank', 'installed_on' => '2024-01-01', 'initial_counter' => 0.0]]],
+        ]);
         $this->store->write('heizoel/deliveries.json', [
             ['id' => 'd_t1', 'meter_id' => 'm_heizoel_tank', 'date' => '2024-09-01', 'quantity' => 1000.0],
         ]);

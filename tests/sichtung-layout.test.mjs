@@ -434,6 +434,61 @@ try {
     ok(`S6 (${width} px): Reihen gefunden`, reihen >= 8, String(reihen));
     await ctx.close();
   }
+
+  // ── S13 (v3.13.0, GitHub #64): kein Knopf liegt über einem Eingabefeld ──────────────────────────
+  // Die Regel für Einstellungsfelder legte jedes `div` neben der Beschriftung auf dieselbe Zelle wie das Feld:
+  // „Löschen“ am Token und „Neue ID“ am Webhook der Benachrichtigungen lagen über dem Eingabefeld. Geprüft auf
+  // jeder Seite der Einstellungen, des Haushalts und der Verbindungen, bei 375, 900 und 1280 px; auf der Seite
+  // der Benachrichtigungen mit gespeichertem Webhook und Token (dann gibt es beide Knöpfe) und jedem Ziel.
+  {
+    const ueberdeckt = (page) => page.evaluate(() => {
+      const vis = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 1 && b.height > 1 && s.display !== 'none' && s.visibility !== 'hidden'; };
+      document.querySelectorAll('#view details').forEach(d => { d.open = true; });
+      const felder = [...document.querySelectorAll('#view input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), #view select, #view textarea')].filter(vis);
+      const knoepfe = [...document.querySelectorAll('#view .btn, #view button')].filter(vis);
+      const out = [];
+      for (const f of felder) {
+        const a = f.getBoundingClientRect();
+        for (const k of knoepfe) {
+          if (k.contains(f) || f.contains(k)) continue;
+          const r = k.getBoundingClientRect();
+          const x = Math.min(a.right, r.right) - Math.max(a.left, r.left), y = Math.min(a.bottom, r.bottom) - Math.max(a.top, r.top);
+          if (x > 1 && y > 1) out.push(`${(f.id || f.name || f.className || f.tagName).slice(0, 28)} ↔ „${k.textContent.trim().slice(0, 24)}“`);
+        }
+      }
+      return { out, felder: felder.length, ids: [...document.querySelectorAll('#view [data-role="han-new-id"], #view [data-role="han-clear-token"], #view [data-role="han-clear-webhook"]')].filter(vis).map(b => b.dataset.role) };
+    });
+    let gesehen = new Set(), felder = 0;
+    for (const width of [375, 900, 1280]) {
+      const { ctx, page } = await open({ width });
+      // Webhook und Token gespeichert: Erst dann gibt es „Löschen“ an beiden Feldern
+      const stand = await page.evaluate(async () => {
+        const r = await fetch('api.php/api/homeassistant/notify', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify({ target: 'webhook', url: 'http://192.168.178.10:8123', webhook_id: 'energietracker_s13probe', token: 'probe-token-s13-abcdefghijk' }) });
+        return (await r.json()).data || {};
+      });
+      ok(`S13 (${width} px): Webhook und Token gespeichert`, stand.has_webhook === true && stand.has_token === true, JSON.stringify(stand).slice(0, 160));
+      for (const r of SETTINGS) {
+        await go(page, r);
+        const ziele = r === '/connections/homeassistant/notifications' ? ['webhook', 'token', 'supervisor'] : [null];
+        for (const ziel of ziele) {
+          if (ziel) {
+            const radio = await page.$(`#view input[name="han-target"][value="${ziel}"]:not([disabled])`);
+            if (!radio) continue;
+            await radio.check();
+            await page.waitForTimeout(150);
+          }
+          const res = await ueberdeckt(page);
+          felder += res.felder;
+          res.ids.forEach(id => gesehen.add(id));
+          ok(`S13 ${r}${ziel ? ` (${ziel})` : ''} (${width} px): kein Knopf über einem Feld`, res.out.length === 0, res.out.slice(0, 4).join(' | '));
+        }
+      }
+      await ctx.close();
+    }
+    ok('S13: die Knöpfe der Benachrichtigungen gesehen („Neue ID“, „Löschen“ an Webhook und Token)', ['han-new-id', 'han-clear-webhook', 'han-clear-token'].every(x => gesehen.has(x)), [...gesehen].join(', '));
+    ok('S13: Felder gefunden', felder > 200, String(felder));
+  }
 } finally {
   await browser.close();
   proc.kill();

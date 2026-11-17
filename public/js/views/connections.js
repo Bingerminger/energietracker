@@ -59,7 +59,8 @@ function rowsOf(settings, auth, mcp, admin) {
   const reading = settings.ocr_endpoint || settings.inbox_cloud_enabled === true ? 'active' : 'notSet';
   const fetchRows = [
     { id: 'post', level: 'connections:reading', href: '#/connections/reading', ico: 'eingang', title: t('connections.reading.title'), meta: t('connections.row.reading.meta'), tag: reading },
-    { id: 'ha', level: 'connections:homeassistant', href: '#/connections/homeassistant', ico: 'home', title: t('connections.homeassistant.title'), meta: t('connections.row.homeassistant.meta'), tag: auth?.enabled ? 'active' : 'notSet' },
+    // v3.13.0 — den Stand des Tokens kennt nur ein Verwalter (bis v3.12 stand für Mitglieder immer „nicht eingerichtet“)
+    { id: 'ha', level: 'connections:homeassistant', href: '#/connections/homeassistant', ico: 'home', title: t('connections.homeassistant.title'), meta: t('connections.row.homeassistant.meta'), tag: !admin ? '' : auth?.enabled ? 'active' : 'notSet' },
     { id: 'wetter', level: 'temperatures', href: '#/connections/weather', ico: 'sonne', title: t('nav.weather'), meta: weatherMeta, tag: where && weatherOn ? 'active' : 'off' },
     { id: 'evcc', level: 'connections:evcc', href: '#/connections/evcc', ico: 'auto', title: t('connections.evcc.title'), meta: t('connections.row.evcc.meta'), tag: settings.evcc_endpoint ? 'on' : 'off' },
   ];
@@ -85,7 +86,7 @@ async function renderList(container) {
   const admin = sessionRole() === 'admin';
   const [settings, auth, mcp] = await Promise.all([
     api.settings(),
-    api.authStatus().catch(() => null),
+    admin ? api.authStatus().catch(() => null) : null,   // v3.13.0 — adminOnly, für Mitglieder nicht fragen
     admin ? loadMcp() : null,
   ]);
   const groups = rowsOf(settings, auth, mcp, admin);

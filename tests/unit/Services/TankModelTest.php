@@ -282,6 +282,29 @@ final class TankModelTest extends ServiceTestCase
             'Grundlast je Tag in Gradtag-Einheiten (ρ) aus einem ganzen Jahr, nicht aus dem Fenster');
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — Seit dem festen Stichtag (v3.12.0, TODAY Mitte März) liegt das Fenster
+     * des Tests oben im Winter: Auch ein „Jahr“ nur aus dem Fenster hätte dort genug Gradtage, die Regel
+     * fiel nicht mehr auf. Hier liegen die Temperaturen nur im Sommer (15.05.–15.09.2025), der Tank rechnet
+     * bis zum 15.09.2025: Aus dem Fenster allein gäbe es kaum Gradtage und ρ nahe 0.
+     */
+    public function testWithoutClimateNormalASummerWindowStillSpansAWholeYear(): void
+    {
+        $start = '2025-05-15';
+        $until = '2025-09-15';
+        $this->writeTemperatures($start, fn(string $d) => $d > $until);
+        $tank = $this->tank($start, 400.0);
+        $this->deliver($tank, '2025-08-16', 2000.0);
+
+        $meter = $this->meters->get('heizoel', $tank['id']);
+        $m = (new DeliveryConsumptionService($this->store, $this->settings))->tankModel('heizoel', $meter, $until);
+        self::assertSame('first_delivery', $m['calibration']['source'], 'Vorbedingung: die Rate kommt aus dem Sommer');
+        self::assertSame(0, $m['hdd_filled_days'], 'Vorbedingung: jeder Tag des Fensters hat eine Temperatur');
+        $cal = $m['calibration'];
+        self::assertGreaterThan(0.5, $cal['base_per_day'] / $cal['per_hdd'],
+            'ρ aus einem ganzen Jahr, nicht aus dem Sommerfenster');
+    }
+
     public function testAnImpossibleReadingIsReportedInsteadOfBooked(): void
     {
         $start = self::day(-80);

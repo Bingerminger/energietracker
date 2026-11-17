@@ -62,11 +62,16 @@ final class TenancyService
 
     // ── Mietverhältnisse ─────────────────────────────────────────────────
 
-    /** @return list<array<string,mixed>> */
+    /**
+     * Mietverhältnisse, wie die Rechnung sie sieht. v3.13.0 (K2d) — Bestand nach der gemeinsamen Regel
+     * (Support\FieldRules::view): ohne brauchbaren Beginn aus der Rechnung, ein anderes unbrauchbares Feld gilt als
+     * nicht eingetragen. Schreibwege lesen die Datei, wie sie ist.
+     *
+     * @return list<array<string,mixed>>
+     */
     public function list(): array
     {
-        $all = $this->store->read('tenancies.json', []);
-        $all = is_array($all) ? array_values(array_filter($all, 'is_array')) : [];
+        $all = \Energietracker\Support\FieldRules::view($this->store, 'tenancies.json', 'tenancies')[0];
         usort($all, fn($a, $b) => strcmp((string)($b['start'] ?? ''), (string)($a['start'] ?? '')));
         return $all;
     }
@@ -162,11 +167,21 @@ final class TenancyService
      * abgeleiteten Preise ins Mietverhältnis (gültig ab dem Tag nach dem
      * Zeitraum), `apply_prepayment: true` die neue Vorauszahlung.
      *
+     * v3.13.0 (K2d) — im Stapel (JsonStore::batch): Ein unbekannter Beleg neben einem vorhandenen ist 400, und der
+     * vorhandene bleibt unverknüpft (bisher war er schon verknüpft, als der unbekannte abgewiesen wurde).
+     *
      * @return array<string,mixed>
      */
     public function createStatement(string $tenancyId, array $input): array
     {
+        return $this->store->batch(fn(): array => $this->createStatementNow($tenancyId, $input));
+    }
+
+    /** @return array<string,mixed> */
+    private function createStatementNow(string $tenancyId, array $input): array
+    {
         $t = $this->get($tenancyId) ?? throw new NotFoundException($this->i18n->t('errors.tenancy.notFound'));
+        $apply = self::applyFlags($input);   // v3.13.0 — vor dem Schreiben geprüft (Input::flag)
         $s = ['id' => 's_' . bin2hex(random_bytes(6)), 'tenancy_id' => $tenancyId]
             + $this->normalizeStatement($input, null) + ['created_at' => date('c')];
         $this->linkAttachments($s, [], $input['attachment_ids'] ?? []);
@@ -175,15 +190,22 @@ final class TenancyService
         $before = $this->statements($tenancyId);   // v3.4.0 (F1024)
         $all[] = $s;
         $this->store->write('tenancy_statements.json', array_values($all));
-        $this->applyToTenancy($t, $s, $input);
+        $this->applyToTenancy($t, $s, $apply);
         $this->activity?->statementRecorded($t, $s, $before);
         return $s;
     }
 
-    /** @return array<string,mixed> */
+    /** @return array<string,mixed> v3.13.0 (K2d) — im Stapel wie createStatement() */
     public function updateStatement(string $tenancyId, string $sid, array $input): array
     {
+        return $this->store->batch(fn(): array => $this->updateStatementNow($tenancyId, $sid, $input));
+    }
+
+    /** @return array<string,mixed> */
+    private function updateStatementNow(string $tenancyId, string $sid, array $input): array
+    {
         $t = $this->get($tenancyId) ?? throw new NotFoundException($this->i18n->t('errors.tenancy.notFound'));
+        $apply = self::applyFlags($input);   // v3.13.0
         $all = $this->store->read('tenancy_statements.json', []);
         if (!is_array($all)) $all = [];
         foreach ($all as $i => $s) {
@@ -194,7 +216,7 @@ final class TenancyService
             $others = array_values(array_filter($this->statements($tenancyId), fn($o) => ($o['id'] ?? null) !== $sid));
             $all[$i] = $next;
             $this->store->write('tenancy_statements.json', array_values($all));
-            $this->applyToTenancy($t, $next, $input);
+            $this->applyToTenancy($t, $next, $apply);
             $this->activity?->statementChanged($t, $s, $next, $others);
             return $next;
         }
@@ -275,10 +297,25 @@ final class TenancyService
 
     // ── intern ───────────────────────────────────────────────────────────
 
+    /**
+     * v3.13.0 — „Preise übernehmen“ und „Vorauszahlung übernehmen“ nach der einen Regel (Input::flag), geprüft,
+     * bevor die Abrechnung geschrieben wird: `!empty("false")` übernahm bisher, Unlesbares ist jetzt 400.
+     *
+     * @return array{apply_prices: bool, apply_prepayment: bool}
+     */
+    private static function applyFlags(array $input): array
+    {
+        return [
+            'apply_prices'     => \Energietracker\Support\Input::flag($input['apply_prices'] ?? false, 'apply_prices'),
+            'apply_prepayment' => \Energietracker\Support\Input::flag($input['apply_prepayment'] ?? false, 'apply_prepayment'),
+        ];
+    }
+
+    /** @param array{apply_prices: bool, apply_prepayment: bool} $input */
     private function applyToTenancy(array $t, array $s, array $input): void
     {
         $patch = [];
-        if (!empty($input['apply_prices'])) {
+        if ($input['apply_prices']) {
             $prices = self::derivePrices($s);
             if ($prices !== []) {
                 $from = date('Y-m-d', (int)strtotime((string)$s['period_to'] . ' +1 day'));
@@ -287,7 +324,7 @@ final class TenancyService
                 $patch['prices'] = $list;
             }
         }
-        if (!empty($input['apply_prepayment']) && is_array($s['new_prepayment'] ?? null)) {
+        if ($input['apply_prepayment'] && is_array($s['new_prepayment'] ?? null)) {
             $np = $s['new_prepayment'];
             $list = array_values(array_filter((array)($t['prepayments'] ?? []), fn($p) => ($p['from'] ?? null) !== $np['from']));
             $list[] = $np;
@@ -319,13 +356,15 @@ final class TenancyService
         $out = [];
         // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
         \Energietracker\Support\Input::assertTexts($in, ['label', 'landlord', 'notes', 'billing_anchor', 'co2_restriction']);
+        // v3.13.0 (Paket F) — Bezeichnung, Vermieter, Notiz, Festkosten: Fehler mit Feld und Grenze statt still gekürzt
+        \Energietracker\Support\TextLimits::assert($in, 'tenancies', $old ?? []);
         if ($isNew || array_key_exists('start', $in)) $out['start'] = $this->date($in['start'] ?? null, 'errors.tenancy.dateInvalid');
         if (array_key_exists('end', $in)) $out['end'] = ($in['end'] ?? '') === '' ? null : $this->date($in['end'], 'errors.tenancy.dateInvalid');
         $start = $out['start'] ?? $old['start'];
         $end = array_key_exists('end', $out) ? $out['end'] : ($old['end'] ?? null);
         if ($end !== null && $end < $start) throw new LocalizedException('errors.tenancy.endBeforeStart', [], 'tenancy end < start');
-        foreach (['label' => 120, 'landlord' => 120, 'notes' => 2000] as $f => $max) {
-            if ($isNew || array_key_exists($f, $in)) $out[$f] = mb_substr(trim((string)($in[$f] ?? '')), 0, $max);
+        foreach (['label', 'landlord', 'notes'] as $f) {
+            if ($isNew || array_key_exists($f, $in)) $out[$f] = trim((string)($in[$f] ?? ''));
         }
         if ($isNew || array_key_exists('wohnflaeche_m2', $in)) {
             $v = $in['wohnflaeche_m2'] ?? null;
@@ -350,29 +389,34 @@ final class TenancyService
                     if (isset($e[$f]) && $e[$f] !== '') $p[$f] = $this->num($e[$f], 0, 1000);
                 }
                 $p['source'] = in_array($e['source'] ?? null, ['statement', 'estimate'], true) ? $e['source'] : 'estimate';
-                if (!empty($e['statement_id'])) $p['statement_id'] = (string)$e['statement_id'];
+                if (!empty($e['statement_id'])) $p['statement_id'] = (string)\Energietracker\Support\Input::text($e, 'statement_id');   // v3.13.0
                 return $p;
             });
         }
         if ($isNew || array_key_exists('fixed_costs', $in)) {
             $out['fixed_costs'] = $this->datedList($in['fixed_costs'] ?? [], fn(array $e) => [
-                'label'        => mb_substr(trim((string)($e['label'] ?? '')), 0, 120),
+                // v3.13.0 — Länge: TextLimits; eine Liste statt Text: 400 statt 500 (Input::text)
+                'label'        => trim((string)\Energietracker\Support\Input::text($e, 'label')),
                 'eur_per_year' => $this->num($e['eur_per_year'] ?? 0, 0, 1000000),
             ]);
         }
         // v3.1.0 (H4, MKT-15) — Kürzungen der CO₂-Erstattung: eigene Geräte (Gasherd, § 6 Abs. 3)
         // und öffentlich-rechtliche Vorgaben (§ 9: eine → halbiert, beide → keine Aufteilung)
-        if ($isNew || array_key_exists('co2_own_appliances', $in)) $out['co2_own_appliances'] = !empty($in['co2_own_appliances']);
+        // v3.13.0 — als Wahrheitswert nach der einen Regel: `!empty("false")` kürzte die Erstattung bisher auf 95 %
+        if ($isNew || array_key_exists('co2_own_appliances', $in)) $out['co2_own_appliances'] = \Energietracker\Support\Input::flag($in['co2_own_appliances'] ?? false, 'co2_own_appliances');
         if ($isNew || array_key_exists('co2_restriction', $in)) {
             $r = (string)($in['co2_restriction'] ?? 'none');
             $out['co2_restriction'] = in_array($r, ['none', 'one', 'both'], true) ? $r : 'none';
         }
         if ($isNew || array_key_exists('meter_ids', $in)) {
+            // v3.13.0 — ein Objekt je Rolle; Text oder Zahl an dieser Stelle: 400 statt 500
+            $given = $in['meter_ids'] ?? [];
+            if (!is_array($given)) throw \Energietracker\Support\Input::objectExpected('meter_ids');
             $ids = [];
             foreach (self::METER_ROLES as $role => $utility) {
                 $ids[$role] = [];
-                foreach ((array)($in['meter_ids'][$role] ?? []) as $mid) {
-                    $mid = (string)$mid;
+                foreach ((array)($given[$role] ?? []) as $mid) {
+                    $mid = (string)\Energietracker\Support\Input::text(['meter_ids' => $mid], 'meter_ids');
                     if ($mid === '') continue;
                     if (!$this->meters->get($utility, $mid)) {
                         throw new LocalizedException('errors.tenancy.meterNotFound', ['id' => $mid], 'tenancy meter');
@@ -390,6 +434,7 @@ final class TenancyService
     {
         $isNew = $old === null;
         $out = [];
+        \Energietracker\Support\TextLimits::assert($in, 'tenancy_statements', $old ?? []);   // v3.13.0 (Paket F) — Notiz, Posten
         foreach (['period_from', 'period_to'] as $f) {
             if ($isNew || array_key_exists($f, $in)) $out[$f] = $this->date($in[$f] ?? null, 'errors.tenancy.dateInvalid');
         }
@@ -417,12 +462,12 @@ final class TenancyService
                 $cat = (string)($p['category'] ?? 'other');
                 if (!in_array($cat, self::CATEGORIES, true)) $cat = 'other';
                 $e = [
-                    'label'      => mb_substr(trim((string)($p['label'] ?? '')), 0, 120),
+                    'label'      => trim((string)($p['label'] ?? '')),   // v3.13.0 — Länge: TextLimits
                     'category'   => $cat,
                     'amount_eur' => $this->num($p['amount_eur'] ?? 0, -1000000, 1000000),
                 ];
                 if (isset($p['consumption']) && $p['consumption'] !== '') $e['consumption'] = $this->num($p['consumption'], 0, 10000000);
-                if (isset($p['unit']) && $p['unit'] !== '') $e['unit'] = mb_substr((string)$p['unit'], 0, 12);
+                if (isset($p['unit']) && $p['unit'] !== '') $e['unit'] = (string)$p['unit'];   // v3.13.0 — Länge: TextLimits
                 $pos[] = $e;
             }
             $out['positions'] = $pos;
@@ -461,7 +506,7 @@ final class TenancyService
             $out['booked'] = \Energietracker\Support\Input::bool($in['booked'] ?? false)
                 ?? throw new \Energietracker\Support\LocalizedException('errors.common.boolExpected', ['field' => 'booked'], 'statement booked: bool expected');
         }
-        if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)\Energietracker\Support\Input::text($in, 'note'), 0, 2000);
+        if ($isNew || array_key_exists('note', $in)) $out['note'] = (string)\Energietracker\Support\Input::text($in, 'note');   // v3.13.0 — Länge: TextLimits
         if ($isNew) $out['attachment_ids'] = [];
         return $out;
     }

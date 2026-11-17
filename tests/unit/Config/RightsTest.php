@@ -111,19 +111,22 @@ final class RightsTest extends TestCase
     /** @return array<string, array{0:string, 1:string, 2:array<string,mixed>}> */
     public static function announcements(): array
     {
+        // v3.13.0 — bewusst umgestellt (Entscheidung des Maintainers): `announce_by` ist der letzte rechtzeitige Tag nach
+        // der Vorwärtsprobe (wie der Kündigungsstichtag), ein Tag früher als die bis v3.12 gebrauchte Rechnung; der Tag
+        // dazwischen heißt `tight`. Alter Preis bis 30.11. (Monatsletzter): ein Monat → 31.10., 42 Tage → 19.10.
         return [
             // Sondervertrag: spätestens einen Monat vorher; 25 Tage sind zu spät (Konzept §3 A3)
-            '25 Tage vor dem 01.12.' => ['2026-11-06', '2026-12-01', ['days_before' => 25, 'special' => ['announce_by' => '2026-11-01', 'late' => true],
-                'basic' => ['announce_by' => '2026-10-20', 'late' => true, 'month_start' => true]]],
-            'genau ein Monat'        => ['2026-11-01', '2026-12-01', ['days_before' => 30, 'special' => ['announce_by' => '2026-11-01', 'late' => false],
-                'basic' => ['announce_by' => '2026-10-20', 'late' => true, 'month_start' => true]]],
-            'sechs Wochen'           => ['2026-10-20', '2026-12-01', ['days_before' => 42, 'special' => ['announce_by' => '2026-11-01', 'late' => false],
-                'basic' => ['announce_by' => '2026-10-20', 'late' => false, 'month_start' => true]]],
-            // Monatsende geklemmt (Lektion 26): 31.03. − 1 Monat = 28.02.
-            'zum 31.03.'             => ['2026-02-28', '2026-03-31', ['days_before' => 31, 'special' => ['announce_by' => '2026-02-28', 'late' => false],
-                'basic' => ['announce_by' => '2026-02-17', 'late' => true, 'month_start' => false]]],
-            'Grundversorgung zum 15.' => ['2026-09-01', '2026-11-15', ['days_before' => 75, 'special' => ['announce_by' => '2026-10-15', 'late' => false],
-                'basic' => ['announce_by' => '2026-10-04', 'late' => false, 'month_start' => false]]],
+            '25 Tage vor dem 01.12.' => ['2026-11-06', '2026-12-01', ['days_before' => 25, 'special' => ['announce_by' => '2026-10-31', 'late' => true, 'tight' => false],
+                'basic' => ['announce_by' => '2026-10-19', 'late' => true, 'tight' => false, 'month_start' => true]]],
+            'genau ein Monat: knapp' => ['2026-11-01', '2026-12-01', ['days_before' => 30, 'special' => ['announce_by' => '2026-10-31', 'late' => false, 'tight' => true],
+                'basic' => ['announce_by' => '2026-10-19', 'late' => true, 'tight' => false, 'month_start' => true]]],
+            'genau 42 Tage: knapp'   => ['2026-10-20', '2026-12-01', ['days_before' => 42, 'special' => ['announce_by' => '2026-10-31', 'late' => false, 'tight' => false],
+                'basic' => ['announce_by' => '2026-10-19', 'late' => false, 'tight' => true, 'month_start' => true]]],
+            // Monatsende (Lektion 26): zum 31.03. stimmen beide Rechnungen überein (28.02.), kein knapper Tag
+            'zum 31.03.'             => ['2026-02-28', '2026-03-31', ['days_before' => 31, 'special' => ['announce_by' => '2026-02-28', 'late' => false, 'tight' => false],
+                'basic' => ['announce_by' => '2026-02-16', 'late' => true, 'tight' => false, 'month_start' => false]]],
+            'Grundversorgung zum 15.' => ['2026-09-01', '2026-11-15', ['days_before' => 75, 'special' => ['announce_by' => '2026-10-14', 'late' => false, 'tight' => false],
+                'basic' => ['announce_by' => '2026-10-03', 'late' => false, 'tight' => false, 'month_start' => false]]],
         ];
     }
 

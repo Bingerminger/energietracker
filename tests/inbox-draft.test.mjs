@@ -75,6 +75,9 @@ try {
     try { global[k] = w[k]; } catch { Object.defineProperty(global, k, { value: w[k], configurable: true, writable: true }); }
   }
   Object.defineProperty(global, 'navigator', { value: w.navigator, configurable: true, writable: true });
+  // v3.13.0 (Paket K2e) — ein deutscher Browser: Der Datenordner gilt dem Server als leer (nur settings.json), den
+  // Erststart entscheidet die Sprache, die die Oberfläche schickt (seit v3.13 die des Browsers, JSDOM sagt „en-US“)
+  Object.defineProperty(w.navigator, 'languages', { value: ['de-DE', 'de'], configurable: true });
   let inflight = 0;
   const browserFetch = async (input, init) => {
     if (typeof input === 'string' && !/^https?:\/\//i.test(input)) input = new URL(input, w.location.href).href;

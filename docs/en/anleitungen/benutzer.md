@@ -202,12 +202,16 @@ them; the dialog says so beforehand.
 | addresses in the network: embedding, text recognition, evcc | ✓ | — |
 | the default for everyone: language, country, currency, time zone *(v3.12.0)* | ✓ | — |
 | notice of new versions, location and weather sync *(v3.12.0)* | ✓ | — |
+| details for letters (sender, supply address) under Household → Building | ✓ | ✓ (no longer once “Only admins change these details” is on, *v3.13.0*) |
+| the switch “Only admins change these details” *(v3.13.0)* | ✓ | — |
 
 Restoring and loading replace all data; the addresses make the server talk to
 other machines. That is why they are reserved for admins. If a member tries
 anyway, the app answers “Only someone who manages this installation may do
 that.” Under Settings → Access and security, members only see the note on who manages
-access.
+access. **Under Connections** *(v3.13.0)* members do not get the buttons for the Home
+Assistant token or the fields for evcc and home network security; the page says that
+an admin sets them up.
 
 **At least one person manages.** The last person with the role “Admin” can
 neither be made a member nor be deleted.

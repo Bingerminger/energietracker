@@ -7,7 +7,7 @@
 #
 # Die Laufzeit bleibt Composer-frei (Hand-rolled-Autoloader in
 # src/bootstrap.php) — es wird KEIN `composer install` ausgeführt.
-# v3.4.0 — PHP 8.5 (Dependabot #27); die CI prüft 8.3 bis 8.5.
+# v3.4.0 — PHP 8.5 (Dependabot #27); die CI prüft 8.4 und 8.5 (Mindestversion 8.4 seit v3.13.0).
 #
 # v3.5.0 (N1024) — zwei Ziele aus dieser einen Datei, mit gemeinsamer Stufe
 # `base` (Pakete, PHP-Konfiguration, App-Code):

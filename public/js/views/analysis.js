@@ -783,7 +783,8 @@ function renderContractReminders(contractStatus) {
       : days === 1 ? t('analysis.contractEnd.endsTomorrow')
       : tp('analysis.contractEnd.endsInDays', days, { days });
     const text = byCancel
-      ? tp('analysis.contractEnd.cancelBy', days, { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.end) })
+      // v3.13.0 — `cancel_end`: in der Verlängerung (Fernwärme, § 32 AVBFernwärmeV) deren Ende, nicht das alte
+      ? tp('analysis.contractEnd.cancelBy', days, { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.cancel_end || c.end) })
       : `${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })} ${c.end ? `(${fmt.date(c.end)})` : ''}.`;
     return `
       <div class="infobox ${stageClass[stage] || 'infobox--info'}" style="margin-bottom: var(--sp-3)">

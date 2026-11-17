@@ -596,8 +596,8 @@ Das ersetzt alle Daten der Installation; vorher legt die App einen Snapshot an.
 Dann **Auswertungen → Flexibilität**, Jahr 2025.
 
 **Dein Hebel.** Die Ergebniskarte — und die Kachel auf der Übersicht — zeigt
-**91 €** im Jahr mit dem Vertrag, wie er ist, mit einem dynamischen Tarif bis
-zu **251 €**, beides inkl. USt (Börsenpreis mit den 19 % des Angebots „Strom
+**86 €** im Jahr mit dem Vertrag, wie er ist, mit einem dynamischen Tarif bis
+zu **248 €**, beides inkl. USt (Börsenpreis mit den 19 % des Angebots „Strom
 Dynamisch“):
 
 ```text
@@ -605,22 +605,22 @@ Gerät                          Preissignal                              verscho
 E-Auto (Wallbox)               Börsenpreis, mit dynamischem Tarif        2.316 kWh     140 €
 Wärmepumpe                     Börsenpreis, mit dynamischem Tarif          944 kWh      52 €
 Wärmepumpe                     Netzentgelt (Modul 3), mit deinem Tarif     878 kWh      40 €
-Spülmaschine (Beispielwert)    Sonnenstrom, mit deinem Tarif               105 kWh      23 €
-Speicher                       Börsenpreis, mit dynamischem Tarif          327 kWh      19 €
-Waschmaschine (Beispielwert)   Sonnenstrom, mit deinem Tarif                78 kWh      17 €
+Spülmaschine (Beispielwert)    Sonnenstrom, mit deinem Tarif               101 kWh      22 €
+Speicher                       Börsenpreis, mit dynamischem Tarif          298 kWh      19 €
 Spülmaschine (Beispielwert)    Börsenpreis, mit dynamischem Tarif          261 kWh      16 €
+Waschmaschine (Beispielwert)   Sonnenstrom, mit deinem Tarif                74 kWh      16 €
 Waschmaschine (Beispielwert)   Börsenpreis, mit dynamischem Tarif          188 kWh      12 €
-E-Auto (Wallbox)               Sonnenstrom, mit deinem Tarif                53 kWh      11 €
+E-Auto (Wallbox)               Sonnenstrom, mit deinem Tarif                38 kWh       8 €
 
-mit deinem Tarif            40 € (Wärmepumpe, Modul 3) + 23 € + 17 € (Sonne) + 11 € (Auto, Sonne)  ≈ 91 €
-größter Hebel je Gerät     140 € (Auto) + 52 € (Wärmepumpe) + 23 € + 19 € (Speicher) + 17 €      ≈ 251 €
+mit deinem Tarif            40 € (Wärmepumpe, Modul 3) + 22 € + 16 € (Sonne) + 8 € (Auto, Sonne)  ≈ 86 €
+größter Hebel je Gerät     140 € (Auto) + 52 € (Wärmepumpe) + 22 € + 19 € (Speicher) + 16 €      ≈ 248 €
 ```
 
 Das Auto rechnet mit seinen **Steckzeiten aus evcc** (153 Ladevorgänge 2025,
 alle Ladung in einem Ladefenster). Mit einem dynamischen Tarif brächte es am
 meisten, im Winterhalbjahr nachts geladen statt gleich nach dem Anstecken am
 Abend, im Sommerhalbjahr in den günstigsten Mittagsstunden. Mit Sonnenstrom
-bringt es nur 11 €: Im Sommer lädt es mittags ohnehin, im Winter ist es mittags
+bringt es nur 8 €: Im Sommer lädt es mittags ohnehin, im Winter ist es mittags
 nicht da. Unter der Annahme „ganzer Ladetag“ — so rechnete die Seite bis zu
 den Steckzeiten — wären es 65 € mit Sonnenstrom und 154 € mit dynamischem Tarif
 gewesen: Die Annahme überschätzt, was ein Dienstwagen kann, der werktags
@@ -634,8 +634,8 @@ Uhr: bis zu 40 € im Jahr.“ Die Ampel zeigt 2025 sonntags 12 bis 15 Uhr als
 günstigstes Fenster der Woche, im Sommerhalbjahr sogar mit Preisen unter null;
 teuer ist es abends.
 
-**Sonnenstrom.** 3.570 von 9.198 kWh selbst genutzt (39 %); mit den Hebeln für
-Sonnenstrom rund 236 kWh mehr (41 %), 51 € im Jahr.
+**Sonnenstrom.** 3.426 von 9.566 kWh selbst genutzt (36 %); mit den Hebeln für
+Sonnenstrom rund 213 kWh mehr (38 %), 46 € im Jahr.
 
 **Nachgerechnet** (Stufe „Experte“):
 
@@ -643,10 +643,10 @@ Sonnenstrom rund 236 kWh mehr (41 %), 51 € im Jahr.
 Zähler                    mit Preis  günstig  negativ   eigener Ø  Börse Ø   Profilfaktor  Vorteil
 Wärmepumpe (steuerbar)    3.891 kWh    55 %   112 kWh    9,60 ct   10,08 ct      0,95      18,78 €
 Wallbox (steuerbar)       2.618 kWh    48 %   469 kWh    9,41 ct    9,07 ct      1,04      −9,01 €
-Haushalt (Bezug)          2.862 kWh    40 %   303 kWh   10,79 ct    9,41 ct      1,15     −39,46 €
+Haushalt (Bezug)          2.995 kWh    40 %   284 kWh   10,89 ct    9,53 ct      1,14     −40,81 €
 
-Speicher       1.695 kWh geladen zu Ø 8,11 ct, 1.556 kWh entladen zu Ø 11,61 ct
-               Wert = (1.555,91 × 11,612 − 1.694,70 × 8,114) ÷ 100 ≈ 43,15 €
+Speicher       1.552 kWh geladen zu Ø 8,07 ct, 1.424 kWh entladen zu Ø 11,61 ct
+               Wert = (1.424,16 × 11,609 − 1.551,64 × 8,071) ÷ 100 ≈ 40,09 €
 Modul 3 (Wärmepumpe)
                1.512 kWh im Niedrigtarif, 129 kWh im Hochtarif, 2.250 kWh im Standardtarif
                Ersparnis = (1.511,79 × (8,1 − 2,4) + 129,41 × (8,1 − 11,9)) ÷ 100 ≈ 81,25 €

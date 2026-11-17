@@ -76,7 +76,12 @@ final class Co2SplitService
         }
 
         // Etagenheizung: selbst rechnen (Gas, Heizöl)
-        $costs = $this->costs->forYear($year);
+        // v3.13.0 — Grenzen und Ausstoß über denselben Zeitraum: Im Teiljahr (Einzug oder Auszug im Jahr) zählen
+        // Emissionen und CO₂-Kosten nur an den Tagen des Mietverhältnisses (§ 5 Abs. 1 Satz 5, Abs. 3 Satz 4
+        // CO2KostAufG). Bis v3.12 kamen sie aus dem ganzen Kalenderjahr, auch aus Ständen vor dem Einzug, und standen
+        // gegen die gekürzten Grenzen: Ein halbes Jahr Miete trug den Ausstoß eines ganzen Jahres.
+        $period = Co2CostService::periodOf($t, $year);
+        $costs = $this->costs->forYear($year, $period);
         $rows = array_values(array_filter($costs['rows'] ?? [], fn($r) => in_array($r['utility'], ['gas', 'heizoel'], true)));
         if ($rows === []) return $base + ['case' => null, 'note' => $this->i18n->t('co2split.noData')];
         $em = array_sum(array_column($rows, 'emissions_kg'));
@@ -86,7 +91,7 @@ final class Co2SplitService
         $kg = round($em / $area, 1);
         // v3.12.0 — Teiljahr (Einzug oder Auszug im Jahr): Grenzen anteilig gekürzt, § 5 Abs. 3 Satz 4 mit Abs. 1
         // CO2KostAufG. Bis v3.11 rechnete die Etagenheizung immer mit den Grenzen eines ganzen Jahres.
-        $days = Co2CostService::periodDays($t, $year);
+        $days = $period['days'];
         [$stage, $share] = Co2CostService::stage($kg, $days);
         $factor = 1.0;
         $reductions = [];

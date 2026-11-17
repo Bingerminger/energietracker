@@ -139,11 +139,11 @@ final class AnomalyService
      *
      * @return list<array<string,mixed>>
      */
-    private function validMonths(string $utility, array $monthly): array
+    private function validMonths(string $utility, array $monthly, bool $weather = false): array
     {
         $u = Utilities::get($utility);
         $minDays = (int)$this->settings->get('min_days_period', 20);
-        $hgt = !empty($u['hgt_relevant']);
+        $hgt = !empty($u['hgt_relevant']) || $weather;   // v3.13.0 — Strom nach dem Wetter (quality())
         return array_values(array_filter($monthly, fn($m) =>
             ($m['days'] ?? 0) >= $minDays
             // v1.6.1 — Issue #13: Wechsel-Monate aus z-Score-Erkennung
@@ -172,15 +172,15 @@ final class AnomalyService
      *
      * @return array{valid:list<array>,expected:array<int,?float>,residuals:array<int,float>,center:float,scale:float,typical:float}|null
      */
-    private function residuals(string $utility, array $monthly): ?array
+    private function residuals(string $utility, array $monthly, bool $weather = false): ?array
     {
         if (Utilities::isDelivery($utility)) return null;
         $u = Utilities::get($utility);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
-        $valid = $this->validMonths($utility, $monthly);
+        $valid = $this->validMonths($utility, $monthly, $weather);
         if (count($valid) < self::MIN_MONTHS) return null;
 
-        $expected = !empty($u['hgt_relevant'])
+        $expected = !empty($u['hgt_relevant']) || $weather
             ? array_map(fn($m) => (float)$m['expected_heat'], $valid)
             : $this->seasonalExpectations($valid, $valueField);
 
@@ -212,12 +212,16 @@ final class AnomalyService
      * Streuung, mindestens die Rauschuntergrenze des typischen Monats). Nur für
      * Arten mit Heizmodell, sonst null.
      *
+     * v3.13.0 (Paket waermepumpe) — `$weather`: auch für Strom, der dem Wetter folgt (UtilityWeather); die
+     * Monatszeilen tragen dann die Erwartung des Heizmodells (ConsumptionService::weatherSeries()). Ohne das
+     * Argument wie bisher (die Anomalie-Erkennung der Wärmepumpe kommt mit Paket I).
+     *
      * @return array<string,mixed>|null
      */
-    public function quality(string $utility, array $monthly): ?array
+    public function quality(string $utility, array $monthly, bool $weather = false): ?array
     {
-        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return null;
-        $r = $this->residuals($utility, $monthly);
+        if ((!$weather && !Utilities::isHgtRelevant($utility)) || Utilities::isDelivery($utility)) return null;
+        $r = $this->residuals($utility, $monthly, $weather);
         if ($r === null || $r['typical'] <= 0) return null;
         $u = Utilities::get($utility);
         $vf = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';

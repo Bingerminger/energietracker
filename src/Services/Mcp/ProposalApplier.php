@@ -8,6 +8,7 @@ use Energietracker\Services\ActivityService;
 use Energietracker\Services\I18nService;
 use Energietracker\Services\InboxService;
 use Energietracker\Services\MeterService;
+use Energietracker\Services\ReadingCheckService;
 use Energietracker\Services\ReadingService;
 use Energietracker\Support\LocalizedException;
 
@@ -39,7 +40,7 @@ final class ProposalApplier
     {
         $by = ['type' => 'key', 'name' => $ctx->keyName, 'via' => 'mcp'];
         return $this->services->get(PendingChanges::class)->consume($id, $ctx, $summary,
-            fn(array $payload, array $proposal): array => $this->write($payload, $proposal, $by));
+            fn(array $payload, array $proposal): array => $this->write($payload, $proposal, $by, $ctx->today));
     }
 
     /**
@@ -62,24 +63,29 @@ final class ProposalApplier
      * @param array<string,mixed> $payload
      * @param array<string,mixed> $proposal öffentliche Felder des Vorschlags
      * @param array<string,mixed> $by Akteur im Verlauf
+     * @param ?string $today v3.13.0 (Paket K1) — Stand der Daten wie beim Vorschlag (über den Schlüssel: der Tag der KI; in der App: heute)
      * @return array<string,mixed>
      */
-    private function write(array $payload, array $proposal, array $by): array
+    private function write(array $payload, array $proposal, array $by, ?string $today = null): array
     {
         $activity = $this->services->get(ActivityService::class);
-        return $activity->withActor($by, fn(): array => match ($proposal['kind']) {
-            'reading'  => $this->applyReading($payload, (string)$proposal['id'], (string)$proposal['summary']),
+        // v3.13.0 (Paket F) — der Rückweg: was die Übernahme an den Töpfen ändert, steht am Verlaufseintrag
+        // (ActivityService::undo stellt es zurück, solange es der jüngste Stand ist)
+        [$result, $changes, $created] = $activity->capturing(fn(): array => $activity->withActor($by, fn(): array => match ($proposal['kind']) {
+            'reading'  => $this->applyReading($payload, (string)$proposal['id'], (string)$proposal['summary'], $today),
             'document' => $this->applyDocument($payload, (string)$proposal['summary']),
             // Programmierfehler: Client bekommt errors.mcp.internal mit Fehler-ID
             default    => throw new \LogicException("mcp: proposal kind {$proposal['kind']} has no apply step"),
-        });
+        }));
+        $activity->attachRevert(array_values(array_map('strval', (array)($result['activity_ids'] ?? []))), $changes, $created, (string)$proposal['id']);
+        return $result;
     }
 
     /**
      * @param array<string,mixed> $payload
      * @return array<string,mixed>
      */
-    private function applyReading(array $payload, string $proposalId, string $summary): array
+    private function applyReading(array $payload, string $proposalId, string $summary, ?string $today = null): array
     {
         $meters = $this->services->get(MeterService::class);
         $readings = $this->services->get(ReadingService::class);
@@ -101,7 +107,9 @@ final class ProposalApplier
         }
         // eine neue Rückfrage, die der bestätigte Satz nicht nennt: nichts schreiben, neu vorschlagen
         $known = array_map('strval', (array)($payload['issues'] ?? []));
-        $now = array_column($readings->plausibilityFor($u, $meter, $date, (float)$payload['counter'])['issues'], 'type');
+        // v3.13.0 (Paket K1, #65) — dieselbe Prüfung nach dem Wetter wie beim Vorschlag
+        $now = array_column($readings->plausibilityFor($u, $meter, $date, (float)$payload['counter'],
+            $this->services->get(ReadingCheckService::class), $today)['issues'], 'type');
         if (array_diff($now, $known) !== []) throw new LocalizedException('errors.mcp.proposal.stale', [], 'apply: new issues');
         $reading = $readings->create($u, [
             'meter_id' => $mid, 'date' => $date, 'counter' => (float)$payload['counter'], 'is_estimated' => !empty($payload['is_estimated']),

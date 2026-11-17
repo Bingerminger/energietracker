@@ -50,6 +50,10 @@
 .inbox-field__reason { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--text-1); }
 .inbox-field__items { margin: var(--sp-1) 0 0; padding-left: var(--sp-5); }
 .inbox-item--check { background: var(--warning-soft); }
+/* v3.13.0 (Paket F) — Einträge einzeln entschieden: verworfen gedämpft (die Herkunft nennt ein Abzeichen) */
+.inbox-item { margin-bottom: var(--sp-2); }
+.inbox-item--discarded { color: var(--text-2); }
+.inbox-item .inbox-edit .fgrid { width: 100%; }
 .inbox-field__actions { margin: var(--sp-2) 0 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .inbox-quote { margin: var(--sp-1) 0 0; padding: var(--sp-1) var(--sp-2); background: var(--bg-2); border-radius: var(--r-sm);
   font-size: var(--fs-sm); color: var(--text-2); font-style: italic; overflow-wrap: anywhere; }

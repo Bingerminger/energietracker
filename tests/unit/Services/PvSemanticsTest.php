@@ -153,4 +153,30 @@ final class PvSemanticsTest extends ServiceTestCase
         self::assertSame([], array_filter($model['money']['by_utility'], fn($r) => $r['utility'] === 'pv_einspeisung'));
         self::assertSame(1, substr_count(mb_strtolower($all), 'vermieden'), 'vermiedenes CO₂ genau einmal (bei der Erzeugung)');
     }
+
+    /**
+     * v3.13.0 (Paket gegenproben) — Mit Erzeugungszähler zählt das vermiedene CO₂ des Berichts nur die Erzeugung: Die
+     * Menge der Einspeisung ändert den Satz nicht (seit v3.4.0 steht es in einem Satz; bis dahin zählte der Test nur das
+     * Wort „vermieden“, eine Summe aus Erzeugung und Einspeisung fiel nicht auf).
+     */
+    public function testAvoidedCo2CountsTheGenerationOnly(): void
+    {
+        $strom = $this->seed('strom', 200.0);
+        $feed  = $this->seed('pv_einspeisung', 150.0);
+        $this->seed('pv_erzeugung', 300.0);
+        $this->contract('strom', $strom, 30.0);
+        $this->contract('pv_einspeisung', $feed, 8.0);
+        $this->settings->set(['active_utilities' => ['strom', 'pv_einspeisung', 'pv_erzeugung']]);
+        $co2Text = function (): ?string {
+            $benchmark = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
+            $deliveries = new DeliveryService($this->store, $this->meters, $this->i18n);
+            $recs = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $benchmark, $deliveries, $this->i18n);
+            $model = (new PdfReportService($this->meters, $this->consumption, $this->settings, $benchmark, $recs, $this->i18n))->yearlyData(2024)['model'];
+            return $model['topics']['pv']['co2_text'] ?? null;
+        };
+        $before = $co2Text();
+        self::assertNotNull($before, 'Satz zum vermiedenen CO₂');
+        $this->seed('pv_einspeisung', 50.0);   // dieselbe Erzeugung, ein Drittel der Einspeisung
+        self::assertSame($before, $co2Text(), 'vermiedenes CO₂ hängt nicht an der Einspeisung');
+    }
 }

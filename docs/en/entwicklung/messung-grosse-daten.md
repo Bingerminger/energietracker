@@ -8,7 +8,8 @@ How long does the app take when a household reads its meters every day for ten
 or twenty years — via Home Assistant, say, or a CSV import of long histories?
 The measurement answers that with an invented household and sets the point
 from which N1006 (caching and storage rework, see the roadmap) becomes
-necessary. As of v3.7.0.
+necessary. As of v3.7.0; print view and tank ledger: v3.13.0
+([below](#v3130-print-view-and-tank-ledger)).
 
 ---
 
@@ -25,6 +26,8 @@ node tools/large-household.mjs --out /tmp/et-large              # 10 years, 2 ye
 ET_DATA_DIR=/tmp/et-large php -S 127.0.0.1:8930 router.php      # to look at it
 NODE_PATH=<node_modules with jsdom> node tools/measure-large-household.mjs \
   --years 5,10,20 --runs 5 --demo --render                      # tables below
+node tools/large-household.mjs --out /tmp/et-tank --tank --tank-years 75   # plus a heating oil tank over 75 years
+node tools/measure-large-household.mjs --years 10 --tank        # also measures the heating oil views
 ```
 
 **The household** (all invented, fixed seed): gas, electricity, water, PV
@@ -34,7 +37,11 @@ year for gas, electricity and water, a feed-in tariff over 20 years and, for
 the last two full calendar years, quarter hours for electricity, PV generation
 and PV feed-in (sum per day = reading) plus market prices. Ten years are
 18,260 readings and 280,704 quarter-hour values. Not in `demo-data/`: the demo
-data comes from `tools/build-personas.mjs`.
+data comes from `tools/build-personas.mjs`. *(v3.13.0)* `--tank` adds a
+heating oil tank (6,000 L, filled “to full” every 1 July, a dipstick level every
+quarter), `--tank-years` over more years than the rest; the temperatures before
+come from a series of their own, so the household without a tank stays the same
+file by file.
 
 **Measured** on the development machine (Apple M1 Max, PHP 8.5 with the
 built-in server `php -S`, Node 26): per endpoint the median of five requests
@@ -114,6 +121,81 @@ data and on the large household):
 
 All of it only applies within one request (like the existing in-request cache
 of `forMeter()`), until the next write.
+
+## v3.13.0: print view and tank ledger
+
+In the CI the response time of “Model (print view)” was once 4,328 ms, above
+the limit of 4,170 ms (ten times the measurement). The limit stays; the print
+view got faster. In addition the tank ledger (heating oil, pellets) computes
+its daily series once per request. All values stay the same: old against new
+byte for byte on the demo households, the messy test household and a household
+with a tank, on several reference dates.
+
+1. **Last real reading once per meter and reference date.** Since v3.12.0 the
+   contract status asks, for every contract, up to when it is really measured,
+   and read all readings again each time. With ten years of daily values and
+   one contract per year that was more than half of the print view and almost
+   half of the overview. Now like the last reading: once per request.
+2. **The tank ledger in columns, once per tank and reference date.** It no
+   longer keeps one row per day but one list per quantity (consumption, stock,
+   average price). The request reads the temperatures once, not per tank. The
+   date of a day is a text of exactly its ten characters:
+   `DateTimeImmutable::format()` returns about 250 bytes per text under
+   PHP 8.5, which was 7 MB per tank ledger over 75 years.
+3. **Only the requested period.** Overview, recommendations and agenda need
+   today's stock (`DeliveryService::stockLatest()`), the annual report the days
+   from the report year on. Up to v3.12 they built the daily rows of all years
+   for it. The tank ledger itself still starts at the start: stock, price and
+   rate depend on all days before.
+
+The rules are held by `TankSeriesTest` (once per tank and reference date, only
+the stock, a period as a slice, about 130 bytes per day) and
+`LastMeasuredOnceTest`.
+
+**Measured** alternately old and new on the same machine, a server of its own
+per round, median of three rounds of three requests each. Other processes ran
+during the measurement (load 4 to 10 on 10 cores); the numbers are therefore
+higher than the “10 years” column above and only comparable with each other.
+The column above and the limits of the test stay unchanged.
+
+| View · request (10 years) | v3.12 | v3.13 |
+|---|---:|---:|
+| Overview · Summary | 2.27 s | 1.11 s |
+| Overview · Dates (90 days) | 1.87 s | 1.03 s |
+| Utility · Gas: contract status/balance | 295 ms | 173 ms |
+| Annual report · Model (print view) | 3.14 s | 1.36 s |
+| Annual report · Model with appendix | 3.63 s | 1.86 s |
+| Forecast workshop · Gas: scenario “Cold winter” | 390 ms | 206 ms |
+
+The other eleven requests of the table above are equally fast old and new
+(differences up to 5 %, within the noise of the measurement). With a heating
+oil tank over ten years (`--tank`): consumption per month 30 → 23 ms, stock
+13 → 12 ms, forecast 36 → 24 ms.
+
+**A tank over 75 years** (`--tank --tank-years 75`, otherwise ten years):
+
+| Request | v3.12 | v3.13 |
+|---|---:|---:|
+| Overview · Summary | 2.57 s · 134 MB | 1.32 s · 112 MB |
+| Overview · Dates (90 days) | 2.07 s · 134 MB | 1.25 s · 112 MB |
+| Annual report · Model (print view) | 3.28 s · 146 MB | 1.57 s · 126 MB |
+| Annual report · Model with appendix | HTTP 500 · 154 MB | 2.03 s · 132 MB |
+| Heating oil · Consumption per month | 186 ms · 88 MB | 145 ms · 54 MB |
+| Heating oil · Stock (tank ledger) | 76 ms · 64 MB | 72 ms · 52 MB |
+
+Time at the server as above; memory as the peak per request in a PHP process of
+its own without a limit. With the server's limit (`memory_limit = 128M`), under
+v3.12 the appendix failed at the server and, in a process of its own, the print
+view as well (error 500); under v3.13 both get through, the appendix just at the
+limit. A tank ledger over 75 years now holds about 3 MB instead of 18 MB.
+
+**What remains:** the showcase with heating oil and pellets, carried forward to
+2099 (sceptic run on v3.12.0), still needs more than 128 MB for overview,
+agenda, annual report and calendar: 134 to 142 MB instead of 164 to 176 MB;
+only the recommendations fit now (116 MB). The rest is no longer in the tank
+but in all meters over 77 years: monthly rows (about 32 MB), temperatures
+(15 MB), the degree-day grid of the heating limit (15 MB) and the daily spans
+(14 MB). That belongs to N1006.
 
 ## What remains — and the threshold for N1006
 

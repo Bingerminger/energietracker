@@ -6,6 +6,814 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.13.0] — 2026-11-17 — Speicher, Wallbox und HT/NT in der Prognose
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0). Geplant war die Prognose für Wärmepumpe, PV, Speicher und E-Auto
+nach dem Wetter. **Gebaut ist sie, angezeigt wird nur, was seine Prüfung besteht:** gemessen an einem Prüfhaushalt
+mit eigener Physik, der nicht aus dem Modell der App stammt, gegen feste Schwellen. Bestanden haben der **Saldo der
+Einspeisung nach der Sonne**, die **Einspeisung nach einem neuen Speicher** und die **Monate einer neuen Wallbox**.
+Die **Wärmepumpe nach dem Wetter** und die **PV-Prognose** schaffen ihre Schwellen noch nicht und bleiben aus; die
+App sagt es dort, wo sie sonst rechnen würden. Dazu kommen **HT und NT als ein Vertrag** ([#40]), die **Rückfrage
+beim Eintragen nach dem Wetter** ([#65]), die **Auszahlungen der Einspeisung**, **Abschläge als ganze Rate am
+Fälligkeitstag**, Längengrenzen für Freitext und die
+Korrekturen aus [#64]. API, CSV-Format 1, Backup-Format 3.0 und Docker-Umgebung wachsen nur additiv; **PHP 8.4 ist
+die neue Mindestversion**.
+
+### Kurzfassung
+
+- **Einspeisung nach der Sonne.** Die App holt die Einstrahlung je Tag, und „Erwartet bei Abrechnung“ der
+  Einspeisung rechnet danach, auch für die Tage seit der letzten Ablesung. Was der Netzbetreiber überwiesen hat,
+  trägst du an der Saldo-Karte ein: **bereits ausgezahlt und noch offen.**
+- **HT und NT als ein Vertrag** ([#40]): Die Prognose rechnet eine Gruppe mit Gruppenvertrag als Ganzes, jedes
+  Zählwerk zu seinem Preis, mit Grundpreis; der Jahresbericht zählt sie einmal.
+- **Neuer Speicher, neue Wallbox:** Die Prognose der Einspeisung zieht die Ladung eines neuen Speichers von den
+  Monaten davor ab. Eine neue Wallbox bekommt ihren ersten Winter aus den Ladevorgängen oder aus einer genannten
+  Annahme.
+- **Die Rückfrage beim Eintragen kennt die Jahreszeit** ([#65]): Beim Heizbeginn fragt sie nicht mehr fälschlich
+  nach einem Tippfehler, auch nicht beim Vorschlag einer KI und in der Vorschau eines CSV-Imports.
+- **Abschläge zählen wie beim Versorger** (Bekannte Grenze v3.12.0): tagesanteilig wie bisher oder als **ganze Rate
+  am Fälligkeitstag**, eine Einstellung für alle Verträge.
+- **Gebaut und geprüft, noch aus:** Wärmepumpe nach dem Wetter, PV-Prognose, Bezug nach einem neuen Speicher und
+  der Zähler vor einer neuen Wallbox. Sie rechnen weiter wie bisher, und **ein Hinweis sagt es.** Wärmepumpe und
+  PV-Prognose kommen mit v3.14 erneut auf den Prüfstand.
+- **Eingaben ohne stilles Kürzen:** eine Liste mit Höchstlängen für alle Wege, Listen im Posteingang **je Eintrag**
+  bestätigen, korrigieren oder verwerfen, **Übernahmen der KI zurücknehmen** im Verlauf.
+- **Gründlich nachgerechnet:** Kündigungsstichtage vorwärts nach §§ 187, 188 BGB, der Abschlag im angeschnittenen
+  Monat, das Abrechnungsjahr wie die Saldo-Karte, **„Preis fehlt“ statt 0 €** bei einem Vertrag ohne Arbeitspreis,
+  **eine Regel je Eingabe** für Schreibwege, Backup und gespeicherte Daten, und eine KI-Schnittstelle, die
+  angenommene Zahlen nicht mehr „gemessen“ nennt.
+- **Betrieb:** **PHP 8.4** als Mindestversion, die `.htaccess` für Apache kennt `…/api/…` wie nginx, die
+  Integration **1.1.0** kommt aus der Standardliste des Marketplace (ehemals HACS) und bringt Füllstand, Prognose
+  der Gruppe und Auszahlungen. Dazu [#64]: Knöpfe unter dem Feld, Kachel-Balken im Abrechnungsjahr.
+
+### Für bestehende Installationen
+
+- **PHP 8.4 ist jetzt die Mindestversion** (bisher 8.3). Betrifft nur den Betrieb auf einem eigenen Webserver;
+  Docker-Image und App für Home Assistant bringen PHP 8.5 mit, die Synology Web Station bietet 8.4 an. Ubuntu 24.04
+  sowie RHEL, AlmaLinux und Rocky Linux 10 bringen 8.3 mit: PHP 8.4 kommt unter Ubuntu 24.04 aus dem PPA
+  `ondrej/php`, unter RHEL 10 und den Nachbauten ab 10.2 aus AppStream (Paket `php8.4`) oder aus dem
+  Remi-Repository, sonst bleibt Docker. **Wer noch PHP 8.3 nutzt, stellt vor dem Update um.** Läuft die App danach
+  noch unter einer älteren Version, sagt es die Diagnose-Seite. Grund: Unter PHP 8.3 hing die Testsuite selten in PHP
+  selbst, und keiner der beschriebenen Wege braucht 8.3.
+- **Einmal Wetter nachholen:** Nach dem Update holt der tägliche Wetterabgleich einmal die Einstrahlung ab deiner
+  ersten Ablesung (ein Abruf des Archivs) und ergänzt das Klimanormal einmal um Einstrahlung und den Trend der
+  Temperatur. **Die Heizgradtage bleiben, wie sie sind;** Gas und alle anderen Arten rechnen gleich. Danach ändert
+  sich der Saldo der Einspeisung (unter „Changed“). Ohne Wetterabgleich bleibt er, wie er war.
+- **Zu lange Texte werden nicht mehr gekürzt:** Speichern meldet `400` mit Feld und Grenze. Ein Wert über der Grenze
+  aus einer älteren Version bleibt lesbar; die Meldung kommt erst, wenn du dieses Feld wieder speicherst. **Ein
+  Backup oder Snapshot mit längeren Texten spielt der Import erst nach dem Korrigieren ein.**
+- **Apache:** Die mitgelieferte `.htaccess` schreibt `…/api/…` jetzt wie nginx auf `api.php` um (mit
+  `mod_rewrite`). Wer eine eigene `.htaccess` pflegt, übernimmt die neue Regel; `…/api.php/api/…` geht weiter.
+- **Integration 1.1.0 aus dem Marketplace:** Die neuen Sensoren brauchen Energietracker 3.13.0 und erscheinen nach
+  dem Neuladen der Integration. Mit einer älteren Version bleibt alles wie in 1.0.
+- **Einige Zahlen ändern sich** (Beispiele unter „Changed“): Saldo der Einspeisung, erwartete Kosten im
+  Jahresbericht mit HT/NT-Gruppe oder mit einem Subzähler nach eigenem Vertrag, Prognose einer HT/NT-Gruppe, Zähler mit Verbrauch je Zeitraum an einem früheren
+  Stichtag, die Monate des Heizungstauschs in der Werkstatt, die Prognose der Einspeisung nach einem neuen Speicher,
+  die einer neuen Wallbox im Winter und der Saldo bei einer Schlussablesung am letzten Vertragstag. Dazu
+  **Kündigungsstichtage** bei einem Vertragsende am Monatsletzten (1 bis 3 Tage später), das **Abrechnungsjahr** bei
+  einem Vertrag, der mitten im Monat beginnt oder endet, bei einer Zählergruppe und beim Gartenzähler, und Cent-Beträge
+  aus der Rundung.
+- **Vertrag ohne Arbeitspreis:** Statt 0 € oder des Grundpreises steht „Preis fehlt“; die API kennzeichnet es mit
+  `price_missing`, die Zahlen bleiben.
+- **Strengere Eingaben, keine Brüche mehr durch alte Werte:** Wahrheitswerte gelten nur als ja/nein, true/false, 1/0
+  oder on/off (leer heißt nein), sonst `400`. Ein Backup mit ungültigen Werten oder Verweisen spielt der Import erst
+  nach dem Korrigieren ein. Was eine ältere Version in einer heute abgewiesenen Form gespeichert hat, bleibt in der
+  Datei; die App rechnet ohne diesen Wert und nennt ihn in der Diagnose und in `/api/health` (`data_issues`).
+- ⚠ **CSV der Ablesungen:** `readings.csv` (Format 1 und „local“) hat drei Spalten mehr, hinten angehängt
+  (`Nur-Abrechnung`, `Gemeldet-am`, `Bestaetigt`); die ersten neun bleiben, wie sie sind. Wer die Datei nach
+  Spaltenzahl einliest, sieht sie. Ältere Dateien ohne diese Spalten liest der Import wie bisher.
+- **Abschläge zählen** bleibt ab Werk tagesanteilig; bis du umschaltest, ändert sich kein Betrag (bis auf die
+  Schlussablesung am letzten Vertragstag, unter „Changed“).
+- **Neue Namen:** Die Einstellung „HGT-Basistemperatur“ heißt jetzt „Heizgrenze“, Schlüssel `hdd_base_temp` und
+  Wert bleiben. Filterknöpfe haben die Form der Reiter.
+- **Mit Anmeldung:** Der Schalter „Nur Verwalter ändern diese Angaben“ (Angaben für Briefe) ist ab Werk aus, es
+  ändert sich nichts, bis ein Verwalter ihn einschaltet. Mitglieder sehen unter Verbindungen die Token-Knöpfe und die Felder für evcc und die Sicherheit im
+  Heimnetz nicht mehr. Die Einstellungen für Texterkennung, Auslesen und Benachrichtigung an Home Assistant und den
+  Speicher für Belege ändern jetzt nur Verwalter (unter „Security“).
+- **„Rückgängig“ an Übernahmen der KI** gibt es für Übernahmen ab 3.13.0; ältere bleiben ohne Rückweg (`409`).
+
+### Added
+
+#### Sonne und Einspeisung
+
+- **Einstrahlung je Tag:** Der Wetterabgleich holt mit der Temperatur die Einstrahlung von Open-Meteo (kWh/m²;
+  Archiv, täglicher Abgleich, Vorhersage), das Klimanormal die mittlere Einstrahlung je Monat aus 30 Jahren **mit
+  ihrem Trend**: Das flache Mittel lag im Folgejahr im Mittel 3,4 % zu niedrig
+  ([Messung](docs/entwicklung/messung-einstrahlung.md)). Im Backup; Backups ohne Einstrahlung spielen sich ein.
+  Handeingabe und CSV behalten die gemessene Einstrahlung eines Tags.
+- **Saldo der Einspeisung nach der Sonne:** „Erwartet bei Abrechnung“ rechnet die Tage seit der letzten Ablesung mit
+  der gemessenen Einstrahlung, die nächsten Tage mit der Vorhersage und den Rest des Abrechnungsjahrs mit dem
+  Klimanormal. Was deine Anlage je kWh/m² einspeist, lernt die App **je Jahreszeit** aus deinen Ablesungen; nötig
+  sind zwei Ablesungen mindestens sechs Monate auseinander. Fehlt dem Normal die Einstrahlung, nimmt der Saldo das
+  Mittel deiner eigenen Tage ([PV § 12](docs/verstehen/12-pv.md#12-sonne-nach-dem-wetter-v3130)).
+- **Auszahlungen der Einspeisung erfassen:** an der Saldo-Karte „Auszahlung erfassen“ mit Tag, Betrag, Zeitraum
+  (optional) und Notiz. Die Karte zeigt dann „Vergütung (Stand heute)“, **„Bereits ausgezahlt“** und **„Noch
+  offen“** im Abrechnungsjahr. Eine Auszahlung mit Zeitraum zählt anteilig nach Tagen: Die Jahresabrechnung für
+  2025, im Februar 2026 überwiesen, zählt für 2025. Löschen mit „Rückgängig“, im Verlauf, im Backup, in Home
+  Assistant und für die KI ([PV § 13](docs/verstehen/12-pv.md#13-auszahlungen-erfassen-v3130)). Das Schaufenster
+  zeigt zwei erfundene Auszahlungen. **Der Saldo in der API bleibt dein Anspruch**; das Ausgezahlte zieht die Karte
+  daneben ab.
+
+#### HT und NT als ein Vertrag ([#40])
+
+- **Prognose:** Eine Gruppe mit Gruppenvertrag steht als Ziel in der Auswahl, direkt vor ihrem ersten Zählwerk, und
+  ist vorgewählt. **Ihre Menge ist Monat für Monat HT + NT, ihre Kosten sind die Arbeit jedes Zählwerks zu seinem
+  Preis**, dazu Grundpreis, Abschlag und Boni des Gruppenvertrags. Die Zählwerke bleiben wählbar und nennen ihre
+  Gruppe mit dem Knopf „Gruppe anzeigen“.
+- **Jahresbericht:** „Erwartete Kosten“ zählt eine Gruppe mit Gruppenvertrag einmal, auch wenn ihre Zählwerke
+  Subzähler sind.
+- **Werkstatt:** Eine Gruppe aus den Zählwerken einer Wärmepumpe bekommt die Hebel der Wärmepumpe.
+- **Home Assistant und KI:** additiv `group_forecast_12m` mit Grundpreis; `forecast_12m` der Zählwerke bleibt.
+
+#### Speicher und Wallbox neu im Verlauf
+
+- **Neuer Speicher:** Die Prognose der Einspeisung zieht von den Monaten vor dem Einbau die Ladung desselben
+  Kalendermonats ab (sonst die Tagesrate der gemessenen Monate), sobald der Ladezähler drei Monate misst. Am
+  Prüfhaushalt lag sie im Jahr nach dem Einbau im Mittel 36 bis 41 % daneben, jetzt 15 bis 19 %
+  ([PV § 14](docs/verstehen/12-pv.md#14-speicher-neu-im-verlauf-v3130)).
+- **Neue Wallbox:** Kalendermonate ohne Vorgeschichte kommen aus den Ladevorgängen von evcc oder aus einer genannten
+  Annahme mit Quelle (rund 1 % mehr Strom je Grad unter 20 °C) statt aus dem Mittel aller Monate
+  ([Strom](docs/verstehen/02-strom.md#wallbox-neu-im-verlauf-v3130)).
+- **Monatszeilen, Auswertung und Jahresbericht bleiben gemessen;** bereinigt wird nur, was die Prognose aus den
+  Monaten lernt. Die Beispielhaushalte haben Speicher und Wallbox von Anfang an und zeigen deshalb nichts davon.
+
+#### Gebaut, geprüft, noch aus
+
+- **Der Prüfstand:** ein Prüfhaushalt mit eigener Physik (zwei Häuser, drei Arten abzulesen, ein milder und ein
+  kalter Winter, Speicher und Wallbox kommen im Lauf dazu) und die Rückrechnung `tools/rueckrechnung.php`, vorab
+  und mit dem Wetter, wie es kam. **Gemessen wird gegen feste Schwellen;** was sie nicht schafft, rechnet wie bisher
+  und sagt es ([Tests](docs/entwicklung/tests.md)).
+- **Wärmepumpe nach dem Wetter:** gebaut für den Strom der Wärmepumpe, den Rest einer Kaskade und den Hauptzähler,
+  wenn mit Strom geheizt wird; eine Stelle entscheidet an den Feldern, welcher Zähler dem Wetter folgt. Die vorab
+  festgelegten Schwellen schafft sie noch nicht, darum **nicht freigeschaltet:** Prognose, Band und „Erwartet bei
+  Abrechnung“ folgen weiter dem Saisonprofil, ein Hinweis steht
+  in der Prognose, an der Saldo-Karte und in der Werkstatt ([Strom](docs/verstehen/02-strom.md)). Vorarbeit ohne
+  Wirkung, bis sie freigeschaltet ist: Das Klimanormal trägt den Trend der Temperatur; das flache Mittel lag an
+  zehn Stationen des DWD die Heizgradtage des Folgejahrs 9 bis 12 % zu hoch
+  ([Messung](docs/entwicklung/messung-temperaturtrend.md)).
+- **PV-Prognose nach der Einstrahlung:** gebaut, nicht freigeschaltet. Erzeugung und Einspeisung folgen weiter dem
+  Saisonprofil, die Prognose sagt es, die Werkstatt rechnet das Grundjahr wie gemessen.
+- **Bezug nach einem neuen Speicher, Zähler vor einer neuen Wallbox:** gebaut, nicht freigeschaltet. Die Prognose
+  sagt zwei Jahre ab dem Einbau, dass sie mit den Monaten davor rechnet, und schlägt eine **Zäsur am Tag des
+  Einbaus** vor.
+- **Wärmepumpe und PV-Prognose kommen mit v3.14 erneut auf den Prüfstand;** für den Bezug nach einem neuen Speicher
+  und den Zähler vor einer neuen Wallbox steht noch kein Release fest.
+
+#### Abschläge zählen
+
+- **Tagesanteilig oder ganze Rate** (Bekannte Grenze v3.12.0): Unter Haushalt › Verbrauchsarten (ab Erfahren)
+  wählst du für alle Verträge, wie ein monatlicher Abschlag zählt: **tagesanteilig** (Standard, wie bisher) oder als
+  **ganze Rate am Fälligkeitstag** (Tag 1 bis 31, in kürzeren Monaten der letzte Tag). Dann zählt jede Rate ganz an
+  ihrem Tag, wenn er im Vertrag liegt; ein Abschlag mit Terminen zählt wie bisher an seinen Terminen. Erfundenes
+  Beispiel: 90 € fällig am 1., Vertrag bis 14.07., Kosten 600 €: tagesanteilig Nachzahlung 19,35 €, als ganze Rate
+  Guthaben 30,00 €.
+- Saldo-Karte, Monatszeilen, Prognose, Abrechnungsjahr, „Rechnung prüfen“, Werkstatt, Jahresbericht, Home Assistant
+  und KI folgen der Einstellung. **„Saldo heute“ springt dann am Fälligkeitstag um eine Rate,** und die Karte nennt
+  den nächsten Termin. **Eine Rate am Tag einer Ablesung zählt im Zeitraum danach,** wie der tagesanteilige Teil und
+  wie die Jahresrechnung: Bei einer Jahresablesung am 01.01. bleiben es zwölf Raten im alten Jahr.
+- **Wer nach dem Rat aus v3.12.0 die volle Rate als Sonderzahlung gebucht hat, löscht sie nach dem Umschalten,**
+  sonst zählt sie doppelt ([Saldo bis heute](docs/verstehen/00-overview.md#10-saldo-bis-heute)).
+
+#### Posteingang und KI
+
+- **Listen im Posteingang je Eintrag** (Bekannte Grenze v3.12.0): Arbeits- und Wasserpreise, gezahlte Abschläge,
+  Gas-Umrechnung, Zählerstände je Zähler, Gutschriften und Abschlagstermine bestätigst, korrigierst oder verwirfst du
+  Eintrag für Eintrag; „Wie gelesen“ nimmt die Entscheidung zurück. Vorschläge, der Haushalt aus Dokumenten und die
+  KI folgen ihr.
+- **Übernahmen der KI zurücknehmen:** „Rückgängig“ im Verlauf stellt die Daten auf den Stand vor der Übernahme, bei
+  einer Ablesung wie bei einem ganzen Dokument, **solange sich seitdem nichts daran geändert hat.** Die Rücknahme
+  steht im Zugriffsprotokoll, und die KI erfährt sie.
+
+#### Oberfläche
+
+- **Kosten & Verträge:** „Neuer Vertrag“ oben auf der Seite (bei mehreren Arten mit Wahl der Art); der Reiter
+  „Frühere Verträge“ nennt ihre Zahl.
+- **Zeichenzähler** unter langen Feldern ab 80 % der Grenze („1.640 von 2.000 Zeichen“).
+- **„Nur Verwalter ändern diese Angaben“** unter Angaben für Briefe (`letters_admin_only`, ab Werk aus): Mit
+  Anmeldung ändert auf Wunsch nur ein Verwalter Absender und Lieferanschrift.
+- **Diagnose unter PHP 8.4:** Läuft der Server mit einer älteren Version, sagt die Diagnose-Seite, dass sie ab v3.13
+  nicht mehr getestet wird. `/api/health` bleibt unverändert.
+
+#### Home Assistant
+
+- **Integration 1.1.0 aus dem Marketplace** (`Bingerminger/energietracker-integration`): Heizöl und Pellets mit
+  **Bestand** (L bzw. kg) und **Füllstand** (%), eine Gruppe mit Gruppenvertrag mit **Prognose 12 Monate** und
+  **Prognose Kosten 12 Monate** (mit Grundpreis), die Einspeisung mit **Bereits ausgezahlt**, **Noch offen** und
+  **Offen bei Abrechnung**. Die Sensoren von 1.0 bleiben, wie sie sind.
+- **Benachrichtigungen:** Leitet Home Assistant auf eine andere Adresse um, nennt „Testnachricht senden“ die neue
+  Adresse (nur Schema, Host und Port) statt nur „Status 307“. Einer Umleitung folgt der Energietracker weiterhin
+  nicht.
+
+#### API und Daten (additiv)
+
+- **Endpunkte:** `GET|POST /api/feed-in-payouts`, `PATCH|DELETE /api/feed-in-payouts/{id}`,
+  `GET /api/meters-overview[?utilities=…]`, `GET /api/utility/{u}/meters/{id}/reading-expectation?from=&to=`,
+  `POST /api/utility/{u}/meters/{id}/reading-expectations` (mehrere Abstände in einer Anfrage, lesend); jetzt 210
+  Routen.
+- **Töpfe und Felder:** Topf `feed_in_payouts.json` (im Backup); Temperaturtag `rad`; Klimanormal `rad_month`,
+  `rad_month_trend` und weitere `rad_*`, dazu `temp_trend*`; Vertragsstatus der Einspeisung `payouts`;
+  `/api/summary` mit `group_forecast_12m` und `contract.payouts_received`, `payouts_open`, `payouts_open_at_settle`;
+  Prognose mit `pv_model`, `heat_pump_weather`, den Hinweisen `pv_no_weather`, `heat_pump_no_weather`,
+  `battery_history`, `ev_history`, `ev_months` und den Methoden `ev_sessions`, `ev_assumed`; Werkstatt
+  `replacement.jaz_months`; `/api/health` `data_initialized`; `/api/diagnostics` `php_minimum`, `php_supported`;
+  Posteingang `item_edits`; Verlauf `revert`; Testnachricht `error: redirect` mit `location`.
+- **KI (MCP):** `get_overview` mit `group_forecast_12m`, `get_forecast` mit `priced_by_group`, der Stand der
+  Einspeisung mit `payouts_*`, `get_document` mit `confirmed` und `origin`; im Zugriffsprotokoll das Ergebnis
+  `undone`.
+- **Fehlercodes:** `errors.common.tooLong` (mit `field`, `max`, `length`), im Backup-Import `too_long:<feld>`,
+  `errors.activity.undoChanged`, `errors.mcp.proposal.undone`, `errors.readingCheck.tooMany` und
+  `errors.readingCheck.tooManyDays` (über 4.000 Abstände bzw. 40.000 Tage in einer Anfrage). **Einstellungen:**
+  `letters_admin_only` (nur Verwalter), `advance_counting` (`pro_rata` | `due_day`) und `advance_due_day` (1 bis 31).
+- **Ohne gemessenen Verbrauch:** `projection_missing` in Vertragsstatus und `/api/summary`; dann sind
+  `projected_end_balance`, `verdict` und `suggested_advance` `null`. Dazu `price_missing` am Mietbudget und
+  `bonus_year1_eur` an der Wechselentscheidung. ⚠ `risk` des Mietbudgets ist ohne bekannte Kosten `null`,
+  `year_to_date.value` hat bis zu drei Nachkommastellen.
+- **Frühere Verträge und Summe der Art:** `settled_until` im Vertragsstatus eines früheren Vertrags, dessen Ende eine
+  gebuchte Rechnung deckt: ihr letzter Tag, abgerechnet mit der Rechnung bis zu diesem Tag (`current_balance` und
+  `projected_end_balance` 0,00, `verdict` `balanced`), ebenso in `get_contracts` der KI. An den Abrechnungsjahren der
+  ganzen Art (`GET /api/utility/{u}/billing-periods`) `periods[].member_as_of`: je Zähler der letzte Tag, den sein
+  Ziel zählt (`null`: nichts gezählt).
+- **KI mit noch zu wenig Ablesungen:** `balance_today` hat die neue Bedeutung `meaning: too_few_readings` (Herkunft
+  `assumed`), solange der Vertragsstatus `projection_missing` trägt, in `get_contracts` und `get_overview`.
+- **Eingaben und Rechte:** `detail` an Fehlerantworten mit Feldbezug, `effect` je Fund in `GET /api/diagnostics`
+  `data_issues`, `announced_tight` in den Fakten des Befunds zur Sonderkündigung; eine neue Installation legt die
+  Kennung `instance.json` beim Erststart an.
+
+### Changed
+
+#### Zahlen, die sich ändern (Beispiele alt → neu, erfundene Haushalte)
+
+- **Saldo der Einspeisung nach der Sonne:** Bis v3.12 fehlten die Tage zwischen der letzten Ablesung und heute, und
+  das Mittel der abgelesenen Monate galt für jeden restlichen Monat. Liegt die letzte Ablesung Ende Mai, zählt im
+  November jetzt auch die Sonne von Juni bis heute; „Erwartet bei Abrechnung“ steigt nach einem langen Sommer ohne
+  Ablesung deutlich. In Demo und Schaufenster ändert sich der Saldo der Einspeisung entsprechend.
+- **Erwartete Kosten im Jahresbericht mit Gruppenvertrag,** auch in v3.12.0 und früher falsch: **Im Schaufenster
+  fehlte die Wärmepumpe (HT und NT hinter dem Hauptzähler) bisher ganz,** ihre Kosten kommen jetzt dazu. Beim
+  Beispielhaushalt „Eigenheim mit Gas, Öl oder Pellets“ kommt der Grundpreis seiner HT/NT-Gruppe dazu.
+- **Erwartete Kosten im Jahresbericht mit einem Subzähler, der nach eigenem Vertrag rechnet** (ohne Gruppe), auch in
+  v3.12.0 und früher falsch: **Sein Geld fehlte,** weil der Zähler davor ihn abzieht. Jetzt zählt es an den Tagen
+  seines Vertrags mit; nach einem Vertragsende ohne Verlängerung rechnet wieder der Zähler davor. Die
+  Beispielhaushalte haben keinen solchen Subzähler, ihre Zahlen bleiben.
+- **Prognose einer HT/NT-Gruppe:** Die Menge war der Median der Summe, die Arbeit kostete einen Mischpreis aus zwölf
+  Monaten. **Jetzt ist sie HT + NT je Monat, jedes Zählwerk zu seinem Preis;** der Arbeitspreis der Gruppe ist der
+  Mix des Monats. In den Beispielhaushalten ändert sich die Menge um Zehntel kWh und der Betrag um Cent; wandert der
+  Anteil von HT und NT über das Jahr, deutlich mehr.
+- **Zähler mit Verbrauch je Zeitraum am Stichtag** (Bekannte Grenze v3.12.0): **Ein Zeitraum zählt ab seinem
+  letzten Tag;** einer, der erst danach endet, zählt nicht mit, wie Zählerstände seit v3.12.0. Betrifft Saldo,
+  Jahresbericht, Mietbudget, Übersicht und Prognose für einen früheren Tag. Heizwärme Januar 100, Februar 200, März
+  300 kWh und so weiter, eingetragen bis Juni: Stand am 29.04. 2.100 → 600 kWh, am 30.04. 1.000 kWh. **Heute ändert
+  sich nur etwas, wenn der laufende Monat schon eingetragen ist:** Er zählt ab seinem letzten Tag.
+- **Heizungstausch in der Werkstatt** (Bekannte Grenze v3.12.0): **Die Arbeitszahl verteilt sich nach dem Wetter
+  auf die Monate,** im Winter kleiner, im Sommer größer. Die Jahresarbeitszahl bleibt deine Eingabe, der Strom im
+  Jahr bleibt gleich, nur die Monate verschieben sich. Vorlauf nach den Teillastpunkten der
+  DIN EN 14825 (Mitteltemperatur, 52 °C bei −7 °C bis 30 °C bei +12 °C); misst ein Wärmezähler im Haushalt eine
+  Wärmepumpe, gilt ihre gemessene Arbeitszahl je Monat. Ohne Klimanormal bleibt sie übers Jahr gleich
+  ([Was wäre wenn](docs/anleitungen/was-waere-wenn.md)).
+- **Prognose der Einspeisung nach einem neuen Speicher niedriger, die einer neuen Wallbox im Winter höher,** solange
+  ihr Winter nicht gemessen ist. Beispielhaushalte und Demo unverändert.
+- **Schlussablesung am letzten Vertragstag:** „Saldo am ‹Ablesung›“ zählt diesen Tag jetzt mit, Grundpreis und
+  Abschlag, wie die Schlussrechnung im Abrechnungsjahr; bisher endete die Karte am Vortag. 90 € monatlich, Vertrag
+  bis 15.07., Schlussablesung am 15.07.: Abschläge 580,65 → 583,55 € (15 statt 14 Julitage). Ebenso eine Ablesung am
+  letzten Tag des Abrechnungsjahres, solange die Karte dieses Jahr zeigt. Beispielhaushalte und Demo unverändert.
+- **Beispieldaten mit Einstrahlung:** Alle Beispielhaushalte und das Schaufenster tragen die Einstrahlung je Tag; die
+  PV des Beispielhaushalts „Eigenheim mit Wärmepumpe und PV“ folgt ihr. Seine Jahreswerte (Erzeugung, Einspeisung,
+  Speicher) und die Beispiele der Anleitung [Flexibilität](docs/anleitungen/flexibilitaet.md) ändern sich leicht.
+- ⚠ **Kündigungsstichtage** bei einem Vertragsende am Monatsletzten rücken um 1 bis 3 Tage nach hinten (Erinnerung,
+  „Zu tun“, Kalender, Brief, Home Assistant). Im Beispielhaushalt „Eigenheim mit Gas, Öl oder Pellets“ steht der
+  Stichtag für Gas jetzt am 31.05.2026 statt am 30.05.2026.
+- ⚠ **Abschlag im angeschnittenen Monat:** Einzug am 10.04. mit 62 € Abschlag: Abrechnungsjahr 291,40 statt 278,38 €.
+  Vertrag mit 90 € bis 14.07. ohne Folgevertrag: Abrechnungsjahr und „Rechnung prüfen“ 580,65 statt 558,36 €.
+- ⚠ **Schlussablesung am letzten Vertragstag** ohne erfasste Schlussrechnung (90 €, Vertrag bis 15.07.):
+  Abrechnungsjahr 583,55 statt 580,65 €, mit ganzer Rate am 15. 630,00 statt 540,00 €.
+- ⚠ **Zählergruppe, Mitglieder an verschiedenen Tagen abgelesen:** Das Abrechnungsjahr endet früher und nennt den
+  Saldo der Karte (Beispiel 351,65 statt 360,59 €). Mit verschiedenen Preisen für HT und NT ändert sich auch
+  „Saldo am …“ der Karte um Cent.
+- ⚠ **Geschätzter Stand am Ende:** Das Abrechnungsjahr endet an der letzten echten Ablesung (Beispiel 20,30 statt
+  21,59 €).
+- ⚠ **Gartenzähler später abgelesen als der Hauptzähler:** Saldo-Karte und Jahresbericht nennen den Betrag des
+  Abrechnungsjahres (Beispiel −162,08 statt −167,15 €). Im Schaufenster ändert sich so der Saldo Wasser um Cent,
+  solange der Garten nach dem Hauptzähler abgelesen ist.
+- ⚠ **Derselbe Cent:** „Frühere Verträge“ und der Grundpreis in „Rechnung prüfen“ und im Abrechnungsjahr ändern sich
+  um bis zu 3 Cent (Schaufenster, Grundpreis Strom: 150,00 statt 149,99 €).
+- ⚠ **Mietverhältnis:** Jahresbericht und Budget zählen einen nur zum Teil abgelesenen, abgelaufenen Monat aus seinen
+  gemessenen Tagen. Im Beispielhaushalt „Ich wohne zur Miete“ ändert sich so der Bericht des Vorjahres (Wasser um
+  einige Euro).
+- ⚠ **Messentgelt:** Eine Rechnung über genau ein Jahr (auch ein Schaltjahr, Stichtag zu Stichtag) wird nicht mehr auf
+  365 Tage umgerechnet; Menge und Betrag folgen derselben Regel.
+- ⚠ **CO₂-Aufteilung im Teiljahr:** Stufe, Anteil und Betrag ändern sich, wenn der Zähler auch Stände vor dem Einzug
+  oder nach dem Auszug hat; die Kennzahl je m² unter CO₂-Kosten rechnet ebenso.
+- ⚠ **Preis fehlt in die andere Richtung:** Tragen Preise je Ablesung alle Monate oder hat ein Gruppenvertrag nur
+  Preise je Zählwerk (HT/NT), gilt am Vertrag und am Abrechnungsjahr kein `price_missing` mehr; die Karte zeigt
+  einen Saldo statt des Hinweises.
+- ⚠ **Preis je Ablesung ohne Arbeitspreis im Vertrag:** Abrechnungsjahr, „Rechnung prüfen“ und KI rechnen mit dem
+  Preis an der Ablesung wie die Saldo-Karte (Beispiel Strom, 1.458 kWh zu 27,90 ct, Grundpreis 7 €, Abschlag 49 €:
+  70,76 € Nachzahlung statt 336,00 € Guthaben). Wasser ohne Trinkwasserpreis: Monate und Saldo-Karte zählen das
+  Trinkwasser zum Preis an der Ablesung.
+- ⚠ **Übergabe einige Tage nach dem Vertragsende:** Das Abrechnungsjahr endet am letzten Vertragstag (Beispiel 201
+  statt 206 Tage, 1.809 statt 1.854 kWh); das Geld bleibt. Neu und additiv: `contract_end` an solchen
+  Abrechnungsjahren.
+- ⚠ **Schlussablesung am letzten Vertragstag:** „Saldo heute“ eines beendeten Vertrags („Frühere Verträge“, KI) sinkt
+  um den geschätzten Tag, den es bisher dazuzählte.
+- ⚠ **KI-Schnittstelle:** Salden und Kosten aus angenommenen Preisen heißen `assumed` statt `measured` oder
+  `entered`, ein kleiner geschätzter Rest macht eine Summe geschätzt, die gemessenen PV-Beträge im Szenario heißen
+  `entered`. `get_consumption` mit `billing_period` endet an der letzten echten Ablesung. Die Beträge bleiben.
+- ⚠ **Frühere Verträge mit späterer erster Ablesung:** Vertrag ab 01.01.2023, erste Ablesung 01.07.2023: −105,00 €
+  statt −459,00 €. In den Beispielhaushalten kippen dadurch zwei frühere Verträge ohne gebuchte Rechnung zu einer
+  kleinen Nachzahlung (etwa Strom −335,41 € wird +70,09 €). Nach einer gebuchten Rechnung zählt der Saldo ab dem Tag
+  danach, ohne ihr Ergebnis (nächste Zeile).
+- ⚠ **Frühere Verträge mit gebuchter Rechnung:** Deckt sie das Vertragsende, steht der Vertrag bei **0,00 €**,
+  „abgerechnet mit der Rechnung bis …“; „Frühere Verträge“ zeigen Verbraucht und Bezahlt dann leer, die KI nur diesen
+  einen Saldo. In den Beispielhaushalten stehen so sieben Verträge bei 0,00 € (etwa Gas bis 30.06.2024 −2.508,29 €,
+  Strom −660,76 €, −602,25 € und −426,29 €). Deckt die Rechnung nur einen Teil, bleibt der Rest danach offen.
+- ⚠ **Summe der Art in der KI:** Ein Abrechnungsjahr der ganzen Art, in dem ein Ziel am Vertragsende verteilt endet,
+  heißt `distributed` statt `measured`; die Summe über die Abrechnungsjahre trägt `parts`. Die Beträge bleiben.
+- ⚠ **Summe der Art mit Zählergruppe oder beendetem Vertrag:** Menge und Saldo sind die Summe der Ziele (Beispiel:
+  Saldo von Gruppe und eigenem Zähler zusammen 260,99 €; ein Vertrag bis 17.08. mit Übergabe am 23.08.: 1.603
+  statt 1.638 kWh).
+- ⚠ **Jahr bis heute:** auf drei Nachkommastellen genau, bis 0,1 je Monat anders.
+
+#### Eingaben
+
+- **Höchstlängen für Freitext, eine Liste für alle Wege** (Bekannte Grenze v3.12.0): Namen 120 Zeichen (Anbieter
+  160), Termintitel 300, Notizen 2.000 (Verlauf und Posteingang 500), Nummern 64; die Liste steht in der Referenz
+  [Datenmodell](docs/referenz/datenmodell.md). Zu lang ist ein Fehler mit Feld und Grenze, über die API, im
+  CSV-Import (die Zeile, auch im Trockenlauf), im Backup-Import und für die KI. **Gekürzt wird nicht mehr:**
+  Rechnung, Mietverhältnis, Zeitraum, die Notiz im Posteingang, Peilstand, Zäsur und Vertragsnummer schnitten bisher
+  still ab. Nur ein Dateiname über 120 Zeichen wird weiter gekürzt, vor seiner Endung (unter „Fixed“).
+- Die Notiz eines Zeitraums darf 2.000 Zeichen lang sein (bisher still 500), die einer Ablesung in der Erfassung
+  ebenso (bisher 200 am Feld). Eine Notiz der KI an `propose_reading` bleibt bei 200: Die Zusammenfassung, die du
+  bestätigst, zeigt sie nicht.
+- `POST /api/activity/{id}/undo` nimmt Übernahmen der KI mit Rückweg zurück (`200`, bisher `409`); neu ist `409`
+  `errors.activity.undoChanged`. `PATCH /api/inbox/{id}` nimmt `item_edits`.
+- Neu und additiv: `/api/health` `data_issues {count, kinds}`, `GET /api/diagnostics` `data_issues` (Liste),
+  Problemarten des Backup-Imports `text:<feld>`, `reference:<feld>`, `duplicate_id`, Fehlercode
+  `errors.common.numberOutOfRange`. Die API-Referenz nennt jetzt alle Problemarten. Ein Feld, das eine ältere Version
+  in einer heute abgewiesenen Form gespeichert hat, liefert die API als `null` (die Datei behält den Wert).
+- ⚠ Ein Zählerstand, Anfangsstand oder Wert beim Ingest über 10¹² antwortet mit `errors.common.numberOutOfRange`
+  (bisher `errors.reading.counterInvalid`); `counterInvalid` bleibt für Text, Komma und negative Werte.
+- ⚠ Eine Preisänderung, deren Schreiben genau einen Kalendermonat (Sondervertrag) bzw. 42 Tage (Grundversorgung) vor
+  der Änderung datiert ist, gilt nicht mehr als rechtzeitig angekündigt, sondern als knapp (`announced_tight: true` im
+  Befund, `announced_late` bleibt `false`).
+
+#### Oberfläche und Texte
+
+- **Begriffe** (Bekannte Grenze v3.12.0): Die Heizgrenze heißt in Französisch, Italienisch, Spanisch, Portugiesisch
+  und Niederländisch überall wie im Glossar; die Einstellung unter Haushalt › Verbrauchsarten heißt „Heizgrenze“
+  (bisher „HGT-Basistemperatur“), englisch „Heating limit“. „Snapshot“ heißt auf Italienisch und Niederländisch
+  überall „istantanea“ bzw. „momentopname“, der Auftrag „Jahresbericht“ an die KI auf Englisch „Annual report“.
+- **Verbindungen für Mitglieder** (Bekannte Grenze v3.12.0): Die Token-Knöpfe für Home Assistant und die Felder für
+  evcc und die Sicherheit im Heimnetz sehen nur Verwalter; Mitglieder lesen, wer es einrichtet. Für Texterkennung,
+  Auslesen und Benachrichtigung gilt beides: Die Oberfläche sperrt die Felder, der Server weist Änderungen von
+  Mitgliedern ab (unter „Security“).
+- **Haushalt › Zähler „Alle“** lädt mit einer Anfrage statt mit bis zu 18.
+- **Filterknöpfe** haben die Form der Reiter (eine Form im Untermenü).
+- **Nächster Termin:** Am Tag eines Termins (Abschlag mit Terminen oder ganze Rate) nennt die Saldo-Karte schon den
+  folgenden, denn „Saldo heute“ zählt die Rate dieses Tags; ebenso `next_advance_dates` der API und die Prüfung
+  „Abschlag zu hoch“ für den Brief.
+
+#### Betrieb und Doku
+
+- **`/api/health` bei frischem Datenverzeichnis:** additiv `data_initialized: false`, und `schema_version` nennt das
+  Schema, das der erste Aufruf anlegt (bisher „?“).
+- **Anleitung Home Assistant:** Die Attribute in Schritt 5, der Weg über den Supervisor und die Webhook-Vorlage samt
+  `notify.notify` sind jetzt in einem laufenden Home Assistant geprüft; ungeprüft bleiben die Rechte in `/share`.
+- **Anleitung KI-Assistent:** Der Eintrag für Open WebUI wird als Datei importiert. Wer Open WebUI über
+  `TOOL_SERVER_CONNECTIONS` einrichtet, braucht in jedem Eintrag `"config":{"enable":true}`.
+- **Integration aus der Standardliste des Marketplace (ehemals HACS):** Installiert wird sie über die Suche nach
+  „Energietracker“ im Marketplace (ab Home Assistant 2026.11, ohne Verbindung zu GitHub). Mit Home Assistant 2026.3
+  bis 2026.10 heißt der Weg HACS, ebenfalls über die Suche
+  ([Home Assistant](docs/anleitungen/home-assistant.md#integration-aus-dem-marketplace-ehemals-hacs-v3120)).
+
+### Fixed
+
+- **Die Rückfrage beim Eintragen kennt die Jahreszeit** ([#65]). Bei Gas, Fernwärme, Heizwärme und dem Strom einer
+  Wärmepumpe vergleicht „Tippfehler?“ im Dialog „+ Ablesung“ und auf der Seite „Zählerstände“ die Menge seit dem
+  vorigen Stand mit einer **Erwartung nach dem Wetter**: dem Heizmodell mit den Temperaturen dieser Tage, sonst
+  denselben Tagen früherer Jahre, sonst Abständen mit mindestens so viel Heizwetter. Bis v3.12 verglich sie mit dem
+  Median der letzten zehn Abstände und fragte bei jedem Heizbeginn nach. Sind die Tage kälter als alles bisher (etwa
+  die erste Heizwoche nach dem ersten Sommer), fragt sie nur noch „Komma vergessen?“. Der Hinweis nennt die
+  Erwartung („nach dem Wetter erwartet etwa …“). Ohne Temperaturen und bei anderen Arten gilt die bisherige Regel.
+  **Dieselbe Erwartung gilt für den Vorschlag einer KI** (`propose_reading`, Stände aus einem Dokument, das
+  Übernehmen) **und für die Vorschau eines CSV-Imports,** die sie für alle Zeilen in einer Anfrage holt.
+- **Knöpfe über Eingabefeldern** ([#64]): In den Benachrichtigungen an Home Assistant lagen „Löschen“ am Token und
+  „Neue ID erzeugen“ am Webhook über dem Feld. Knöpfe zu einem Feld stehen jetzt darunter; ein Test prüft alle
+  Seiten von Einstellungen, Haushalt und Verbindungen bei drei Breiten.
+- **Kachel-Balken folgen dem Abrechnungsjahr** ([#64]): Im Abrechnungsjahr zeigen die kleinen Balken die Monate der
+  Periode (etwa ab September), künftige Monate leer, dazu die Linie derselben Monate ein Jahr davor. Bisher blieben
+  sie auf den letzten zwölf Monaten. Wasser folgt so seinem Abrechnungsjahr wie seine Zahlen.
+- **Apache: `…/api/…` gab 404,** obwohl die Anleitung es versprach, etwa `…/api/ingest` für Home Assistant. Die
+  mitgelieferte `.htaccess` schreibt den Pfad jetzt um, auch für große Importe.
+- **Zählwerk nach einem Monat ohne Bezug:** Die Monatszeile nannte den allgemeinen Arbeitspreis des Gruppenvertrags,
+  die Prognose des NT-Zählwerks rechnete so mit dem HT-Preis.
+- **Druckansicht, Übersicht und Agenda schneller:** Der Vertragsstatus las für jeden Vertrag alle Ablesungen neu.
+  Mit zehn Jahren Tageswerten braucht die Druckansicht des Jahresberichts 1,4 statt 3,1 s, die Übersicht 1,1 statt
+  2,3 s ([Messung](docs/entwicklung/messung-grosse-daten.md#v3130-druckansicht-und-tankbuch)).
+- **Tankbuch mit weniger Speicher:** Heizöl und Pellets rechnen ihre Tagesreihe je Anfrage einmal, Übersicht,
+  Empfehlungen und Jahresbericht nehmen nur die Tage, die sie brauchen. Die Werte sind dieselben.
+- **Die Werkstatt rechnet nach dem täglichen Wetterabgleich neu** (Bekannte Grenze v3.12.0), am selben Tag steht
+  dieselbe Zahl.
+- **Prüfungen über den Jahreswechsel** (Bekannte Grenze v3.12.0): Die Prüfung der öffentlichen Demo und die
+  Oberflächentests leiten ihre Erwartung aus dem Stand der Beispieldaten ab und bleiben im Januar und in der
+  Neujahrsnacht grün. **Anders als angekündigt** nicht über mitwachsende Beispieldaten.
+- **Stufen in der Doku:** „Ansichten“ und „Was kann ich auf welcher Stufe?“ entsprechen dem Code; ein Test prüft
+  jede Zeile.
+- **Backup einspielen:** Jede Fundstelle, die der Import meldet, hat einen Text in allen Sprachen. Bisher zeigte der
+  Dialog bei rund zwanzig Arten den technischen Schlüssel; ein Test verlangt für jede Art einen Text.
+- **Seitennamen in der Doku:** „Ansichten“ nennt die Seiten der Einstellungen so wie die App (etwa „Zugang und
+  Sicherheit“ statt „Zugriff“); ein Test prüft jeden Namen gegen die Oberfläche.
+
+#### Rechnen
+
+- **Abschlag im angeschnittenen Monat:** Beginnt oder endet ein Vertrag mitten im Monat (Einzug, Vertragsende ohne
+  Folgevertrag), kürzten Abrechnungsjahr, „Rechnung prüfen“, die Kachel „Abschläge“ und der Rest des Monats in der
+  Werkstatt den schon anteiligen Abschlag ein zweites Mal nach den Tagen des Kalendermonats. Jetzt nennt die
+  Monatszeile die Tage des Vertrags (`contract_from`, `contract_until`), und jede Ansicht teilt nach ihnen; den
+  Grundpreis ebenso.
+- **Abrechnungsjahr endet wie die Saldo-Karte:** an der letzten echten Ablesung, bei einer Zählergruppe am frühesten
+  letzten Stand ihrer Mitglieder. Bisher liefen Grundpreis und Abschläge einer Gruppe bis zum spätesten Stand, und
+  ein danach als geschätzt erfasster Stand zählte in die gemessene Menge. Bei HT und NT mit verschiedenen Preisen
+  rechnet die Karte die Menge je Zählwerk.
+- **Schlussablesung am letzten Vertragstag:** Auch das Abrechnungsjahr zählt diesen Tag mit, ohne erfasste
+  Schlussrechnung, wie Saldo-Karte und Schlussrechnung.
+- **Gartenzähler und eigener Schmutzwasserzähler:** Die Monatszeile rechnet ihre Menge nur für die Tage, die auch der
+  Hauptzähler gemessen hat, wie „Rechnung prüfen“. Ein später abgelesener Gartenzähler zog bisher seine ganze
+  Monatsmenge ab.
+- **Derselbe Cent:** „Frühere Verträge“ rechnen den Saldo aus den gerundeten Beträgen wie Saldo-Karte und
+  Abrechnungsjahr; den Grundpreis runden „Rechnung prüfen“ und Abrechnungsjahr einmal über alle Tage wie die Karte.
+  Beim Arbeitspreis bleibt ein Rest (Bekannte Grenzen).
+- **Jahresbericht beim Mietverhältnis:** Ein abgeschlossenes Jahr rechnet mit den Ständen vom Tag des Berichts. Ein
+  Monat, den die Stände nur zum Teil decken (Ablesung am 31.12., Ein- oder Auszug im Monat), zählt seine gemessenen
+  Tage als gemessen, statt den Monat des Vorjahres zu nehmen.
+- **Vertrag ohne Arbeitspreis:** Die Kosten zeigen keinen Betrag mehr (bisher 0 € oder nur den Grundpreis), sondern
+  **„Preis fehlt“** mit dem Weg zum Vertrag, auf der Startansicht der Verbrauchsart und in der Übersicht (Kachel,
+  „Bekomme ich Geld zurück?“). Das gilt auch für die Monate vor einem später eingetragenen Arbeitspreis. Die API
+  kennzeichnet solche Monate, Summen, Gruppen, die Prognose und den laufenden Vertrag mit `price_missing`
+  (zusätzlich, die Zahlen bleiben). Ein Preis je Ablesung gilt weiter als Preis.
+- **Preis je Ablesung überall:** Hat ein Vertrag an einem Tag keinen Arbeitspreis, rechnen jetzt auch Abrechnungsjahr,
+  „Rechnung prüfen“ und KI mit dem Preis an der Ablesung, wie Monate und Saldo-Karte; bei Wasser fürs Trinkwasser auch
+  die Monate. Bisher rechneten Abrechnungsjahr und „Rechnung prüfen“ dann nur mit Grundpreis und Abschlägen und
+  nannten so ein Guthaben, das es nicht gibt. Ein Abschnitt zwischen zwei Ablesungen nimmt den Preis seiner ersten
+  Ablesung, sonst den seiner letzten ([Preise](docs/verstehen/00-overview.md)).
+- **Jahresbericht:** Der Anhang „Abrechnungsjahre“ zeigt „Preis fehlt“ statt Kosten und Saldo, wenn einem Vertrag der
+  Arbeitspreis fehlt.
+- **Vertragsende ohne Folgevertrag:** Liegt die letzte Ablesung einige Tage nach dem Ende (Übergabe nach dem Auszug),
+  endet das Abrechnungsjahr am letzten Vertragstag wie Saldo-Karte und Schlussrechnung. Die KI nennt einen Ablesetag
+  nur, wo eine Ablesung den Endstand bildet.
+- **„Saldo heute“ eines beendeten Vertrags** mit Schlussablesung am letzten Tag schätzt keinen Tag mehr dazu.
+- **Ein beendeter Vertrag** nennt keine nächsten Abschlagstermine mehr.
+- **Summe der ganzen Verbrauchsart:** Das Abrechnungsjahr einer Art (Übersicht, Anhang des Jahresberichts, CSV,
+  KI-Schnittstelle) ist die Summe seiner Ziele. Eine Zählergruppe mit Gruppenvertrag endet am frühesten letzten Stand
+  ihrer Zählwerke, jeder andere Zähler an seiner letzten Ablesung, der letzte Vertrag an seinem letzten Tag. Bisher
+  rechnete die Art alle Zähler bis zum spätesten Stand: Grundpreis und Abschläge einer Gruppe liefen weiter als ihre
+  Menge, und neben dem leeren Hauptzähler zählte die Menge nach dem Vertragsende mit.
+- **Karte eines beendeten Vertrags:** „… Monate · … kWh“ nennt die Menge bis zum letzten Vertragstag wie das
+  Abrechnungsjahr, nicht bis zur Übergabe.
+- **Frühere Verträge:** Beginnt ein Vertrag vor der ersten Ablesung, rechnet sein Saldo ab ihr wie seine
+  Abrechnungsjahre. Bisher zählten Grundpreis und Abschläge der Monate davor gegen einen Verbrauch von null, ein
+  Guthaben, das es nicht gibt.
+- **Frühere Verträge nach einer gebuchten Rechnung:** Ein beendeter Vertrag rechnet seinen Saldo wie ein laufender
+  **ab dem Tag nach seiner letzten gebuchten Rechnung**, ohne die gebuchten Ergebnisse. Deckt eine gebuchte Rechnung
+  das Vertragsende, steht er bei **0,00 €** mit „abgerechnet mit der Rechnung bis …“ (Frühere Verträge, KI,
+  `settled_until`); deckt sie nur einen Teil, bleibt der Rest danach offen. Eine Jahresrechnung über einen
+  Tarifwechsel beim selben Versorger rechnet auch den Vertrag davor ab, die Rechnung eines anderen Versorgers nie. Die
+  Abweichung zwischen Rechnung und App steht unter „Rechnung prüfen“. Bisher nahm der Saldo das Ergebnis jeder
+  Rechnung ganz dazu, die in die Zeit ab der ersten Ablesung ragte: Nach einer Schlussrechnung, die auch die Tage
+  davor abrechnet, blieb ein Rest stehen, nach einer Teilrechnung zählte ihr Zeitraum doppelt.
+- **Prognose eines Zählwerks im Gruppenvertrag:** Hat der Gruppenvertrag für ein Zählwerk keinen Arbeitspreis, tragen
+  dessen Prognosemonate den Gruppenvertrag und **„Preis fehlt“** (`price_missing`, auch `forecast_12m` in
+  `/api/summary`). Bisher nannte die Prognose des Zählwerks 0,00 € Kosten.
+- **Nur der Anfangsstand in `/api/summary`:** `contract.balance` ist `null` (Home Assistant: unbekannt), solange noch
+  zu wenig Ablesungen da sind, wie auf der Saldo-Karte. Bisher stand dort Grundpreis minus Abschläge als Guthaben.
+- **Neuer Vertrag mit nur dem Anfangsstand:** Ohne gemessenen Verbrauch nennt die App kein erwartetes Guthaben und
+  schlägt keinen Abschlag von 0 € vor. Saldo-Karte und Übersicht sagen „Noch zu wenig Ablesungen“, der Jahresbericht
+  „noch kein Betrag“ statt „Keine Abschläge“. Ein beendeter Vertrag ganz vor der ersten Ablesung nennt keinen Saldo
+  mehr.
+- **Jahresbericht ohne Preis:** Fehlt einem Vertrag der Arbeitspreis, verspricht der Bericht kein Guthaben und nennt
+  für diese Art keine Energiekosten, sondern „Preis fehlt“, auch in „Auf einen Blick“. Ein Mietverhältnis ohne Preise
+  nennt kein Guthaben aus der ganzen Vorauszahlung (Mietansicht, Übersicht, Bericht).
+- **Prognose einer HT/NT-Gruppe:** Ist ein Zählwerk früher abgelesen, prognostiziert es trotzdem bis zum letzten Monat
+  der Gruppe. Bisher fehlte es dort, und die Gruppe lag unter HT plus NT.
+- **Wechselentscheidung:** Ein Bonus mit Datum an einem Angebot zählt im ersten Jahr, wenn sein Tag darin liegt, wie
+  derselbe Betrag als Neukundenbonus.
+- **Jahr bis heute** (`/api/summary`, KI): die Summe der ungerundeten Tagesmengen, nicht der gerundeten Monate.
+
+#### Fristen und Rechte
+
+- **Kündigungsstichtag:** Endet ein Vertrag am Monatsletzten, ist der letzte Tag für die Kündigung jetzt der
+  Monatsletzte (Ende 30.06., ein Monat Frist: bis 31.05.). Bisher nannte die App den Tag mit derselben Zahl, 1 bis 3
+  Tage zu früh, und erklärte die Frist an diesen Tagen schon für verpasst. Gerechnet wird vorwärts nach §§ 187, 188
+  BGB ([Rechtsgrundlagen](docs/referenz/rechtsgrundlagen.md)); das gilt auch für die neun Monate der Fernwärme.
+- **Fernwärme nach der Verlängerung:** Der Tag, bis zu dem die fünfjährige Verlängerung gekündigt werden muss, steht
+  wieder unter „Zu tun“, im Kalender und in der Erinnerung; die Erinnerung nennt das Ende der Verlängerung.
+- **Kündigungsbrief in der Grundversorgung:** Der Termin bleibt immer eine Lücke, wie angekündigt; die zwei Wochen
+  laufen ab dem Tag, an dem der Brief ankommt. Fehlt nur die Frist, sagt der Dialog nicht mehr „weder ein Ende noch
+  eine Kündigungsfrist“.
+- **Messentgelt:** Eine Rechnung über genau ein Jahr (auch ein Schaltjahr) wird nicht mehr auf 365 Tage umgerechnet,
+  und der Jahresverbrauch aus Ablesungen kommt aus den ungerundeten Tagesmengen; genau an einer Grenze wie
+  6.000 kWh bleibt er in der unteren Gruppe. Rechnung und Ablesungen ordnen dasselbe Jahr gleich ein.
+- **CO₂-Aufteilung bei eigener Etagenheizung im Teiljahr:** Emissionen und Kosten zählen nur an den Tagen des
+  Mietverhältnisses, wie die gekürzten Grenzen. Bisher stand der Ausstoß des ganzen Jahres gegen die Grenzen eines
+  Teiljahrs.
+- **API-Referenz `contract-status`:** weiterlaufende Verträge und alle Grundlagen der Kündigung auf dem Stand der App.
+- **Ankündigung einer Preisänderung wie der Kündigungsstichtag gerechnet:** Die Frist (Sondervertrag ein Monat,
+  Grundversorgung sechs Wochen) beginnt am Tag nach dem Schreiben und muss mit dem letzten Tag des alten Preises
+  abgelaufen sein (Änderung zum 01.03.: rechtzeitig bis 31.01. bzw. 17.01.). Ein Schreiben genau einen Kalendermonat
+  bzw. 42 Tage vorher galt bisher als rechtzeitig; jetzt heißt es **„knapp, prüfen“**, mit dem Hinweis, dass es auf den
+  Zugang ankommt (in der Grundversorgung auf die öffentliche Bekanntgabe). Erst danach sagt die App „zu spät“.
+  „Deine Rechte“, „Zu tun“ und Posteingang zeigen dasselbe; der Brief zur Sonderkündigung behauptet dazu nichts.
+
+#### Eingaben
+
+- **Eine Regel je Art von Wert** für alle Schreibwege, den Backup-Import und das Lesen gespeicherter Daten: Zahlen mit
+  Grenzen, Tage, Kennungen, Verweise auf einen Zähler oder eine Gruppe und Wahrheitswerte. **Wahrheitswerte**
+  verstehen ja/nein, true/false, 1/0 und
+  on/off, leer heißt nein, alles andere ist `400`; bisher las mancher Weg eine Schreibweise von „nein“ als ja, etwa
+  beim Laden der Beispieldaten, beim Trockenlauf in der Adresse und bei der Kürzung der CO₂-Erstattung.
+- **Abgewiesen heißt: nichts geschrieben.** Ein abgewiesener Stand von Home Assistant mit Zeitstempel schrieb trotzdem
+  Viertelstundenwerte, ein abgewiesenes Zusammenfassen legte eine leere Gruppe an, und ein unbekannter Beleg an
+  Ablesung, Rechnung oder Mietabrechnung hinterließ Spuren.
+- **Backup-Import mit denselben Regeln:** Ablesungen an unbekannten oder artfremden Zählern, doppelte Kennungen,
+  unbrauchbare Preise, Namen als Liste und übergroße Zahlen meldet er mit Topf, Zeile und Feld und spielt nichts ein.
+- **Werte aus älteren Versionen legen nichts mehr lahm:** Ein gespeicherter Wert, den die App heute abweist, bleibt in
+  der Datei; die App rechnet ohne ihn (ein Datensatz ohne brauchbaren Tag, Stand oder Beginn bleibt aus der Rechnung,
+  ein anderes Feld gilt als nicht eingetragen, eine Einstellung mit ihrer Vorgabe), statt eine Seite mit `500`
+  abzubrechen. `/api/health` nennt die Funde als `data_issues`, die Diagnose listet sie.
+- **Tank, Lieferungen, Empfehlungen:** Größe, Bestand und Preis des Anfangsbestands werden auch beim Ändern geprüft,
+  eine Lieferung mit negativem Betrag und „ausblenden bis“ ohne Tag werden abgewiesen.
+- Eine Liste oder ein Objekt in einem Eintrag ergab `500` statt `400`; ein `PATCH` mit leerem Zähler löste einen
+  Vertrag von seinem Zähler.
+- **CSV-Rundreise der Ablesungen:** „nur für die Abrechnung“, „gemeldet am“ und „geprüft“ gehen mit; bisher zählte
+  ein Stand nur für die Abrechnung nach Export und Import wieder als Monatsstand.
+- **Doku zum CSV-Format 1:** Neue Spalten kommen nur hinten hinzu, bestehende bleiben Byte für Byte. v3.12.0 liest die
+  Datei von 3.13 (ohne die drei Merker), 3.13 liest die von v3.12.0. Die Referenz nannte bisher jede Änderung ein neues
+  Format.
+- **Sicherungen in derselben Sekunde** bekommen eigene Namen; bisher überschrieb eine spätere die erste.
+- **Datenordner mit anderem Besitzer** (etwa das Image ohne root auf einem bestehenden Volume): Schreibwege antworten
+  mit `503` und sagen, was zu tun ist, statt mit `500`; Lesen geht weiter, ebenso der Trockenlauf (`?dry_run=1`) der
+  Importe von Ablesungen, Zeiträumen, Marktpreisen und Backup, der nichts schreibt. Der Trockenlauf von Zeitreihe,
+  evcc-Import und Monatspreisen am Vertrag antwortet weiter mit `503`.
+- **Zahlen als Text nach der Regel ihrer Art:** Preise, Beträge, Einstellungen und Temperaturen lesen „12,5“ als
+  12,5 an jedem Schreibweg und im Backup-Import, jetzt auch am Vertragspreis, am Bonus, an Temperaturen und an den
+  Einstellungen mit festem Bereich (etwa Zeitlimits, CO₂ und Eigenverbrauch); Mehrdeutiges wie „2.405,5“ ist dort
+  `400`. **Ein Zählerstand nimmt an keinem Weg ein Komma** (Ablesung, Anfangsstand, Zählertausch, Ingest, Backup), wie
+  seit v2.5.3; die Meldung nennt jetzt den Punkt als Dezimaltrenner. Ein Komma kann ein Tausendertrenner sein, und ein
+  Stand, der still um den Faktor 1000 danebenliegt, wäre schlimmer als ein lautes `400`.
+- **Geleerte Einstellungen einer älteren Version** (als `null` gespeichert) gelten in Diagnose und Backup-Import als
+  nicht eingetragen; bisher scheiterte das Einspielen der eigenen Sicherung an ihnen.
+- **Bestand und Backup-Import finden dasselbe:** Diagnose und `/api/health` (`data_issues`) nennen auch Verweise ins
+  Leere auf einen Zähler oder eine Gruppe (Elternzähler und Gruppe am Zähler, Zähler oder Gruppe am Vertrag, Zähler
+  einer Ablesung, Lieferung, eines Zeitraums und einer Rechnung), Freitext über seiner Höchstlänge und einen
+  Fälligkeitstag außerhalb 1 bis 31, jeweils mit ihrer Wirkung. Bisher meldete sie niemand, und erst das Einspielen der
+  eigenen Sicherung scheiterte. Der Import weist einen Elternzähler oder eine Gruppe ins Leere ab und nennt jeden Fund
+  einer Datei, nicht nur den ersten. **Der eigene Export spielt sich unverändert wieder ein** (geprüft an allen
+  Beispielhaushalten).
+- **Fehlerantworten nennen Feld und Grenze als Werte** (`detail`), wie die API-Referenz zusagt; ein Anfangsstand über
+  10¹² nennt die Grenze statt „eine Zahl ab 0“.
+- **Gerätenummer bis 64 Zeichen** wie die übrigen Nummern: beim Anlegen, im Zählertausch, im Backup und in der
+  Diagnose. Bisher ging jede Länge durch.
+- **Beleg und Posteingang als Formular:** Ein Beleg oder ein Dokument für den Posteingang als `multipart/form-data`
+  wird angenommen; bisher hieß es „zu groß“, auch bei wenigen Bytes. Über den Grenzen von PHP nennen beide Wege nach
+  einer Regel die Grenze, die gegriffen hat (`upload_max_filesize` oder `post_max_size`), statt „nur Fotos und PDF“
+  oder fest 10 MB. Eine unbekannte Art (`rechnung` statt `bill_pdf`) ist `400`, bisher wurde sie still `other`.
+- **Dateiname im Posteingang und am Beleg:** Ein Name über 120 Zeichen wird vor der Endung gekürzt, die Endung bleibt
+  (`…-Seite-2.pdf`); bisher fiel sie weg. Ein Dateiname ist keine Eingabe in ein Feld und darum kein Fehler.
+- **Wechselentscheidung und Tarifvergleich mit einem älteren Angebot:** Ein gespeichertes Angebot ohne Bezeichnung
+  (aus alten Daten, einem Backup oder von Hand) brach beide mit `500` ab, auch für eine Gruppe. Jetzt heißt es nach
+  seinem Tarif, ohne Tarifnamen „Hypothese“.
+- **Ohne Schreibrecht** lesen Zusammenfassung, „Zu tun“ und Kalender weiter (`200`), auch wenn die Kennung der
+  Installation noch nicht gespeichert war; bisher antworteten diese drei Wege dann mit `503`.
+
+#### Oberfläche
+
+- **Erster Start in der Sprache des Browsers:** Die Oberfläche schickt bei ihren ersten Anfragen die Sprachwünsche des
+  Browsers. Bis v3.12 bekam ein französischer Browser beim allerersten Start Deutsch, Deutschland und einen deutschen
+  Wetterort; jetzt ergibt „fr-CH“ Französisch und die Schweiz, „de-AT“ Deutsch und Österreich.
+- **Vorschau beim Nachtrag:** Unter dem Zählerstand steht die Menge **seit dem Stand davor** und **bis zum Stand
+  danach**, jeweils zum gewählten Datum, im Dialog „+ Ablesung“ und auf der Seite „Zählerstände“. Bisher verglich der
+  Dialog einen Nachtrag mit dem jüngsten Stand und zeigte für einen richtigen Wert eine negative Menge.
+- **Ersetzen am selben Tag:** Ersetzt ein Stand einen gespeicherten desselben Tags (Dialog, Seite „Zählerstände“,
+  Zeile eines CSV-Imports mit anderem Wert), zählt der alte nicht mehr zur Erwartung nach dem Wetter. Neu und
+  additiv: `exclude` in `POST /api/utility/{u}/meters/{id}/reading-expectations`.
+- **Fokus nach einer Rückfrage:** Nach „Abbrechen“ steht der Fokus wieder auf dem Knopf, der sie ausgelöst hat, auch
+  im Dialog „+ Ablesung“ und auf der Seite „Zählerstände“. Wer mit Tastatur oder Bildschirmleser arbeitet, verlor dort
+  die Stelle.
+- **Kontrast der Abzeichen:** „Schatten“, „Angebot“, „Zukünftig“ und die Gruppe einer Verbrauchsart erreichen 4,5:1
+  auf jeder Fläche, im hellen und im dunklen Thema; ein Test prüft alle Abzeichen.
+- **Knöpfe breiter Tabellen bleiben sichtbar:** Zwischen 900 und 1280 px lagen die Knöpfe der früheren Verträge
+  außerhalb des Rahmens. Die Spalte der Aktionen bleibt jetzt am rechten Rand stehen, ebenso bei den Lieferungen von
+  Heizöl und Pellets, im Posteingang und unter Zu tun › „Termine“.
+- **Belegprüfung im Posteingang und über die KI:** Eine Kennung, die mit einer Ziffer beginnt (etwa „3QXZ0098765432“),
+  belegt keinen Zahlenwert mehr, auch hinter dem Wort „Zähler“. Eine Einheit oder Währung direkt an der Zahl
+  („1.250m³“) bleibt eine Zahl.
+- **Die Suche in den Einstellungen findet den Wetterort:** „Wetterort“, wie die Einrichtung ihn nennt, und
+  „Standort“ aus der Überschrift der Karte unter Verbindungen › Wetterdaten finden Ortsname, Breitengrad, Längengrad
+  und den Schalter für das Wetter, in allen sieben Sprachen. Bis v3.12 fand die Suche den Ort nur als „Ortsname“.
+- **Frühere Namen bleiben Suchwörter:** Wer die Heizgrenze unter ihrem alten Namen „HGT-Basistemperatur“ sucht, findet
+  sie, ebenso in den anderen Sprachen.
+
+#### KI-Schnittstelle
+
+- **Herkunft folgt der schwächsten Eingabe:** Ein Saldo, Jahreskosten oder ein Abrechnungsjahr aus angenommenen
+  Preisen (der Vertrag läuft ohne Eintrag weiter, die Preisgarantie ist vorbei) heißt nicht mehr „gemessen“. Eine
+  Summe über mehrere Zähler heißt geschätzt, sobald ein Zähler den Monat an einer geschätzten Ablesung verteilt.
+  Zeilen mit Geld nennen dessen Herkunft (`money_basis`); ein Vertrag ohne Arbeitspreis ergibt keinen Betrag, sondern
+  `price_missing`.
+- Jede Antwort passt zu ihrem Ausgabeschema, auch ein leeres Teilobjekt (`run_scenario` bei Heizöl, Pellets und
+  Einspeisung).
+- `reading_on` eines Abrechnungsjahrs nennt nur noch einen Tag, an dem eine Ablesung liegt; sonst steht
+  `end_distributed`.
+- Der Saldo zur Abrechnung in `run_scenario` steht in Worten (`meaning`, `text`) wie jeder Saldo.
+- Die Fassung 2025-03-26 des Protokolls nimmt JSON-RPC-Stapel an, wie sie es verlangt (bis 20 Nachrichten).
+- `client_ref` einer übernommenen Ablesung ist genau die Kennung des Vorschlags.
+- Der Satz zu einem Saldo ohne Arbeitspreis nennt keinen Betrag mehr. Er behauptete „… € sind nur die Abschläge“,
+  auch wenn Grundpreis und Monate mit Preis darin steckten.
+- **Noch zu wenig Ablesungen:** `balance_today` nennt kein Guthaben, sondern „noch zu wenig Ablesungen“
+  (`meaning: too_few_readings`, Herkunft `assumed`), in `get_contracts` und `get_overview`.
+- **Abrechnungsjahr der ganzen Art:** Die Herkunft kommt aus den Zielen. Endet ein Ziel vor seiner nächsten Ablesung
+  (am Vertragsende verteilt), heißt die Zeile verteilt, nicht gemessen. Die Summe über die Zeilen trägt `parts` und ist
+  nie stärker als ihre schwächste Zeile.
+- **Frühere Verträge:** Ein abgerechneter Vertrag nennt nur „Ausgeglichen: abgerechnet mit der Rechnung bis …“, keinen
+  zweiten Saldo am letzten Stand. Zählt „Saldo heute“ eine Zahlung nach dem letzten Stand, nennt es deren Tag.
+- **Prognose eines Zählwerks im Gruppenvertrag** (`get_forecast`): Kosten zum Arbeitspreis des Zählwerks, ohne ihn
+  `price_missing`, statt `no_contract`; `priced_by_group` nennt weiter die Gruppe mit Grundpreis und Abschlag.
+
+### Security
+
+- **Härtung der Rollen:** Jede Einstellung ist einer Rolle zugeordnet; die Einstellungen für Texterkennung, Auslesen
+  und Benachrichtigung an Home Assistant und den Speicher für Belege ändern nur Verwalter.
+- **Härtung der KI-Schnittstelle:** Ohne Freigabe der Kennnummern ersetzt sie bekannte Nummern auch in anderer
+  Schreibweise, und Namen und Titel bekommen dieselbe zweite Prüfung wie Notizen.
+
+### Bekannte Grenzen
+
+- **Wärmepumpe nach dem Wetter, PV-Prognose, Bezug nach einem neuen Speicher und Zähler vor einer neuen Wallbox**
+  sind gebaut und nicht freigeschaltet (unter „Added“). Deshalb hat die Werkstatt beim Strom der Wärmepumpe weiter
+  keine Beispiele für Winter und Raumtemperatur, und die PV rechnet dort mit dem zuletzt gemessenen Jahr.
+- **Das Heizmodell ist linear:** In einem sehr kalten Winter sinkt die Arbeitszahl einer Wärmepumpe, und ein
+  Heizstab springt an; die Rechnung läge dann eher zu niedrig. Ein gekrümmtes Modell ist mit [#38] für v3.14
+  geplant.
+- **Verbrauch zwischen zwei Ablesungen** verteilt die App weiter gleichmäßig auf die Tage, auch bei der PV; nach dem
+  Wetter ist es für v3.14 geplant. **Nur jährliche Ablesungen** ergeben kein Heizmodell; die Prognose folgt dann dem
+  Saisonprofil und sagt es.
+- **Einbau eines Speichers** ist das Einbaudatum am Speicherzähler, ohne Angabe der Tag des Anlegens. Wer Zähler für
+  einen älteren Speicher nachträgt, trägt dort sein Einbaudatum ein; der Hinweis nennt das Datum, mit dem die App
+  rechnet.
+- **Wallbox in einer Kaskade:** Eine Wallbox am vorderen Zähler (vorn die Wärmepumpe, dahinter der Haushalt) gilt
+  als Teil des Haushalts. Die App liest das aus den Rollen; ein eigenes Feld dafür gibt es nicht.
+- **Saldo und Prognose der Einspeisung** können im Jahr nach einem neuen Speicher im Niveau auseinanderliegen: Der
+  Saldo kennt die Bereinigung um die Ladung nicht. Lädt eine Wallbox mittags aus der Sonne, steht das in den
+  Monaten davor noch als Einspeisung.
+- **Einstrahlung:** Tage, die du per CSV in einem schon abgefragten Zeitraum nachträgst, bekommen keine Einstrahlung.
+  Der Trend des Normals ist eine Gerade; kehrt sich die Entwicklung um, liegt er einige Jahre zu hoch.
+- **Auszahlungen:** Eine Gutschrift des Netzbetreibers erkennt der Posteingang noch nicht als Auszahlung; du
+  erfasst sie an der Saldo-Karte.
+- **Rückfrage beim Eintragen:** In einer Woche, die kälter ist als alles bisher (etwa der erste Heizbeginn eines neuen
+  Zählers), fragt sie nur bei „Komma vergessen?“; ein kleiner Tippfehler rutscht dort durch. **Strenger in milden
+  Wochen wird sie erst, wenn ein Heizmodell trägt.** Bei täglichen Ständen (Home Assistant) fragt sie etwas später
+  als bisher. **Die Vorschau eines CSV-Imports** vergleicht mit den gespeicherten Ständen, nicht mit früheren Zeilen
+  derselben Datei: Der erste Import in einen leeren Zähler und Dateien mit mehr als 4.000 Abständen prüfen nach der
+  bisherigen Regel.
+- **Abschläge zählen:** Ein Fälligkeitstag gilt für alle Verträge; ein Abschlag mit Terminen zählt weiter an seinen
+  eigenen Terminen. **Eingetragene Termine wiederholt die App jährlich** (viele Versorger planen 11 Abschläge im
+  Jahr). Wer nach einem Einzug mitten im Jahr im Takt weiterzahlt, trägt die Termine des Folgejahres ein.
+- **Rückgängig:** Übernahmen der KI aus v3.12 haben keinen Rückweg. Nur der jüngste Stand geht zurück; hat sich ein
+  berührter Datensatz seitdem geändert, ist die Hand gefragt. Die Meldung zu langer Texte nennt das Feld mit seinem
+  technischen Namen („notes“).
+- **Sehr lange Verläufe:** Mit Tageswerten über rund 75 Jahre brauchen Übersicht, Agenda, Jahresbericht und Kalender
+  weiter mehr als 128 MB Speicher (Umbau geplant für v3.14).
+- **Zeiträume und Stände am Monatsende:** Am letzten Tag eines Monats zählt ein Zähler mit Verbrauch je Zeitraum den
+  Monat schon, ein Zähler mit Ständen erst mit der Ablesung am Ersten.
+- **Home Assistant:** Die Rechte in `/share` sind ungeprüft; einer Umleitung folgt der Energietracker nicht.
+- **Subzähler nach eigenem Vertrag ohne Prognose:** Hat er noch keine gültige Prognose, zieht der Zähler davor ihn
+  trotzdem ab, und sein Geld fehlt in den erwarteten Kosten des Jahresberichts weiter.
+- **Arbeitspreis auf den Cent:** „Rechnung prüfen“ und das Abrechnungsjahr runden den Arbeitspreis je Abschnitt wie
+  eine Zeile der Rechnung, die Monatszeilen und damit Saldo-Karte und Jahresbericht je Monat. Teilt eine Preisänderung
+  oder eine Ablesung einen Monat, können beide um 1 bis 2 Cent auseinanderliegen.
+- **Geschätzter Stand an einer Periodengrenze:** Liegt ein als geschätzt erfasster Stand genau auf dem Ende einer
+  Abrechnungsperiode und folgt danach eine echte Ablesung, teilt die Schätzung die Menge zwischen den beiden Perioden.
+- **Monatszeile einer Zählergruppe:** Ein Monat, in dem ein Mitglied noch nicht abgelesen ist, zeigt in der
+  Monatstabelle nur die übrigen Mitglieder, ohne Kennzeichen.
+- **Unbrauchbar Gespeichertes:** Ein Vertrag, Zähler, Mietverhältnis oder eine Rechnung ohne brauchbares Pflichtfeld
+  (Beginn, Geräte, Zeitraum) fehlt in Rechnung und Liste; die Diagnose nennt ihn mit Kennung, Ändern und Löschen gehen
+  über die API oder ein korrigiertes Backup. Ablesungen, Zeiträume und Lieferungen bleiben in ihren Listen sichtbar.
+- **Preis fehlt:** Beginnt der Arbeitspreis erst einige Tage nach dem Vertrag, heißt der ganze erste Monat „Preis
+  fehlt“.
+- **HT/NT-Gruppe ohne gültige Prognose eines Zählwerks:** Die Gruppe rechnet dann selbst; ein Monat, in dem das
+  Zählwerk noch fehlt und den es nur einmal gibt, zählt mit dem Wert ohne es. Die Prognose der Gruppe warnt dann
+  nicht.
+- **Saldo am Vertragsende:** Solange ein Vertrag in das laufende Abrechnungsjahr fällt, rechnet er seinen Saldo über
+  dieses Jahr, auch nach seinem Ende. Fällt er nicht mehr hinein (etwa im nächsten Abrechnungsjahr), rechnet er als
+  früherer Vertrag ohne gebuchte Rechnung über seine ganze Laufzeit ab der ersten Ablesung. Der Saldo kann dann
+  springen, ohne dass neue Daten dazukommen. Eine Regel für alle Phasen folgt.
+- **Rechnung prüfen vor der ersten Ablesung:** Beginnt eine Rechnung vor der ersten Ablesung, zählt die App den
+  Grundpreis ab Rechnungsbeginn, die Abschläge erst ab dem Monat der ersten Ablesung.
+- **Verweise ins Leere:** Eine Auszahlung an einem gelöschten Zähler, eine Rechnung an einem gelöschten Vertrag, ein
+  Mietverhältnis mit unbekanntem Zähler, Abschlagstermine vor dem Beginn und ein Zähler als sein eigener Elternzähler.
+  Die Schreibwege weisen sie ab, doch die ersten beiden entstehen beim Löschen des Zählers bzw. des Vertrags, alle
+  fünf auch über ein Backup. Backup-Import und Bestand melden sie noch nicht. Eine solche Auszahlung fehlt an der
+  Saldo-Karte, eine solche Rechnung lässt sich im Formular erst wieder speichern, wenn du einen anderen oder keinen
+  Vertrag wählst.
+- **Doppelte Kennung im Bestand:** Tragen zwei Datensätze eines Topfs dieselbe Kennung, meldet der Bestand das nicht;
+  erst das Einspielen des eigenen Exports scheitert. Das entsteht nur durch einen Eingriff in die Dateien.
+- **Strom-Saldo seit Jahresbeginn** (`strom_saldo_ytd`, Saldo-Karte Strom) summiert gerundete Monatskosten und kann um
+  1 Cent von der Summe der Tage abweichen.
+
+**v3.14.0 erscheint, wenn es fertig ist.** Schwerpunkte: lange Verläufe und der Umzug aus anderen Apps, der
+Verbrauch zwischen zwei Ablesungen nach dem Wetter und das gekrümmte Heizmodell ([#38]). Die Wärmepumpe nach dem
+Wetter und die PV-Prognose kommen erneut auf den Prüfstand.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0, Backup-Format 3.0. Neu ist der Topf `feed_in_payouts.json` (im Backup; die
+Beispielhaushalte bringen ihn leer mit), alle neuen Felder sind optional. Beim ersten Wetterabgleich nach dem Update
+holt die App einmal die Einstrahlung ab der ersten Ablesung und ergänzt das Klimanormal; die Heizgradtage bleiben
+unverändert. Backups ohne Einstrahlung spielen sich ein, Backups mit zu langen Texten erst nach dem Korrigieren.
+
+### Tests
+
+- **Zweiter unordentlicher Testhaushalt:** `EdgeHouseholdTest` mit dem Generator unter
+  `tests/fixtures/edge-household/` (eigene Physik, `--check`): Verträge, die nicht glatt laufen (Einzug und Auszug
+  mitten im Monat, Zählergruppe HT/NT mit verschiedenen Ablesetagen, Abschlag mit Terminen, Preis erst später und Preis
+  je Ablesung, Gartenzähler, Mietverhältnis bis zum Auszug, Schaltjahr), je Fall Ansicht gegen Ansicht mit
+  Handrechnung. Läuft auch in den KI-Tests für alle Haushalte mit.
+- **Prüfhaushalt:** `HeatPumpHouseholdTest` mit dem Generator unter `tests/fixtures/heatpump-household/` (eigene
+  Physik, die Wahrheit getrennt, Fixture aktuell mit `--check`) und die Rückrechnung `tools/rueckrechnung.php`
+  (vorab und mit Ist-Wetter, Saldo nach 3, 6 und 9 Monaten, gegen den bisherigen Weg und eine naive Prognose). Die
+  Schwellen liegen in `schwellen.json`.
+- **Sonne:** `RadiationDataTest`, `PvWeatherForecastTest`, `ScenarioPvNormalTest`. **Wärmepumpe:**
+  `UtilityWeatherTest`, `HeatPumpWeatherTest`, `TemperatureTrendTest`, `ScenarioHeatPumpJazTest` (Kurve der Norm,
+  Jahr gleich der Eingabe). **Vertrag:** `HtNtGroupForecastTest` (von Hand: Gruppe = HT + NT, Gruppe minus
+  Zählwerke = Grundpreis), `FeedInPayoutServiceTest`, `McpGroupForecastTest`, `McpFeedInPayoutTest`. **Speicher und
+  Wallbox:** `DeviceArrivalTest`.
+- **Rückfrage:** `ReadingExpectationTest` mit dem Muster aus [#65] (wöchentlich von Hand, Sommer ohne Heizung, die
+  ersten Heizwochen), `ReadingExpectationEndpointTest`, `ReadingExpectationBatchTest` (Sammelabfrage gleich der
+  Einzelabfrage), `ReadingExpectationsEndpointTest`, `McpReadingWeatherTest` und eine gemeinsame Probe für PHP und
+  JavaScript. **Jahresbericht:** `ReportSubmeterOwnContractTest` (mit und ohne Vertrag des Subzählers gleich teuer,
+  wenn er zum selben Preis ohne Grundpreis rechnet).
+- **Eingaben:** `TextLimitsTest`, `TextLimitsEndpointTest`, `McpTextLimitsTest`, `InboxListItemsTest`,
+  `McpListItemsTest`, `McpUndoTest`, `McpUndoEndpointTest`. **Rechnen:** `TankSeriesTest`, `LastMeasuredOnceTest`,
+  `StichtagPeriodsTest`, `CatalogStyleTest::testTermbaseFollowsTheGermanTerm`.
+- **Oberfläche und Betrieb:** `LetterSettingsAccessTest`, `MetersOverviewEndpointTest`, `FirstStartHealthCheckTest`,
+  `WebrootRulesTest`, `PhpMinimumVersionTest`, `HomeAssistantNotifyTest`, `BackupProblemCatalogTest`,
+  `ViewsPageNamesDocsTest`, `HomeAssistantRedirectDocsTest`; Node-Suiten `levels`, `sichtung-layout`
+  (kein Knopf schneidet ein Feld), `chart`, `plausibility`, `mcp-snippet`, `outbound-admin`, `inbox`.
+- **Alt gegen neu:** Jede Änderung an Prognose, Saldo oder Werkstatt vergleicht die Ausgaben an allen
+  Beispielhaushalten und am unordentlichen Testhaushalt mit dem Stand davor; außerhalb ihres Bausteins sind sie
+  byte-gleich.
+- **Zeitreise als eigener Workflow,** wöchentlich und auf Knopfdruck, an drei Stichtagen unter verstellter Uhr.
+- **Test-Farm** (`tools/farm`): Apache mit `.htaccess` (PHP 8.4 und 8.5), Reverse-Proxy mit HTTPS und
+  Proxy-Anmeldung, Update von der letzten Version, die YAML-Vorlagen der Doku, Home Assistant OS als VM mit der App
+  und die Integration 1.1.0.
+- **Alte Gegenproben nachgezogen:** Alle gepflegten Sammlungen seit v2.8.0 liefen gegen den heutigen Code. Wo ein
+  späteres Release eine Stelle verschoben hatte, prüft die Probe dieselbe Regel jetzt an ihrer neuen Stelle; Proben zu
+  Regeln, die ein Release bewusst geändert hat, sind mit Beleg gestrichen. Neue Tests für Regeln, die bisher keine
+  wirksame Prüfung hatten: `AssigneeTest` (ehemalige Person im Verlauf und am erledigten Termin), `PdfWriterTest` (die
+  Ampel im PDF ist nie nur Farbe), `PvSemanticsTest` (vermiedenes CO₂ nur aus der Erzeugung), `BillingWindowTest`
+  (Zahlung vor dem Saldobeginn), `TankModelTest` (Tank im Sommerfenster), `ReportModelServiceTest` (Anomalien nur aus
+  dem Berichtsjahr, Abschlag 0 an einem festen Tag), `ShortRestPeriodsTest`, `InboxMarksTest`,
+  `ContainerHardeningTest`, `SupportHintSettingTest`; Node-Suiten `lists` (Rechnung prüfen ohne abgeschlossene
+  Periode) und `browser-render` (sechs Stellen der Oberfläche).
+- **Rückrechnung:** `tools/rueckrechnung.php` rechnet mit Ist-Wetter jetzt ohne die Trendfelder des Klimanormals. Am
+  Prüfhaushalt bleiben die Ergebnisse gleich (`HeatPumpHouseholdTest`).
+- **Rechnen nachgeprüft:** `UtilityBillingYearSumTest` (Summe der Art gleich der Summe der Ziele),
+  `EarlierContractBeforeFirstReadingTest`, `FirstReadingOnlyTest`, `HtNtGroupEarlierReadTest`,
+  `ReportPriceMissingTest`, `SummaryYearToDateTest`, `TariffSwitchDatedBonusTest`, `McpNoPriceSentenceTest`.
+- **Eingaben und Rechte nachgeprüft:** `DecimalCommaEveryPathTest` (jede Schreibweise an jedem Weg),
+  `BackupRoundTripTest` (der eigene Export jedes Beispielhaushalts und beider Testhaushalte spielt sich wieder ein),
+  `DataIssuesImportParityTest`, `BackupImportRulesTest`, `InputAnswersEndpointTest`, `InputRulesDocsTest`,
+  `InstanceIdWithoutWriteAccessTest`, `PriceAnnouncementDeadlineTest` (Grenztage mit Schaltjahr und Monatsende).
+- **Tests an jedem Tag grün:** Prüfungen, die an den festen Beispieldaten und am heutigen Datum hingen (Fehlablesung auf
+  der Übersicht, „Rechnung prüfen“ ohne Zeitraum, Druckansicht des Jahresberichts, Zwischenzähler im Schaufenster, Trend
+  der Kachel), nehmen ihre Erwartung jetzt aus dem Stand der Daten. Die Zeitreise ist an allen Stichtagen grün.
+- **Das Raster der Boxen misst die fertige Seite:** Die Prüfung wartet, bis die neue Ansicht steht, statt 250 ms nach dem
+  Wechsel. Breite Tabellen macht sie zusätzlich breiter als ihren Rahmen, damit eine fehlende angeheftete Spalte immer
+  auffällt. Die Browserprüfungen Raster und Sichten brechen ab, wenn ihr Port schon belegt ist.
+- **3.163 Testmethoden (+496).** Jede neue Regel hat eine Gegenprobe, die sie bricht: 892 in 30 Dateien, alle rot.
+  Die aus v3.12 bleiben rot bis auf eine, die ausgesetzt ist: Ihren Fall fängt seit diesem Release eine frühere Prüfung
+  ab, die spätere Sperre bekommt in 3.14 einen eigenen Test.
+
+### Lessons Learned
+
+- **Erst die Schwelle, dann das Modell.** Für die Wärmepumpe standen die Grenzen fest, bevor am Modell gearbeitet
+  wurde, und was sie nicht schafft, bleibt aus. Ohne diese Regel wäre sie jetzt an, weil sie bei einer Ableseart
+  deutlich besser aussah.
+- **Ein Prüfstand, den nicht die App erfunden hat.** Beispieldaten aus dem Modell der App bestätigen nur das Modell.
+  Der Prüfhaushalt rechnet mit eigener Physik und bringt Winter, Speicher und Wallbox, die die App am Stichtag noch
+  nicht kennt.
+- **Dreißig Jahre Mittel sind kein Normal mehr.** Das flache Klimanormal lag bei Wärme und Sonne systematisch
+  daneben; der Trend gehört ins Normal.
+- **Eine Rückfrage braucht einen Vergleich mit ähnlichem Wetter.** Hochrechnen mit dem Verhältnis der Gradtage hätte
+  beim Heizbeginn wieder falsch gefragt; verglichen wird nur mit Abständen, die mindestens so viel Heizwetter hatten.
+- **Ein internes Umschreiben ändert die Adresse, an der der Webserver misst.** Mit `api.php` als Ziel griff die
+  Grenze für große Importe nicht mehr; das Ziel muss die Route behalten.
+
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+[#64]: https://github.com/Bingerminger/energietracker/issues/64
+[#65]: https://github.com/Bingerminger/energietracker/issues/65
+
+---
+
 ## [3.12.0] — 2026-11-10 — Energietracker für deine KI
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0). Die Hauptfunktion ist die **KI-Schnittstelle** (F1037): Der

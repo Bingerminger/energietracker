@@ -58,7 +58,9 @@ final class CsvLocalFormatTest extends ServiceTestCase
         $csv = $this->export()->readings('strom', 'local');
         self::assertStringStartsWith("\u{FEFF}", $csv, 'BOM');
         $rows = self::parse($csv, ';');
-        self::assertSame(['ID compteur', 'Compteur', 'ID appareil', 'Date', 'Index', 'Prix (ct)', 'Note', 'Estimé', 'Futur'], $rows[0]);
+        // v3.13.0 (K2d) — drei Spalten hinten an (verlustfreie Rundreise der Merker)
+        self::assertSame(['ID compteur', 'Compteur', 'ID appareil', 'Date', 'Index', 'Prix (ct)', 'Note', 'Estimé', 'Futur',
+            'Facture seulement', 'Communiqué le', 'Vérifié'], $rows[0]);
         self::assertSame(['01/02/2025', '1234,5678', 'a, b; c', 'Oui', 'Non'], [$rows[2][3], $rows[2][4], $rows[2][6], $rows[2][7], $rows[2][8]]);
         self::assertMatchesRegularExpression('/^energietracker-strom-releves-\d{4}-\d{2}-\d{2}\.csv$/', $this->export()->filename('readings', 'strom', 'local'));
         // Format 1 bleibt daneben unverändert

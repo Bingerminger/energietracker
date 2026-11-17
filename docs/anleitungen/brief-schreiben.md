@@ -54,9 +54,12 @@ Ohne Hinweis gibt es dort zwei Briefe:
 - **Kündigung zum nächstmöglichen Termin:** ordentlich, ohne rechtliche Aussage
   und ohne Norm. Kunden- und Vertragsnummer, Zählernummer und der Termin laut
   Vertrag stehen darin, sonst eine Lücke. Beim Termin sagt der Dialog, warum er
-  fehlt *(v3.12.0)*: keine Frist und kein Ende am Vertrag, Stichtag verpasst
-  oder der Vertrag läuft nach dem Ende weiter; nach einer verpassten Frist
-  rechnet die App keinen Termin. Prüfe Termin und Form in deinem
+  fehlt *(v3.12.0)*: keine Frist am Vertrag (und, wenn auch keins eingetragen
+  ist, kein Ende), Stichtag verpasst oder der Vertrag läuft nach dem Ende
+  weiter; nach einer verpassten Frist rechnet die App keinen Termin. **In der
+  Grundversorgung bleibt der Termin immer offen** *(v3.13.0)*: Die zwei Wochen
+  Frist laufen ab dem Tag, an dem dein Brief ankommt, und den kennt die App
+  nicht. Prüfe Termin und Form in deinem
   Vertrag. Fernwärme kündigst du schriftlich (§ 32 AVBFernwärmeV): Das PDF hat
   dann eine Unterschriftszeile. Bei Wasser gibt es diese Vorlage nicht.
 

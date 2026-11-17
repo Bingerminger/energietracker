@@ -57,23 +57,43 @@ final class DeliveryService
         $today ??= date('Y-m-d');
         $last = null;
         foreach ($deliveries as $d) {
-            $date = (string)($d['date'] ?? '');
+            // v3.13.0 (K2d) — nur ein Tag als Text: eine Liste aus einer älteren Version brach das Speichern daneben (500)
+            $date = is_string($d['date'] ?? null) ? $d['date'] : '';
             if (!empty($d['is_planned']) || $date === '' || $date > $today) continue;
             if ($last === null || $date > $last) $last = $date;
         }
         return $last;
     }
 
-    /** @return array<int,array<string,mixed>> */
+    /**
+     * v3.13.0 (K2d) — Lieferungen, wie die Rechnung sie sieht (Support\FieldRules::view): eine Menge oder ein Betrag,
+     * den die Schreibwege heute abweisen, fällt aus der Rechnung bzw. gilt als nicht eingetragen; die Datei bleibt.
+     * Was gespeichert ist (Liste, Schreibwege), liefert stored().
+     *
+     * @return array<int,array<string,mixed>>
+     */
     public function list(string $utility, ?string $meterId = null): array
     {
         $this->assertDeliveryUtility($utility);
+        return self::byDate(\Energietracker\Support\FieldRules::view($this->store, "$utility/deliveries.json", 'deliveries')[0], $meterId);
+    }
+
+    /** @return array<int,array<string,mixed>> v3.13.0 (K2d) — die gespeicherten Lieferungen, wie sie in der Datei stehen */
+    public function stored(string $utility, ?string $meterId = null): array
+    {
+        $this->assertDeliveryUtility($utility);
         $all = $this->store->read("$utility/deliveries.json", []);
-        if (!is_array($all)) $all = [];
+        return self::byDate(is_array($all) ? array_values(array_filter($all, 'is_array')) : [], $meterId);
+    }
+
+    /** @param array<int,array<string,mixed>> $all */
+    private static function byDate(array $all, ?string $meterId): array
+    {
         if ($meterId !== null) {
             $all = array_values(array_filter($all, fn($d) => ($d['meter_id'] ?? null) === $meterId));
         }
-        usort($all, fn($a, $b) => strcmp((string)($a['date'] ?? ''), (string)($b['date'] ?? '')));
+        $date = fn(array $d): string => is_string($d['date'] ?? null) ? $d['date'] : '';
+        usort($all, fn($a, $b) => strcmp($date($a), $date($b)));
         return $all;
     }
 
@@ -92,7 +112,7 @@ final class DeliveryService
         $payload = $this->normalize($utility, $payload);
         $this->validate($utility, $payload, isUpdate: false);
 
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $payload['id'] = $payload['id'] ?? 'del_' . $utility . '_' . substr(bin2hex(random_bytes(4)), 0, 6);
         // v3.4.0 (F1024) — Stand vor der Lieferung: niedriger Bestand, letzte Lieferung
         $meterId = (string)($payload['meter_id'] ?? '');
@@ -109,7 +129,7 @@ final class DeliveryService
     public function update(string $utility, string $id, array $patch): array
     {
         $this->assertDeliveryUtility($utility);
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $found = null;
         foreach ($all as &$d) {
             if (($d['id'] ?? null) === $id) {
@@ -130,7 +150,7 @@ final class DeliveryService
     public function delete(string $utility, string $id): void
     {
         $this->assertDeliveryUtility($utility);
-        $all = $this->list($utility);
+        $all = $this->stored($utility);   // v3.13.0 (K2d) — die Datei, wie sie ist
         $kept = array_values(array_filter($all, fn($d) => ($d['id'] ?? null) !== $id));
         if (count($kept) === count($all)) {
             throw new NotFoundException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
@@ -159,7 +179,8 @@ final class DeliveryService
      *   warnings: array<int, array<string,mixed>>
      * }
      */
-    public function stockHistory(string $utility, string $meterId, ConsumptionService $consumption, ?string $today = null): array
+    public function stockHistory(string $utility, string $meterId, ConsumptionService $consumption, ?string $today = null,
+                                 ?string $from = null, ?string $until = null): array
     {
         $this->assertDeliveryUtility($utility);
         $meter = $this->meters->get($utility, $meterId);
@@ -167,9 +188,14 @@ final class DeliveryService
             throw new NotFoundException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
         }
 
-        $model = $consumption->tankModel($utility, $meter, $today);   // v3.12.0 — bis zum Stichtag, sonst heute
+        // v3.12.0 — bis zum Stichtag, sonst heute. v3.13.0 — aus den Spalten des Tankbuchs (je Anfrage einmal
+        // gerechnet); `$from`/`$until` (einschließlich) begrenzen die Tageszeilen auf den abgefragten Zeitraum,
+        // das Tankbuch selbst rechnet immer ab dem Start (Bestand, Preis und Rate hängen an allen Tagen davor).
+        $model = $consumption->tankSeries($utility, $meter, $today);
         $days = [];
-        foreach ($model['days'] as $date => $row) {
+        foreach ($model['dates'] as $i => $date) {
+            if (($from !== null && $date < $from) || ($until !== null && $date > $until)) continue;
+            $row = DeliveryConsumptionService::dayRow($model, $i);
             $days[] = [
                 'date'        => $date,
                 'stock'       => $row['stock'],
@@ -190,6 +216,24 @@ final class DeliveryService
             'calibration'    => $model['calibration']['source'],
             'warnings'       => $model['warnings'],
         ];
+    }
+
+    /**
+     * v3.13.0 — Wie stockHistory(), aber nur mit dem letzten Tag (Bestand am Stichtag) in `days`: für Übersicht,
+     * Empfehlungen und Agenda, die nur den Stand brauchen. Bis v3.12 bauten sie dafür die Tageszeilen aller Jahre.
+     *
+     * @return array<string,mixed>
+     */
+    public function stockLatest(string $utility, string $meterId, ConsumptionService $consumption, ?string $today = null): array
+    {
+        $this->assertDeliveryUtility($utility);
+        $meter = $this->meters->get($utility, $meterId);
+        if (!$meter) {
+            throw new NotFoundException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
+        }
+        $last = $consumption->tankSeries($utility, $meter, $today)['dates'];
+        $last = $last === [] ? null : $last[count($last) - 1];
+        return $this->stockHistory($utility, $meterId, $consumption, $today, $last ?? '9999-12-31', $last);
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -214,6 +258,7 @@ final class DeliveryService
         // v3.12.0 — Typen und Dezimalkomma an einer Stelle (Support\Input): eine Liste statt Text ergab
         // 500, „1250,5“ L wurden still 1250, „abc“ ct still 0
         Input::assertTexts($payload, ['meter_id', 'date', 'supplier', 'note']);
+        \Energietracker\Support\TextLimits::assert($payload, 'deliveries');   // v3.13.0 (Paket F) — Lieferant, Notiz
         foreach (['quantity', 'unit_price_cents', 'total_eur'] as $f) {
             if (!isset($payload[$f])) continue;
             if ($payload[$f] === '') { $payload[$f] = 0.0; continue; }   // wie bisher (float)''
@@ -224,6 +269,11 @@ final class DeliveryService
             // v3.12.0 — Obergrenzen: 10³⁰⁸ Liter legten bisher die Ansichten der Art lahm
             if ($n > self::LIMITS[$f]) {
                 throw new LocalizedException('errors.common.valueInvalid', ['field' => $f, 'value' => (string)$payload[$f]], "delivery $f too large");
+            }
+            // v3.13.0 — ein Betrag nie negativ, wie der Preis je Einheit (bisher ging −1 € als Summe durch);
+            // dieselbe Grenze im Backup-Import (Support\FieldRules)
+            if ($f === 'total_eur' && $n < 0) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.delivery.priceNegative'));
             }
             $payload[$f] = $n;
         }

@@ -58,6 +58,8 @@ final class ScenarioPv
         private ?IntervalService $intervals,
         private MeterService $meters,
         private SettingsService $settings,
+        // v3.13.0 (Paket sonne) — Einstrahlung und Normal, um das Grundjahr auf normale Sonne zu rechnen (ohne: wie gemessen)
+        private ?ConsumptionService $consumption = null,
     ) {}
 
     /**
@@ -78,6 +80,19 @@ final class ScenarioPv
         $byYm = [];
         foreach ($summary['monthly'] ?? [] as $r) $byYm[(string)$r['ym']] = $r;
 
+        // v3.13.0 (Paket sonne) — das Grundjahr auf normale Sonne: je Monat Einstrahlung des Normals ÷ Einstrahlung
+        // des Monats (PvWeatherModel::normalFactors). Nach einem sonnigen Jahr rechnete die Werkstatt sonst mit zu
+        // viel Erzeugung, Einspeisung und Erlös
+        $baseYms = $series !== null
+            ? array_map(fn($i) => sprintf('%04d-%02d', $series['year'], $i), range(1, 12))
+            : array_map(fn($r) => (string)$r['ym'], $rows);
+        $normal = $this->consumption?->pvNormalFactors($baseYms);
+        $genMeasured = 0.0;
+        if ($series !== null) {
+            $genMeasured = array_sum($series['gen']);
+            if ($normal !== null) $series = self::seriesToNormal($series, $normal);
+        }
+
         // ── Monate des Grundjahrs: Mengen und Preise ────────────────────
         $months = [];
         if ($series !== null) {
@@ -91,6 +106,8 @@ final class ScenarioPv
             foreach ($rows as $r) {
                 $b = ['gen' => (float)$r['erzeugung_kwh'], 'feed' => (float)$r['einspeisung_kwh'], 'import' => (float)$r['bezug_kwh'],
                       'charge' => (float)($r['battery']['charged_kwh'] ?? 0.0), 'discharge' => (float)($r['battery']['discharged_kwh'] ?? 0.0)];
+                $genMeasured += $b['gen'];
+                if ($normal !== null) $b = self::monthToNormal($b, $normal[(string)$r['ym']]);   // v3.13.0 (Paket sonne)
                 $days = (int)date('t', (int)strtotime($r['ym'] . '-01'));
                 $low = self::monthEdge($b, $days, $lv, false);
                 $high = self::monthEdge($b, $days, $lv, true);
@@ -104,6 +121,11 @@ final class ScenarioPv
         }
         if (array_filter($months, fn($m) => $m['base']['feed'] > $m['base']['gen'] + PvSummaryService::FEED_ABOVE_GEN_KWH) !== []) {
             $warnings[] = ['code' => 'feed_above_generation'];
+        }
+        // v3.13.0 (Paket sonne) — Herkunft: das Grundjahr steht auf normaler Sonne, um so viel weicht die Erzeugung ab
+        $genFactor = $normal !== null && $genMeasured > 0 ? array_sum(array_map(fn($m) => $m['base']['gen'], $months)) / $genMeasured : null;
+        if ($genFactor !== null && abs($genFactor - 1.0) >= 0.005) {
+            $warnings[] = ['code' => $genFactor < 1.0 ? 'pv_normal_down' : 'pv_normal_up', 'ratio' => round(abs($genFactor - 1.0), 4)];
         }
         [$importCt, $feedCt] = self::prices($months, $byYm);
         if ($importCt === null) $warnings[] = ['code' => 'no_price'];
@@ -214,8 +236,68 @@ final class ScenarioPv
                 'scenario'      => $ys,
                 'scenario_low'  => $yl,
                 'scenario_high' => $yh,
+                // v3.13.0 (Paket sonne, additiv) — Grundjahr auf normale Sonne: Faktor der Erzeugung im Jahr und je
+                // Monat (Einstrahlung des Normals ÷ des Monats); null ohne Einstrahlung (dann wie gemessen)
+                'normal'        => $normal !== null ? ['gen_factor' => round((float)$genFactor, 4),
+                                                       'months' => array_map(fn($f) => round($f, 4), $normal)] : null,
             ],
         ];
+    }
+
+    /**
+     * v3.13.0 (Paket sonne) — ein Monat ohne Viertelstunden auf normale Sonne (Faktor f auf die Erzeugung). Die
+     * Änderung ΔG = (f − 1) × Erzeugung verteilt sich zwischen zwei Grenzen, die Werkstatt nimmt die Mitte:
+     *   f ≥ 1  ganz in die Einspeisung  bzw.  erst in den Eigenverbrauch, höchstens (f − 1) × selbst genutzt und
+     *          der Netzbezug (wie „Anlage größer“, monthEdge)
+     *   f < 1  erst aus der Einspeisung, der Rest aus dem Eigenverbrauch (Netzbezug steigt)  bzw.  anteilig
+     *          (Eigenverbrauch und Einspeisung je × f)
+     * Speicher wie gemessen.
+     *
+     * @param array{gen:float,feed:float,import:float,charge:float,discharge:float} $b
+     * @return array{gen:float,feed:float,import:float,charge:float,discharge:float}
+     */
+    public static function monthToNormal(array $b, float $f): array
+    {
+        if (abs($f - 1.0) < 1e-9) return $b;
+        $fl = PvSummaryService::flows($b['gen'], $b['feed'], $b['import'], $b['charge'], $b['discharge'], 6);
+        $P = (float)$fl['pv_house'] + (float)$fl['pv_battery'];
+        $R = (float)$fl['grid_house'];
+        $E = max(0.0, $b['feed']);
+        $dG = ($f - 1.0) * $b['gen'];
+        if ($dG >= 0) { $a = 0.0; $c = min($dG, $R, ($f - 1.0) * $P); }
+        else { $a = -max(0.0, -$dG - $E); $c = -min(-$dG, (1.0 - $f) * $P); }
+        $dP = ($a + $c) / 2;
+        return ['gen' => $f * $b['gen'], 'feed' => max(0.0, $E + $dG - $dP), 'import' => max(0.0, $R - $dP + (float)$fl['grid_battery']),
+                'charge' => $b['charge'], 'discharge' => $b['discharge']];
+    }
+
+    /**
+     * v3.13.0 (Paket sonne) — Viertelstunden auf normale Sonne: je Platz Erzeugung × Faktor seines Monats. Mehr Sonne
+     * deckt erst den Netzbezug dieses Platzes, weniger Sonne fehlt erst in der Einspeisung, dann im Haus (Netzbezug
+     * steigt). Speicher wie gemessen.
+     *
+     * @param array<string,mixed> $x intervalYear()
+     * @param array<string,float> $factors Monat (YYYY-MM) → Faktor
+     * @return array<string,mixed>
+     */
+    public static function seriesToNormal(array $x, array $factors): array
+    {
+        foreach ($x['gen'] as $t => $g) {
+            $f = (float)($factors[sprintf('%04d-%02d', $x['year'], (int)$x['month'][$t])] ?? 1.0);
+            $dg = ($f - 1.0) * (float)$g;
+            $x['gen'][$t] = $f * (float)$g;
+            if ($dg >= 0) {
+                $u = min($dg, (float)$x['import'][$t]);
+                $x['import'][$t] = (float)$x['import'][$t] - $u;
+                $x['feed'][$t] = (float)$x['feed'][$t] + $dg - $u;
+            } else {
+                $lost = -$dg;
+                $fromFeed = min($lost, (float)$x['feed'][$t]);
+                $x['feed'][$t] = (float)$x['feed'][$t] - $fromFeed;
+                $x['import'][$t] = (float)$x['import'][$t] + ($lost - $fromFeed);
+            }
+        }
+        return $x;
     }
 
     // ══ Reine Bausteine (testbar ohne Daten) ═══════════════════════════════

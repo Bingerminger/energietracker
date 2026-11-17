@@ -33,6 +33,7 @@ import { docUrl } from '../lib/docs.js';
 import { disclosureHtml, wireDisclosures } from '../components/disclosure.js';
 import { fillHeatLimitSlot } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 import { icon } from '../lib/icons.js';
+import { forecastTargets, pricedGroupOf } from '../lib/forecast-targets.js';   // v3.13.0 (Paket vertrag, #40)
 
 const esc = escapeHtml;
 let chart = null;
@@ -76,6 +77,7 @@ export async function render(container, params = [], ctx = {}) {
         <select class="select" id="meter-select" aria-label="${esc(t('forecast.selectMeter'))}"></select>
       </div>
     </div>
+    <p class="infobox infobox--neutral" id="fc-member-hint" data-role="fc-member-hint" hidden></p>
     <p class="ws-lead"><span id="ws-lead">${t('scenario.lead')}</span> <a href="${docUrl('whatIf')}">${esc(t('scenario.guide'))}</a></p>
     <div class="ws-presets" role="group" aria-label="${esc(t('scenario.presets.label'))}" id="ws-presets"></div>
     <div class="ws" id="ws">
@@ -319,9 +321,26 @@ export async function render(container, params = [], ctx = {}) {
 
   async function loadMeters() {
     const utility = utilities.find(u => u.key === utilSel.value);
-    currentMeters = await api.meters(utility.key);
-    meterSel.innerHTML = currentMeters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+    const meters = await api.meters(utility.key);
+    // v3.13.0 (Paket vertrag, #40) — Gruppen mit Gruppenvertrag (HT/NT) als Ziel, vor ihrem ersten
+    // Zählwerk und damit vorgewählt, wo vorher ein Zählwerk stand; ohne Gruppen wie bisher
+    let groups = [], all = [];
+    if (utility.has_contracts !== false) {
+      [groups, all] = await Promise.all([api.meterGroups(utility.key).catch(() => []), api.contracts(utility.key).catch(() => [])]);
+    }
+    currentMeters = forecastTargets(meters, groups, all);
+    meterSel.innerHTML = currentMeters.map(m => `<option value="${esc(m.id)}">${esc(m.is_group ? t('tariff.groupOption', { name: m.name }) : m.name)}</option>`).join('');
     contracts = await api.contracts(utility.key, meterSel.value || undefined).catch(() => []);
+    memberHint();
+  }
+
+  // v3.13.0 (Paket vertrag, #40) — ein Zählwerk einer Gruppe mit Gruppenvertrag: Kosten ohne Grundpreis
+  // und Abschlag; der Hinweis nennt die Gruppe und wechselt auf Knopfdruck zu ihr
+  function memberHint() {
+    const box = $('#fc-member-hint');
+    const g = pricedGroupOf(currentMeters, meterSel.value);
+    box.hidden = !g;
+    box.innerHTML = g ? `${esc(t('forecast.memberHint.text', { name: g.name }))} <button type="button" class="btn btn--sm btn--ghost" data-role="fc-pick-group" data-group="${esc(g.id)}">${esc(t('forecast.memberHint.show'))}</button>` : '';
   }
 
   // ══ Werkstatt ════════════════════════════════════════════════════════
@@ -573,6 +592,15 @@ export async function render(container, params = [], ctx = {}) {
   let wsSeq = 0;
   let timer = null;
   const schedule = (delay = 280) => { clearTimeout(timer); timer = setTimeout(() => compute(), delay); };
+  // v3.13.0 (Paket waermepumpe) — „Werkstatt nach dem Wetterabgleich neu rechnen“: Kommt der tägliche Abgleich (app.js,
+  // `et:weather-synced`) erst, nachdem die Werkstatt gerechnet hat, rechnet sie mit den neuen Tageswerten und der
+  // Vorhersage neu; dann steht am selben Tag dieselbe Zahl wie in Prognose und Saldo-Karte. Nur solange sie offen ist.
+  const onWeatherSynced = () => {
+    if (!container.isConnected || !$('#ws-results')) { window.removeEventListener('et:weather-synced', onWeatherSynced); return; }
+    if (state?.meter_id) schedule(0);
+  };
+  window.addEventListener('et:weather-synced', onWeatherSynced);
+  window.addEventListener('et:route', () => window.removeEventListener('et:weather-synced', onWeatherSynced), { once: true });
 
   async function compute(st = readForm()) {
     const my = ++wsSeq;
@@ -803,8 +831,10 @@ export async function render(container, params = [], ctx = {}) {
   /** Die genannten Annahmen des Heizungstauschs in einem Satz. */
   function replaceAssumed(x) {
     const a = x.assumed || {};
+    // v3.13.0 (Paket waermepumpe, §4.6 B) — Arbeitszahl nach dem Wetter verteilt (Server `jaz_shape`), sonst übers Jahr gleich
+    const hpKey = { carnot: 'assumedHeatPumpWeather', measured: 'assumedHeatPumpMeasured' }[x.jaz_shape] || 'assumedHeatPump';
     return x.to === 'heat_pump'
-      ? t('scenario.replace.assumedHeatPump', { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
+      ? t(`scenario.replace.${hpKey}`, { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
       : t('scenario.replace.assumedPellets', { ct: fmt.num(a.pellet_ct, 1), eff: fmt.pct(a.efficiency_old, 0), effNew: fmt.pct(a.efficiency_new, 0), kwh: fmt.num(a.kwh_per_kg, 1) });
   }
 
@@ -1013,6 +1043,7 @@ export async function render(container, params = [], ctx = {}) {
       await loadMeters();
     }
     if (currentMeters.some(m => m.id === x.state.meter_id)) meterSel.value = x.state.meter_id;
+    memberHint();   // v3.13.0 (Paket vertrag)
     writeForm(x.state);
     compute();
   });
@@ -1103,6 +1134,7 @@ export async function render(container, params = [], ctx = {}) {
   }
 
   async function meterChanged() {
+    memberHint();   // v3.13.0 (Paket vertrag)
     contracts = await api.contracts(utilSel.value, meterSel.value || undefined).catch(() => []);
     // v3.12.0 (F1040) — ein aktives Beispiel gehört zu seiner Art: beim Wechsel gehen seine Hebel
     // auf die Vorgabe zurück (sonst nahm etwa Heizöl die Sparbrause von Wasser mit). Eigene
@@ -1118,6 +1150,13 @@ export async function render(container, params = [], ctx = {}) {
   }
   utilSel.addEventListener('change', async () => { await loadMeters(); meterChanged(); });
   meterSel.addEventListener('change', meterChanged);
+  // v3.13.0 (Paket vertrag) — „Gruppe anzeigen“ im Hinweis am Zählwerk
+  $('#fc-member-hint').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-role="fc-pick-group"]');
+    if (!b || !currentMeters.some(m => m.id === b.dataset.group)) return;
+    meterSel.value = b.dataset.group;
+    meterChanged();
+  });
   $('#btn-go').addEventListener('click', run);
 
   // v2.13.0 (Review FE-10) — Modell und Horizont aus den Einstellungen
@@ -1226,7 +1265,11 @@ function renderResult(u, result, container, card = null) {
 
   const reg = result.regression;
   // v2.13.0 (Review UI-17) — Modellname übersetzt statt Schlüssel („linear", „seasonal_only")
-  const modelKey = u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only';
+  // v3.13.0 (Paket sonne) — PV nach dem Wetter: k je Jahreszeit × Einstrahlung des Normals
+  const pvModel = result.pv_model && result.pv_model.k ? result.pv_model : null;
+  // v3.13.0 (Paket waermepumpe) — Strom der Wärmepumpe nach dem Wetter (Server `heat_pump_weather.on`): wie eine Heizart
+  const weather = !!u.hgt_relevant || result.heat_pump_weather?.on === true;
+  const modelKey = weather ? (reg?.model || 'linear') : (pvModel ? 'pvWeather' : 'seasonal_only');
   const modelName = modelKey === 'seasonal_only' ? t('forecast.models.seasonalOnly') : t(`forecast.models.${modelKey}`);
   // v3.9.0 (L4) — der wirksame Anteil der Heizkurve (Server `blend_effective`); rechnet kein
   // Monat mit ihr (Gütesperre, Sommer), kein R² daneben, sondern der Grund
@@ -1242,20 +1285,28 @@ function renderResult(u, result, container, card = null) {
   // v2.8.0 — Jahresband und Herkunft der Heizgradtage
   // v3.7.0 (wirklichkeit-2) — Gütesperre: das Jahr ohne Band
   // v3.7.0 (Schritt 3, N1/N3) — auch zu wenig gemessen (Heizmodell) bzw. keine Streuung über die Jahre
+  if (pvModel) {
+    // v3.13.0 (Paket sonne) — worauf die PV-Prognose beruht
+    const per = pvModel.normal_period;
+    lines.push(tp('forecast.pvWeatherInfo', pvModel.n, { n: pvModel.n, days: fmt.num(pvModel.days, 0),
+      from: per?.from ? String(per.from).slice(0, 4) : '–', to: per?.to ? String(per.to).slice(0, 4) : '–' })
+      + (Number(pvModel.blend) < 1 ? ' ' + t('forecast.pvWeatherBlend', { pct: fmt.pct(1 - Number(pvModel.blend), 0) }) : ''));
+  }
   if (result.annual && result.annual.low == null) {
-    const noBand = { few_measured: 'forecast.annualNoBandFew', few_years: 'forecast.annualNoBandYears' }[result.annual.withheld] || 'forecast.annualNoBand';
+    const noBand = { few_measured: 'forecast.annualNoBandFew', few_years: 'forecast.annualNoBandYears', pv_few_points: 'forecast.annualNoBandPv',
+      heat_pump_band: 'forecast.annualNoBandHp' }[result.annual.withheld] || 'forecast.annualNoBand';
     lines.push(t(noBand, { value: fmt.num(result.annual.value, 0), unit: u.consumption_unit }));
   } else if (result.annual) {
-    lines.push(t(u.hgt_relevant ? 'forecast.annualBand' : 'forecast.annualBandSpread', {
+    lines.push(t(weather ? 'forecast.annualBand' : 'forecast.annualBandSpread', {
       value: fmt.num(result.annual.value, 0), low: fmt.num(result.annual.low, 0), high: fmt.num(result.annual.high, 0),
       level: result.annual.level_pct, unit: u.consumption_unit,
     }));
   }
-  if (u.hgt_relevant && result.hdd_source === 'climate_normal' && result.climate_normal?.period) {
+  if (weather && result.hdd_source === 'climate_normal' && result.climate_normal?.period) {
     lines.push(t('forecast.hddSourceClimate', {
       from: String(result.climate_normal.period.from).slice(0, 4), to: String(result.climate_normal.period.to).slice(0, 4),
     }));
-  } else if (u.hgt_relevant && result.hdd_source === 'temperature_history') {
+  } else if (weather && result.hdd_source === 'temperature_history') {
     lines.push(t('forecast.hddSourceHistory'));
   }
   // v3.1.0 (H4, MKT-26) — was ein höherer CO₂-Preis kosten würde
@@ -1285,6 +1336,33 @@ function renderResult(u, result, container, card = null) {
     // v3.7.0 (wirklichkeit-2) — Gütesperre und eine Heizkurve, die nicht passt
     if (w.code === 'poor_fit') return t('forecast.warn.poorFit', { pct: fmt.pct(w.ratio ?? 0, 0) });
     if (w.code === 'few_measured') return t('forecast.warn.fewMeasured');   // v3.7.0 (Schritt 3, N3)
+    // v3.13.0 (Paket sonne) — PV ohne Wettermodell: warum das Saisonprofil bleibt
+    if (w.code === 'pv_no_weather') {
+      const why = { no_radiation: 'noRadiation', no_normal: 'noNormal', few_measured: 'fewMeasured', not_validated: 'notValidated' }[w.reason] || 'fewMeasured';
+      return t('forecast.warn.pvNoWeather.' + why);
+    }
+    // v3.13.0 (Paket waermepumpe) — Wärmepumpe ohne Wettermodell: warum das Saisonprofil bleibt (zeigen statt raten)
+    if (w.code === 'heat_pump_no_weather') {
+      const why = { not_validated: 'notValidated', no_normal: 'noNormal', few_measured: 'fewMeasured', no_heating: 'noHeating', no_summer: 'noSummer' }[w.reason] || 'fewMeasured';
+      return t('forecast.warn.heatPumpNoWeather.' + why);
+    }
+    // v3.13.0 (Paket speicher-auto) — Speicher bzw. Wallbox neu im Verlauf: bereinigt oder warum nicht (mit Zäsur-Vorschlag)
+    if (w.code === 'battery_history') {
+      const why = { adjusted: 'adjusted', few_months: 'fewMonths', one_side: 'oneSide', not_validated: 'notValidated' }[w.reason] || 'notValidated';
+      return t('forecast.warn.batteryHistory.' + why, { date: fmt.date(w.since) });
+    }
+    if (w.code === 'ev_history') {
+      const why = { adjusted: 'adjusted', few_months: 'fewMonths', no_solar_share: 'noSolarShare', not_validated: 'notValidated' }[w.reason] || 'notValidated';
+      return t('forecast.warn.evHistory.' + why, { date: fmt.date(w.since), name: w.name || '–' });
+    }
+    // v3.13.0 (Paket speicher-auto, §4.4 B) — Wallbox-Monate ohne Vorgeschichte: Ladevorgänge bzw. Annahme
+    if (w.code === 'ev_months') {
+      const names = (list) => (list || []).map(m => fmt.month(`2024-${String(m).padStart(2, '0')}`).replace(/\s*2024$/, '')).join(', ');
+      return [
+        (w.sessions || []).length ? t('forecast.warn.evMonths.sessions', { list: names(w.sessions) }) : '',
+        (w.assumed || []).length ? t('forecast.warn.evMonths.assumed', { list: names(w.assumed), pct: fmt.num(w.per_kelvin_pct ?? 1, 0), temp: fmt.num(w.temp_ref ?? 20, 0) }) : '',
+      ].filter(Boolean).join(' ');
+    }
     if (w.code === 'regression_invalid') {
       return t('forecast.warn.regressionInvalid', { model: t(`forecast.models.${w.model}`), why: t(`regression.reason.${w.reason}`, { n: w.n ?? 0, r2: fmt.num(w.r2 ?? 0, 2) }) });
     }
@@ -1341,7 +1419,7 @@ function renderResult(u, result, container, card = null) {
     <div class="table-wrap"><table class="table">
       <thead><tr>
         <th scope="col">${t('forecast.col.month')}</th><th scope="col" class="num">${t('forecast.col.consumption', { unit: u.consumption_unit })}</th>
-        ${u.hgt_relevant ? `<th scope="col" class="num">${t('forecast.col.hgt')}</th>` : ''}
+        ${weather ? `<th scope="col" class="num">${t('forecast.col.hgt')}</th>` : ''}
         <th scope="col" class="num">${t('forecast.col.cost')}</th>
         <th scope="col" class="num">${t('forecast.col.advance')}</th>
         <th scope="col" class="num">${t('forecast.col.balance')}${info('balance')}</th>
@@ -1355,7 +1433,7 @@ function renderResult(u, result, container, card = null) {
           <tr>
             <td>${fmt.month(r.ym)}</td>
             <td class="num">${fmt.num(r[consKey], 0)}</td>
-            ${u.hgt_relevant ? `<td class="num">${fmt.num(r.hdd_estimated, 0)}</td>` : ''}
+            ${weather ? `<td class="num">${fmt.num(r.hdd_estimated, 0)}</td>` : ''}
             <td class="num">${fmt.eur(r.cost_estimated)}${r.contract_assumed ? ' *' : ''}</td>
             <td class="num">${r.advance_estimated != null ? fmt.eur(r.advance_estimated) : '<span class="dim">–</span>'}</td>
             <td class="num ${balView ? balView.cls : ''}">${balView ? balView.signed : '<span class="dim">–</span>'}</td>
@@ -1377,7 +1455,10 @@ function renderResult(u, result, container, card = null) {
 // (`blend(reg=0.56, seasonal=0.44)`), übersetzt wird nur die Anzeige.
 function methodLabel(method) {
   // v3.7.0 (#37); v3.9.0 — heat_model_summer (Heizmodell mit gemessener Sommer-Grundlast)
-  const known = ['seasonal_only', 'regression_only', 'heat_model', 'heat_model_summer', 'filled', 'seasonal_interpolated'];
+  // v3.13.0 (Paket sonne) — pv_weather (PV nach der Einstrahlung des Klimanormals)
+  // v3.13.0 (Paket speicher-auto) — ev_sessions, ev_assumed (Wallbox-Monate ohne Vorgeschichte)
+  const known = ['seasonal_only', 'regression_only', 'heat_model', 'heat_model_summer', 'filled', 'seasonal_interpolated', 'pv_weather', 'pv_weather_blend',
+    'ev_sessions', 'ev_assumed'];
   if (known.includes(method)) return escapeHtml(t('forecast.method.' + method));
   const blend = /^blend\(reg=([\d.]+), seasonal=([\d.]+)\)$/.exec(method || '');
   if (blend) return escapeHtml(t('forecast.method.blend', { reg: fmt.pct(Number(blend[1]), 0), seasonal: fmt.pct(Number(blend[2]), 0) }));

@@ -88,10 +88,12 @@ t('Kein Hexwert außerhalb der Tokens', hex.length === 0, hex.slice(0, 8).join('
 
 // ── Untermenü: eine Form ─────────────────────────────────────────────
 for (const sel of ['.section-tabs__tab', '.pill', '.seg__btn', '.ef-seg__btn']) {
-  const own = [...all.matchAll(/(^|\})\s*([^{}]+)\{([^{}]*)\}/g)]
-    .filter(m => m[2].split(',').map(x => x.trim()).includes(sel) && !m[2].includes('.section-tabs__tab, .pill'))
-    .filter(m => /background|border|border-radius|padding|font-size/.test(m[3]));
-  t(`${sel} trägt keine eigene Form`, own.length === 0, own.map(m => m[3].trim().slice(0, 80)).join(' | '));
+  // v3.13.0 — Lookbehind: Die Klammer vor einer Regel gehört der Regel davor. Bis dahin verbrauchte jeder Treffer
+  // sie, und nur jede zweite Regel wurde geprüft; eine eigene Form von `.seg__btn` blieb so unentdeckt
+  const own = [...all.matchAll(/(?<=^|\})\s*([^{}]+)\{([^{}]*)\}/g)]
+    .filter(m => m[1].split(',').map(x => x.trim()).includes(sel) && !m[1].includes('.section-tabs__tab, .pill'))
+    .filter(m => /background|border|border-radius|padding|font-size/.test(m[2]));
+  t(`${sel} trägt keine eigene Form`, own.length === 0, own.map(m => m[2].trim().slice(0, 80)).join(' | '));
 }
 t('Untermenü: 30 px, Radius --r-sm', /\.section-tabs__tab, \.pill, \.seg__btn, \.ef-seg__btn \{[^}]*min-height: 30px[^}]*border-radius: var\(--r-sm\)/.test(all));
 

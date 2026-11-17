@@ -5,7 +5,7 @@ offenen Punkte, sortiert nach dem Release, in das sie geplant sind. Konzepte und
 früherer Releases stehen unverändert im [Archiv](roadmap-archiv.md); was ausgeliefert ist, im
 [CHANGELOG](CHANGELOG.md).
 
-**Stand:** 2026-11-10 · **Baseline:** v3.12.0 · **Schema:** 1.8.0
+**Stand:** 2026-11-17 · **Baseline:** v3.13.0 · **Schema:** 1.8.0
 
 ---
 
@@ -102,15 +102,18 @@ Berichtswerkzeug dahinter“; jede Zahl mit Herkunft (gemessen, verteilt, gesch�
 erfindet; Berichtsvorlagen (Monats- und Jahresbericht) als MCP-Prompts. Die HACS-Integration wird mit
 diesem Release veröffentlicht (eigenes Repo, Aufnahme in die HACS-Standardliste beantragen).
 
-### v3.13.0 — Prognose für Wärmepumpe, PV und E-Auto (geplant für Dienstag, 17.11.2026)
+### v3.13.0 — Speicher, Wallbox und HT/NT in der Prognose (erschienen am 17.11.2026)
 
 Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte Grenzen“ auf v3.13 verweist.
+**Stand 2026-11-13:** Was die Prognose nach dem Wetter betrifft, wird am Prüfhaushalt
+(`tests/fixtures/heatpump-household/`, Rückrechnung `tools/rueckrechnung.php`) gegen feste Schwellen gemessen
+(`schwellen.json`). Ein Baustein, der seine Schwelle nicht schafft, bleibt mit Hinweis beim alten Weg.
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
-| F10xx | **Prognose für Wärmepumpe, PV, Batterie und E-Auto:** Wärmepumpe und PV nach dem Wetter, Batterie und E-Auto in derselben Rechnung; in der Werkstatt Beispiele für Winter und Raumtemperatur beim Strom der Wärmepumpe, beim Heizungstausch eine Arbeitszahl, die dem Wetter folgt (heute übers ganze Jahr gleich), und die PV nach dem Wetter statt aus dem zuletzt gemessenen Jahr | L | F1013 Heizmodell, F1021 Viertelstunden, F1040 Werkstatt je Energieart | Bekannte Grenze v3.12.0, Entscheidung 2026-11-10 |
+| F10xx | **Prognose für Wärmepumpe, PV, Batterie und E-Auto.** **An:** Saldo der Einspeisung nach der Einstrahlung, Einspeisung nach einem neuen Speicher, Wallbox-Monate ohne Vorgeschichte, Arbeitszahl beim Heizungstausch nach dem Wetter. **Gebaut, aber aus (Hinweis):** Wärmepumpe nach dem Wetter (Prognose, Band, Saldo) und PV-Prognose (Erzeugung und Einspeisung), beide weiter in v3.14; Bezug nach einem neuen Speicher und Zähler vor einer neuen Wallbox, Ziel-Release offen; damit fehlen in der Werkstatt weiter die Beispiele für Winter und Raumtemperatur beim Strom der Wärmepumpe und die PV nach dem Wetter | L | F1013 Heizmodell, F1021 Viertelstunden, F1040 Werkstatt je Energieart | Bekannte Grenze v3.12.0, Entscheidung 2026-11-10 |
 | — | **Auszahlungen der Einspeisung erfassen:** Die Saldo-Karte rechnet die Einspeisung seit v3.12.0 je Abrechnungsjahr; dazu kommen die Auszahlungen des Netzbetreibers | M | v3.12.0 Einspeisung je Abrechnungsjahr | Entscheidung 2026-11-10 |
-| — | **Vertragswechsel im Monat klären:** Der letzte Abschlag zählt tagesanteilig, nahe null kann das Vorzeichen des Saldos kippen. An echten Schlussrechnungen prüfen (nur lokal), ob ganze Raten richtiger sind | S–M | — | Bekannte Grenze v3.12.0 |
+| — | **Abschläge zählen** (Vertragswechsel im Monat): eine Einstellung für alle Verträge, tagesanteilig (Standard, wie bisher) oder ganze Rate am Fälligkeitstag; eine Rate am Tag einer Ablesung zählt im Zeitraum danach, wie die Jahresrechnung. **Stand 2026-11-13:** gebaut | M | — | Bekannte Grenze v3.12.0 |
 | — | **Einstellung „Angaben für Briefe nur Verwalter“:** Mit Anmeldung ändert auf Wunsch nur ein Verwalter Absender und Lieferanschrift | S | v3.12.0 Briefe | Entscheidung 2026-11-10 |
 | — | **Längengrenzen für Freitext:** Notizen und Namen mit Höchstlänge, dieselbe Grenze im Backup-Import | M | v3.12.0 Eingaben | Bekannte Grenze v3.12.0 |
 | — | **Tankmodell schneller:** die Tagesreihe je Anfrage einmal rechnen und auf den abgefragten Zeitraum begrenzen; Messung in `docs/entwicklung/messung-grosse-daten.md` ergänzen | M | v3.7.0 Messung | Entscheidung 2026-11-10 |
@@ -125,7 +128,7 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | **Zeitreise in der CI:** die Runde unter verstellter Uhr als eigenen Job prüfen (heute lokal vor jedem Release) | S | v3.12.0 Stichtag | Entscheidung 2026-11-10 |
 | — | **Stichtag für Zähler mit Verbrauch je Zeitraum** | M | v3.12.0 Stichtag | Bekannte Grenze v3.12.0 |
 | — | **Werkstatt nach dem Wetterabgleich neu rechnen,** damit am selben Tag dieselbe Zahl steht | S | F1040 | Bekannte Grenze v3.12.0 |
-| — | **HACS 1.1.0:** Sensor für den Füllstand von Öl und Pellets | S | F1038 | Entscheidung 2026-11-10 |
+| — | **Integration 1.1.0** (Marketplace, ehemals HACS): Sensor für den Füllstand von Öl und Pellets | S | F1038 | Entscheidung 2026-11-10 |
 | — | **Rückfrage beim Eintragen eines Zählerstands nach dem Wetter** statt nach dem Median der letzten Abstände (dieselbe Erwartung wie „Zwischenablesung prüfen“), damit der Heizbeginn keine falsche Rückfrage auslöst | S–M | v3.9.0 Zwischenablesung prüfen | GitHub #65 |
 
 ### v3.14.0 — Lange Verläufe und Umzug
@@ -134,9 +137,13 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 |---|---|---|---|---|
 | N1006 | Speicher-Umbau (Cache über Anfragen hinweg, weniger Dateilesen): nach der Beschleunigung in v3.7.0 erst bei langen importierten Verläufen nötig; Schwelle in `entwicklung/messung-grosse-daten.md` | L | v3.7.0 Messung | Entscheidung 2026-10-21 |
 | — | Heizmodell für gekrümmte Heizkurven (GitHub #38): Grundlast aus den Sommermonaten, Heizgrenze angepasst statt fest, ggf. quadratischer Term; vorher Vergleich über mehrere Haushalte, weil sich jede Erwartung ändert. #38 bleibt bis dahin offen | M–L | F1013 Heizmodell, v3.7.0 Gütesperre | GitHub #38, 2026-10-22 |
-| — | Verbrauch zwischen zwei Ablesungen nach Wetter verteilen statt gleichmäßig (Gas nach Heizgradtagen, PV nach Globalstrahlung aus Open-Meteo) | M | v3.7.0 Kennung gemessen/verteilt | Antwort auf #39, 2026-10-22 |
+| — | Verbrauch zwischen zwei Ablesungen nach Wetter verteilen statt gleichmäßig (Gas nach Heizgradtagen, PV nach Globalstrahlung aus Open-Meteo; die Einstrahlung je Tag holt die App seit v3.13) | M | v3.7.0 Kennung gemessen/verteilt | Antwort auf #39, 2026-10-22 |
+| — | **Wärmepumpe nach dem Wetter erneut prüfen:** in v3.13 gebaut, Schalter aus (`HeatPumpWeather`); Prognose, Band und Saldo am Prüfhaushalt gegen die Schwellen in `schwellen.json`, zusammen mit dem gekrümmten Heizmodell (#38) | M–L | v3.13 Prüfhaushalt, Heizmodell | Prüfung in v3.13 nicht bestanden (2026-11-12) |
+| — | **PV-Prognose nach der Einstrahlung erneut prüfen** (Erzeugung und Einspeisung, Schalter in `PvWeatherModel`) | M | v3.13 Einstrahlung | Prüfung in v3.13 nicht bestanden (2026-11-12) |
 | — | Beispielhaushalte nicht mehr aus dem Modell der App erzeugen (Heizkurve mit Heizgrenze unter 15 °C, Solargewinne, Speichermasse; einige Haushalte mit lückenhaften Ablesungen), damit Demo und Render-Tests auch Unsicherheit zeigen | M | v3.7.0 unordentlicher Testhaushalt | Entscheidung 2026-10-22 |
 | — | **Umzug aus anderen Apps** (2026-10-28): Import der Exporte verbreiteter Verbrauchs-Apps samt Historie (Zählerstände, Verträge, Preise), mit Trockenlauf wie beim CSV-Import; Formate nach Auswahl der Apps | M–L | Massen-Import | Planung 2026-10-28 |
+| — | **Abschlag mit Terminen nach einem Einzug:** ein Schalter „danach im Takt“ am Abschlag, damit Termine, die weniger als ein Jahr decken, im Rhythmus weiterlaufen; heute wiederholt die App sie jährlich (Bekannte Grenze v3.13.0) | S–M | Paket W (v3.13) | Entscheidung 2026-11-14 |
+| — | **Herkunft eines Abrechnungsjahrs nach Tagen** statt nach ganzen Monaten (KI-Schnittstelle): ein Jahr, das an einer echten Ablesung endet, heißt heute „geschätzt“, wenn sein letzter Monat zum Teil geschätzt ist | S | v3.13 Herkunft (`Provenance`) | Entscheidung 2026-11-14 |
 
 ### v3.15.0 — Für alle verständlich
 
@@ -166,6 +173,7 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | Anleitungen live prüfen: LM Studio, Unraid, openHAB (Ollama ist seit v3.5.1 live geprüft) | S | — | Patch-Pool v3.1.0 |
 | — | Strompreispauschale 2028 nach der Destatis-Veröffentlichung Ende September 2027 eintragen (jährlicher Punkt „Jahreswerte“ in der Release-Prüfliste) | S | — | Patch-Pool v3.5.0 |
 | — | Verzeichnisse und App-Stores (awesome-selfhosted, Unraid Community Apps, Umbrel, CasaOS, YunoHost), Vergleichsseite, Beiträge in Foren; jeweils Entwurf zur Freigabe | S je Eintrag | — | Planung 2026-10-28 |
+| — | **Bezug nach einem neuen Speicher, Zähler vor einer neuen Wallbox:** in v3.13 gebaut, Schalter aus (`DeviceArrival`), bis dahin Hinweis mit Zäsur-Vorschlag; offene Wege: die Ladung in der Kaskade zwischen Wärmepumpe und Netz teilen, das Laden der Wallbox aus der Sonne | M | v3.13 Speicher und Wallbox | Prüfung in v3.13 nicht bestanden (2026-11-12); Ziel-Release offen |
 
 ### Seit dem letzten Eingang ausgeliefert (Abgleich 2026-10-28)
 

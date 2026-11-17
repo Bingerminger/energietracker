@@ -38,7 +38,10 @@ changes its prices on 1 October, there are two rows, and every day is charged at
 the price valid on it. *(v3.12.0)* This also holds mid-month and **exactly as
 for electricity**: a price from the 15th counts from the 15th, a contract
 switch on the 15th splits quantity, standing charge and advance by the same
-days, and "Check bill" starts a new row on the price date. Example (made up):
+days (the advance by its due dates with “Counting advance payments: full
+payment on the due day”, since v3.13.0,
+[Balance to date](00-overview.md#10-balance-to-date)), and "Check bill" starts a
+new row on the price date. Example (made up):
 July with 12.4 m³, drinking water €2.10 up to the 14th and €2.60 from the
 15th: **€29.44** instead of €26.04. Up to v3.11 water used the contract and
 price of the first of the month.

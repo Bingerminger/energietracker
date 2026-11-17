@@ -348,8 +348,10 @@ file in the default language of the installation is still available.
 For Excel, LibreOffice or Numbers the **spreadsheet in the default language**
 (Settings → Data and backup → Data export, recommended): column names, decimal separator
 and dates match the language, and the file opens correctly with a double click.
-For scripts **CSV format 1** — it stays byte for byte as it is. Both can be
-imported again ([CSV formats](../referenz/api.md#csv-formats-v310)).
+For scripts **CSV format 1**: <!-- doc-claim: csv-format-1 -->new columns are
+added only at the end, the existing ones stay as they are; best read a column
+by its name.<!-- /doc-claim --> Both can be imported again
+([CSV formats](../referenz/api.md#csv-formats-v310)).
 
 ### How do I update?
 

@@ -9,6 +9,10 @@ declare(strict_types=1);
  *   POST /api/services/<domain>/<service>  Bearer FAKE_HA_TOKEN, sonst 401; `[]`
  *   POST /core/api/services/<domain>/<service>  dasselbe für den Weg über den Supervisor
  *   Dienst notify.unbekannt                400 (wie bei einer unbekannten Aktion)
+ *   /umleitung/<Pfad>                      307 nach http://homeassistant.invalid/<Pfad> (v3.13.0: wie
+ *                                          Home Assistant OS 18.4, das :8123 auf Port 80 umleitet;
+ *                                          .invalid löst nie auf, auch eine Gegenprobe, die der
+ *                                          Umleitung folgt, erreicht kein echtes Gerät)
  *
  * Jede Anfrage steht als JSON-Zeile in FAKE_HA_LOG (Pfad, Kopfzeilen, Körper),
  * für Aussagen im Test.
@@ -28,6 +32,12 @@ if (is_string($log) && $log !== '') {
 }
 
 header('Content-Type: application/json');
+if (preg_match('#^/umleitung(/.*)$#', $path, $m)) {
+    http_response_code(307);
+    header('Location: http://homeassistant.invalid' . $m[1]);
+    echo '{"message":"Temporary Redirect"}';
+    return true;
+}
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); echo '{"message":"Method not allowed"}'; return true; }
 if (preg_match('#^/api/webhook/[^/]+$#', $path)) { http_response_code(200); return true; }
 if (preg_match('#^(/core)?/api/services/([a-z_]+)/([a-z0-9_]+)$#', $path, $m)) {

@@ -11,6 +11,7 @@ import { loadDemo } from '../lib/demo.js';
 import { icon } from '../lib/icons.js';
 import { unlistenAll } from './settings-shared.js';
 import { exportActive } from './settings-fields.js';
+import { backupProblemText } from '../lib/backup-problems.js';
 
 
 // ── Seite „Daten": Export, Sicherung, Demo-Daten ───────────────────────────
@@ -305,10 +306,8 @@ function showBackupError(err) {
   const problems = err?.detail?.problems;
   if (!Array.isArray(problems) || !problems.length) { toastErr(err?.message || String(err)); return; }
   const rows = problems.map(p => {
-    const [kind, arg] = String(p.problem || '').split(/:(.*)/s);
-    const what = kind === 'missing' || kind === 'date' || kind === 'unsafe_id' ? t('settings.backup.problem.' + kind, { field: arg ?? '' })
-      : kind === 'entry' ? t('settings.backup.problem.entry', { what: arg ?? '' })
-      : t('settings.backup.problem.' + kind);
+    // v3.13.0 (Paket K1) — eine Regel für jede Art (lib/backup-problems.js); bis v3.12 zeigten rund zwanzig den Schlüssel
+    const what = backupProblemText(p);
     const where = `${p.pot}${Number.isInteger(p.index) ? ' #' + (p.index + 1) : ''}`;
     return `<li><code>${escapeHtml(where)}</code> — ${escapeHtml(what)}</li>`;
   }).join('');

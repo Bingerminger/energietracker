@@ -65,7 +65,7 @@ final class ActivityService
     public const MANUAL_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_increase', 'tank_reorder', 'bill_expected',
                                  'objection_deadline', 'co2_claim_deadline', 'level_shift', 'rights'];
     public const ID = '/^act_[0-9a-f]{12}$/';
-    public const NOTE_MAX = 500;
+    public const NOTE_MAX = \Energietracker\Support\TextLimits::SHORT_NOTE;   // v3.13.0 — aus der Liste der Grenzen
     public const LIMIT_DEFAULT = 500;
     public const LIMIT_MAX = 5000;
     /** Personen-, Schlüssel- und Integrationsnamen im Eintrag (wie AuthService). */
@@ -338,14 +338,104 @@ final class ActivityService
         $all = $this->all();
         $i = $this->indexOf($all, $id);
         if (!empty($all[$i]['undone'])) return $all[$i] + ['reverted' => false];
+        // v3.13.0 (Paket F) — eine Übernahme der KI mit Rückweg (RecordChanges): zurück auf den Stand davor
+        if (($all[$i]['revert']['type'] ?? null) === 'records') return $this->undoRecords($all, $i);
         // v3.12.0 (Skeptiker M9) — eine Übernahme der KI hat Daten geschrieben, die das Durchstreichen nicht
         // zurückholt: Der Eintrag bliebe durchgestrichen stehen, die Daten auch. Löschen geht einzeln in der App.
+        // v3.13.0 — gilt nur noch für Übernahmen ohne festgehaltenen Rückweg (vor v3.13.0)
         if (($all[$i]['by']['via'] ?? null) === 'mcp' && empty($all[$i]['revert'])) {
             throw new HttpStatusException(409, 'errors.activity.undoNotPossible', [], [], 'activity: mcp entry without revert');
         }
         $all[$i]['undone'] = ['at' => date('c'), 'by' => $this->actor()];
         $this->store->write('activity.json', $all);
         return $all[$i] + ['reverted' => $this->revert($all[$i]['revert'] ?? null)];
+    }
+
+    // ── Rückweg einer Übernahme der KI (v3.13.0, Paket F) ─────────────────
+
+    /** @var (\Closure(array<string,mixed>): void)|null wer erfährt, dass eine Übernahme der KI zurückgenommen wurde */
+    private ?\Closure $onUndo = null;
+
+    /** App: Zugriffsprotokoll der KI-Schnittstelle (Mcp\Journal) und der Vorschlag (PendingChanges::markUndone). */
+    public function onUndo(callable $fn): void
+    {
+        $this->onUndo = $fn(...);
+    }
+
+    /**
+     * Führt `$fn` aus (eine Übernahme, unter der Schreibsperre der Anfrage) und hält fest, was sie an den Töpfen
+     * geändert hat (RecordChanges) und welche Verlaufseinträge dabei entstanden sind.
+     *
+     * @template T
+     * @param callable(): T $fn
+     * @return array{0: T, 1: list<array<string,mixed>>, 2: list<string>} Ergebnis, Änderungen, neue Einträge
+     */
+    public function capturing(callable $fn): array
+    {
+        $before = RecordChanges::capture($this->store);
+        $ids = array_column($this->all(), 'id');
+        $result = $fn();
+        $changes = RecordChanges::since($this->store, $before);
+        return [$result, $changes, array_values(array_diff(array_column($this->all(), 'id'), $ids))];
+    }
+
+    /**
+     * Den Rückweg an die Verlaufseinträge einer Übernahme hängen (`revert: {type: records, changes, also,
+     * proposal_id}`); `also`: weitere Einträge, die dabei entstanden (etwa „Ablesung fällig“ erledigt) und
+     * mit der Rücknahme durchgestrichen werden.
+     *
+     * @param list<string> $ids
+     * @param list<array<string,mixed>> $changes
+     * @param list<string> $created
+     */
+    public function attachRevert(array $ids, array $changes, array $created, ?string $proposalId = null): void
+    {
+        if ($ids === [] || $changes === []) return;
+        $all = $this->all();
+        foreach ($all as $k => $e) {
+            if (!in_array($e['id'], $ids, true)) continue;
+            $all[$k]['revert'] = array_filter(['type' => 'records', 'changes' => $changes,
+                'also' => array_values(array_diff($created, $ids)), 'proposal_id' => $proposalId], fn($v) => $v !== null && $v !== []);
+        }
+        $this->store->write(self::FILE, $all);
+    }
+
+    /**
+     * Rücknahme mit Rückweg: nur, wenn jeder berührte Datensatz noch so ist, wie die Übernahme ihn hinterließ
+     * (der jüngste Stand); sonst `409 errors.activity.undoChanged`, und nichts ändert sich. Danach steht der
+     * Eintrag durchgestrichen da (`undone`), ebenso die Einträge, die die Übernahme mit anlegte.
+     *
+     * @param list<array<string,mixed>> $all
+     * @return array<string,mixed>
+     */
+    private function undoRecords(array $all, int $i): array
+    {
+        $rev = (array)$all[$i]['revert'];
+        $target = (string)$all[$i]['id'];
+        $changes = array_values(array_filter((array)($rev['changes'] ?? []), 'is_array'));
+        $conflicts = RecordChanges::conflicts($this->store, $changes);
+        if ($conflicts !== []) {
+            throw new HttpStatusException(409, 'errors.activity.undoChanged', ['n' => (string)count($conflicts)],
+                ['changed' => array_slice($conflicts, 0, 20)], 'activity: data changed since the apply');
+        }
+        RecordChanges::restore($this->store, $changes);
+        $by = $this->actor();
+        $at = date('c');
+        $all = $this->all();
+        $also = array_map('strval', (array)($rev['also'] ?? []));
+        $entry = null;
+        foreach ($all as $k => $e) {
+            if ($e['id'] === $target || (in_array($e['id'], $also, true) && empty($e['undone']))) {
+                $all[$k]['undone'] = ['at' => $at, 'by' => $by];
+                if ($e['id'] === $target) $entry = $all[$k];
+            }
+        }
+        if ($entry === null) throw new NotFoundException($this->i18n->t('errors.activity.notFound'));
+        $this->store->write(self::FILE, $all);
+        if ($this->onUndo !== null) {
+            try { ($this->onUndo)($entry); } catch (\Throwable) { /* das Protokoll hält die Rücknahme nie auf */ }
+        }
+        return $entry + ['reverted' => true];
     }
 
     /** Notiz ändern (leer = keine). @return array<string,mixed> */
@@ -763,6 +853,23 @@ final class ActivityService
         return $n;
     }
 
+    /**
+     * v3.13.0 (Paket vertrag) — Der Gegenstand ist gelöscht (etwa eine Auszahlung der Einspeisung): offene Einträge
+     * mit diesem Verweis (`ref[$field] = $value`) werden durchgestrichen, von wem die Anfrage kommt.
+     */
+    public function refRevoked(string $field, string $value): int
+    {
+        $all = $this->all();
+        $n = 0;
+        foreach ($all as $i => $e) {
+            if (!empty($e['undone']) || (string)($e['ref'][$field] ?? '') !== $value || $value === '') continue;
+            $all[$i]['undone'] = ['at' => date('c'), 'by' => $this->actor()];
+            $n++;
+        }
+        if ($n > 0) $this->store->write(self::FILE, $all);
+        return $n;
+    }
+
     /** Integrationen tragen Produktnamen — gleich in jeder Sprache (wie lib/activity.js). */
     private const INTEGRATIONS = ['home_assistant' => 'Home Assistant', 'evcc' => 'evcc'];
 
@@ -830,6 +937,7 @@ final class ActivityService
     public function checkInput(array $in): array
     {
         $today = date('Y-m-d');
+        \Energietracker\Support\Input::assertTexts($in, ['attachment_id']);   // v3.13.0 — Liste statt Text: 400 statt 500
         $doneOn = isset($in['done_on']) && $in['done_on'] !== '' && $in['done_on'] !== null ? $in['done_on'] : $today;
         if (!is_string($doneOn) || !Dates::isIsoDate($doneOn) || $doneOn > $today) {
             throw new HttpStatusException(400, 'errors.activity.dateInvalid', ['value' => is_scalar($doneOn) ? (string)$doneOn : '']);

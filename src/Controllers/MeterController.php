@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Controllers;
 
+use Energietracker\Config\Utilities;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\MeterService;
@@ -34,6 +35,34 @@ final class MeterController
     {
         $list = $this->meters->list($req->param('utility'));
         Response::json($this->responsibility?->decorateAll($list) ?? $list);
+    }
+
+    /**
+     * v3.13.0 — GET /api/meters-overview[?utilities=gas,strom]: Zähler und Zählergruppen mehrerer Verbrauchsarten
+     * in einer Antwort, für Haushalt › Zähler „Alle“ (bis dahin je Art zwei Anfragen, bei neun Arten 18). Je Art
+     * genau das, was `…/meters` und `…/meter-groups` liefern, in der verlangten Reihenfolge; ohne Angabe alle
+     * Arten der SSOT. Eine unbekannte Art ist ein Fehler (400), wie bei den Einzelabfragen. Nur lesend
+     * (Lektion 9: Aggregat zum Lesen, Schreiben bleibt je Zähler).
+     */
+    public function overview(Request $req): never
+    {
+        $raw = trim((string)($req->queryParam('utilities') ?? ''));
+        $keys = $raw === '' ? Utilities::keys() : array_values(array_unique(array_filter(array_map('trim', explode(',', $raw)), 'strlen')));
+        foreach ($keys as $k) {
+            if (!Utilities::exists($k)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $k]));
+            }
+        }
+        $out = [];
+        foreach ($keys as $k) {
+            $list = $this->meters->list($k);
+            $out[] = [
+                'utility' => $k,
+                'meters'  => $this->responsibility?->decorateAll($list) ?? $list,
+                'groups'  => $this->meters->listGroups($k),
+            ];
+        }
+        Response::json(['utilities' => $out]);
     }
 
     public function show(Request $req): never

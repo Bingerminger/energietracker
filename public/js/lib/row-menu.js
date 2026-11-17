@@ -12,15 +12,19 @@ import { icon } from './icons.js';
 let seq = 0;
 
 /**
- * @param {{label: string, items: string[]}} o  `label` für Vorleser (etwa „Weitere Aufgaben: Gas“),
- *   `items` als fertiges HTML (Knöpfe, Links); leere fallen weg, ohne Eintrag kein Menü
+ * @param {{label: string, items: string[], button?: {text: string, cls?: string}}} o  `label` für Vorleser (etwa
+ *   „Weitere Aufgaben: Gas“), `items` als fertiges HTML (Knöpfe, Links); leere fallen weg, ohne Eintrag kein Menü.
+ *   v3.13.0 — `button`: eigener Knopf statt „Mehr“ (etwa „Neuer Vertrag“ mit der Wahl der Verbrauchsart)
  */
-export function rowMenuHtml({ label, items }) {
+export function rowMenuHtml({ label, items, button = null }) {
   const list = (items || []).map(s => String(s || '').trim()).filter(Boolean);
   if (!list.length) return '';
   const id = `zeilenmenue-${++seq}`;
+  const knopf = button
+    ? `<button type="button" class="btn ${button.cls || 'btn--ghost btn--sm'} zeilenmenue__knopf" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(label)}">${escapeHtml(button.text)}</button>`
+    : `<button type="button" class="btn btn--ghost btn--sm zeilenmenue__knopf" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(label)}">${icon('menue', { size: 16 })} ${escapeHtml(t('rowMenu.more'))}</button>`;
   return `<div class="zeilenmenue" data-role="row-menu">
-      <button type="button" class="btn btn--ghost btn--sm zeilenmenue__knopf" aria-expanded="false" aria-controls="${id}" aria-label="${escapeHtml(label)}">${icon('menue', { size: 16 })} ${escapeHtml(t('rowMenu.more'))}</button>
+      ${knopf}
       <div class="zeilenmenue__liste" id="${id}" data-role="row-menu-list" hidden>${list.join('')}</div>
     </div>`;
 }

@@ -161,7 +161,8 @@ final class TariffComparisonService
 
             $isShadow = !empty($c['is_shadow']);
             $rowLabel = $isShadow
-                ? (string)($c['shadow_label'] ?: $c['tariff_name'] ?: $this->i18n->t('tariff.shadowFallbackLabel'))
+                // v3.13.0 — beide Felder fehlen in alten Daten, einem Backup oder einer Handeingabe (bisher 500)
+                ? (string)(($c['shadow_label'] ?? '') ?: ($c['tariff_name'] ?? '') ?: $this->i18n->t('tariff.shadowFallbackLabel'))
                 : trim(((string)($c['provider'] ?? '')) . ' ' . ((string)($c['tariff_name'] ?? '')));
             if ($rowLabel === '') $rowLabel = (string)$c['id'];
 

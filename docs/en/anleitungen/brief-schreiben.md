@@ -54,9 +54,12 @@ note there are two letters:
 - **Termination at the next possible date:** ordinary, with no legal statement and
   no legal provision. Customer and contract number, meter number and the date
   according to the contract are in it, otherwise a gap. For the date, the dialog
-  says why it is missing *(v3.12.0)*: no notice period and no end on the
-  contract, deadline missed, or the contract continues after its end; after a
-  missed deadline the app calculates no date. Check the date and the
+  says why it is missing *(v3.12.0)*: no notice period on the contract (and, if
+  none is entered either, no end), deadline missed, or the contract continues
+  after its end; after a missed deadline the app calculates no date. **In basic
+  supply the date always stays open** *(v3.13.0)*: the two weeks’ notice run
+  from the day your letter arrives, and the app does not know that day. Check
+  the date and the
   form in your contract. District heating is terminated in writing
   (§ 32 AVBFernwärmeV): the PDF then has a signature line. Water does not have
   this template.

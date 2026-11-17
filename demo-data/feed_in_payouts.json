@@ -1,0 +1,24 @@
+[
+    {
+        "id": "fip_7ae91c6ac8f4",
+        "meter_id": "m_pv_einspeisung_main",
+        "date": "2026-02-16",
+        "amount": 412.8,
+        "period_from": "2025-01-01",
+        "period_until": "2025-12-31",
+        "note": "",
+        "source": "manual",
+        "created_at": "2026-02-16T18:40:00+01:00"
+    },
+    {
+        "id": "fip_a040e43b7924",
+        "meter_id": "m_pv_einspeisung_main",
+        "date": "2026-04-15",
+        "amount": 60,
+        "period_from": "2026-01-01",
+        "period_until": "2026-03-31",
+        "note": "",
+        "source": "manual",
+        "created_at": "2026-04-15T19:05:00+02:00"
+    }
+]

@@ -27,6 +27,7 @@ import { ADVANCE_EVERY, advanceAmountText, zeroAdvanceSpan, zeroAdvanceText } fr
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 import { subContractHint, deductingSubNames } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 import { icon, artIcon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -232,16 +233,21 @@ async function refresh(container, u) {
       const name = [c?.provider, c?.tariff_name].filter(Boolean).join(' · ') || t('contracts.card.fallbackProvider');
       const ok = await confirmModal({ title: t('contracts.delete.title'), message: t('contracts.delete.messageNamed', { name }), confirmLabel: t('contracts.delete.confirm'), danger: true });
       if (!ok) return;
-      try { await api.deleteContract(u.key, id); toastOk(t('contracts.delete.deleted')); refresh(container, u); }
+      try { await api.deleteContract(u.key, id); toastOk(t('contracts.delete.deleted')); window.dispatchEvent(new CustomEvent('et:contracts-changed')); refresh(container, u); }
       catch (e) { toastErr(e.message); }
     });
   });
 }
 
 export function dispatchContractModal(u, meters, existing, contracts = [], groups = []) {   // v3.12.0 (M4) — auch von den Zeilen unter Kosten
-  return u.key === 'wasser'
+  const done = u.key === 'wasser'
     ? openWaterContractModal(u, meters, existing, contracts)
     : openContractModal(u, meters, existing, contracts, groups);
+  // v3.13.0 — gespeichert oder gelöscht: die Zahl am Reiter „Frühere Verträge“ neu zählen (lib/sidebar.js)
+  return Promise.resolve(done).then((changed) => {
+    if (changed) window.dispatchEvent(new CustomEvent('et:contracts-changed'));
+    return changed;
+  });
 }
 
 // v3.1.0 (H6, #17) — Ziel eines Vertrags: Zähler oder Zählergruppe
@@ -583,12 +589,12 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
           <div class="fgrid">
             <div class="field field--m">
               <label>${t('contracts.modal.provider')}</label>
-              <input class="input input--text" name="provider" value="${escapeHtml(initial.provider || '')}">
+              <input class="input input--text" name="provider" ${maxAttr('contracts', 'provider')} value="${escapeHtml(initial.provider || '')}">
               <div class="field-error" data-role="name-msg" role="alert" hidden></div>
             </div>
             <div class="field field--m">
               <label>${t('contracts.modal.tariff')}</label>
-              <input class="input input--text" name="tariff_name" value="${escapeHtml(initial.tariff_name || '')}">
+              <input class="input input--text" name="tariff_name" ${maxAttr('contracts', 'tariff_name')} value="${escapeHtml(initial.tariff_name || '')}">
             </div>
             ${SUPPLY_KIND_UTILITIES.includes(u?.key) ? supplyKindHtml(initial.supply_kind) : ''}
             <div class="field field--m">
@@ -695,7 +701,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         <div class="fgrid">
           <div class="field field--full">
             <label>${t('contracts.modal.notes')}</label>
-            <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
+            <textarea class="input input--text" name="notes" ${maxAttr('contracts', 'notes')} data-counter>${escapeHtml(initial.notes || '')}</textarea>
           </div>
         </div>
       </form>
@@ -1300,7 +1306,7 @@ function renderBonusRow(b = {}) {
       </div>
       <div class="field bonus-row__note">
         <label>${t('contracts.bonus.note')}</label>
-        <input class="input input--text" type="text" data-role="note" maxlength="120" value="${escapeHtml(b.label || '')}"
+        <input class="input input--text" type="text" data-role="note" ${maxAttr('contracts', 'bonuses.label')} value="${escapeHtml(b.label || '')}"
                placeholder="${escapeHtml(t(type === 'sonstige' ? 'contracts.bonus.notePlaceholderOther' : 'contracts.bonus.notePlaceholder'))}">
       </div>
       <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-bonus" title="${t('contracts.bonus.remove')}" aria-label="${t('contracts.bonus.remove')}"><span aria-hidden="true">×</span></button>
@@ -1380,7 +1386,7 @@ function renderSpecialPaymentRow(s = {}) {
       </div>
       <div class="field special-row__note rowlist__sub">
         <label>${t('contracts.special.note')}</label>
-        <input class="input input--text" data-role="note" value="${escapeHtml(s.note || '')}">
+        <input class="input input--text" data-role="note" ${maxAttr('contracts', 'special_payments.note')} value="${escapeHtml(s.note || '')}">
       </div>
       <div class="special-advance rowlist__sub" data-role="advance-block" ${showAdvance ? '' : 'hidden'}>
         <div class="field">
@@ -1728,10 +1734,10 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
       <!-- v3.4.0 (N1021) — Kopf im Formularraster wie der Standardvertrag -->
       <div class="fgrid">
         <div class="field"><label>${t('contracts.water.provider')}</label>
-          <input class="input input--text" name="provider" value="${escapeHtml(c.provider || '')}">
+          <input class="input input--text" name="provider" ${maxAttr('contracts', 'provider')} value="${escapeHtml(c.provider || '')}">
           <div class="field-error" data-role="name-msg" role="alert" hidden></div></div>
         <div class="field"><label>${t('contracts.water.tariff')}</label>
-          <input class="input input--text" name="tariff_name" value="${escapeHtml(c.tariff_name || '')}"></div>
+          <input class="input input--text" name="tariff_name" ${maxAttr('contracts', 'tariff_name')} value="${escapeHtml(c.tariff_name || '')}"></div>
         <div class="field field--s"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required>
           <div class="field-error" data-role="start-msg" role="alert" hidden></div></div>
         <div class="field field--s"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
@@ -1739,7 +1745,7 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
         ${personSelectHtml({ id: 'wf-assignee', record: existing, people, hintKey: 'assignee.hintContract' })}
         <div class="field field--full">
           <label>${t('contracts.water.notes')}</label>
-          <input class="input input--text" name="notes" value="${escapeHtml(c.notes || '')}">
+          <input class="input input--text" name="notes" ${maxAttr('contracts', 'notes')} value="${escapeHtml(c.notes || '')}">
         </div>
       </div>
 

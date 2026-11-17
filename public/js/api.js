@@ -4,7 +4,7 @@
 // src/bootstrap.php. Every method returns parsed JSON `data` or throws.
 // =====================================================================
 
-import { getLocale, t } from './lib/i18n.js';
+import { getLocale, requestLanguages, t } from './lib/i18n.js';
 import { DEMO, demoRequest, demoFileUrl, demoDocAssetUrl } from './lib/demo-mode.js';
 
 const BASE = 'api.php';
@@ -92,7 +92,12 @@ async function send(method, path, body, raw, signal, blob = false) {
   // Fehlermeldungen/Labels in derselben Sprache liefern kann. v3.1.0 — das
   // Backend richtet sich nach `X-ET-Language` (Sprache dieses Geräts, I18N-29);
   // Accept-Language bleibt für ältere Server.
-  const opts = { method, headers: { 'Accept-Language': getLocale(), 'X-ET-Language': getLocale() }, signal };
+  // v3.13.0 (Paket K2e) — vor der ersten Sprache (Erststart) die des Browsers und kein X-ET-Language
+  // (lib/i18n.js requestLanguages); bis v3.12 hier immer getLocale(), also anfangs „de“.
+  const lang = requestLanguages();
+  const opts = { method, headers: {}, signal };
+  if (lang.accept) opts.headers['Accept-Language'] = lang.accept;
+  if (lang.device) opts.headers['X-ET-Language'] = lang.device;
   if (body !== null && body !== undefined) {
     if (raw) {
       // v3.1.0 — Belege: Blob mit eigenem Typ (Bild, PDF); sonst Text (CSV)
@@ -166,6 +171,8 @@ export const api = {
 
   // Meters
   meters:        (u)                   => request('GET',  `/api/utility/${u}/meters`),
+  // v3.13.0 — Zähler und Gruppen aller Arten in einer Antwort (Haushalt › Zähler „Alle“, Zahl am Reiter „Frühere Verträge“)
+  metersOverview: ()                   => request('GET',  '/api/meters-overview'),
   meter:         (u, id)               => request('GET',  `/api/utility/${u}/meters/${id}`),
   createMeter:   (u, data)             => request('POST', `/api/utility/${u}/meters`, data),
   updateMeter:   (u, id, data)         => request('PATCH',`/api/utility/${u}/meters/${id}`, data),
@@ -195,6 +202,16 @@ export const api = {
   readingsOverview: ()                  => request('GET', '/api/readings-overview'),
   // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Befund eines Zählers
   readingChecks: (u, meterId)          => request('GET', `/api/utility/${u}/meters/${meterId}/reading-checks`),
+  // v3.13.0 (#65) — Rückfrage beim Eintragen: erwartete Menge zwischen zwei Ständen nach dem Wetter.
+  // Kurzes Zeitlimit (beim Speichern abgewartet); die Demo hat keine Antworten dafür (alte Regel)
+  readingExpectation: (u, meterId, from, to, exclude = null) => (DEMO ? Promise.resolve(null)
+    : request('GET', `/api/utility/${u}/meters/${meterId}/reading-expectation?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${exclude ? `&exclude=${encodeURIComponent(exclude)}` : ''}`,
+      null, { timeoutMs: 5000 })),
+  // v3.13.0 (Paket K1) — dieselbe Erwartung für viele Abstände in einer Anfrage (Vorschau eines CSV-Imports),
+  // pairs = [{from, to}, …] → {expectations: […]}; die Demo hat keine Antworten dafür (alte Regel).
+  // v3.13.0 (Paket K2e) — exclude: Stände, die die Datei mit einem anderen Wert überschreibt (zählen nicht mit)
+  readingExpectations: (u, meterId, pairs, exclude = []) => (DEMO ? Promise.resolve(null)
+    : request('POST', `/api/utility/${u}/meters/${meterId}/reading-expectations`, exclude.length ? { pairs, exclude } : { pairs }, { timeoutMs: 15000 })),
 
   // Contracts
   contracts:     (u, meterId)          => {
@@ -202,6 +219,10 @@ export const api = {
     return request('GET', `/api/utility/${u}/contracts${q}`);
   },
   contract:      (u, id)               => request('GET',  `/api/utility/${u}/contracts/${id}`),
+  // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung
+  feedInPayouts:      (meterId)        => request('GET', `/api/feed-in-payouts${meterId ? `?meter_id=${encodeURIComponent(meterId)}` : ''}`),
+  createFeedInPayout: (data)           => request('POST', '/api/feed-in-payouts', data),
+  deleteFeedInPayout: (id)             => request('DELETE', `/api/feed-in-payouts/${encodeURIComponent(id)}`),
   createContract:(u, data)             => request('POST', `/api/utility/${u}/contracts`, data),
   updateContract:(u, id, data)         => request('PATCH',`/api/utility/${u}/contracts/${id}`, data),
   deleteContract:(u, id)               => request('DELETE',`/api/utility/${u}/contracts/${id}`),

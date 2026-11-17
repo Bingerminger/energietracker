@@ -42,13 +42,17 @@ final class TemperatureController
         // v2.6.0 — fehlende Werte wurden zu 0 °C (Lektion 24) und verfälschten
         // die Heizgradtage. Wie beim CSV-Import sind alle drei Pflicht.
         foreach (['avg', 'min', 'max'] as $k) {
-            if (!isset($body[$k]) || is_bool($body[$k]) || !is_numeric($body[$k])) {
+            // v3.13.0 — gelesen wie jede Zahl der Schreibwege (Input::decimal): „4,2“ ist 4,2 (bisher 400)
+            $n = isset($body[$k]) ? \Energietracker\Support\Input::decimal($body[$k]) : null;
+            if ($n === null) {
                 Response::error($this->i18n->t('errors.temperature.valuesMissing'));
             }
             // v3.12.0 — eine Lufttemperatur zwischen −90 und 60 °C; 10³⁰⁸ ging bisher durch
-            if (!is_finite((float)$body[$k]) || (float)$body[$k] < -90 || (float)$body[$k] > 60) {
-                Response::error($this->i18n->t('errors.common.valueInvalid', ['field' => $k, 'value' => (string)$body[$k]]), 400, null, 'errors.common.valueInvalid');
+            if ($n < -90 || $n > 60) {
+                Response::error($this->i18n->t('errors.common.valueInvalid', ['field' => $k, 'value' => (string)$body[$k]]), 400,
+                    ['field' => $k, 'value' => (string)$body[$k]], 'errors.common.valueInvalid', true);
             }
+            $body[$k] = $n;
         }
         $this->temps->upsert((string)$body['date'], (float)$body['avg'], (float)$body['min'], (float)$body['max']);
         Response::json(['ok' => true]);

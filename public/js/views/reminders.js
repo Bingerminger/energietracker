@@ -21,6 +21,7 @@ import { ownAssigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFi
 // v3.7.0 — Termin am Zähler (Eichfrist, Zählerwechsel, Lieferung): Zähler zur Wahl
 import { activeUtilities } from '../state.js';
 import { icon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -95,7 +96,7 @@ async function draw(container) {
         ${shown.length ? `<div class="card"><div class="table-wrap"><table class="data-table">
           <thead><tr>
             <th scope="col">${t('reminders.col.title')}</th><th scope="col">${t('reminders.col.category')}</th><th scope="col">${t('reminders.col.due')}</th>
-            <th scope="col">${t('reminders.col.recurrence')}</th><th scope="col">${t('reminders.col.status')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
+            <th scope="col">${t('reminders.col.recurrence')}</th><th scope="col">${t('reminders.col.status')}</th><th scope="col" class="spalte-aktionen"><span class="sr-only">${t('common.actions')}</span></th>
           </tr></thead>
           <tbody>
             ${shown.map(rowHtml).join('')}
@@ -180,7 +181,9 @@ function rowHtml(r) {
       // v2.12.0 (Review UI-20) — „Alle 48 Monate" statt „Alle N Monate (48)"
       ? tp('reminders.everyMonths', r.recurrence_months) : recLabel(r.recurrence))}</td>
     <td><span class="badge badge--${STATUS_CLS[statusKey]}">${t('reminders.status.' + statusKey)}</span></td>
-    <td class="cell-actions">
+    <!-- v3.13.0 — angeheftete Spalte der Aktionen wie bei den übrigen breiten Tabellen (.spalte-aktionen): bei 900 px
+         lagen „Erledigt“, „Bearbeiten“ und „Löschen“ sonst rechts außerhalb des Tabellenrahmens -->
+    <td class="cell-actions spalte-aktionen">
       ${readingLinkHtml(r)}
       <!-- v2.12.0 (Review UI-22) — Vorlesetext mit dem Namen des Termins -->
       <button class="btn btn--sm btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${esc(t('reminders.action.doneNamed', { title: r.title }))}">${icon('haken')}</button>
@@ -227,7 +230,7 @@ function openForm(container, existing) {
       <div class="fgrid">
         <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
         <div class="field field--full"><label for="f-title">${t('reminders.form.fTitle')}</label>
-          <input class="input input--text" type="text" id="f-title" value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}" aria-describedby="f-title-msg">
+          <input class="input input--text" type="text" id="f-title" ${maxAttr('reminders', 'title')} value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}" aria-describedby="f-title-msg">
           <div class="field-error" id="f-title-msg" role="alert" hidden></div></div>
         <div class="field"><label for="f-cat">${t('reminders.form.fCategory')}</label><select class="select" id="f-cat">${catOpts}</select></div>
         <div class="field field--s"><label for="f-due">${t('reminders.form.fDue')}</label>
@@ -237,7 +240,7 @@ function openForm(container, existing) {
         <div class="field field--s" id="f-rm-wrap" ${r.recurrence === 'custom-months' ? '' : 'hidden'}><label for="f-rm">${t('reminders.form.fInterval')}</label>
           <input class="input" type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
           <div class="field-error" id="f-rm-msg" role="alert" hidden></div></div>
-        <div class="field field--full"><label for="f-notes">${t('reminders.form.fNotes')}</label><input class="input input--text" type="text" id="f-notes" value="${esc(r.notes || '')}"></div>
+        <div class="field field--full"><label for="f-notes">${t('reminders.form.fNotes')}</label><input class="input input--text" type="text" id="f-notes" ${maxAttr('reminders', 'notes')} data-counter value="${esc(r.notes || '')}"></div>
         <!-- v3.7.0 — Termin am Zähler: ohne eigene Zuständigkeit gilt die Person des Zählers -->
         <div class="field field--m"><label for="f-meter">${esc(t('reminders.form.fMeter'))}</label>
           <select class="select" id="f-meter" aria-describedby="f-meter-hint"><option value="">${esc(t('reminders.form.meterNone'))}</option>${meterOpts}</select>

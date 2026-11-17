@@ -92,6 +92,19 @@ Abs. 1). Die Karte sagt dann „Teiljahr: … Tage“. Beispiel (erfunden): Einz
 22 × 184 ÷ 365 = 11,09 kg, also **Stufe 4, 30 %** statt Stufe 1 für ein ganzes
 Jahr.
 
+<!-- doc-claim: co2-part-year-window -->
+*(v3.13.0)* **Ausstoß und Kosten über dieselben Tage:** Im Teiljahr zählen
+Emissionen und CO₂-Kosten **nur an den Tagen des Mietverhältnisses**, tagesgenau
+aus deinen Zählerständen bzw. dem Tankbuch (§ 5 Abs. 1 Satz 5 mit Abs. 3 Satz 4:
+die Emissionen auf den Zeitraum umrechnen). Stände vor dem Einzug oder nach dem
+Auszug ändern also nichts. Emissionen laut Gasrechnung rechnet die App nach der
+Menge in beiden Zeiträumen um, ohne Zählerstände nach Tagen. Bis v3.12 kamen
+Ausstoß und Kosten aus dem ganzen Kalenderjahr: Wer im Juli einzog und am Zähler
+auch Stände aus dem Frühjahr hatte, bekam die Stufe für den Ausstoß eines ganzen
+Jahres gegen die Grenzen eines halben. Beispiel (erfunden): 75 m², Einzug 01.07.,
+im Jahr 1.100 m³ Gas, davon 500 m³ ab dem Einzug: 5.000 kWh × 0,18139 kg ÷ 75 m² =
+12,1 kg je m², **Stufe 4, 30 %** (bisher 26,6 kg je m², Stufe 10, 95 %).
+
 ## 5. Etagenheizung: selbst ausrechnen und einfordern
 
 **1. Verbrauch erfassen.** Gas wie gewohnt mit Zählerständen und Vertrag,

@@ -1,6 +1,11 @@
 // Bilder und Schriften der Projektseite aus dem Haupt-Repo holen.
 //
-//   NODE_PATH=<Ordner mit playwright> node tools/bilder.mjs     (ET_REPO=../energietracker)
+//   NODE_PATH=<Ordner mit playwright> node tools/bilder.mjs     (ET_REPO: Standard ist der Ordner über site/)
+//
+// Seit v3.13.0 auch die Rückfallbilder der Animationen: tools/build-animations.mjs (Haupt-Repo) legt je
+// Szene ein Bild desselben Laufs unter tools/quellen/anim/ ab; hier wird es wie jede Aufnahme zu WebP unter
+// assets/img/screens/<szene>[-dunkel].<lang>.webp, in voller Größe (gleiche Maße wie die Animation).
+// Die Animationen selbst (assets/img/anim/) fasst dieses Skript nicht an.
 //
 // Liest nur. Schneidet die Aufnahmen der Oberfläche (docs/ui/screenshots,
 // docs/assets/promo/screens) zu und schreibt sie als WebP nach assets/img/screens/.
@@ -18,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const ET = resolve(process.env.ET_REPO || join(ROOT, '../energietracker'));
+// Seit dem Umzug nach site/ liegt das Haupt-Repo eine Ebene darüber
+const ET = resolve(process.env.ET_REPO || (existsSync(join(ROOT, '../VERSION')) ? join(ROOT, '..') : join(ROOT, '../energietracker')));
 const require = createRequire(`${process.env.NODE_PATH || process.cwd()}/x`);
 
 const SHOTS = 'docs/ui/screenshots';
@@ -35,7 +41,6 @@ const JOBS = [
     dunkelDe: `${PROMO}/uebersicht-dunkel.de.png`, dunkelEn: `${PROMO}/uebersicht-dunkel.en.png`, width: 1440 },
   { name: 'iphone', de: `${PROMO}/iphone.de.png`, en: `${PROMO}/iphone.en.png`,
     dunkelDe: `${PROMO}/iphone-dunkel.de.png`, dunkelEn: `${PROMO}/iphone-dunkel.en.png`, width: 780 },
-  { name: 'gas', de: `${SHOTS}/gas-view.png`, crop: [220, 48, 1220, 762], dunkel: 'gas-view' },
   { name: 'rechnung', de: 'tools/quellen/rechnung.de.png', en: 'tools/quellen/rechnung.en.png', local: true, crop: [220, 48, 1220, 762], dunkel: 'rechnung' },
   { name: 'wechsel', de: `${SHOTS}/tarifvergleich.png`, crop: [220, 48, 1220, 490], dunkel: 'tarifvergleich' },
   { name: 'zutun', de: `${SHOTS}/zu-tun.png`, crop: [220, 48, 1220, 762], dunkel: 'zu-tun' },
@@ -45,9 +50,10 @@ const JOBS = [
   { name: 'jahresbericht', de: `${SHOTS}/jahresbericht.png`, crop: [220, 48, 890, 740], dunkel: 'jahresbericht' },
   { name: 'kennzahlen', de: `${SHOTS}/kennzahlen.png`, crop: [220, 48, 1220, 740], dunkel: 'kennzahlen' },
   { name: 'miete', de: 'tools/quellen/miete.de.png', en: 'tools/quellen/miete.en.png', local: true, crop: [220, 48, 1220, 780], dunkel: 'miete' },
-  { name: 'brief', de: `${SHOTS}/brief-dialog.png`, crop: [235, 40, 970, 810], dunkel: 'brief-dialog' },
   { name: 'erfassen', de: `${SHOTS}/erfassen-iphone.png`, width: 780, dunkel: 'erfassen-iphone' },
 ];
+// Seit v3.13.0 zeigen die Folien „Bekomme ich Geld zurück?“ und „Wann muss ich kündigen?“ Animationen (unten);
+// die Bilder „gas“ und „brief“ entfallen, ihre dunklen Quellen unter tools/quellen/dunkel/ ebenso.
 // Dunkle Fassungen der übrigen Ansichten (nur für die Projektseite, nicht im Haupt-Repo):
 // tools/quellen/dunkel/<name>.<lang>.png, aufgenommen mit
 //   node tools/build-screenshots.mjs <basis-url> <de|en> <ordner> <namen> --dunkel   (Haupt-Repo, Beispielhaushalt)
@@ -55,6 +61,18 @@ const JOBS = [
 //   node tools/aufnahme.mjs <port> <de|en> '#/tenancy' tools/quellen/dunkel/miete.<lang>.png 1440 1100 dark   (Mieterhaushalt)
 // Gleiche Fenstergröße wie die helle Aufnahme, damit derselbe Ausschnitt passt.
 const DUNKEL = 'tools/quellen/dunkel';
+
+// Rückfallbilder der Animationen (v3.13.0): je Szene hell und dunkel, ohne Ausschnitt, volle Größe
+const ANIM = join(ROOT, 'assets/img/anim/quellen.json');
+if (existsSync(ANIM)) {
+  const szenen = [...new Set(JSON.parse(readFileSync(ANIM, 'utf8')).bilder.map(b => b.szene))].sort();
+  for (const s of szenen) {
+    // Ein Rückfallbild darf kein Bild der Seite überschreiben (gleicher Name unter assets/img/screens/)
+    if (JOBS.some(j => j.name === s)) throw new Error(`Szene „${s}“ heißt wie ein Bild der Seite; bitte in tools/build-animations.mjs umbenennen`);
+    const q = (v, l) => `tools/quellen/anim/${s}${v}.${l}.png`;
+    JOBS.push({ name: s, de: q('', 'de'), en: q('', 'en'), local: true, dunkelDe: q('-dunkel', 'de'), dunkelEn: q('-dunkel', 'en') });
+  }
+}
 
 const WEGWEISER = ['together', 'home-assistant'];
 const FONTS = ['dm-sans.woff2', 'dm-sans-ziffern.woff2', 'dm-mono-400.woff2', 'OFL.txt'];
@@ -101,8 +119,9 @@ for (const job of JOBS) {
     const quelle = (r) => (job.local ? r : `energietracker/${r}`);
     await zuschneiden(job.local ? out(rel) : join(ET, rel), crop, job.width, `assets/img/screens/${job.name}.${lang}.webp`, quelle(rel));
     const dunkel = job[lang === 'de' ? 'dunkelDe' : 'dunkelEn'];
-    if (dunkel && existsSync(join(ET, dunkel))) {
-      await zuschneiden(join(ET, dunkel), crop, job.width, `assets/img/screens/${job.name}-dunkel.${lang}.webp`, quelle(dunkel));
+    const dunkelDatei = dunkel ? (job.local ? out(dunkel) : join(ET, dunkel)) : '';
+    if (dunkel && existsSync(dunkelDatei)) {
+      await zuschneiden(dunkelDatei, crop, job.width, `assets/img/screens/${job.name}-dunkel.${lang}.webp`, quelle(dunkel));
     } else if (job.dunkel) {
       const d = `${DUNKEL}/${job.dunkel}.${lang}.png`;
       if (existsSync(out(d))) await zuschneiden(out(d), crop, job.width, `assets/img/screens/${job.name}-dunkel.${lang}.webp`, d);
@@ -130,6 +149,14 @@ for (const name of WEGWEISER) {
 for (const lang of ['de', 'en']) {
   copyFileSync(out(VORSCHAU, `vorschau.${lang}.png`), out(`assets/img/vorschau.${lang}.png`));
   manifest.bilder.push({ datei: `assets/img/vorschau.${lang}.png`, quelle: `${VORSCHAU}/vorschau.${lang}.png (Social Preview aus M6)`, breite: 1280, hoehe: 640 });
+}
+// Logo der Integration (v3.13.0), hell und dunkel: liegt fertig unter assets/img/, kopiert aus dem Repository
+// energietracker-integration (custom_components/energietracker/brand/logo.png und dark_logo.png) und mit
+// pngquant verkleinert. Dieses Skript holt es nicht neu, es trägt es nur wieder in quellen.json ein.
+// Kein Logo von Home Assistant, Marketplace oder HACS auf der Seite (Entscheidung 2026-11-17).
+for (const [datei, brand] of [['integration-logo.png', 'logo.png'], ['integration-logo-dunkel.png', 'dark_logo.png']]) {
+  if (!existsSync(out('assets/img', datei))) throw new Error(`assets/img/${datei} fehlt (Kopie aus energietracker-integration, brand/${brand})`);
+  manifest.bilder.push({ datei: `assets/img/${datei}`, quelle: `energietracker-integration/custom_components/energietracker/brand/${brand} (pngquant)`, breite: 460, hoehe: 128 });
 }
 for (const f of FONTS) copyFileSync(join(ET, 'public/vendor/fonts', f), out('assets/fonts', f));
 copyFileSync(join(ET, 'docs/assets/promo/logo.svg'), out('assets/img/logo.svg'));

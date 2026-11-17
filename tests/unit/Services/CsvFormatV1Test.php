@@ -85,7 +85,9 @@ final class CsvFormatV1Test extends ServiceTestCase
         $this->assertGolden('temperatures.csv', $csv->temperatures());
 
         $readings = $csv->readings('strom');
-        self::assertStringStartsWith("\u{FEFF}Zaehler-ID;Zaehler;Geraet-ID;Datum;Zaehlerstand;Preis (ct);Notiz;Geschaetzt;Zukunft\r\n", $readings);
+        // v3.13.0 (K2d) — bewusst und nur additiv (Stabilitätsklasse A): drei Spalten hinten an, die ersten neun bleiben
+        // Byte für Byte; ohne sie war die Rundreise nicht verlustfrei (Vergleichsdatei readings-strom.csv neu geschrieben)
+        self::assertStringStartsWith("\u{FEFF}Zaehler-ID;Zaehler;Geraet-ID;Datum;Zaehlerstand;Preis (ct);Notiz;Geschaetzt;Zukunft;Nur-Abrechnung;Gemeldet-am;Bestaetigt\r\n", $readings);
         self::assertStringContainsString(";1234,5678;", $readings, 'Dezimalkomma, bis 4 Stellen');
         self::assertStringContainsString(';"\'=HYPERLINK(""x"")";ja;nein', $readings, 'Formelschutz, Quoting und ja/nein');
     }

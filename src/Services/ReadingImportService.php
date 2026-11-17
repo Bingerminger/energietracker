@@ -75,7 +75,8 @@ final class ReadingImportService
         $skipped = 0;
         $otherMeter = 0;
         // Positionen: Datum, Stand, Notiz, geschätzt — oder aus der Kopfzeile.
-        $cols = ['date' => 0, 'counter' => 1, 'note' => 2, 'estimated' => 3, 'meter' => null, 'price' => null];
+        $cols = ['date' => 0, 'counter' => 1, 'note' => 2, 'estimated' => 3, 'meter' => null, 'price' => null,
+                 'billing_only' => null, 'reported_on' => null, 'verified' => null];
         $sep = null;
         $first = true;
 
@@ -152,6 +153,29 @@ final class ReadingImportService
                 }
                 $row['price_cents'] = $price;
             }
+            // v3.13.0 (K2d) — Merker aus den Spalten des eigenen Exports: „nur für die Abrechnung“, „Stand ist
+            // richtig“ (ja in jeder Sprache wie „Geschätzt“), „gemeldet am“ (leer = nicht gemeldet). Nur, wenn die
+            // Datei die Spalte hat; sonst bleiben die Merker eines vorhandenen Stands, wie sie sind.
+            foreach (['billing_only' => 'is_billing_only', 'verified' => 'is_verified'] as $col => $field) {
+                if ($cols[$col] !== null) $row[$field] = $this->parseBool(trim((string)($parts[$cols[$col]] ?? '')));
+            }
+            if ($cols['reported_on'] !== null) {
+                $cell = trim((string)($parts[$cols['reported_on']] ?? ''));
+                $rep = $cell === '' ? '' : Dates::parseUserDate($cell);
+                if ($rep === null) {
+                    $skipped++;
+                    $errors[] = $this->i18n->t('errors.import.dateUnrecognized', ['line' => $lineNo + 1, 'value' => $cell]);
+                    continue;
+                }
+                $row['reported_on'] = $rep;
+            }
+            // v3.13.0 (Paket F) — Notiz über der Grenze: Zeile mit Meldung (auch im Trockenlauf), nie gekürzt
+            $noteMax = \Energietracker\Support\TextLimits::of('readings', 'note');
+            if (($noteLen = \Energietracker\Support\TextLimits::length($row['note'])) > $noteMax) {
+                $skipped++;
+                $errors[] = $this->i18n->t('errors.import.noteTooLong', ['line' => $lineNo + 1, 'max' => $noteMax, 'length' => $noteLen]);
+                continue;
+            }
             $rows[] = $row;
         }
         // v3.12.0 — keine Zeile erkannt und nichts gemeldet (etwa JSON statt CSV): 400 statt „0 übernommen“
@@ -211,6 +235,10 @@ final class ReadingImportService
             'estimated' => $find(['geschaetzt', 'geschatzt', 'estimated'], 'csvLocal.readings.estimated'),
             'meter'     => $find(['zaehler-id', 'meter_id', 'meter-id'], 'csvLocal.readings.meterId'),
             'price'     => $find(['preis', 'price', 'price_cents'], 'csvLocal.readings.price'),   // v3.12.0
+            // v3.13.0 (K2d) — die Merker des eigenen Exports (verlustfreie Rundreise); fehlt die Spalte, bleiben sie
+            'billing_only' => $find(['nur-abrechnung', 'is_billing_only', 'billing_only'], 'csvLocal.readings.billingOnly'),
+            'reported_on'  => $find(['gemeldet-am', 'reported_on'], 'csvLocal.readings.reportedOn'),
+            'verified'     => $find(['bestaetigt', 'is_verified', 'verified'], 'csvLocal.readings.verified'),
         ];
     }
 

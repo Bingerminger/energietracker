@@ -169,7 +169,7 @@ final class ContractChecks
     }
 
     /**
-     * A2 — die nächste Rate ab heute: Zeile mit Rhythmus → ihr nächster Termin (ContractService::
+     * A2 — die nächste Rate nach heute: Zeile mit Rhythmus → ihr nächster Termin nach heute (ContractService::
      * installments), monatlich → der nächste Monatserste. Raten je Jahr: monatlich 12, alle N Monate
      * 12 / N, genannte Termine ihre Zahl (elf statt zwölf Raten).
      *
@@ -180,7 +180,8 @@ final class ContractChecks
         $row = ContractService::planRowOn($plan, $today);
         if ($row === null) return null;
         if (ContractService::hasRhythm($row)) {
-            $next = ContractService::installments($plan, $today, ContractService::addMonthsClamped($today, 13))[0] ?? null;
+            // v3.13.0 (Paket wechsel, Nachtrag) — der nächste Termin nach heute: eine Rate am heutigen Tag zählt schon
+            $next = ContractService::installments($plan, ContractService::ratesThrough($today), ContractService::addMonthsClamped($today, 13))[0] ?? null;
             if ($next === null) return null;
             $row = ContractService::planRowOn($plan, $next['date']) ?? $row;
             $due = $next['date'];
@@ -355,18 +356,26 @@ final class ContractChecks
         // Wochen und Monatsbeginn; unbekannt nur, wenn auch die mildere Frist (ein Monat) verfehlt ist
         $ann = is_string($pi['announced_on'] ?? null) ? Rights::announcement($country, (string)$pi['announced_on'], $from) : null;
         $late = false;
+        // v3.13.0 — der eine Tag zwischen der Vorwärtsprobe und dem Kalenderabstand: „knapp, prüfen“, nie „zu spät“
+        $tight = false;
         if ($ann !== null) {
             $p['announced_on'] = (string)$pi['announced_on'];
             if ($termination === 'basic') {
                 if ($ann['basic']['late']) { $extra[] = ['rights.special_termination.lateBasic', $p]; $late = true; }
+                elseif ($ann['basic']['tight']) { $extra[] = ['rights.special_termination.tightBasic', $p]; $tight = true; }
                 if (!$ann['basic']['month_start']) { $extra[] = ['rights.special_termination.monthStart', $p]; $late = true; }
-                if ($late) $keys[] = "de.$gvv.5.2";
+                if ($late || $tight) $keys[] = "de.$gvv.5.2";
             } elseif ($ann['special']['late']) {
                 $extra[] = ['rights.special_termination.lateSpecial', $p];
                 $keys[] = 'de.enwg.41.5.s1';
                 $late = true;
+            } elseif ($ann['special']['tight']) {
+                $extra[] = ['rights.special_termination.tightSpecial', $p];
+                $keys[] = 'de.enwg.41.5.s1';
+                $tight = true;
             }
-            if ($late) $extra[] = ['rights.special_termination.adviceCheck', []];
+            if ($tight) $keys[] = 'de.bgb.188';   // gezählt nach §§ 187, 188 BGB wie der Kündigungsstichtag
+            if ($late || $tight) $extra[] = ['rights.special_termination.adviceCheck', []];
         }
         $guarantee = (string)($c['price_guarantee_until'] ?? '');
         if (Dates::isIsoDate($guarantee) && $guarantee >= $from) $extra[] = ['rights.special_termination.guarantee', ['date' => $guarantee]];
@@ -402,6 +411,7 @@ final class ContractChecks
                 'announced_on' => $pi['announced_on'], 'special_termination_until' => $pi['special_termination_until'],
                 'legal_deadline' => $pi['legal_deadline'], 'deadline' => $pi['deadline'], 'supply_kind' => $kind,
                 'termination' => $termination, 'days_before' => $ann['days_before'] ?? null, 'announced_late' => $late,
+                'announced_tight' => $tight,   // v3.13.0, additiv: knapp, prüfen (announced_late bleibt ja/nein)
                 'price_guarantee_until' => $guarantee !== '' ? $guarantee : null,
                 'contract_number' => $c['contract_number'] ?? null, 'customer_number' => $c['customer_number'] ?? null,
             ],

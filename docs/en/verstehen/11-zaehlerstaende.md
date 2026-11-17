@@ -117,7 +117,7 @@ back-filled readings are legitimate.
 
 | Question | When | Note |
 |---|---|---|
-| **Jump** | daily consumption since the last reading > **3 ×** the typical one | "That would be 400 kWh a day, usually it is about 8. Typo?" |
+| **Jump** | daily consumption since the last reading > **3 ×** the typical one; *(v3.13.0)* for heating meters with temperatures the amount above the expectation **by the weather** ([below](#by-the-weather-v3130)) | "That would be 400 kWh a day, usually it is about 8. Typo?" or "… the weather suggests about 39.7 m³." |
 | **Decimal separator missing?** | no typical value known yet and the new reading > 10 × the last | only without a comparison value, otherwise the jump check applies |
 | **Decrease** | lower than the last reading — unless a new device was installed in between | with a link to the meter swap |
 | **Future** | date after today | typo in the year? |
@@ -129,6 +129,17 @@ against the **previous and the next reading for that date**, with the same rule.
 “Meter readings” page only knew the last reading; a reading back-filled between two readings went through there
 without a question.
 
+**Preview while typing** *(v3.13.0)*: Below the field the amount **since the previous reading** is shown and, for
+a back-filled reading, also **until the next reading**, both for the chosen date, for example “+1,400.00 m³ since
+the reading of 31/03/2024 · +1,700.00 m³ until the reading of 31/01/2026”. Across a meter replacement no
+difference is shown. Up to v3.12 the “+ Reading” dialog compared a back-filled reading with the latest one
+(in the example “−1,700.00 m³ since last reading” for a correct reading), and the “Meter readings” page showed nothing.
+
+**Replacing on the same day** *(v3.13.0)*: If a new reading replaces a stored one of the same day (button
+“Replace” in the dialog and on the page, a line of a CSV file with a different value), the old reading does not
+count for the expectation [by the weather](#by-the-weather-v3130), as when editing a reading and for the proposal of
+an AI. A line with the same value changes nothing and stays in the history.
+
 The **typical daily consumption** is the median of the last up to ten reading
 intervals of the same device (at least two) — robust against a single outlier.
 The backend delivers it in `readings-overview` as `typical_per_day`; the utility
@@ -136,6 +147,45 @@ view calculates it by the same rule. The notes appear while typing; the question
 on save names the meter in its title. Whoever declines in the batch capture keeps
 the input; the card shows "Not saved: please check", and a message counts the
 held cards.
+
+### By the weather (v3.13.0)
+
+For **gas, district heating, heat and the electricity of a heat pump** the question knows the season. Up to
+v3.12 it asked about a typo at every start of the heating season: after a summer with cooking and hot water,
+the first heating week easily uses ten times as much (GitHub #65).
+
+The dialog and the card ask the server for the **expected amount between the previous and the new reading**
+(`GET …/reading-expectation`), from the same source as
+["Check the reading"](#a-reading-that-is-too-low-or-too-high-v390). The first way that gives a result applies:
+
+1. **Heating model** (base load plus a part per degree day) with the temperatures of the days since the
+   previous reading, if it already knows weather that cold: at least two of its chunks with at most half a
+   degree day per day less. A model from a summer and an unheated autumn does not know heating yet.
+2. **The same days in earlier years** (median).
+3. **The degree days alone**, for a short history: the last up to ten intervals with at least as much heating
+   weather per day (at most half a degree day less), median, at least two. If there are none, because the days
+   are colder than anything so far, the app does not know yet how much heating takes. It then only asks
+   "Missing decimal separator?" (at least ten times the last reading). It does not invent a curve.
+
+It asks when the amount since the previous reading lies **above three times the expectation** and at the same
+time at least **a quarter of a typical month** and **three spreads** of the model (or of the years) above it.
+The note names the expectation. Example:
+
+<!-- doc-claim: reading-expectation-example (ReadingExpectationTest) -->
+```text
+Gas: base load 7 kWh a day, plus 3.5 kWh per degree day (heating limit 15 °C), 10.5 kWh per m³
+first week of January at 0 °C:  7 × (7 + 3.5 × 15) = 416.5 kWh = 39.7 m³ expected
+question from three times that: 1,249.5 kWh = 119.0 m³ since the previous reading
+```
+
+**Without temperatures** (no location entered, no normal) and for all other utilities the rule above applies
+as before.
+
+**The same rule** applies to the **proposal of an AI** (`propose_reading`, also readings from a document, and once
+more when taking it over) and to the **preview of a CSV import**. The preview fetches the expectation for all lines
+of the file in **one** request (`POST …/reading-expectations`, at most 4,000 intervals). The comparison is with the
+stored readings, not with earlier lines of the same file: a first import into an empty meter therefore checks by
+the rule above. Without an answer (demo, no connection) the rule above applies as well.
 
 ### After saving: outliers, suspicion, rollover
 

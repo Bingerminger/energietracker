@@ -445,6 +445,35 @@ final class TariffSwitchService
     }
 
     /**
+     * v3.13.0 — Summe der Boni mit Datum (`bonuses`) dieser Verträge, deren Tag im ersten Jahr des Vergleichs liegt (vom
+     * Ersten des Wechselmonats bis vor den Beginn von Jahr 2), nach derselben Tagesregel wie Saldo und Monate
+     * (ContractService::bonusBetween). Jahr 2 bleibt ohne Bonus: Es ist der dauerhafte Preis, wie beim Neukundenbonus.
+     *
+     * @param list<array<string,mixed>> $contracts
+     * @param array<int,array<string,mixed>> $window
+     * @param array<int,array<string,mixed>> $window2
+     */
+    private static function datedBonusIn(array $contracts, array $window, array $window2): float
+    {
+        if ($window === [] || $window2 === []) return 0.0;
+        $from = (string)$window[0]['ym'] . '-01';
+        $to = (string)$window2[0]['ym'] . '-01';
+        $sum = 0.0;
+        foreach ($contracts as $c) {
+            // ein Angebot ist ein Preisblatt (Lektion 54): sein Bonus zählt an seinem Tag, nicht auf Beginn oder Ende geklemmt
+            if (!empty($c['is_shadow'])) {
+                foreach ((array)($c['bonuses'] ?? []) as $b) {
+                    $d = (string)($b['credit_date'] ?? '');
+                    if (is_array($b) && \Energietracker\Support\Dates::isIsoDate($d) && $d >= $from && $d < $to) $sum += (float)($b['amount_eur'] ?? 0);
+                }
+                continue;
+            }
+            $sum += ContractService::bonusBetween($c, $from, $to);
+        }
+        return $sum;
+    }
+
+    /**
      * Kosten der Bindungskette über das Fenster.
      *
      * Für jeden Monat gilt der Vertrag, der dann läuft. Reicht die Kette nicht
@@ -478,6 +507,8 @@ final class TariffSwitchService
             ];
         }
         $usedIds = $y1['used'];
+        // v3.13.0 — ein Bonus mit Datum im ersten Jahr an einem Vertrag der Kette, die dort rechnet (dieselbe Regel wie beim Angebot)
+        $dated = self::datedBonusIn(array_values(array_filter($chain, fn($k) => isset($usedIds[(string)($k['id'] ?? '')]))), $window, $window2);
 
         // Deckt das Fenster mehrere Verträge ab, muss das Label das sagen —
         // sonst steht dort ein Tarif, der nur einen Teil der Zahlen erklärt.
@@ -498,12 +529,13 @@ final class TariffSwitchService
             'computable'   => true,
             'note'         => null,
 
-            'year1_eur'        => round($y1['total'], 2),
+            'year1_eur'        => round($y1['total'] - $dated, 2),
             'year2_eur'        => round($y2['total'], 2),
             'signup_bonus_eur' => null,
+            'bonus_year1_eur'  => $dated > 0 ? round($dated, 2) : null,   // v3.13.0 (additiv)
 
             'consumption'        => round($y1['consumption'], 1),
-            'unit_cost_ct_year1' => $y1['consumption'] > 0 ? round($y1['total'] * 100.0 / $y1['consumption'], 3) : null,
+            'unit_cost_ct_year1' => $y1['consumption'] > 0 ? round(($y1['total'] - $dated) * 100.0 / $y1['consumption'], 3) : null,
             'unit_cost_ct_year2' => $y2['consumption'] > 0 ? round($y2['total'] * 100.0 / $y2['consumption'], 3) : null,
 
             'guarantee_until'          => $last['price_guarantee_until'] ?? null,
@@ -547,6 +579,10 @@ final class TariffSwitchService
         }
 
         $bonus = (float)($c['signup_bonus_eur'] ?? 0.0);
+        // v3.13.0 — dazu jeder Bonus mit Datum (`bonuses`, wie im Vertragsdialog), dessen Tag im ersten Jahr liegt: derselbe
+        // Betrag zählt gleich, welches Feld ihn trägt. Bis dahin fiel er weg (Jahr 1 um den Bonus zu teuer).
+        $dated = self::datedBonusIn([$c], $window, $window2);
+        $bonus += $dated;
 
         return [
             'contract_id'  => (string)$c['id'],
@@ -561,7 +597,9 @@ final class TariffSwitchService
             // Jahr 1 mit Bonus, Jahr 2 ohne, mit den Preisen der Monate 13 bis 24 — beide über dieselbe Menge je Monat.
             'year1_eur'        => round($y1['total'] - $bonus, 2),
             'year2_eur'        => round($y2['total'], 2),
-            'signup_bonus_eur' => $bonus > 0 ? round($bonus, 2) : null,
+            'signup_bonus_eur' => $bonus - $dated > 0 ? round($bonus - $dated, 2) : null,
+            // v3.13.0 (additiv) — alle Boni, die Jahr 1 senken (Neukundenbonus und datierte), sonst null
+            'bonus_year1_eur'  => $bonus > 0 ? round($bonus, 2) : null,
 
             'consumption'        => round($y1['consumption'], 1),
             'unit_cost_ct_year1' => $y1['consumption'] > 0 ? round(($y1['total'] - $bonus) * 100.0 / $y1['consumption'], 3) : null,
@@ -754,7 +792,8 @@ final class TariffSwitchService
     private function labelFor(array $c): string
     {
         if (!empty($c['is_shadow'])) {
-            $l = (string)($c['shadow_label'] ?: $c['tariff_name'] ?: '');
+            // v3.13.0 — beide Felder fehlen in alten Daten, einem Backup oder einer Handeingabe (bisher 500)
+            $l = (string)(($c['shadow_label'] ?? '') ?: ($c['tariff_name'] ?? '') ?: '');
             return $l !== '' ? $l : $this->i18n->t('tariff.shadowFallbackLabel');
         }
         $l = trim(((string)($c['provider'] ?? '')) . ' ' . ((string)($c['tariff_name'] ?? '')));

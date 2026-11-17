@@ -121,6 +121,7 @@ final class App
     public Co2CostService $co2Costs;         // v3.1.0 (H4, CALC-27)
     public Co2SplitService $co2Split;        // v3.1.0 (H4, MKT-15)
     public BillService $bills;               // v3.1.0 (H5, B3/UI-35)
+    public \Energietracker\Services\FeedInPayoutService $feedInPayouts;   // v3.13.0 (Paket vertrag)
     public MarketPriceService $marketPrices; // v3.1.0 (H6, B7/MKT-12)
     public EvChargingReportService $evCharging; // v3.1.0 (H6, MKT-14)
     public HeatPumpService $heatPumps;      // v3.1.0 (H7, MKT-18)
@@ -302,6 +303,10 @@ final class App
             $this->readings, $this->periods, $this->bills);
         $this->bills->attachActivity($this->activity);
         $this->bills->attachExpectations($this->billsExpected);
+        // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung: Verlauf, und an der Saldo-Karte erhalten und offen
+        $this->feedInPayouts = new \Energietracker\Services\FeedInPayoutService($this->store, $this->meters, $this->i18n);
+        $this->feedInPayouts->attachActivity($this->activity);
+        $this->consumption->attachFeedInPayouts($this->feedInPayouts);
         $this->agenda->attachBillExpectations($this->billsExpected);
         // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Befunde in „Zu tun“ (und damit in /api/todo)
         $this->readingChecks = new \Energietracker\Services\ReadingCheckService($this->store, $this->meters, $this->readings,
@@ -426,6 +431,9 @@ final class App
                 ));
                 // v3.2.0 (F1018) — eine Neuinstallation beginnt mit dem
                 // Einrichtungsassistenten; nach einem Update nie
+                // v3.13.0 — die Kennung der Installation gleich beim Erststart (nicht erst beim ersten Lesen von
+                // Zusammenfassung, „Zu tun“ oder Kalender: ohne Schreibrecht wäre das später nicht mehr möglich)
+                if (($result['action'] ?? null) === 'fresh') $this->instance->ensure();
                 if ($firstStart !== null && ($result['action'] ?? null) === 'fresh') {
                     // v3.5.0 (N1022) — das Land über dieselbe Regel wie Einrichtung
                     // und Einstellungen (SettingsService::applyCountry)
@@ -515,6 +523,7 @@ final class App
         '#^/api/metering-concept/preview$#',   // v3.9.0 (F1032) — Vorschau, schreibt nichts
         '#^/api/letters/render$#',             // v3.11.0 (F1036) — Brief, schreibt nichts
         '#^/api/mcp$#',                        // v3.12.0 (F1037) — KI: lesen ohne Sperre, Übernehmen sperrt selbst
+        '#^/api/utility/[^/]+/meters/[^/]+/reading-expectations$#',   // v3.13.0 (Paket K1) — Erwartung, schreibt nichts
     ];
 
     /**
@@ -522,7 +531,8 @@ final class App
      * mit einem API-Schlüssel erlaubt, der nur lesen darf.
      */
     private const READ_ONLY_POST = ['#^/api/forecast/scenario$#', '#^/api/metering-concept/preview$#',   // v3.9.0 — Vorschau des Messkonzepts
-                                    '#^/api/letters/render$#'];   // v3.11.0 (F1036) — Brief entwerfen
+                                    '#^/api/letters/render$#',    // v3.11.0 (F1036) — Brief entwerfen
+                                    '#^/api/utility/[^/]+/meters/[^/]+/reading-expectations$#'];   // v3.13.0 (Paket K1) — Erwartung für die CSV-Vorschau
 
     public static function locksLate(Request $req): bool
     {
@@ -535,6 +545,26 @@ final class App
     {
         if ($req->method !== 'POST') return false;
         foreach (self::READ_ONLY_POST as $re) if (preg_match($re, $req->path)) return true;
+        return false;
+    }
+
+    /**
+     * v3.13.0 — Importe mit Trockenlauf (`?dry_run=…`): Mit dem Schalter lesen sie die Datei und antworten mit der
+     * Vorschau, ohne zu schreiben (der Dienst kehrt vor dem Schreiben zurück; DryRunWithoutWriteAccessTest prüft jeden
+     * Weg der Liste an einem schreibgeschützten Ordner). Nur für die Prüfung „Ordner nicht beschreibbar“; die Sperre
+     * holen sie wie bisher, ein Schlüssel nur zum Lesen bleibt draußen (READ_ONLY_POST).
+     */
+    public const DRY_RUN_POST = [
+        '#^/api/utility/[^/]+/meters/[^/]+/(readings|periods)/import-csv$#',
+        '#^/api/market-prices/import-csv$#',
+        '#^/api/backup/import$#',
+    ];
+
+    /** Ein Import im Trockenlauf; ein unlesbarer Schalter ist 400 wie am Import selbst (Request::flag). */
+    public static function dryRunImport(Request $req): bool
+    {
+        if ($req->method !== 'POST') return false;
+        foreach (self::DRY_RUN_POST as $re) if (preg_match($re, $req->path)) return $req->flag('dry_run');
         return false;
     }
 
@@ -734,7 +764,17 @@ final class App
         if (in_array($req->method, ['POST', 'PUT', 'PATCH'], true) && $req->path !== '/api/mcp' && $req->jsonBodyInvalid()) {
             Response::error($this->i18n->t('errors.http.bodyInvalid'), 400, null, 'errors.http.bodyInvalid');
         }
+        // v3.13.0 (K2d) — Datenordner nicht beschreibbar (fremder Besitzer nach einem Wechsel der UID, etwa das Image
+        // ohne root auf einem bestehenden Volume): Schreibwege antworten mit 503 und der Meldung, bevor sie etwas
+        // anfangen; Lesen und Vorschauen, die nichts schreiben, bleiben 200. Bisher setzte nur ein Start mit Migration
+        // diese Sperre ($dataUnwritable, dann für alles), ein schon eingerichteter Ordner endete beim Schreiben in 500.
+        // Nicht vorab: Routen, die erst spät sperren (LOCK_LATE: Vorschauen, KI, Abgleiche; sie schreiben erst nach dem
+        // Abruf und enden dann über StorageNotWritableException ebenfalls in 503), und die Anmeldung (danach bleibt Lesen).
         if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !self::locksLate($req)) {
+            if (!self::readOnlyPost($req) && $req->path !== '/api/session' && !is_writable($this->store->rootDir())) {
+                // v3.13.0 — der Trockenlauf eines Imports schreibt nichts: wie die anderen Vorschauen (bisher 503)
+                if (!self::dryRunImport($req)) Response::error($this->i18n->t('errors.storage.notWritable'), 503, null, 'errors.storage.notWritable');
+            }
             $this->lockOrFail();   // endet mit dem Prozess der Anfrage
         }
         // v3.9.0 (F1033) — nach der Antwort: überwachter Ordner, Benachrichtigungen an Home Assistant
@@ -815,7 +855,11 @@ final class App
         // v3.12.0 (M3) — das Land wechseln setzt die Vorgabe für alle und mit dem Profil weitere Einstellungen
         if ($req->method === 'POST' && $p === '/api/settings/country') return true;
         if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
-            foreach (self::ADMIN_SETTINGS as $k) {
+            // v3.13.0 — „Angaben für Briefe nur Verwalter“ (`letters_admin_only`): dann zählen Absender und
+            // Lieferanschrift wie die Einstellungen der Verwalter
+            $keys = $this->settings->get('letters_admin_only', false) === true
+                ? [...self::ADMIN_SETTINGS, ...SettingsService::LETTER_KEYS] : self::ADMIN_SETTINGS;
+            foreach ($keys as $k) {
                 if (!array_key_exists($k, $req->body)) continue;
                 if (self::adminSettingChanged($k, $req->body[$k], $this->settings->get($k, SettingsService::defaultFor($k)))) return true;
             }
@@ -833,7 +877,25 @@ final class App
      */
     public static function adminSettingChanged(string $key, mixed $new, mixed $old): bool
     {
+        // v3.13.0 — Angaben für Briefe bereinigt verglichen, wie sie gespeichert werden (Zeilen, Leerraum);
+        // Unlesbares zählt als Änderung (403 vor 400)
+        if (in_array($key, SettingsService::LETTER_KEYS, true)) {
+            $clean = SettingsService::cleanLetterValue($key, $new);
+            return $clean === null || $clean !== (is_string($old) ? $old : '');
+        }
         if ($new === null) return $old !== null && $old !== '';
+        // v3.13.0 (K2d) — Einstellungen der Benachrichtigung bereinigt verglichen, wie sie gespeichert werden (die Liste
+        // der Ereignisse ohne Reihenfolge): Die Seite schickt sie unverändert mit, das ist keine Änderung
+        if (str_starts_with($key, 'ha_notify_')) {
+            try {
+                $n = \Energietracker\Services\HomeAssistant\NotifyConfig::normalizeSetting($key, $new);
+                $o = $old === null ? null : \Energietracker\Services\HomeAssistant\NotifyConfig::normalizeSetting($key, $old);
+            } catch (\Throwable) {
+                return true;   // unlesbar: als Änderung (403 vor 400)
+            }
+            if (is_array($n) && is_array($o)) { sort($n); sort($o); }
+            return $n !== $o;
+        }
         if (is_bool(SettingsService::defaultFor($key))) {
             $b = \Energietracker\Support\Input::bool($new);
             $o = is_bool($old) ? $old : \Energietracker\Support\Input::bool($old);
@@ -868,7 +930,38 @@ final class App
         // Wetterabgleich (Open-Meteo bekommt die Koordinaten); der Ort steht auf derselben Karte
         'update_check', 'location_name', 'latitude', 'longitude', 'weather_auto_fill',
         // v3.12.0 (M3) — die Vorgabe für alle: Sprache, Land, Währung, Zeitzone; die eigene Sprache bleibt frei (/api/session/me)
-        'language', 'country', 'currency', 'timezone'];
+        'language', 'country', 'currency', 'timezone',
+        // v3.13.0 — ob nur Verwalter die Angaben für Briefe ändern (sonst entschiede ein Mitglied über sich selbst)
+        'letters_admin_only',
+        // v3.13.0 (K2d) — Härtung: die übrigen Einstellungen der Texterkennung und des Auslesens (Schnittstelle, Modelle,
+        // Zeitlimits) und der Benachrichtigung an Home Assistant (Ereignisse, Uhrzeit) wirken für alle; wie ihre Karten
+        // und die eigene Route der Benachrichtigung nur für Verwalter
+        'ocr_api', 'ocr_model', 'ocr_timeout_s', 'inbox_model', 'inbox_timeout_s', 'inbox_cloud_timeout_s',
+        'ha_notify_events', 'ha_notify_hour',
+        // v3.13.0 — Speicher für Belege: eine Grenze für den ganzen Haushalt, wie die übrigen Einstellungen für alle
+        'attachments_max_mb'];
+
+    /**
+     * v3.13.0 (K2d) — Einstellungen, die auch Mitglieder ändern: Rechnung, Anzeige, Haushalt, Erinnerungen. Jeder
+     * Schlüssel des SettingsService steht in genau einer der beiden Listen (oder ist eine Angabe für Briefe, die am
+     * Schalter `letters_admin_only` hängt); SettingsRoleMapTest prüft das, damit ein neuer Schlüssel nicht still für
+     * Mitglieder offen ist.
+     */
+    private const MEMBER_SETTINGS = ['gas_conversion_factors', 'hdd_base_temp', 'co2_gas', 'co2_strom', 'co2_strom_years', 'co2_wasser',
+        'min_days_period', 'min_hdd_regression', 'blend_max', 'forecast_months', 'min_temp_days_forecast', 'forecast_model', 'dashboard_months',
+        'alert_days_since_reading', 'anomaly_threshold', 'wasser_personen_anzahl', 'wasser_personen_referenz',
+        'billing_cycle_anchor_gas', 'billing_cycle_anchor_strom', 'billing_cycle_anchor_wasser', 'billing_cycle_anchor_fernwaerme',
+        'billing_cycle_anchor_heizoel', 'billing_cycle_anchor_pellets', 'billing_cycle_anchor_pv_einspeisung', 'advance_counting', 'advance_due_day',
+        'contract_remind_days_1', 'contract_remind_days_2', 'contract_remind_days_3', 'wasser_sparindex_gut', 'wasser_sparindex_warnung',
+        'active_utilities', 'gas_cv_unit', 'co2_price_eur_t_years', 'co2_price_scenario_eur_t', 'co2_price_scenario_from',
+        'co2_pv_avoided', 'pv_assumed_self_consumption_pct', 'reference_strom_kwh', 'reference_heat_kwh_m2', 'reference_source',
+        'warmwasser_elektrisch', 'support_hint', 'env_name', 'ui_level', 'setup_pending', 'setup_persona', 'flex_heat_pump_share_pct',
+        'flex_washer_cycles_per_week', 'flex_washer_kwh_per_cycle', 'flex_dishwasher_cycles_per_week', 'flex_dishwasher_kwh_per_cycle',
+        'flex_ev_plugged_from', 'flex_ev_plugged_until', 'wohnflaeche_m2', 'baujahr', 'gebaeudetyp', 'beheizter_keller', 'warmwasser_dezentral',
+        'wohnverhaeltnis', 'waerme_energietraeger', 'warmwasser_temp_c', 'warmwasser_energietraeger', 'heizoel_kwh_per_l', 'pellets_kwh_per_kg',
+        'co2_heizoel', 'co2_pellets', 'co2_fernwaerme', 'segmented_split_mode', 'segmented_fixed_split', 'delivery_baseload_share',
+        'tank_warn_pct', 'reminder_warn_days_before', 'reminder_overdue_days', 'recommendation_anomaly_sigma', 'recommendation_trend_pct_year',
+        'confidence_band_sigma', 'efficiency_class_thresholds'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -1058,6 +1151,8 @@ final class App
 
         // ── Meters per utility ──
         $meterCtrl = new MeterController($this->meters, $this->i18n, $this->responsibility);   // v3.7.0 — Zuständig
+        // v3.13.0 — Haushalt › Zähler „Alle“: Zähler und Gruppen aller Arten in einer Antwort
+        $r->get('/api/meters-overview',                         fn($req) => $meterCtrl->overview($req));
         $r->get('/api/utility/{utility}/meters',                fn($req) => $meterCtrl->index($req));
         $r->post('/api/utility/{utility}/meters',               fn($req) => $meterCtrl->create($req));
         $r->get('/api/utility/{utility}/meters/{id}',           fn($req) => $meterCtrl->show($req));
@@ -1088,6 +1183,10 @@ final class App
         // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen (Befund eines Zählers)
         $checkCtrl = new \Energietracker\Controllers\ReadingCheckController($this->readingChecks, $this->meters, $this->i18n);
         $r->get('/api/utility/{utility}/meters/{id}/reading-checks', fn($req) => $checkCtrl->meter($req));
+        // v3.13.0 (#65) — Rückfrage beim Eintragen: erwartete Menge zwischen zwei Ständen nach dem Wetter
+        $r->get('/api/utility/{utility}/meters/{id}/reading-expectation', fn($req) => $checkCtrl->expectation($req));
+        // v3.13.0 (Paket K1) — dieselbe Erwartung für viele Abstände (Vorschau eines CSV-Imports), schreibt nichts
+        $r->post('/api/utility/{utility}/meters/{id}/reading-expectations', fn($req) => $checkCtrl->expectations($req));
 
         // v3.1.0 (Paket H3, B2) — Verbrauch je Zeitraum
         $periodCtrl = new PeriodController($this->periods);
@@ -1158,6 +1257,13 @@ final class App
         $r->get('/api/utility/{utility}/bills/{id}/check',   fn($req) => $billCtrl->check($req));
         $r->post('/api/utility/{utility}/bills/{id}/book',   fn($req) => $billCtrl->book($req));
 
+        // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung
+        $payoutCtrl = new \Energietracker\Controllers\FeedInPayoutController($this->feedInPayouts);
+        $r->get('/api/feed-in-payouts',            fn($req) => $payoutCtrl->index($req));
+        $r->post('/api/feed-in-payouts',           fn($req) => $payoutCtrl->create($req));
+        $r->patch('/api/feed-in-payouts/{id}',     fn($req) => $payoutCtrl->update($req));
+        $r->delete('/api/feed-in-payouts/{id}',    fn($req) => $payoutCtrl->destroy($req));
+
         // ── Deliveries (v1.3.0 — Heizöl/Pellets) ──
         $deliveryCtrl = new DeliveryController($this->deliveries, $this->consumption, $this->meters);
         $r->get('/api/utility/{utility}/deliveries',         fn($req) => $deliveryCtrl->index($req));
@@ -1196,7 +1302,7 @@ final class App
         $r->get('/api/utility/{utility}/meters/{id}/heat-limit',      fn($req) => $cCtrl->heatLimit($req));
 
         // ── Forecast ──
-        $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n);
+        $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n, $this->consumption);
         $r->get('/api/utility/{utility}/meters/{id}/forecast', fn($req) => $fCtrl->forMeter($req));
         // v3.6.0 (F1031) — Prognose-Werkstatt: Szenario rechnen (liest nur)
         $scCtrl = new ScenarioController($this->scenarios, $this->meters, $this->i18n);
@@ -1444,6 +1550,16 @@ final class App
         // Paket protokoll: Ratenbegrenzung (data/mcp/rate.json) und Zugriffsprotokoll (data/mcp/journal.jsonl), nicht im Backup
         $mcpLimiter = new \Energietracker\Services\Mcp\RateLimiter($this->store->rootDir());
         $mcpJournal = new \Energietracker\Services\Mcp\Journal($this->store->rootDir());
+        // v3.13.0 (Paket F) — eine Übernahme der KI im Verlauf zurückgenommen: der Vorschlag gilt als zurückgenommen
+        // (ein zweites apply_proposal meldet es), und das Zugriffsprotokoll zeigt es mit dem Schlüsselnamen der KI
+        $this->activity->onUndo(function (array $e) use ($mcpJournal, $pending, $mcpConfig): void {
+            if (($e['by']['via'] ?? null) !== 'mcp') return;
+            $pid = (string)($e['revert']['proposal_id'] ?? '');
+            if ($pid !== '') $pending()->markUndone($pid);
+            if (!$mcpConfig->enabled()) return;
+            $mcpJournal->append($mcpJournal->entry(['method' => 'app/undo', 'name' => 'apply_proposal', 'result' => 'undone',
+                'version' => null, 'client' => []], ['id' => '', 'name' => (string)($e['by']['name'] ?? '')], 200, 0));
+        });
         $mcpCtrl = new \Energietracker\Controllers\McpController($mcpConfig, $this->auth, $this->i18n,
             fn(): \Energietracker\Services\Mcp\Server => $this->mcpServer($mcpConfig, $pending(), $mcpLimiter), $pending,
             $mcpLimiter, $mcpJournal,

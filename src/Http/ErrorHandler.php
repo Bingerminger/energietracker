@@ -69,15 +69,38 @@ final class ErrorHandler
      * @param array<string,mixed> $detail
      * @return array<string,mixed>
      */
-    public static function payload(int $status, string $message, array $detail, ?string $errorId, ?string $code = null): array
+    public static function payload(int $status, string $message, array $detail, ?string $errorId, ?string $code = null, ?array $publicDetail = null): array
     {
         $masked = $errorId !== null && $status >= 500 && $status !== 503;
         $public = !$masked ? $message
             : (self::$translate ? (self::$translate)('errors.http.internal', ['id' => $errorId]) : "Internal error ({$errorId})");
         $payload = ['success' => false, 'error' => $public, 'code' => $code ?? Response::codeFor($public, $status)];
         if ($masked) $payload['error_id'] = $errorId;
-        if (Response::debug()) $payload['detail'] = $detail + ['message' => $message];
+        // v3.13.0 — fachliche Angaben zum Fehler (Feld, Grenze, Länge) stehen immer da, die technischen nur mit ET_DEBUG
+        if ($publicDetail !== null && !$masked) $payload['detail'] = $publicDetail;
+        if (Response::debug()) $payload['detail'] = ($payload['detail'] ?? []) + $detail + ['message' => $message];
         return $payload;
+    }
+
+    /**
+     * v3.13.0 — Die Angaben einer Eingabe-Meldung mit Feldbezug als `detail` der Fehlerantwort, maschinenlesbar wie
+     * die Funde des Backup-Imports (`detail.problems`): `errors.common.tooLong` mit `field`, `max`, `length`,
+     * `errors.common.numberOutOfRange` mit `field`, `value`, `min`, `max`, `errors.common.boolExpected` mit `field` …
+     * Grenzen und Längen als Zahl. Bis v3.12 standen sie nur im übersetzten Satz; wer die API ohne Oberfläche nutzt
+     * (Home Assistant, KI, eigene Skripte), musste das Feld aus der Sprache der Installation lesen. Ohne `field` kein
+     * `detail` (die Angaben einer anderen Meldung sind Teil ihres Satzes, nicht der Schnittstelle).
+     *
+     * @return array<string,scalar>|null
+     */
+    public static function fieldDetail(\Energietracker\Support\LocalizedException $e): ?array
+    {
+        if (!is_string($e->params['field'] ?? null)) return null;
+        $out = [];
+        foreach ($e->params as $k => $v) {
+            if (!is_string($k) || !is_scalar($v)) continue;
+            $out[$k] = in_array($k, ['min', 'max', 'length'], true) && is_string($v) && is_numeric($v) ? $v + 0 : $v;
+        }
+        return $out;
     }
 
     /**
@@ -97,6 +120,7 @@ final class ErrorHandler
         $code = $e instanceof \Energietracker\Storage\StorageCorruptedException ? 'errors.storage.corrupted' : null;
         $message = $e->getMessage();
         $headers = [];
+        $public = null;
         // v3.1.0 (Review I18N-14) — Schlüssel statt Rohtext: in der Sprache der Anfrage
         // v3.4.0 (N1020) — 413/503 mit Schlüssel und Kopfzeilen (Retry-After)
         if ($e instanceof HttpStatusException) {
@@ -106,12 +130,16 @@ final class ErrorHandler
         } elseif ($e instanceof \Energietracker\Support\LocalizedException) {
             $code = $e->key;
             if (self::$translate) $message = (self::$translate)($e->key, $e->params);
+            $public = self::fieldDetail($e);   // v3.13.0 — Feld, Grenze, Länge maschinenlesbar
         } elseif ($e instanceof \Energietracker\Storage\StorageCorruptedException && self::$translate) {
             $message = (self::$translate)('errors.storage.' . $e->kind, ['file' => $e->dataFile, 'copy' => (string)$e->copy]);
+        } elseif ($e instanceof \Energietracker\Storage\StorageNotWritableException) {
+            $code = 'errors.storage.notWritable';   // v3.13.0 (K2d)
+            if (self::$translate) $message = (self::$translate)($code, []);
         }
         return [
             'status'  => $status,
-            'payload' => self::payload($status, $message, $detail, $expected ? null : $errorId, $code),
+            'payload' => self::payload($status, $message, $detail, $expected ? null : $errorId, $code, $public),
             'headers' => $headers,
             'level'   => $expected ? Logger::WARNING : Logger::ERROR,
             'context' => $detail + ['status' => $status] + ($expected ? ['code' => $code] : ['error_id' => $errorId]),
@@ -186,6 +214,8 @@ final class ErrorHandler
         // nicht „Serverfehler" (die Anwendung arbeitet korrekt, sie weigert sich
         // nur, eine kaputte Datei zu überschreiben).
         if ($e instanceof \Energietracker\Storage\StorageCorruptedException) return 503;
+        // v3.13.0 (K2d) — Datenverzeichnis nicht beschreibbar (fremder Besitzer): 503 mit Meldung, nicht 500
+        if ($e instanceof \Energietracker\Storage\StorageNotWritableException) return 503;
         if ($e instanceof HttpStatusException) return $e->status;   // v3.4.0 (N1020)
         if ($e instanceof NotFoundException) return 404;
         if ($e instanceof ConflictException) return 409;   // v2.6.0

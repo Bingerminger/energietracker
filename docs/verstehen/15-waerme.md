@@ -142,6 +142,14 @@ CSV-Monatsübersicht, Jahresbericht.
   richtet sich nach dem **Ende des letzten Zeitraums**, mit derselben Frist
   wie bei Ständen (Einstellungen → Anzeige und Erinnerungen → „Warnung nach“, Standard 45
   Tage).
+<!-- doc-claim: period-stichtag (StichtagPeriodsTest) -->
+- **Stichtag** *(v3.13.0)*: **Ein Zeitraum zählt ab seinem letzten Tag.** Wie
+  bei Zählerständen gilt der Stand an diesem Tag: Ein Zeitraum, der erst nach
+  dem Stichtag endet, zählt nicht mit. Der Januar zählt also ab dem 31. Januar. Das gilt
+  heute und für jeden anderen Tag, für den die App rechnet (Saldo,
+  Jahresbericht, Mietbudget, Prognose). Trägst du den laufenden Monat schon ein,
+  steht er in Verbrauch, Saldo und Prognose erst an seinem letzten Tag. Bis
+  v3.12 zählte jeder eingetragene Zeitraum sofort mit.
 
 ---
 

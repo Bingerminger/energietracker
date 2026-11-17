@@ -19,7 +19,7 @@ genügt ein PHP-fähiger Webserver und ein Browser.
 
 | Komponente | Mindestens | Empfohlen | Zweck |
 |---|---|---|---|
-| PHP | 8.3 | 8.5 | Backend-Laufzeit; die CI prüft 8.3 bis 8.5, das Docker-Image bringt seit v3.4.0 8.5 mit (Mindestversion 8.3 seit v3.12.0, 8.2 von v3.1.0 bis v3.11.0, vorher 8.4) |
+| PHP | 8.4 | 8.5 | Backend-Laufzeit; die CI prüft 8.4 und 8.5, das Docker-Image bringt seit v3.4.0 8.5 mit (Mindestversion 8.4 seit v3.13.0, 8.3 in v3.12, 8.2 von v3.1.0 bis v3.11.0, vorher 8.4) |
 | PHP-Erweiterungen | `json`, `mbstring` *(optional)* | dito | JSON-Speicher; `iconv` für PDF-Umlaute; `curl` für die Texterkennung (v3.1.0) |
 | Webserver | PHP built-in server | Apache/nginx | Auslieferung |
 | Browser | aktueller Chromium/Firefox/Safari | dito | SPA-Frontend (ES-Module) |

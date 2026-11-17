@@ -49,17 +49,33 @@ final class ContainerHardeningTest extends TestCase
         self::assertSame(2, substr_count($ci, 'php: ["8.4", "8.5"]'), 'lint-php und phpunit prüfen 8.4 bis 8.5');
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — Flags und Capabilities der CI-Probe nur aus ihrem eigenen
+     * `docker run` (et-hardened … energietracker:ci): Seit v3.5.0 steht `--read-only` auch im Schritt
+     * ohne root (et-rootless), eine Suche in der ganzen Datei fand es dort, auch wenn die Probe es verlor.
+     *
+     * @return list<string> Capabilities der Probe (--cap-add), sortiert
+     */
+    private static function hardenedCiProbe(string $ci): array
+    {
+        self::assertSame(1, preg_match('/docker run -d --name et-hardened(.*?)energietracker:ci\n/s', $ci, $run),
+            'CI-Probe et-hardened fehlt');
+        $probe = $run[1];
+        foreach (['--security-opt no-new-privileges:true', '--cap-drop ALL', '--read-only', '--tmpfs /run', '--tmpfs /tmp',
+                  '--tmpfs /var/lib/nginx/tmp', '-p 127.0.0.1:8081:80'] as $flag) {
+            self::assertStringContainsString($flag, $probe, "CI-Probe ohne $flag");
+        }
+        preg_match_all('/--cap-add ([A-Z_]+)/', $probe, $caps);
+        $caps = array_values(array_unique($caps[1]));
+        sort($caps);
+        self::assertNotSame([], $caps, 'CI-Probe ohne --cap-add');
+        return $caps;
+    }
+
     /** Das gehärtete Beispiel der Doku ist genau das, was die CI startet. */
     public function testHardenedComposeExampleMatchesTheCiProbe(): void
     {
-        $ci = self::file('.github/workflows/ci.yml');
-        foreach (['--security-opt no-new-privileges:true', '--cap-drop ALL', '--read-only', '--tmpfs /run', '--tmpfs /tmp',
-                  '--tmpfs /var/lib/nginx/tmp', '-p 127.0.0.1:8081:80'] as $flag) {
-            self::assertStringContainsString($flag, $ci, "CI-Probe ohne $flag");
-        }
-        preg_match_all('/--cap-add ([A-Z_]+)/', $ci, $caps);
-        $caps = array_values(array_unique($caps[1]));
-        sort($caps);
+        $caps = self::hardenedCiProbe(self::file('.github/workflows/ci.yml'));
         foreach (['docs/betrieb/docker.md', 'docs/en/betrieb/docker.md'] as $doc) {
             preg_match_all('/```yaml\n(.*?)```/s', self::file($doc), $blocks);
             // v3.5.0 — das Beispiel ohne root prüft RootlessImageTest

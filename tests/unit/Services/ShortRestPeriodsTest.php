@@ -74,6 +74,10 @@ final class ShortRestPeriodsTest extends ServiceTestCase
         // bis v3.6: …2024-08-31..2024-08-31+S, …2025-08-31..2025-08-31+S
         self::assertSame(['2023-09-01..2024-08-31+S/teil', '2024-09-01..2025-08-31+S', '2025-09-01..2026-08-30*'], self::spans($r['periods']));
         self::assertSame('2024/25', $r['periods'][1]['label'], 'ein ganzes Vertragsjahr trägt seinen Namen');
+        // v3.13.0 (Paket gegenproben) — die erste Periode entsteht durch Zusammenlegen (2023-09-01..2024-08-30
+        // plus der Kurzrest 31.08.); sie ist ein ganzes Jahr und bekommt nach dem Zusammenlegen ihren Namen.
+        // Seit v3.9.0 (M7) entsteht 2024/25 als Lieferzeit zwischen zwei Wechseln, nicht mehr durch Zusammenlegen.
+        self::assertSame('2023/24', $r['periods'][0]['label'], 'die zusammengelegte Periode trägt den Namen des ganzen Jahres');
         foreach ($r['periods'] as $p) {
             self::assertGreaterThanOrEqual(BillingPeriodService::SHORT_REST_DAYS, (int)$p['days'], "keine Periode unter zwei Wochen: {$p['from']}");
         }

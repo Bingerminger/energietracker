@@ -104,10 +104,17 @@ function seriesSum(array $tm, array $names, string $ym): ?float
 }
 
 // ── Datenverzeichnis am Schnitt ──────────────────────────────────────────
-/** Ein Normal, dessen Monate das Ist-Wetter des Fensters tragen (Streuung aus dem echten Normal). */
+/**
+ * Ein Normal, dessen Monate das Ist-Wetter des Fensters tragen (Streuung aus dem echten Normal).
+ *
+ * v3.13.0 (Paket gegenproben) — ohne die Trendfelder des Normals (`temp_trend*`, `rad_month_trend`, `rad_trend_*`):
+ * Sie schreiben die dreißig Jahre fort, das Ist-Wetter des Fensters kennt keinen Trend. Blieben sie stehen, rechnete
+ * die App „nachgerechnet“ mit der fortgeschriebenen Einstrahlung statt mit der gemessenen (Einspeise-Saldo).
+ */
 function windowNormal(array $normal, array $actual, string $fromYm): array
 {
-    $n = $normal;
+    $n = array_filter($normal, fn($k) => !str_starts_with((string)$k, 'temp_trend') && !str_starts_with((string)$k, 'rad_trend_')
+        && $k !== 'rad_month_trend', ARRAY_FILTER_USE_KEY);
     $n['period'] = ['from' => "$fromYm-01", 'to' => date('Y-m-t', strtotime("$fromYm-01 +11 months"))];
     $n['fetched_at'] = "$fromYm-01T00:00:00+01:00";
     foreach (ymRange($fromYm, 12) as $ym) {

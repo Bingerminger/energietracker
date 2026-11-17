@@ -79,7 +79,7 @@ final class ContractTools extends ToolGroup
             $group = is_array($status['group_contract'] ?? null) ? $status['group_contract'] : null;
             $out[] = self::compact([
                 'target'         => ['id' => (string)$t['id'], 'is_group' => !empty($t['is_group'])],
-                'untrusted'      => Sanitize::untrusted(['name' => $this->masked((string)($t['name'] ?? ''))]),
+                'untrusted'      => Sanitize::untrusted(['name' => $this->maskedName((string)($t['name'] ?? ''))]),
                 // Mitglied einer Gruppe mit Gruppenvertrag: Saldo und Abschläge stehen an der Gruppe
                 'group_contract' => $group !== null && is_string($group['group_id'] ?? null) ? ['group_id' => $group['group_id']] : null,
             ]) + ['contracts' => $rows];

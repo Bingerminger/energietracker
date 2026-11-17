@@ -250,6 +250,8 @@ t('Kein Abruf von /api/mcp', !calls.some(c => /\/api\/mcp/.test(c)), calls.filte
 console.log('Alte Adressen');
 t('Sprungmarke des Servers kommt an', routeExists('/todo') && redirectFor('/recommendations', q('rec=x')) === '#/todo?art=rec&rec=x');
 const demo = readFileSync(resolve(ROOT, 'public/js/lib/demo-mode.js'), 'utf8');
-t('Demo: Zeile „Neu in“ führt zur neuen Adresse', /DEMO_NEWS = \{[^}]*#\/connections\/ai\?mcp=value/.test(demo));
+// v3.13.0 — die Zeile führt zur Hauptfunktion des laufenden Release (Prognose), über eine Adresse, die es gibt
+const newsHref = (demo.match(/DEMO_NEWS = \{[^}]*href: '([^']+)'/) || [])[1] || '';
+t('Demo: Zeile „Neu in“ führt zu einer Adresse, die es gibt', newsHref.startsWith('#/') && routeExists(newsHref.slice(1).split('?')[0]));
 console.log(`\n  zutun-verbindungen: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

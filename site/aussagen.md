@@ -5,9 +5,32 @@ Jede Tatsachenbehauptung auf den Seiten trägt eine Kennung (`data-c` im HTML, `
 `node tools/build.mjs --check` bricht ab, wenn die Seite eine Kennung benutzt, die hier
 fehlt, oder hier eine Zeile steht, die keine Seite benutzt.
 
-Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
-`e3ed91b0` (Stand v3.12.0 vom 2026-11-10: Bilder neu seit `0e09c74a`, PHP 8.3 als Mindestversion seit `e3ed91b0`; übrige Inhalte wie `40b8704d`, gegen den die Texte geprüft wurden). „HA“ ist `energietracker-ha`, „HACS“ ist
-`energietracker-integration`. Wo ein Test genannt ist, sichert er die Aussage im Code.
+Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand v3.13.0 (geprüft am Stand
+`760f87e2` vor dem Release; PHP 8.4 als Mindestversion). Die Texte zu v3.12.0 und älter
+wurden gegen `40b8704d` geprüft. „Home-Assistant-App“ ist `energietracker-ha`, „Integration“ ist
+`energietracker-integration` (Texte zum Marketplace, ehemals HACS: Stand 2026-11-17, Integration auf dem Branch
+`v1.1.0`). Wo ein Test genannt ist, sichert er die Aussage im Code.
+
+## Bilder und Animationen
+
+- **Statische Bilder** holt `node tools/bilder.mjs` aus dem Haupt-Repo (Aufnahmen unter `docs/ui/screenshots/`,
+  dunkle Fassungen unter `tools/quellen/dunkel/`), Herkunft je Bild in `assets/img/quellen.json`.
+- **Animationen** (seit v3.13.0) nimmt `tools/build-animations.mjs` im Haupt-Repo aus der echten App auf: je Szene
+  Deutsch und Englisch, hell und dunkel, Beispielhaushalt „Schaufenster“, Uhr von Server und Browser fest auf einem
+  Stichtag. Ergebnis unter `assets/img/anim/` (animiertes WebP, kein GIF, `quellen.json` mit Maßen, Größe und
+  Stichtag); das Rückfallbild ist ein Bild desselben Laufs und wird über `tools/bilder.mjs` zu
+  `assets/img/screens/<szene>[-dunkel].<lang>.webp`. Den Vorschlag der KI in der Szene `ki` legt das Skript über die
+  echte KI-Schnittstelle an (MCP, Schlüssel mit „lesen und vorschlagen“), nicht ein Sprachmodell.
+- **Für das nächste Release** im Haupt-Repo, mit dem Stichtag der Aufnahmen:
+
+  ```bash
+  NODE_PATH=<node_modules mit playwright> node tools/build-animations.mjs --heute=JJJJ-MM-TT
+  ```
+
+  Das startet eigene Server (Ports 19454 und 19455, `--port=` ändert sie), nimmt alle Szenen auf und ruft danach
+  `site/tools/bilder.mjs` und `site/tools/build.mjs` auf. Braucht `php`, `faketime` und `img2webp` (`ffmpeg` nur
+  für den Kontaktbogen von `--frames`). Regel R12 in `tools/build.mjs` prüft, dass jede Animation ein WebP mit
+  ihrem Rückfallbild ist, keine Datei über 1,5 MB liegt und unter `assets/img/anim/` kein GIF.
 
 ## Einstieg
 
@@ -22,7 +45,7 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 | `demo-browser` | Die Demo läuft ganz im Browser, ohne Installation. | CHANGELOG 3.12.0 „Bekannte Grenzen“, Absatz HACS („sie läuft ohne Server“); CHANGELOG 3.0.0 (Demo auf GitHub Pages) |
 | `bsp-erfunden` | Die Beispielhaushalte und alle Zahlen und Angaben darin sind erfunden. | `docs/anleitungen/anwendungsfaelle.md` „Beispielhaushalte zum Ansehen“ („mit erfundenen Daten“); CHANGELOG 3.12.0 „Schaufenster und Demo: erfundener Absender, Anschriften und Nummern“; Bilder aus `demo-data/` (`docs/entwicklung/screenshots.md`) |
 | `uebersicht` | Die Übersicht antwortet zuerst: Was ist zu tun, bekomme ich Geld zurück, mehr oder weniger als im Vorjahr; darunter eine Kachel je Verbrauchsart mit Trend. | CHANGELOG 3.12.0 „Neue Oberfläche“ („Die Übersicht antwortet zuerst“), Bild `docs/assets/promo/screens/uebersicht.de.png` |
-| `neu-312` | Neu in 3.12.0: Deine KI fragt im Energietracker nach, Home Assistant bekommt Sensoren über HACS, die Oberfläche ist neu. | CHANGELOG 3.12.0 „Kurzfassung“, erste drei Punkte |
+| `neu-313` | Neu in 3.13.0: Der Saldo der Einspeisung rechnet mit der Sonne, HT und NT gelten als ein Vertrag. | CHANGELOG 3.13.0 „Kurzfassung“, erste zwei Punkte |
 | `handy` | Am Handy eine Leiste mit Übersicht, Zu tun, Erfassen, Verbrauch und Mehr; als App auf dem Home-Bildschirm. | CHANGELOG 3.12.0 „Menü in zwei Bereichen“ („Am iPhone eine Leiste mit Übersicht, Zu tun, ＋, Verbrauch und Mehr“), `docs/einstieg/handy.md` § 2 |
 | `arten` | Neun Verbrauchsarten: Gas, Strom, Wasser, Fernwärme, Heizöl, Pellets, PV-Einspeisung, PV-Erzeugung, Heizwärme. | `README.de.md` „Neun Verbrauchsarten“, `src/Config/Utilities.php` (neun Einträge) |
 | `sprachen` | Sieben Sprachen: Deutsch, Englisch, Französisch, Italienisch, Spanisch, Portugiesisch, Niederländisch. | `README.de.md` „In sieben Sprachen“, `public/locales/` |
@@ -38,7 +61,22 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 | `jaz` | Jahresarbeitszahl der Wärmepumpe aus Wärmemengen- und Stromzähler, je Monat und für die Heizperiode. | `docs/einstieg/funktionen.md` „Wärmepumpe (v3.1.0)“ |
 | `werkstatt-pv` | Die Werkstatt rechnet größere Anlage, Speicher, mehr Eigenverbrauch oder andere Vergütung als Modellwert aus dem gemessenen Jahr, mit genannter Grundlage. | CHANGELOG 3.12.0 „PV in der Werkstatt“ (F1040), `docs/anleitungen/was-waere-wenn.md` § 6b, Bild `docs/ui/screenshots/werkstatt-pv.png` |
 | `evcc` | Ladevorgänge aus evcc. | `docs/einstieg/funktionen.md` („Ladevorgänge aus evcc“), `docs/anleitungen/evcc.md` |
-| `grenze-wp-wetter` | Die Prognose für Wärmepumpe, PV und Speicher nach dem Wetter kommt mit v3.13 (ohne festen Termin seit 2026-11-12). | CHANGELOG 3.12.0 „Bekannte Grenzen“ und Schlusssatz („v3.13.0 ist für Dienstag, 17. November 2026 geplant“), `roadmap.md` „Als Nächstes“ |
+| `grenze-wp-wetter` | Die Prognose für Wärmepumpe und PV nach dem Wetter ist in v3.13 gebaut, bleibt aber aus, bis sie ihre vorab festgelegte Prüfung besteht; sie rechnen weiter wie bisher, die App sagt es dort; mit v3.14 wird sie erneut geprüft. | CHANGELOG 3.13.0 „Gebaut, geprüft, noch aus“ und „Bekannte Grenzen“ (erster Punkt, Schlusssatz), `docs/verstehen/02-strom.md` „Wärmepumpe nach dem Wetter (v3.13.0, noch nicht freigeschaltet)“, `docs/verstehen/12-pv.md` § 12, `roadmap.md` „Als Nächstes“ |
+
+## Neu in 3.13
+
+| Kennung | Aussage | Beleg |
+|---|---|---|
+| `pruefhaushalt` | Die Prognose nach dem Wetter ist gebaut; angezeigt wird nur, was seine Prüfung besteht, gemessen an einem Prüfhaushalt mit eigener Physik gegen vorab festgelegte Schwellen. | CHANGELOG 3.13.0 Einleitung und „Gebaut, geprüft, noch aus“ („Der Prüfstand“), `tests/fixtures/heatpump-household/schwellen.json`, Test `tests/unit/Services/HeatPumpHouseholdTest.php` |
+| `einspeisung-sonne` | „Erwartet bei Abrechnung“ der Einspeisung rechnet mit der Einstrahlung je Tag. | CHANGELOG 3.13.0 „Kurzfassung“ und „Sonne und Einspeisung“, `docs/verstehen/12-pv.md` § 12 (doc-claim `pv-weather`); Test `tests/unit/Services/PvWeatherForecastTest.php` |
+| `auszahlungen` | Was der Netzbetreiber überwiesen hat, erfasst du an der Saldo-Karte; sie zeigt bereits ausgezahlt und noch offen, dazu die erwartete Auszahlung bei der Abrechnung. | CHANGELOG 3.13.0 „Auszahlungen der Einspeisung erfassen“, `docs/verstehen/12-pv.md` § 13; Test `tests/unit/Services/FeedInPayoutServiceTest.php`; Animation `prognose-strom` (PV-Einspeisung, Saldo und Vertrag) |
+| `htnt-gruppe` | Die Prognose rechnet eine Gruppe mit Gruppenvertrag (HT/NT) als Ganzes: Menge HT + NT, Kosten jedes Zählwerk zu seinem Preis, mit Grundpreis; in der Werkstatt ist die Gruppe ein Ziel. | CHANGELOG 3.13.0 „HT und NT als ein Vertrag ([#40])“, `docs/verstehen/02-strom.md` „Hoch- und Niedertarif“; Test `tests/unit/Services/HtNtGroupForecastTest.php`; Animation `prognose-strom` (Ziel „Gruppe: Wärmepumpe (HT/NT)“) |
+| `speicher-wallbox-neu` | Nach einem neuen Speicher zieht die Prognose der Einspeisung die Ladung von den Monaten davor ab; Monate einer neuen Wallbox ohne Vorgeschichte kommen aus den Ladevorgängen oder einer genannten Annahme. | CHANGELOG 3.13.0 „Speicher und Wallbox neu im Verlauf“, `docs/verstehen/12-pv.md` § 14 (doc-claim `battery-arrival`), `docs/verstehen/02-strom.md` „Wallbox neu im Verlauf (v3.13.0)“; Test `tests/unit/Services/DeviceArrivalTest.php` |
+| `rueckfrage-wetter` | Die Rückfrage beim Eintragen vergleicht mit der Erwartung nach dem Wetter seit der letzten Ablesung und fragt beim Heizbeginn nicht mehr fälschlich nach einem Tippfehler; ein vergessenes Komma fängt sie weiter. | CHANGELOG 3.13.0 „Kurzfassung“ ([#65]) und „Bekannte Grenzen“ (Rückfrage beim Eintragen), `docs/verstehen/11-zaehlerstaende.md` „Nach dem Wetter (v3.13.0)“ (doc-claim `reading-expectation-example`); Test `tests/unit/Services/ReadingExpectationTest.php`; Animation `rueckfrage` |
+| `abschlag-rate` | Abschläge zählen tagesanteilig oder als ganze Rate am Fälligkeitstag, eine Einstellung für alle Verträge. | CHANGELOG 3.13.0 „Abschläge zählen“, `docs/verstehen/00-overview.md` § 10 „Saldo bis heute“ |
+| `posteingang-je-eintrag` | Listen im Posteingang (Preise, Abschläge, Stände und weitere) bestätigst, korrigierst oder verwirfst du Eintrag für Eintrag. | CHANGELOG 3.13.0 „Posteingang und KI“, erster Punkt; Test `tests/unit/Services/InboxListItemsTest.php` |
+| `ki-rueckgaengig` | Übernahmen der KI nimmst du im Verlauf zurück, solange sich seitdem nichts daran geändert hat. | CHANGELOG 3.13.0 „Posteingang und KI“, zweiter Punkt; Test `tests/unit/Services/Mcp/McpUndoTest.php` |
+| `posteingang` | Der Posteingang liest Versorgerpost als PDF aus, zeigt zu jedem Wert die Belegstelle und markiert, was nicht passt; übernommen wird erst nach Bestätigung, danach prüft „Rechnung prüfen“ die Rechnung gegen die eigenen Daten. | `docs/anleitungen/posteingang.md` (Belegstelle, Abschnitt „Ausgelesen“, Tabelle der Arten: Rechnung „Übernehmen und prüfen“, „nach der Übernahme läuft Rechnung prüfen von selbst“); Animation `posteingang` |
 
 ## Haus mit Gas, Öl oder Pellets
 
@@ -64,13 +102,15 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 
 | Kennung | Aussage | Beleg |
 |---|---|---|
-| `ha-tagline` | Home Assistant misst, der Energietracker rechnet ab; HA liefert die Stände still im Hintergrund. | `README.de.md` Zeile 5, `docs/anleitungen/home-assistant.md` „Ziel“ |
+| `ha-tagline` | Home Assistant misst, der Energietracker rechnet ab; Home Assistant liefert die Stände still im Hintergrund. | `README.de.md` Zeile 5, `docs/anleitungen/home-assistant.md` „Ziel“ |
 | `ha-ingest` | Zählerstände kommen täglich oder je Viertelstunde über einen REST-Befehl, geschützt mit einem Schlüssel. | `docs/anleitungen/home-assistant.md` „Überblick“ (API-Token, REST-Command), Schritte 3 und 4, „Viertelstunden“ (v3.3.0) |
-| `ha-app` | Als App in Home Assistant OS: Seitenleiste, Anmeldung mit HA-Benutzern, Daten in HA-Sicherungen. | HA `README.md`, `docs/anleitungen/home-assistant.md` „Als App in Home Assistant OS“ |
-| `hacs` | HACS-Integration: Sensoren ohne YAML für Zu tun, nächsten Termin, je Zähler Saldo, Verbrauch seit Jahresbeginn, Prognose 12 Monate, Tage seit Ablesung. | HACS `README.md` „Sensors“, CHANGELOG 3.12.0 „HACS-Integration 1.0.0 (F1038)“, `custom_components/energietracker/manifest.json` (1.0.0) |
+| `ha-app` | Als App in Home Assistant OS: Seitenleiste, Anmeldung mit den Benutzern von Home Assistant, Daten in den Sicherungen von Home Assistant. | Home-Assistant-App `README.md`, `docs/anleitungen/home-assistant.md` „Als App in Home Assistant OS“ |
+| `integration-sensoren` | Integration für Home Assistant: Sensoren ohne YAML für Zu tun, nächsten Termin, je Zähler Saldo, Verbrauch seit Jahresbeginn, Prognose 12 Monate, Tage seit Ablesung. | Integration `README.md` „Sensors“, CHANGELOG 3.12.0 „HACS-Integration 1.0.0 (F1038)“ (Überschrift von damals), `custom_components/energietracker/manifest.json` (seit 1.0.0) |
+| `integration-11` | Die Integration 1.1.0 bringt Bestand und Füllstand von Heizöl und Pellets, Prognose 12 Monate und Prognose Kosten 12 Monate einer Gruppe mit Gruppenvertrag (HT/NT) und für die Einspeisung Bereits ausgezahlt, Noch offen und Offen bei Abrechnung; die neuen Sensoren brauchen Energietracker 3.13.0. | CHANGELOG 3.13.0 Abschnitt Added › „Home Assistant“ (Integration 1.1.0) und „Für bestehende Installationen“; Integration `README.md` „Requirements“ und „Sensors“ |
 | `ha-notify` | Fristen und neue Post meldet der Energietracker selbst an Home Assistant. | `docs/anleitungen/home-assistant.md` „Überblick“ Punkt 5 und Schritt 6 (seit v3.9.0) |
-| `ha-experimentell` | Die App für Home Assistant ist als experimentell markiert. | HA `energietracker/config.yaml` (`stage: experimental`), HA `README.md` |
-| `hacs-custom` | Die Integration ist ein benutzerdefiniertes Repository im Marketplace oder in HACS, bis HACS sie aufnimmt; das dauert laut HACS Monate. | CHANGELOG 3.12.0 „Bekannte Grenzen“, Punkt HACS; Antrag hacs/default#13856; Marketplace ab Home Assistant 2026.11 (Katalog `hacs/default`, Abnahme 2026-11-10) |
+| `ha-experimentell` | Die App für Home Assistant ist als experimentell markiert. | Home-Assistant-App `energietracker/config.yaml` (`stage: experimental`), Home-Assistant-App `README.md` |
+| `standardliste` | Die Integration steht in der Standardliste des Marketplace (ehemals HACS); im Marketplace (ab Home Assistant 2026.11) und in HACS (2026.3 bis 2026.10) findet die Suche nach „Energietracker“ sie. | hacs/default#13856, zusammengeführt am 2026-11-16 (Eintrag `Bingerminger/energietracker-integration` in `hacs/default` › `integration`); Marketplace ab Home Assistant 2026.11 mit dem Katalog `hacs/default` (Abnahme 2026-11-10); CHANGELOG 3.13.0 Abschnitt Changed › „Betrieb und Doku“; Integration `README.md` „Installation“ |
+| `integration-logo` | Das Bild im Abschnitt Home Assistant ist das eigene Logo der Integration, hell und dunkel; kein Logo von Home Assistant, Marketplace oder HACS. | Integration `custom_components/energietracker/brand/logo.png` und `dark_logo.png` (460 × 128), hier als `assets/img/integration-logo.png` und `integration-logo-dunkel.png`, mit pngquant verkleinert (Herkunft in `assets/img/quellen.json`); Entscheidung des Maintainers vom 2026-11-17 (eigenes Logo ja, Logos Dritter nein) |
 | `verbindungen` | Verbindungen: Daten holen und Daten geben, je mit Stand; alles freiwillig, ohne Verbindung läuft die App vollständig. | Bild `docs/ui/screenshots/verbindungen.png`, Text in `public/locales/de.json` („Ohne eine einzige Verbindung läuft die App vollständig“), CHANGELOG 3.12.0 „Verbindungen“ |
 | `wegweiser` | Der Wegweiser der App zeigt sechs Wege: von Hand, mit Versorgerpost, mit Home Assistant, mit KI lokal, mit KI in der Cloud (experimentell), alles zusammen. | CHANGELOG 3.12.0 „Wegweiser (F1039)“, Schaubilder `docs/ui/wegweiser/*.svg` |
 
@@ -123,7 +163,7 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 | `sbom` | Jedes Image trägt Stückliste und Herkunftsnachweis. | `SECURITY.md` „Das Image prüfen“ (seit 2.6.0) |
 | `neubau` | Jeden Dienstag wird das neueste Release neu gebaut und auf bekannte Lücken geprüft. | `SECURITY.md` „Container-Image: Prüfung und Fristen“ |
 | `security-melden` | Sicherheitslücken vertraulich über GitHub melden; Eingangsbestätigung binnen 7 Tagen. | `SECURITY.md` „Eine Sicherheitslücke melden“ |
-| `tests` | 3.12.0 hat 2.667 Testmethoden; jede neue Regel hat eine Gegenprobe, die sie bricht; Rechenwege von Hand nachgerechnet; jede Zahl im README hängt an einem Test. | CHANGELOG 3.12.0 Abschnitt „Tests“ (letzter Punkt, „Rechnen, von Hand nachgerechnet“, `ReadmeClaimsTest`) |
+| `tests` | 3.13.0 hat 3.163 Testmethoden; jede neue Regel hat eine Gegenprobe, die sie bricht; Rechenwege von Hand nachgerechnet; jede Zahl im README hängt an einem Test. | CHANGELOG 3.13.0 Abschnitt „Tests“ (letzter Punkt; „Handrechnung“ beim zweiten unordentlichen Testhaushalt), CHANGELOG 3.12.0 „Tests“ (`ReadmeClaimsTest`) |
 | `stabil` | API, CSV-Formate und Backup-Format ändern sich nur additiv; entfernt wird erst mit neuer Hauptversion nach Ankündigung. | `README.de.md` „Stand“ |
 | `roadmap-takt` | Ein Release hat ein Thema, erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Wochen. | `roadmap.md` „Als Nächstes“ |
 | `ideen-bewertet` | Vor jedem Release werden Ideen nach Nutzen für viele, Nähe zur Rechnung, Aufwand und Datenschutz bewertet; angenommene bekommen einen Milestone, abgelehnte eine Begründung. | `roadmap.md` „Wünsche und Fehler melden“ |
@@ -142,14 +182,14 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 
 | Kennung | Aussage | Beleg |
 |---|---|---|
-| `image-gleich` | Überall läuft dasselbe Programm; die App für Home Assistant nutzt dasselbe Image wie Docker. | HA `README.md` („runs the regular multi-arch image“), `docs/anleitungen/home-assistant.md` („dasselbe Image wie der Docker-Betrieb“) |
+| `image-gleich` | Überall läuft dasselbe Programm; die App für Home Assistant nutzt dasselbe Image wie Docker. | Home-Assistant-App `README.md` („runs the regular multi-arch image“), `docs/anleitungen/home-assistant.md` („dasselbe Image wie der Docker-Betrieb“) |
 | `multiarch` | Das Image gibt es für amd64 und arm64. | `README.de.md` Abzeichen „Docker: amd64 und arm64“, `docs/betrieb/docker.md` „Synology Container Manager“ („das Image ist Multi-Arch“) |
 | `install-docker` | `docker run` wie angegeben, `http://localhost:8080` öffnen, „Mit Beispieldaten ausprobieren“ ohne Verlust eigener Daten. | `README.de.md` „Schnellstart“ |
-| `install-ha` | Repository hinzufügen (ein Klick oder Einstellungen › Apps › ⋮ › Repositories), installieren und starten, in der Seitenleiste öffnen; wer zuerst öffnet, verwaltet. | `docs/anleitungen/home-assistant.md` „Als App in Home Assistant OS“, „Installieren“, HA `README.md` |
-| `install-hacs` | Sensoren über die Integration als benutzerdefiniertes Repository, im Marketplace (ab Home Assistant 2026.11, einmal mit GitHub verbinden) oder in HACS; der Knopf öffnet sie in Home Assistant. | `README.md` der Integration „Installation“; Abnahme 2026-11-10 in Home Assistant 2026.11.1 (Marketplace bietet v1.0.1 an, `hacs_repository` leitet auf den Marketplace um) |
+| `install-ha` | Repository hinzufügen (ein Klick oder Einstellungen › Apps › ⋮ › Repositories), installieren und starten, in der Seitenleiste öffnen; wer zuerst öffnet, verwaltet. | `docs/anleitungen/home-assistant.md` „Als App in Home Assistant OS“, „Installieren“, Home-Assistant-App `README.md` |
+| `install-integration` | Sensoren über die Integration: im Marketplace (ehemals HACS) nach „Energietracker“ suchen und installieren; in Home Assistant 2026.3 bis 2026.10 heißt der Weg HACS, ebenfalls über die Suche; der Knopf öffnet sie in Home Assistant. | Integration `README.md` „Installation“ (zuerst die Suche im Marketplace, ein Satz zu HACS für 2026.3 bis 2026.10), `hacs.json` (`homeassistant`: `2026.3.0`); Abnahme 2026-11-10 in Home Assistant 2026.11.1 (Marketplace bietet v1.0.1 an, `hacs_repository` leitet auf den Marketplace um) |
 | `install-nas` | Synology: Container Manager, Projekt › Erstellen, Ordner und `docker-compose.yml`, Projekt starten, `http://<NAS-Adresse>:8080`. | `docs/betrieb/docker.md` „Synology Container Manager“ |
 | `nas-vorlagen` | Vorlagen für Unraid, CasaOS und Umbrel liegen bei; die Unraid-Vorlage ist gegen Format und Image geprüft, auf einem echten Server nicht ausprobiert. | `docs/betrieb/docker.md` „Unraid“ (Kasten „Wie geprüft“), „CasaOS und ZimaOS“, „Umbrel“; `deploy/` |
-| `install-web` | Apache oder nginx mit PHP ab 8.3, ohne Composer; `.htaccess` bzw. `docker/nginx.conf`; Schreibrecht auf `data/`. | `docs/betrieb/installation.md` §§ 1 und 3, `docs/betrieb/webserver.md`, `README.de.md` („Ohne Docker genügt PHP ab 8.3“), CHANGELOG 3.12.0 („PHP 8.3 ist jetzt die Mindestversion“) |
+| `install-web` | Apache oder nginx mit PHP ab 8.4, ohne Composer; `.htaccess` bzw. `docker/nginx.conf`; Schreibrecht auf `data/`. | `docs/betrieb/installation.md` §§ 1 und 3, `docs/betrieb/webserver.md`, `README.de.md` („Ohne Docker genügt PHP ab 8.4“), CHANGELOG 3.13.0 „Für bestehende Installationen“ („PHP 8.4 ist jetzt die Mindestversion“) |
 | `anmeldung` | Ohne Anmeldung kann jeder, der die App erreicht, alles lesen und ändern; im Heimnetz in Ordnung, vor Zugriff von außen einschalten. | `README.de.md` Warnkasten unter „Schnellstart“ |
 
 ## Vorhaben und Mitmachen
@@ -158,8 +198,8 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 |---|---|---|
 | `offen` | Code, Handbuch, Roadmap und jede Änderung sind öffentlich. | öffentliche Repositories auf GitHub, `CHANGELOG.md`, `roadmap.md`, `docs/` |
 | `repo-main` | Hauptrepo: die App mit Handbuch auf Deutsch und Englisch, Roadmap und CHANGELOG, AGPL-3.0-or-later. | `README.de.md`, `docs/README.md`, `docs/en/README.md`, `LICENSE` |
-| `repo-ha` | Die App für Home Assistant nutzt dasselbe Image wie Docker; ihre Version ist die des Energietrackers. | HA `README.md` |
-| `repo-hacs` | Die HACS-Integration liest nur stabile Schnittstellen; ein neues Release des Energietrackers braucht kein neues der Integration. | HACS `README.md` „Versions“ |
+| `repo-ha` | Die App für Home Assistant nutzt dasselbe Image wie Docker; ihre Version ist die des Energietrackers. | Home-Assistant-App `README.md` |
+| `repo-integration` | Die Integration für Home Assistant liest nur stabile Schnittstellen; ein neues Release des Energietrackers braucht kein neues der Integration. | Integration `README.md` „Versions“ |
 | `unabhaengig` | Unabhängig: keine Firma dahinter, keine Werbung, kein Cloud-Konto. | `README.de.md` „Unterstützen“ |
 | `freizeit` | Der Energietracker wird in der Freizeit gepflegt. | `SECURITY.md` „Eine Sicherheitslücke melden“ |
 | `stern` | Ein Stern auf GitHub hilft, wie Fehlermeldungen und Weitersagen. | `README.de.md` „Unterstützen“ |
@@ -192,7 +232,7 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 | `kennzahlen` | Kennzahlen: Effizienz in kWh je m² mit Klasse, Einordnung als Ampel, Bestand in den Tanks. | `docs/einstieg/funktionen.md` „Effizienz“ und „Einordnung … als Ampel“, CHANGELOG 3.12.0 „Auswertungen › Kennzahlen“ |
 | `sparen-belegbar` | Keine erfundenen Sparbeträge, du siehst deine eigenen Zahlen. | `README.de.md` „Auf einen Blick“, Zeile „Sparen, wo es belegbar ist“ |
 | `abschlag-brief` | Ist der Abschlag deutlich zu hoch, gibt es den Antrag als Brief (Strom, Gas, Fernwärme). | `docs/verstehen/17-rechte.md` „Auf einen Blick“, Zeile „Abschlag deutlich zu hoch“ (Antrag auf Abschlagsanpassung), CHANGELOG 3.12.0 „Brief schreiben am Vertrag“ |
-| `demo-routen` | Die Sprünge führen in den genannten Beispielhaushalt und die genannte Ansicht der Demo. | `public/js/lib/demo-mode.js` (`?persona=`, `?lang=`; Haushalte `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern`, `showcase`), `public/js/router.js` `ROUTES` (jede verlinkte Ansicht steht dort), Stufe Experte ab Werk in der Demo (`public/js/lib/levels.js`); `#/utility/strom`, `#/tenancy`, `#/bill-check`, `#/tariffs`, `#/forecast`, `#/todo?art=rights`, `#/connections/ai?mcp=value` am 2026-11-10 in v3.12.0 lokal geöffnet |
+| `demo-routen` | Die Sprünge führen in den genannten Beispielhaushalt und die genannte Ansicht der Demo. | `public/js/lib/demo-mode.js` (`?persona=`, `?lang=`; Haushalte `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern`, `showcase`), `public/js/router.js` `ROUTES` (jede verlinkte Ansicht steht dort), Stufe Experte ab Werk in der Demo (`public/js/lib/levels.js`); `#/utility/strom`, `#/tenancy`, `#/bill-check`, `#/tariffs`, `#/forecast`, `#/todo?art=rights`, `#/connections/ai?mcp=value` am 2026-11-10 in v3.12.0 lokal geöffnet; seit v3.13.0 dazu `#/utility/gas?view=balance` (Sicht `balance` in `public/js/views/utility.js`) und `#/inbox` |
 
 ## Alle Energieträger
 
@@ -213,14 +253,14 @@ Pfade ohne Zusatz liegen im Haupt-Repo `Bingerminger/energietracker`, Stand
 | Kennung | Aussage | Beleg |
 |---|---|---|
 | `ha-vorlagen` | Unter Verbindungen › Home Assistant stehen die Vorlagen zum Kopieren. | `docs/anleitungen/home-assistant.md` „Überblick“ („unter Verbindungen → Home Assistant vorbereiten, inkl. Copy-&-Paste-YAML“) |
-| `hacs-voraussetzung` | Die HACS-Integration braucht den Energietracker ab 3.9.0 und Home Assistant ab 2026.3. | HACS `README.md` „Requirements“, `hacs.json` (`homeassistant`: `2026.3.0`) |
+| `integration-voraussetzung` | Die Integration braucht den Energietracker ab 3.9.0 und Home Assistant ab 2026.3. | Integration `README.md` „Requirements“, `hacs.json` (`homeassistant`: `2026.3.0`) |
 | `ki-cloud-kosten` | Wer eine KI in der Cloud anbindet, zahlt dort womöglich deren Anbieter. | `docs/anleitungen/ki-assistent.md` („Ein Modell in der Cloud … dort können Kosten entstehen“) |
 | `backup` | Backup als Datei. | `README.de.md` „Für wen“ („CSV und JSON-Backup, keine Datenbank“) |
 | `vertrag-eintragen` | Vertrag und Preise trägst du selbst ein oder übernimmst sie aus der Rechnung. | `README.de.md` „Für wen“, Zeile Kosten; CHANGELOG 3.9.0 (Vertrag aus der Rechnung) |
 | `kein-versorger` | Eine Verbindung zum Versorger braucht es nicht. | `README.de.md` „Deine Daten“ (vollständige Liste der Verbindungen nach außen, kein Versorger darunter), Test `OutboundHostsTest` |
 | `ki-kein-nachteil` | Wer keine KI nutzt, hat keinen Nachteil. | `docs/anleitungen/ki-assistent.md` „Die Grenzen“ (wörtlich) |
 | `posteingang-dienst` | Für das Auslesen der Versorgerpost trägst du einen eigenen Dienst ein. | `README.de.md` „Wege, die du selbst einschaltest“ (eigener Texterkennungsdienst im Heimnetz) und „Auslesen in der Cloud ist aus“ |
-| `json-ld` | Maschinenlesbare Beschreibung (schema.org SoftwareApplication): Name, Version 3.12.0, Lizenz AGPL, kostenlos, sieben Sprachen, Docker amd64/arm64, Home Assistant OS, PHP ab 8.3, Releases, Handbuch, Autor als GitHub-Konto. | `VERSION`, `LICENSE`, Kennungen `agpl-kostenlos`, `sprachen`, `multiarch`, `ha-app`, `install-web`, `pseudonym`; ohne Zählung oder Verweis auf Dienste Dritter |
+| `json-ld` | Maschinenlesbare Beschreibung (schema.org SoftwareApplication): Name, Version 3.13.0, Lizenz AGPL, kostenlos, sieben Sprachen, Docker amd64/arm64, Home Assistant OS, PHP ab 8.4, Releases, Handbuch, Autor als GitHub-Konto. | `VERSION`, `LICENSE`, Kennungen `agpl-kostenlos`, `sprachen`, `multiarch`, `ha-app`, `install-web`, `pseudonym`; ohne Zählung oder Verweis auf Dienste Dritter |
 
 ## Über das Projekt und Datenschutz
 

@@ -372,6 +372,18 @@ try {
     tRows.map(r => `${r.id}:${r.phase}`).join(' '));
   t('Verträge & Abschläge: verlängert unter „Aktuell“ oben, beendet darunter',
     tRows[0]?.id === renewedC.id && tRows[0]?.group === 'current' && tRows[1]?.id === oldC.id && tRows[1]?.group === 'past');
+  // v3.13.0 (Gegenproben) — ohne abgeschlossene Abrechnungsperiode greift der Stichtag der Art:
+  // Der Testzähler hat noch keine Ablesung (wie ein neuer Zähler), der Server liefert keine
+  // abgeschlossene Periode. Der Verweis kommt aus fillBillCheckLink (nach der Antwort des
+  // Servers), nicht aus dem ersten Bild. Bis v3.12 prüfte die Suite nur mit Rechnungen — dort
+  // wirkt der Stichtag nicht, und ein Verweis ohne Stichtag (Kalenderjahr) blieb grün.
+  const bpTest = (await call('GET', `/api/utility/strom/meters/${encodeURIComponent(testMeter.id)}/billing-periods`)).periods || [];
+  const doneTest = bpTest.filter(p => p.complete && !p.running && p.days > 0 && p.until < ymd);
+  await settle();
+  const testHref = view().querySelector('[data-role="bill-check-link"] a')?.getAttribute('href') || '';
+  t('Verbrauchsart → Rechnung prüfen ohne abgeschlossene Periode: Zeitraum nach dem Stichtag der Art (01.04.)',
+    doneTest.length === 0 && testHref.includes(`meter=${encodeURIComponent(testMeter.id)}&from=${stromPeriod.from}&until=${stromPeriod.until}`),
+    `${testHref} · abgeschlossene Perioden: ${doneTest.length} · Stichtag: ${stromPeriod.from}`);
   await go('#/utility/strom?meter=m_strom_haushalt');
   const hRows = rowsOf();
   const hOk = hRows.every((r, i) => i === 0 || rank[hRows[i - 1].group] <= rank[r.group]);
@@ -490,6 +502,18 @@ try {
   // v3.12.0 (M3b) — ein Zeitraum, der nicht zufällig der vorgewählte ist (2025 war es: Die Probe blieb grün)
   await go('#/bill-check?utility=strom&from=2024-01-01&to=2025-01-01');
   t('ältere Verweise (`to` ausschließlich) gelten weiter', view().querySelector('#bc-until')?.value === '2024-12-31' && tableShown(), view().querySelector('#bc-until')?.value);
+  // v3.13.0 (Gegenproben) — ohne Zeitraum und ohne abgeschlossene Periode des Servers
+  // (Testzähler ohne Ablesung, siehe oben): die letzte abgeschlossene Periode nach dem
+  // Stichtag der Art, nicht das Kalenderjahr. Ein unbekannter Zähler fiele still auf den
+  // ersten zurück — darum zuerst die Wahl des Zählers.
+  await go(`#/bill-check?utility=strom&meter=${encodeURIComponent(testMeter.id)}`);
+  const bcMeter = view().querySelector('#bc-meter')?.value;
+  const bcFrom = view().querySelector('#bc-from')?.value;
+  const bcUntil = view().querySelector('#bc-until')?.value;
+  t('Rechnung prüfen ohne Zeitraum und ohne abgeschlossene Periode: nach dem Stichtag der Art (01.04.)',
+    bcMeter === testMeter.id && !!view().querySelector('[data-role="period-hint"]')
+      && bcFrom === stromPeriod.from && bcUntil === stromPeriod.until,
+    `${bcMeter}: ${bcFrom} – ${bcUntil} · Stichtag: ${stromPeriod.from}`);
 } catch (e) {
   t('Test mit Beispielhaushalt', false, e.stack || e.message);
 } finally {

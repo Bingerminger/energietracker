@@ -117,6 +117,8 @@ final class PriceChange
                 'days_before' => $a['days_before'],
                 'announce_by' => $isBasic ? $a['basic']['announce_by'] : $a['special']['announce_by'],
                 'late' => $isBasic ? $a['basic']['late'] : $a['special']['late'],
+                // v3.13.0 — knapp, prüfen (Vorwärtsprobe verfehlt, Kalenderabstand gewahrt); additiv
+                'tight' => $isBasic ? $a['basic']['tight'] : $a['special']['tight'],
                 'required' => $isBasic ? 'six_weeks' : 'month',
                 'month_start' => $isBasic ? $a['basic']['month_start'] : null,
             ];
@@ -173,6 +175,10 @@ final class PriceChange
                     if ($an['days_before'] <= 0) $add('announcedAfter', ['date' => $a['announced_on']], $kind === 'basic' ? [$gvv('5.2')] : ['de.enwg.41.5.s1']);
                     elseif ($kind === 'basic') $add('lateBasic', ['days' => $an['days_before']], [$gvv('5.2')]);
                     else $add('lateSpecial', ['days' => $an['days_before']], ['de.enwg.41.5.s1']);
+                } elseif ($an !== null && !empty($an['tight'])) {
+                    // v3.13.0 — knapp, prüfen: nach §§ 187, 188 BGB einen Tag zu spät, nach dem Kalenderabstand rechtzeitig
+                    if ($kind === 'basic') $add('tightBasic', ['days' => $an['days_before']], [$gvv('5.2'), 'de.bgb.188']);
+                    else $add('tightSpecial', ['days' => $an['days_before']], ['de.enwg.41.5.s1', 'de.bgb.188']);
                 }
                 if ($an !== null && $an['month_start'] === false) $add('monthStart', ['date' => $a['valid_from']], [$gvv('5.2')]);
                 if ($a['guarantee_until'] !== null) $add('guarantee', ['date' => $a['guarantee_until']], []);

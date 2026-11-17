@@ -15,14 +15,14 @@ import { profileDiff } from '../lib/region.js';
 import { switchLanguage } from '../lib/language.js';
 import { wireDisclosures, openDisclosureOf } from '../components/disclosure.js';
 import { jumpToField } from '../lib/field-jump.js';
-import { atLeast } from '../lib/levels.js';
+import { atLeast, sessionRole } from '../lib/levels.js';
 import { renderReadingCard, wireReadingCard } from '../components/inbox-cloud.js';
 import { renderHaNotifyCard, wireHaNotifyCard } from '../components/ha-notify.js';
 import { loadMcp, renderMcpLinks, renderMcpStatusCard, renderMcpConnectCard, wireMcpCards } from '../components/mcp-card.js';
 import { openConceptWizard, conceptOffered } from '../components/concept-wizard.js';
 import { icon, artIcon } from '../lib/icons.js';
 import { rich } from '../lib/rich.js';
-import { GROUPS, renderGroup, firstInvalidSetting, wireCo2Years, renderDefaultUpdates, wireGasFactors, collectSettings } from './settings-fields.js';
+import { GROUPS, renderGroup, firstInvalidSetting, wireCo2Years, renderDefaultUpdates, wireGasFactors, collectSettings, wireShowIf } from './settings-fields.js';
 import { unlistenAll, listen } from './settings-shared.js';
 import { renderExportCard, renderBackupCard, wireDataPage } from './settings-data.js';
 import { wireAccessPage, renderLevelCard, wireLevelCard, renderMyAccountCard, loginOff, renderUsersCard, wireUsersCard, renderSecurityCard, renderKeysCard, renderSecurityCheck, wireSecurityCheck } from './settings-access.js';
@@ -60,12 +60,14 @@ export async function render(container, params = [], ctx = {}) {
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
 
   const needs = (...pages) => pages.includes(page);
+  // v3.13.0 — den Stand des Home-Assistant-Tokens liest nur ein Verwalter (GET /api/auth/… ist adminOnly)
+  const adminRole = sessionRole() === 'admin';
   const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries, defaultUpdates, attachments] = await Promise.all([
     api.settings(),
     // v3.4.0 (N1020) — auch für den Sicherheits-Check unter „Zugriff"
     needs('system', 'access') ? api.diagnostics().catch(() => null) : null,
     needs('household:utilities', 'data', HA) ? api.listUtilities().catch(() => []) : [],
-    needs(HA, KEYS) ? api.authStatus().catch(() => ({ enabled: false, created_at: null })) : null,
+    needs(HA, KEYS) && adminRole ? api.authStatus().catch(() => ({ enabled: false, created_at: null })) : null,
     // v2.6.0 — Anmeldung, API-Schlüssel, gespeicherte Snapshots
     // v3.9.0 — auch Personen (Verwalter oder Mitglied, Anmeldung an oder aus)
     needs('general', 'region', 'household:people', 'access', HA, AI, KEYS, READING) ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
@@ -187,7 +189,7 @@ export async function render(container, params = [], ctx = {}) {
       if (sub === 'meters') return grid(renderHaAliasCard(haUtilities, metersByUtility));
       if (sub === 'templates') return grid(renderHaTemplatesCard(haUtilities, metersByUtility, session));
       if (sub === 'notifications') return grid(renderHaNotifyCard(haNotify, isAdmin));
-      return grid(renderHaTokenCard(authStatus, session));
+      return grid(renderHaTokenCard(authStatus, session, isAdmin));
     }
     if (page === AI) {
       if (!mcp) return `<div class="infobox infobox--info" data-role="mcp-admin-only">${escapeHtml(t('todo.history.adminOnly'))}</div>`;
@@ -234,6 +236,7 @@ export async function render(container, params = [], ctx = {}) {
   // auslöst wie jede andere Änderung.
   wireGasFactors(container);
   wireCo2Years(container);   // v2.10.0
+  wireShowIf(container);     // v3.13.0 (Paket wechsel) — Fälligkeitstag nur bei „ganze Rate“
   // v2.10.0 — korrigierte Standardwerte übernehmen (Lektion 36)
   container.querySelector('#btn-take-defaults')?.addEventListener('click', async () => {
     const patch = Object.fromEntries((defaultUpdates || []).map(u => [u.key, u.recommended]));

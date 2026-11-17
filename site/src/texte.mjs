@@ -6,15 +6,18 @@
 // Regeln: keine Gedankenstriche, kein Mittelpunkt als Trenner, keine Beträge,
 // keine Download-, Nutzer- oder Sternzahlen. tools/build.mjs --check prüft das.
 //
-// Mit jedem Release mitziehen: HELD.neu, „v3.13 geplant“, „2.667 Testmethoden“,
-// die Grenzen aus dem CHANGELOG (Kennungen neu-312, grenze-*, tests).
+// Mit jedem Release mitziehen: HELD.neu und NEU (Kennungen neu-313 und folgende), „v3.14 erneut geprüft“,
+// „3.163 Testmethoden“, die Grenzen aus dem CHANGELOG (Kennungen grenze-*, tests), die Animationen
+// (NODE_PATH=… node tools/build-animations.mjs im Haupt-Repo, Stichtag mit --heute).
 
 export const REPO = 'https://github.com/Bingerminger/energietracker';
 export const REPO_HA = 'https://github.com/Bingerminger/energietracker-ha';
-export const REPO_HACS = 'https://github.com/Bingerminger/energietracker-integration';
+export const REPO_INTEGRATION = 'https://github.com/Bingerminger/energietracker-integration';
 export const DEMO = 'https://bingerminger.github.io/energietracker/demo/';
 export const HA_ADD = 'https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha';
-export const HACS_OPEN = 'https://my.home-assistant.io/redirect/hacs_repository/?owner=Bingerminger&repository=energietracker-integration&category=integration';
+// Öffnet die Integration in Home Assistant. Ab 2026.11 leitet diese Adresse in den Marketplace (ehemals HACS) um,
+// bis 2026.10 öffnet sie HACS; deshalb heißt der Weg in der Adresse noch hacs_repository.
+export const INTEGRATION_OPEN = 'https://my.home-assistant.io/redirect/hacs_repository/?owner=Bingerminger&repository=energietracker-integration&category=integration';
 export const KAFFEE = 'https://buymeacoffee.com/bingerminger';
 export const GH_PRIVACY = 'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement';
 export const GH_PAGES_DATA = 'https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages#data-collection';
@@ -79,10 +82,13 @@ export const UI = {
   ueber: T('Über das Projekt und Datenschutz', 'About the project and privacy', ['-']),
   impressum: T('Impressum', 'Legal notice', ['-']),
   start: T('Zur Startseite', 'To the home page', ['-']),
+  // Knopf an jeder Animation (seite.js)
+  anhalten: T('Anhalten', 'Pause', ['-']),
+  abspielen: T('Abspielen', 'Play', ['-']),
 };
 
 export const HELD = {
-  neu: T('**Neu in 3.12.0:** Frag deine eigene KI', '**New in 3.12.0:** ask your own AI', ['neu-312']),
+  neu: T('**Neu in 3.13.0:** Einspeisung nach der Sonne, HT und NT als ein Vertrag', '**New in 3.13.0:** feed-in by the sun, peak and off-peak as one contract', ['neu-313']),
   frei: T('Kostenlos, offener Code (AGPL)', 'Free, open source (AGPL)', ['agpl-kostenlos']),
   h1: T('Deine Energiekosten im Griff.', 'Your energy costs under control.', ['wertversprechen']),
   lead: T(
@@ -107,6 +113,54 @@ export const HELD = {
     ['uebersicht', 'handy', 'bsp-erfunden']),
 };
 
+/**
+ * Neu in 3.13 (Kopf der Seite, Sprung vom Abzeichen): Hauptfunktionen laut CHANGELOG 3.13.0, ehrlich mit dem,
+ * was gebaut und noch aus ist. `bilder`: Animationen (anim = Szene in tools/build-animations.mjs).
+ */
+export const NEU = {
+  h2: T('Neu in 3.13', 'New in 3.13', ['-']),
+  lead: T(
+    '**Gebaut ist die Prognose nach dem Wetter, angezeigt wird nur, was seine Prüfung besteht.** Gemessen an einem Prüfhaushalt mit eigener Physik, gegen vorab festgelegte Schwellen.',
+    '**The weather-based forecast is built, and only what passes its check is shown.** Measured on a test household with physics of its own, against thresholds set in advance.',
+    ['pruefhaushalt']),
+  bilder: [
+    { anim: 'rueckfrage',
+      alt: T('Animation: Unter Zählerstände wird beim Gaszähler ein Stand ohne Komma eingetippt. Schon unter dem Feld steht ein Hinweis, und beim Speichern fragt die App nach einem Tippfehler: Das wäre ein Vielfaches dessen, was nach dem Wetter seit der letzten Ablesung zu erwarten ist. Mit dem Komma an der richtigen Stelle wird gespeichert.',
+        'Animation: under Meter readings a gas reading is typed without its decimal point. A note appears below the field, and on saving the app asks about a typo: that would be many times what the weather since the last reading suggests. With the decimal point in the right place it is saved.',
+        ['rueckfrage-wetter']),
+      text: T('**Komma vergessen?** Die Rückfrage vergleicht mit dem, was das Wetter seit der letzten Ablesung erwarten lässt, und schlägt beim Heizbeginn nicht mehr falsch an.',
+        '**Forgot the decimal point?** The check compares with what the weather since the last reading suggests, and no longer raises a false alarm when the heating starts.',
+        ['rueckfrage-wetter']) },
+    { anim: 'prognose-strom',
+      alt: T('Animation in der Prognose-Werkstatt: beim Strom das Beispiel E-Auto, dann die Gruppe Wärmepumpe (HT/NT) als ein Ziel mit Kosten, Verbrauch und Abschlag. Zuletzt die PV-Einspeisung unter Saldo und Vertrag mit Vergütung, bereits ausgezahlt, noch offen und der erwarteten Auszahlung bei der Abrechnung.',
+        'Animation in the forecast workshop: for electricity the electric car example, then the group heat pump (peak/off-peak) as one target with cost, consumption and advance payment. Finally the PV feed-in under Balance and contract with remuneration, already paid out, still outstanding and the expected payout at billing.',
+        ['htnt-gruppe', 'auszahlungen']),
+      text: T('**HT und NT als ein Vertrag,** dazu die Einspeisung nach der Sonne mit dem, was schon ausgezahlt ist.',
+        '**Peak and off-peak as one contract,** plus the feed-in by the sun with what has already been paid out.',
+        ['htnt-gruppe', 'einspeisung-sonne', 'auszahlungen']) },
+  ],
+  liste: [
+    { icon: 'art-pv_einspeisung', text: T('**Einspeisung nach der Sonne:** „Erwartet bei Abrechnung“ rechnet mit der Einstrahlung je Tag. Was der Netzbetreiber überwiesen hat, steht als bereits ausgezahlt und noch offen daneben.',
+      '**Feed-in by the sun:** “Expected at billing” is calculated with the daily solar radiation. What the grid operator has transferred appears next to it as already paid out and still outstanding.', ['einspeisung-sonne', 'auszahlungen']) },
+    { icon: 'art-strom', text: T('**HT und NT als ein Vertrag:** Die Prognose rechnet die Gruppe als Ganzes, jedes Zählwerk zu seinem Preis, mit Grundpreis.',
+      '**Peak and off-peak as one contract:** the forecast calculates the group as a whole, each register at its own price, with the standing charge.', ['htnt-gruppe']) },
+    { icon: 'auto', text: T('**Neuer Speicher, neue Wallbox:** Die Prognose der Einspeisung zieht die Ladung eines neuen Speichers von den Monaten davor ab. Eine neue Wallbox bekommt ihren ersten Winter aus den Ladevorgängen oder einer genannten Annahme.',
+      '**New battery, new wall box:** the feed-in forecast takes the charging of a new battery off the months before it. A new wall box gets its first winter from the charging sessions or from a stated assumption.', ['speicher-wallbox-neu']) },
+    { icon: 'abschlag', text: T('**Abschläge zählen wie beim Versorger:** tagesanteilig oder als ganze Rate am Fälligkeitstag, eine Einstellung für alle Verträge.',
+      '**Advance payments count as your supplier does:** pro rata by day or as a full payment on the due day, one setting for all contracts.', ['abschlag-rate']) },
+    { icon: 'eingang', text: T('**Listen im Posteingang je Eintrag:** Preise, Abschläge und Stände bestätigst, korrigierst oder verwirfst du einzeln. Übernahmen der KI nimmst du im Verlauf zurück.',
+      '**Inbox lists entry by entry:** prices, advance payments and readings you confirm, correct or discard one at a time. Changes made by the AI you undo in the history.', ['posteingang-je-eintrag', 'ki-rueckgaengig']) },
+    { icon: 'bausteine', text: T('**Für Home Assistant:** Die Integration 1.1.0 bringt den Füllstand von Öl und Pellets, die Prognose einer HT/NT-Gruppe und die Auszahlungen der Einspeisung.',
+      '**For Home Assistant:** integration 1.1.0 brings the fill level of oil and pellets, the forecast of a peak/off-peak group and the feed-in payouts.', ['integration-11']) },
+  ],
+  ehrlich: T(
+    '**Noch aus:** Die Wärmepumpe nach dem Wetter und die PV-Prognose sind gebaut, schaffen ihre Schwellen aber noch nicht. Sie rechnen weiter wie bisher, die App sagt es dort, und mit v3.14 kommen sie erneut auf den Prüfstand.',
+    '**Still off:** the heat pump by the weather and the PV forecast are built but do not meet their thresholds yet. They keep calculating as before, the app says so there, and with v3.14 they go back on the test bench.',
+    ['grenze-wp-wetter']),
+  demo: { persona: 'showcase', route: '/forecast', text: T('Neues in der Demo ansehen', 'See what is new in the demo', ['demo-routen']) },
+  changelog: { href: (l) => datei(l, 'CHANGELOG.md', 'CHANGELOG.en.md'), text: T('Alles im CHANGELOG', 'Everything in the CHANGELOG', ['-']) },
+};
+
 export const SCHRITTE = {
   h2: T('So funktioniert’s', 'How it works', ['-']),
   lead: T('**Drei Schritte, und du weißt, woran du bist.**', '**Three steps, and you know where you stand.**', ['-']),
@@ -128,8 +182,9 @@ export const SCHRITTE = {
 
 /**
  * Bilder-Slider: Jedes Bild beantwortet eine Frage. `bild`: Name unter assets/img/screens.
- * `video` (später, ab 3.13): { src, poster } mit lokalen Dateien; dann steht ein <video> mit
- * Bedienelementen statt des Bildes da, ohne Autostart.
+ * `anim` (seit 3.13): Szene aus tools/build-animations.mjs; dann steht die Animation mit ihrem
+ * Rückfallbild da (bei „Bewegung reduzieren“ nur das Bild), mit Knopf zum Anhalten.
+ * `video`: { src, poster } mit lokalen Dateien; dann steht ein <video> mit Bedienelementen da, ohne Autostart.
  */
 export const SLIDER = {
   h2: T('Antworten auf einen Blick', 'Answers at a glance', ['-']),
@@ -140,14 +195,14 @@ export const SLIDER = {
   reiter: T('Fragen', 'Questions', ['-']),
   demo: T('In der Demo ansehen', 'See it in the demo', ['demo-routen']),
   folien: [
-    { id: 'abschlag', bild: 'gas', persona: 'showcase', route: '/utility/gas',
-      frage: T('Reicht mein Abschlag?', 'Is my advance payment enough?', ['-']),
-      text: T('**Saldo je Vertrag,** gemessen bis zur letzten Ablesung und erwartet bei der Abrechnung, dazu ein Vorschlag für den Abschlag.',
-        '**Balance per contract,** measured up to the last reading and expected at the bill, plus a suggested advance payment.',
-        ['saldo', 'abschlag']),
-      alt: T('Gas im Beispielhaushalt: Verbrauch, Kosten, Abschläge mit Saldo, Tagesschnitt und CO₂, darunter der Saldo am Tag der letzten Ablesung und das erwartete Guthaben.',
-        'Gas in the sample household: consumption, cost, advance payments with balance, daily average and CO₂, below the balance on the day of the last reading and the expected credit.',
-        ['saldo']) },
+    { id: 'abschlag', anim: 'saldo', persona: 'showcase', route: '/utility/gas?view=balance',
+      frage: T('Bekomme ich Geld zurück?', 'Will I get money back?', ['-']),
+      text: T('**Die Übersicht antwortet zuerst,** der Saldo je Vertrag rechnet es nach: gemessen bis zur letzten Ablesung, erwartet bei der Abrechnung, mit Spanne und einem Vorschlag für den Abschlag.',
+        '**The overview answers first,** and the balance per contract works it out: measured up to the last reading, expected at the bill, with a range and a suggested advance payment.',
+        ['uebersicht', 'saldo', 'abschlag']),
+      alt: T('Animation im Beispielhaushalt: Die Übersicht beantwortet „Bekomme ich Geld zurück?“ je Verbrauchsart. Dann zeigt Gas unter Saldo und Vertrag den Saldo am Tag der letzten Ablesung, das erwartete Guthaben bei der Abrechnung mit Spanne und die Kurven von Kosten und Abschlägen.',
+        'Animation in the sample household: the overview answers “Will I get money back?” per utility. Then gas shows under Balance and contract the balance on the day of the last reading, the expected credit at billing with a range and the curves of cost and advance payments.',
+        ['uebersicht', 'saldo']) },
     { id: 'rechnung', bild: 'rechnung', persona: 'showcase', route: '/bill-check',
       frage: T('Stimmt die Rechnung?', 'Is the bill right?', ['-']),
       text: T('**Rechnung prüfen** rechnet die Rechnung des Versorgers Abschnitt für Abschnitt nach und sagt „passt“ oder „prüfen“, mit Gründen.',
@@ -156,6 +211,14 @@ export const SLIDER = {
       alt: T('Rechnung prüfen für Gas: je Abschnitt Zeitraum, Stände, Tage, m³, Zustandszahl, Brennwert, kWh, Preis, Verbrauchskosten und feste Kosten.',
         'Check a bill for gas: per section period, readings, days, m³, condition factor, calorific value, kWh, price, consumption cost and fixed costs.',
         ['rechnung-pruefen', 'gas-umrechnung']) },
+    { id: 'post', anim: 'posteingang', persona: 'showcase', route: '/inbox',
+      frage: T('Was steht in der Post vom Versorger?', 'What does the supplier’s letter say?', ['-']),
+      text: T('**Der Posteingang** liest die Rechnung als PDF aus, zeigt zu jedem Wert die Belegstelle und markiert, was nicht passt. Übernommen wird erst, wenn du es bestätigst, danach prüft die App die Rechnung gegen deine Daten.',
+        '**The inbox** reads the bill as a PDF, shows the passage behind every value and marks what does not fit. Nothing is taken over until you confirm it, then the app checks the bill against your data.',
+        ['posteingang', 'posteingang-dienst']),
+      alt: T('Animation im Beispielhaushalt: Im Posteingang die Jahresabrechnung Gas öffnen. Ein markiertes Feld passt nicht zur Belegstelle und wird korrigiert, dann „Übernehmen und prüfen“: Die Abrechnung liegt über der eigenen Rechnung.',
+        'Animation in the sample household: open the annual gas bill in the inbox. A marked field does not match its passage and is corrected, then “Take over and check”: the bill is above your own calculation.',
+        ['posteingang']) },
     { id: 'wechsel', bild: 'wechsel', persona: 'showcase', route: '/tariffs',
       frage: T('Lohnt der Wechsel?', 'Is switching worth it?', ['-']),
       text: T('**Wechsel prüfen** nennt den erwarteten Jahresverbrauch für das Vergleichsportal, den Wechseltermin und den letzten Tag zum Kündigen.',
@@ -220,14 +283,22 @@ export const SLIDER = {
       alt: T('Mietverhältnis im Beispielhaushalt zur Miete: erwartete Kosten, vorausgezahlt, voraussichtlich ein kleines Guthaben, passende Vorauszahlung je Monat, darunter CO₂-Kosten teilen mit Stufe und Anteil des Vermieters.',
         'Tenancy in the renting sample household: expected costs, prepaid, a small credit likely, suitable prepayment per month, below sharing CO₂ costs with stage and landlord’s share.',
         ['miete-vorauszahlung', 'co2']) },
-    { id: 'brief', bild: 'brief', persona: 'showcase', route: '/todo?art=rights',
-      frage: T('Wie schreibe ich dem Versorger?', 'How do I write to my supplier?', ['-']),
-      text: T('**Briefe** als Text und PDF, aus festen Bausteinen und deinen Daten. Abschicken tust du ihn selbst.',
-        '**Letters** as text and PDF, from fixed templates and your data. You send it yourself.',
-        ['briefe']),
-      alt: T('Dialog Brief entwerfen, Sonderkündigung: Angaben aus Haushalt und Vertrag, darunter die Vorschau des Briefs und die Knöpfe Text kopieren und PDF herunterladen.',
-        'Dialog Draft a letter, special termination: details from household and contract, below the preview of the letter and the buttons Copy text and Download PDF.',
-        ['briefe']) },
+    { id: 'brief', anim: 'fristen', persona: 'showcase', route: '/todo?art=rights',
+      frage: T('Wann muss ich kündigen?', 'When do I have to cancel?', ['-']),
+      text: T('**Kosten & Verträge** nennt den letzten Tag zum Kündigen, Zu tun sammelt Fristen und Rechte, und der Brief entsteht als Text und PDF aus festen Bausteinen und deinen Daten. Abschicken tust du ihn selbst.',
+        '**Costs & contracts** gives the last day to cancel, To do gathers deadlines and rights, and the letter is made as text and PDF from fixed templates and your data. You send it yourself.',
+        ['kuendigung-erinnerung', 'zutun', 'briefe']),
+      alt: T('Animation im Beispielhaushalt: Kosten & Verträge mit dem letzten Tag zum Kündigen je Vertrag, dann Zu tun mit dem Filter Rechte und einer möglichen Sonderkündigung nach einer Preiserhöhung, zuletzt der Dialog Brief entwerfen mit Angaben aus Haushalt und Vertrag und der Vorschau des Briefs.',
+        'Animation in the sample household: Costs & contracts with the last day to cancel per contract, then To do with the filter Rights and a possible special termination after a price increase, finally the dialog Draft a letter with details from household and contract and the preview of the letter.',
+        ['kuendigung-erinnerung', 'rechte-sieben', 'briefe']) },
+    { id: 'ki', anim: 'ki', persona: 'showcase', route: '/connections/ai?mcp=value',
+      frage: T('Was sagt meine KI?', 'What does my AI say?', ['-']),
+      text: T('**Deine KI** fragt im Energietracker nach und bekommt zu jeder Zahl ihre Herkunft: gemessen, eingetragen, verteilt, angenommen oder geschätzt. Ändern will sie etwas nur als Vorschlag, den du in der App bestätigst. Die Demo hat keine KI-Schnittstelle.',
+        '**Your AI** asks Energietracker and gets the source of every figure: measured, entered, spread, assumed or estimated. Anything it wants to change is only a proposal that you confirm in the app. The demo has no AI interface.',
+        ['ki-herkunft', 'ki-vorschlag', 'demo-ohne-ki']),
+      alt: T('Animation: Der Wegweiser „Mit KI lokal“ zeigt den Weg über Open WebUI und Ollama und was du bekommst, darunter zu jeder Zahl ihre Herkunft. Unter Verbindungen › KI-Assistenten wartet ein Vorschlag, unter Zu tun wird er nach einer Rückfrage übernommen.',
+        'Animation: the setup guide “With local AI” shows the route through Open WebUI and Ollama and what you get, including the source of every figure. Under Connections › AI assistants a proposal is waiting, under To do it is taken over after a confirmation.',
+        ['wegweiser', 'ki-herkunft', 'ki-vorschlag']) },
     { id: 'handy', bild: 'erfassen', persona: 'showcase', route: '/zaehlerstaende', handy: true,
       frage: T('Geht das am Handy?', 'Does it work on my phone?', ['-']),
       text: T('**Am Handy:** Tab-Leiste in der Daumenzone, alle Zähler in einem Durchgang, als App auf dem Home-Bildschirm.',
@@ -297,8 +368,8 @@ export const WEGE = {
         T('Eigenverbrauch, Autarkie, Speicher und Jahresarbeitszahl in Zahlen.', 'Self-consumption, self-sufficiency, battery and performance factor in figures.', ['pv', 'jaz']),
         T('Viertelstunden aus Home Assistant, Ladevorgänge aus evcc: Hat das Verschieben etwas gebracht?', 'Quarter hours from Home Assistant, charging sessions from evcc: did shifting pay off?', ['viertelstunden', 'flex', 'evcc']),
       ],
-      ehrlich: T('Die Prognose nach dem Wetter für Wärmepumpe, PV und Speicher kommt mit v3.13.',
-        'The weather-based forecast for heat pump, PV and battery comes with v3.13.', ['grenze-wp-wetter']) },
+      ehrlich: T('Die Prognose nach dem Wetter für Wärmepumpe und PV ist gebaut, bleibt aber aus, bis sie ihre vorab festgelegte Prüfung besteht. Mit v3.14 wird sie erneut geprüft.',
+        'The weather-based forecast for heat pump and PV is built but stays off until it passes its check, set in advance. It will be checked again with v3.14.', ['grenze-wp-wetter']) },
     { id: 'heizen', icon: 'art-gas', art: 'gas', persona: 'eigenheim-klassisch', route: '/',
       titel: T('Haus mit Gas, Öl oder Pellets', 'Home with gas, oil or pellets', ['-']),
       frage: T('**Reicht der Abschlag, und wann ist der Tank leer?**', '**Is the advance payment enough, and when does the tank run dry?**', ['-']),
@@ -348,7 +419,7 @@ export const WEGE = {
 };
 
 export const HA = {
-  h2: T('Home Assistant und HACS', 'Home Assistant and HACS', ['-']),
+  h2: T('Mit Home Assistant', 'With Home Assistant', ['-']),
   lead: T(
     '**Home Assistant misst, der Energietracker rechnet ab.** Verträge, Abschläge und Prognosen kommen dazu, Home Assistant liefert still im Hintergrund die Stände.',
     '**Home Assistant measures, Energietracker settles the bill.** Contracts, advance payments and forecasts are added, while Home Assistant quietly delivers the readings.',
@@ -358,8 +429,8 @@ export const HA = {
       '**Readings arrive by themselves,** daily or per quarter hour, protected by a key.', ['ha-ingest']) },
     { icon: 'home', text: T('**Als App in Home Assistant OS:** in der Seitenleiste, mit deinen Benutzern und in den Sicherungen von Home Assistant.',
       '**As an app in Home Assistant OS:** in the sidebar, with your users and in Home Assistant backups.', ['ha-app']) },
-    { icon: 'bausteine', text: T('**Sensoren ohne eine Zeile YAML:** Zu tun, nächster Termin und je Zähler Saldo, Verbrauch, Prognose und Tage seit Ablesung.',
-      '**Sensors without a line of YAML:** To do, next appointment and per meter balance, consumption, forecast and days since the reading.', ['hacs']) },
+    { icon: 'bausteine', text: T('**Sensoren ohne eine Zeile YAML:** Zu tun, nächster Termin und je Zähler Saldo, Verbrauch, Prognose und Tage seit Ablesung, dazu Füllstand von Öl und Pellets, die Prognose einer HT/NT-Gruppe und die Auszahlungen der Einspeisung.',
+      '**Sensors without a line of YAML:** To do, next appointment and per meter balance, consumption, forecast and days since the reading, plus the fill level of oil and pellets, the forecast of a peak/off-peak group and the feed-in payouts.', ['integration-sensoren', 'integration-11']) },
     { icon: 'glocke', text: T('**Fristen und neue Post** meldet der Energietracker selbst als Benachrichtigung.',
       '**Deadlines and new mail** are sent by Energietracker itself as notifications.', ['ha-notify']) },
   ],
@@ -367,22 +438,25 @@ export const HA = {
   schritte: [
     T('**App hinzufügen:** das Repository mit einem Klick eintragen, Energietracker installieren und starten.',
       '**Add the app:** add the repository with one click, install and start Energietracker.', ['install-ha']),
-    T('**Sensoren dazu:** die Integration als benutzerdefiniertes Repository, im Marketplace (Home Assistant ab 2026.11, einmal mit GitHub verbinden) oder in HACS.',
-      '**Add sensors:** the integration as a custom repository, in the Marketplace (Home Assistant 2026.11 or later, connect GitHub once) or in HACS.', ['install-hacs']),
+    T('**Sensoren dazu:** im Marketplace (ehemals HACS) nach „Energietracker“ suchen und die Integration installieren. In Home Assistant 2026.3 bis 2026.10 heißt der Weg HACS, ebenfalls über die Suche.',
+      '**Add sensors:** search for “Energietracker” in the Marketplace (formerly HACS) and install the integration. On Home Assistant 2026.3 to 2026.10 use HACS instead and search the same way.', ['install-integration']),
     T('**Stände schicken:** Unter Verbindungen › Home Assistant stehen die Vorlagen zum Kopieren.',
       '**Send readings:** under Connections › Home Assistant the templates are ready to copy.', ['ha-vorlagen']),
   ],
   app: T('App zu Home Assistant hinzufügen', 'Add the app to Home Assistant', ['install-ha']),
-  hacs: T('In Home Assistant öffnen', 'Open in Home Assistant', ['install-hacs']),
+  integration: T('In Home Assistant öffnen', 'Open in Home Assistant', ['install-integration']),
   anleitung: T('Home Assistant anbinden', 'Connecting Home Assistant', ['-']),
+  // Das eigene Logo der Integration (brand/ im Repository der Integration), kein Logo Dritter
+  logo: T('Logo der Energietracker-Integration', 'Logo of the Energietracker integration', ['integration-logo']),
+  logoText: T('Integration für Home Assistant', 'Home Assistant integration', ['-']),
   ehrlich: T(
-    '**Noch jung:** Die App ist als experimentell markiert, die Integration vorerst ein benutzerdefiniertes Repository im Marketplace oder in HACS. Sie braucht den Energietracker ab 3.9.0 und Home Assistant ab 2026.3.',
-    '**Still young:** the app is marked experimental, the integration is a custom repository in the Marketplace or in HACS for now. It needs Energietracker 3.9.0 or later and Home Assistant 2026.3 or later.',
-    ['ha-experimentell', 'hacs-custom', 'hacs-voraussetzung']),
+    '**Noch jung:** Die App ist als experimentell markiert. Die Integration steht in der Standardliste des Marketplace und braucht den Energietracker ab 3.9.0 und Home Assistant ab 2026.3.',
+    '**Still young:** the app is marked experimental. The integration is in the default list of the Marketplace and needs Energietracker 3.9.0 or later and Home Assistant 2026.3 or later.',
+    ['ha-experimentell', 'standardliste', 'integration-voraussetzung']),
   bildAlt: T(
     'Schaubild Mit Home Assistant: Smarte Zähler, Home Assistant liest sie aus und schickt Stände täglich oder je Viertelstunde an den Energietracker, zurück gehen Sensoren, Hinweise und Termine. evcc liefert Ladevorgänge. Außerhalb steht nur der Wetterdienst mit gerundetem Standort, abschaltbar.',
     'Diagram With Home Assistant: smart meters, Home Assistant reads them and sends readings daily or per quarter hour to Energietracker, sensors, hints and appointments go back. evcc delivers charging sessions. Outside there is only the weather service with a rounded location, which can be switched off.',
-    ['ha-ingest', 'hacs', 'daten-aussen']),
+    ['ha-ingest', 'integration-sensoren', 'daten-aussen']),
   bildText: T('Aus dem Wegweiser der App, der sechs Wege zeigt, mit dem Energietracker zu arbeiten.', 'From the app’s setup guide, which shows six ways to work with Energietracker.', ['wegweiser']),
 };
 
@@ -416,8 +490,8 @@ export const VERTRAUEN = {
     { icon: 'waage', text: T('**Rechtsquellen mit Stand.** Jede Vorschrift mit Link, dem Tag, an dem sie gelesen wurde, und wie sicher die Aussage ist. Unsichere Regeln nennt die App nie.',
       '**Legal sources with a date.** Every provision with a link, the day it was read and how certain the statement is. The app never states uncertain rules.', ['rechtsquellen']),
       beleg: { href: (l) => doc(l, 'referenz/rechtsgrundlagen.md'), text: T('Rechtsgrundlagen', 'Legal basis', ['-']) } },
-    { icon: 'erfolg', text: T('**2.667 Testmethoden in 3.12.0.** Jede neue Regel hat eine Gegenprobe, die sie bricht. Rechenwege sind von Hand nachgerechnet, jede Zahl im README hängt an einem Test.',
-      '**2,667 test methods in 3.12.0.** Every new rule has a counter-test that breaks it. Calculations are checked by hand, and every figure in the README is tied to a test.', ['tests']),
+    { icon: 'erfolg', text: T('**3.163 Testmethoden in 3.13.0.** Jede neue Regel hat eine Gegenprobe, die sie bricht. Rechenwege sind von Hand nachgerechnet, jede Zahl im README hängt an einem Test.',
+      '**3,163 test methods in 3.13.0.** Every new rule has a counter-test that breaks it. Calculations are checked by hand, and every figure in the README is tied to a test.', ['tests']),
       beleg: { href: (l) => datei(l, 'CHANGELOG.md', 'CHANGELOG.en.md'), text: T('CHANGELOG, Tests', 'CHANGELOG, Tests', ['-']) } },
     { icon: 'zahnrad', text: T('**Verlässliche Schnittstellen.** API, CSV-Formate und Backup-Format ändern sich nur additiv. Entfernt wird erst mit einer neuen Hauptversion und nach Ankündigung.',
       '**Dependable interfaces.** APIs, CSV formats and the backup format change only additively. Anything is removed only with a new major version and after notice.', ['stabil']),
@@ -447,16 +521,16 @@ export const VERTRAUEN = {
     'Fonts, Chart.js and PDF.js ship with the repository, nothing is loaded from a CDN at runtime.', ['vendored']),
   grenzenH3: T('Was der Energietracker noch nicht kann', 'What Energietracker cannot do yet', ['-']),
   grenzen: [
-    T('**Prognose nach dem Wetter für Wärmepumpe, PV und Speicher:** kommt mit v3.13.',
-      '**Weather-based forecast for heat pump, PV and battery:** comes with v3.13.', ['grenze-wp-wetter']),
+    T('**Prognose nach dem Wetter für Wärmepumpe und PV:** gebaut, aber aus, bis sie ihre vorab festgelegte Prüfung besteht. Mit v3.14 wird sie erneut geprüft.',
+      '**Weather-based forecast for heat pump and PV:** built, but off until it passes its check, set in advance. It will be checked again with v3.14.', ['grenze-wp-wetter']),
     T('**KI:** geprüft nur mit Open WebUI und Ollama. Ob ein anderes Programm vor einer Übernahme nachfragt, ist nicht geprüft; deshalb bestätigst du ab Werk in der App.',
       '**AI:** tested only with Open WebUI and Ollama. Whether another program asks before applying a change is not tested; that is why by default you confirm in the app.', ['ki-geprueft', 'grenze-ki-nachfrage']),
     T('**Rechte nur nach deutschem Recht.** In anderen Ländern zeigt die App keine Hinweise zu Rechten.',
       '**Rights under German law only.** In other countries the app shows no notes on rights.', ['rechte-nur-de']),
     T('**Fachlich in Deutschland zu Hause:** Für acht weitere Länder setzen Länderprofile Währung, Formate und Wetter. Effizienzklassen gibt es dort nicht, Währungen rechnet die App nicht um.',
       '**At home in Germany in substance:** for eight more countries, profiles set currency, formats and weather. There are no efficiency classes there, and the app does not convert currencies.', ['laender']),
-    T('**Home Assistant:** Die App ist experimentell, die Integration vorerst ein benutzerdefiniertes Repository im Marketplace oder in HACS.',
-      '**Home Assistant:** the app is experimental, the integration a custom repository in the Marketplace or in HACS for now.', ['ha-experimentell', 'hacs-custom']),
+    T('**Home Assistant:** Die App ist als experimentell markiert.',
+      '**Home Assistant:** the app is marked experimental.', ['ha-experimentell']),
     T('**iPhone und iPad** sind im Testbrowser mit WebKit geprüft, nicht auf einem echten Gerät.',
       '**iPhone and iPad** are tested in the WebKit test browser, not on a real device.', ['grenze-iphone']),
     T('**Rechtsgrundlagen:** Vor jedem Release liest ein Mensch jede Zeile gegen den geltenden Wortlaut. Für v3.11.0 steht das laut der Seite selbst noch aus.',
@@ -489,8 +563,8 @@ export const FRAGEN = {
         '**No.** The AI interface is off by default, and if you do not use AI you lose nothing. To read supplier mail you set up a service of your own; entering by hand always works too.',
         ['ki-aus', 'ki-kein-nachteil', 'posteingang-dienst']) },
     { frage: T('Worauf läuft er?', 'What does it run on?', ['-']),
-      antwort: T('**Auf allem, was Docker kann** (amd64 und arm64), als App in Home Assistant OS oder auf einem Webserver mit PHP ab 8.3. Bedient wird er im Browser, am Mac wie am iPhone.',
-        '**On anything that runs Docker** (amd64 and arm64), as an app in Home Assistant OS or on a web server with PHP 8.3 or later. You use it in the browser, on the Mac as on the iPhone.',
+      antwort: T('**Auf allem, was Docker kann** (amd64 und arm64), als App in Home Assistant OS oder auf einem Webserver mit PHP ab 8.4. Bedient wird er im Browser, am Mac wie am iPhone.',
+        '**On anything that runs Docker** (amd64 and arm64), as an app in Home Assistant OS or on a web server with PHP 8.4 or later. You use it in the browser, on the Mac as on the iPhone.',
         ['multiarch', 'ha-app', 'install-web', 'handy']) },
     { frage: T('Gilt das auch außerhalb Deutschlands?', 'Does it work outside Germany?', ['-']),
       antwort: T('**Rechnen ja,** mit Länderprofilen für acht weitere Länder. Effizienzklassen und die Prüfungen deiner Rechte gibt es nur nach deutschem Recht.',
@@ -529,8 +603,8 @@ export const INSTALL = {
           'Open it in the sidebar. The first person to open it administers the installation.', ['install-ha']),
       ],
       code: { nach: 0, text: 'https://github.com/Bingerminger/energietracker-ha' },
-      note: T('**Sensoren dazu:** die [Integration](' + HACS_OPEN + ') als benutzerdefiniertes Repository, im Marketplace ab Home Assistant 2026.11 oder in HACS.',
-        '**Sensors as well:** the [integration](' + HACS_OPEN + ') as a custom repository, in the Marketplace from Home Assistant 2026.11 or in HACS.', ['install-hacs']),
+      note: T('**Sensoren dazu:** die [Integration](' + INTEGRATION_OPEN + ') aus der Standardliste des Marketplace (ehemals HACS), zu finden über die Suche nach „Energietracker“. In Home Assistant 2026.3 bis 2026.10 heißt der Weg HACS, ebenfalls über die Suche.',
+        '**Sensors as well:** the [integration](' + INTEGRATION_OPEN + ') from the default list of the Marketplace (formerly HACS), found by searching for “Energietracker”. On Home Assistant 2026.3 to 2026.10 use HACS instead and search the same way.', ['install-integration', 'standardliste']),
       link: { href: (l) => doc(l, 'anleitungen/home-assistant.md', l === 'en' ? '#as-an-app-in-home-assistant-os' : '#als-app-in-home-assistant-os'), text: T('Als App in Home Assistant OS', 'As an app in Home Assistant OS', ['-']) },
     },
     {
@@ -548,7 +622,7 @@ export const INSTALL = {
     },
     {
       icon: 'globus', titel: T('Eigener Webserver', 'Your own web server', ['-']),
-      fuer: T('Apache oder nginx mit PHP ab 8.3, ohne Composer', 'Apache or nginx with PHP 8.3 or later, no Composer', ['install-web']),
+      fuer: T('Apache oder nginx mit PHP ab 8.4, ohne Composer', 'Apache or nginx with PHP 8.4 or later, no Composer', ['install-web']),
       schritte: [
         T('Den Code auf den Server holen, etwa mit `git clone`.', 'Get the code onto the server, for example with `git clone`.', ['install-web']),
         T('Apache mit der mitgelieferten `.htaccess` oder nginx mit den Regeln aus `docker/nginx.conf` einrichten.',
@@ -575,9 +649,9 @@ export const VORHABEN = {
     { icon: 'stecker', name: T('App für Home Assistant', 'Home Assistant app', ['-']), slug: 'Bingerminger/energietracker-ha', href: REPO_HA,
       text: T('Bringt den Energietracker als App in Home Assistant OS, mit demselben Image wie Docker. Ihre Version ist die des Energietrackers.',
         'Brings Energietracker to Home Assistant OS as an app, with the same image as Docker. Its version is the Energietracker version.', ['repo-ha']) },
-    { icon: 'bausteine', name: T('HACS-Integration', 'HACS integration', ['-']), slug: 'Bingerminger/energietracker-integration', href: REPO_HACS,
-      text: T('Sensoren in Home Assistant ohne YAML. Sie liest nur die stabilen Schnittstellen, ein neues Release des Energietrackers braucht kein neues der Integration.',
-        'Sensors in Home Assistant without YAML. It reads only the stable interfaces, so a new Energietracker release needs no new integration release.', ['repo-hacs']) },
+    { icon: 'bausteine', name: T('Integration für Home Assistant', 'Home Assistant integration', ['-']), slug: 'Bingerminger/energietracker-integration', href: REPO_INTEGRATION,
+      text: T('Sensoren in Home Assistant ohne YAML, aus dem Marketplace. Sie liest nur die stabilen Schnittstellen, ein neues Release des Energietrackers braucht kein neues der Integration.',
+        'Sensors in Home Assistant without YAML, from the Marketplace. It reads only the stable interfaces, so a new Energietracker release needs no new integration release.', ['repo-integration', 'standardliste']) },
   ],
   linksH3: T('Zum Nachlesen', 'To read on', ['-']),
   links: [

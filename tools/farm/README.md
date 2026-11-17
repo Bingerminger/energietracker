@@ -31,13 +31,13 @@ Zeilen mit `·` sind Beobachtungen ohne Urteil (etwa eine Grenze der Doku).
 
 | Nutzerform (Doku) | Wo | Was geprüft wird |
 |---|---|---|
-| Docker, Standard-Image (nginx nach `docker/nginx.conf`) | `alles`: `energietracker` | health, Version, Schema, HEALTHCHECK, Beispielhaushalt, lesende Probe mit und ohne Anmeldung, jede Datei unter `public/`, gesperrte Pfade, Anmeldung an und aus. nginx auf einem eigenen Server nutzt dieselben Regeln (`docs/betrieb/webserver.md`), einen eigenen nginx-Dienst hat die Farm deshalb nicht |
+| Docker, Standard-Image (nginx nach `docker/nginx.conf`) | `alles`: `energietracker` | health, Version, Schema (seit v3.13.0 meldet ein frisches Datenverzeichnis `data_initialized: false`, nach dem Beispielhaushalt `true`), HEALTHCHECK, Beispielhaushalt, lesende Probe mit und ohne Anmeldung, jede Datei unter `public/`, gesperrte Pfade, Anmeldung an und aus. nginx auf einem eigenen Server nutzt dieselben Regeln (`docs/betrieb/webserver.md`), einen eigenen nginx-Dienst hat die Farm deshalb nicht |
 | Docker ohne root (`-rootless`, gehärtet) | `alles`: `energietracker-rootless` | UID 10001, kein Prozess als root, nur lesbares Dateisystem, schreibt ins Volume |
 | Eigener Webserver, Synology Web Station (Apache mit `.htaccess`) | `alles`: `apache-php84`, `apache-php85` | PHP 8.4 (Mindestversion seit v3.13.0) und 8.5 (neueste), der VirtualHost wörtlich aus `docs/betrieb/webserver.md`, der Arbeitsstand wie ein Git-Checkout mit `data/` im Webroot: Erststart, Beispielhaushalt, gesperrte Pfade (`data/`, `src/`, `.git/`, `tools/` …), JS-Module mit MIME-Typ, Cache-Regel und `nosniff`, Push mit Token (Kopfzeile `Authorization` kommt bei PHP an), MCP über `api.php/api/mcp`, lesende Probe |
 | Reverse-Proxy mit HTTPS und Anmeldung durch den Proxy | `alles`: `caddy` vor `energietracker-proxy` | Zertifikat gegen die eigene Stelle von Caddy geprüft, `ET_AUTH=proxy` mit `ET_TRUSTED_PROXIES` und `ET_PROXY_USER_HEADER`: erste Person verwaltet, zweite ist Mitglied, eine selbst gesetzte Kopfzeile überschreibt der Proxy, **dieselbe Kopfzeile direkt am Container zählt nicht**, Sicherheits-Check ohne Warnung |
 | Update auf eine neue Version (Docker) | `alles`: `et-update` | zuletzt veröffentlichte Version (`ghcr.io/bingerminger/energietracker:<letzter Tag>`) mit Beispielhaushalt, dann dasselbe Volume mit dem Arbeitsstand: Schema, keine offene Migration, Zähler, Ablesungen, Lieferungen und Verträge je Art gleich gezählt, HEALTHCHECK, Backup der alten Version lässt sich einspielen |
 | App in Home Assistant OS (Supervisor) | `vm` | veröffentlichte App aus dem App-Repository installiert und gestartet, lokale Kopie gleich der veröffentlichten, Update auf den Arbeitsstand mit denselben Daten, Seitenleiste für alle Benutzer, erste Person verwaltet, zweite ist Mitglied, Teilsicherung mit den Daten und ohne `*.tmp.*`, Rücksicherung, Benachrichtigung über den Supervisor kommt in Home Assistant an, direkter Port ohne Person nur mit Schlüssel, MCP |
-| Integration (HACS bzw. Marketplace) | `alles`: `ha-neu`, `ha-alt`; `vm` | über `custom_components` (der Marketplace braucht eine Verbindung zu GitHub mit Konto): Konfigurationsablauf mit und ohne Lese-Schlüssel, Geräte und Sensoren in der Zahl aus `/api/summary`, jeder Wert wie in der API |
+| Integration (Marketplace, ehemals HACS) | `alles`: `ha-neu`, `ha-alt`; `vm` | über `custom_components` (die Farm prüft den lokalen Stand vor dem Release; der Marketplace installiert nur Veröffentlichtes): Konfigurationsablauf mit und ohne Lese-Schlüssel, Geräte und Sensoren in der Zahl aus `/api/summary`, jeder Wert wie in der API, ein Sensor ohne Erwartung ist ein Fehler; ab Integration 1.1.0 (Version aus ihrem `manifest.json`) auch Bestand und Füllstand der Tanks, Prognose und Kosten der HT/NT-Gruppe und die Auszahlungen der Einspeisung samt Einheit (Schaufenster: 14 Geräte, 54 Sensoren; mit 1.0.x 45) |
 | YAML-Vorlagen für Home Assistant | `alles`: `ha-neu` (Anmeldung an) | **wörtlich aus `docs/anleitungen/home-assistant.md`**: Schritt 3 (`rest_command`, `secrets.yaml`), Schritt 4 (Automation, Stand kommt an), Schritt 5 (Sensoren und Attribute wie `/api/summary`), Schritt 6 (Webhook: Testnachricht löst die Automation mit Titel und Text aus); ersetzt werden nur Adresse, Token, Schlüssel, Webhook-ID und Zählerschlüssel |
 | evcc | `alles`: `evcc` | Weg bis zur Auswertung (die Demo von evcc hat keine Ladevorgänge) |
 | KI über MCP | `alles`, `vm` | JSON-RPC direkt: `initialize`, `tools/list`, `get_overview` wie `/api/summary`, falscher Schlüssel abgewiesen |
@@ -108,7 +108,8 @@ Home Assistant 2026.11 bringt den Marketplace mit und löscht ein eigenes
   `mod_rewrite` und `mod_headers`, die PHP-Werte aus der Tabelle „Upload-Grenzen“
   der Doku, der Arbeitsstand als Checkout (alles, was Git kennt oder nicht
   ignoriert; nie `data/` oder `samples/` eines Arbeitsplatzes). Die API läuft wie in
-  der Oberfläche über `api.php/api/…`.
+  der Oberfläche über `api.php/api/…`; dazu prüft die Farm `…/api/health` und den
+  Push nach `…/api/ingest` ohne `api.php` (Umschreiben in der `.htaccess`, seit v3.13.0).
 - **Caddy** (`caddy:2-alpine`): `tls internal`, `basic_auth` für zwei erfundene
   Namen, `header_up X-Forwarded-User`. Das Netz `proxy-netz` hat feste Adressen,
   damit `ET_TRUSTED_PROXIES` genau den Proxy nennt (`FARM_PROXY_NETZ`, Standard
@@ -208,11 +209,14 @@ bash tools/farm/farm.sh down
   leere Liste. Geprüft wird der Weg bis zur Auswertung; die Übernahme prüft
   `EvccServiceTest` mit einer Attrappe.
 - **Marketplace:** Die Integration kommt über `custom_components`, nicht über den
-  Marketplace (der verlangt eine Verbindung zu GitHub mit Konto).
+  Marketplace: Die Farm prüft den lokalen Stand vor dem Release, der Marketplace
+  installiert nur, was veröffentlicht ist (aus der Standardliste ohne Verbindung zu
+  GitHub).
 - **`backup_exclude`:** Einen Rest `*.tmp.*` kann die Farm nicht in `/data` der App
   legen; geprüft ist, dass keiner in der Sicherung steht und die Daten darin sind.
-- **Apache ohne Umschreiben:** Die mitgelieferte `.htaccess` leitet `/api/…` nicht
-  auf `api.php` um; die Farm meldet das als Beobachtung, geprüft wird `api.php/api/…`.
+- **Apache:** Geprüft wird `mod_php` mit `mod_rewrite`. PHP-FPM hinter Apache (wie
+  die Synology Web Station), Apache ohne `mod_rewrite` und eine Installation im
+  Unterverzeichnis prüft die Farm nicht; die Regeln dafür prüft `WebrootRulesTest`.
 - **Keine KI im automatischen Lauf:** Ob ein Sprachmodell mit den Werkzeugen
   umgehen kann, zeigt nur die Demo.
 
@@ -266,8 +270,8 @@ nginx from `docker/nginx.conf`), rootless, own web server / Synology Web Station
 `docs/betrieb/webserver.md`), reverse proxy with HTTPS and
 proxy sign-in (Caddy; the same header sent straight to the container is ignored),
 update from the last release on the same volume, the Home Assistant app
-(Supervisor, VM), the integration (via `custom_components`; the Marketplace needs
-a GitHub account), the Home Assistant YAML templates **read verbatim from the
+(Supervisor, VM), the integration (via `custom_components`: the farm checks the local
+state before the release, the Marketplace installs only what is published), the Home Assistant YAML templates **read verbatim from the
 docs** (steps 3 to 6), evcc, MCP; a language model only in the demo; amd64 only in
 the CI smoke test; a real NAS only in the maintainer's track B.
 

@@ -207,13 +207,15 @@ final class DocumentedThresholdsTest extends TestCase
         $n = count($keys);
         // v3.12.0 (F1037) — neunzehn mit den drei mcp_*-Schaltern (mcp_allowed_origins entfiel, Paket protokoll)
         // v3.12.0 (Härtung) — neunundzwanzig mit Hinweis auf neue Versionen, Standort und Wetterabgleich
-        $num = ['de' => [14 => 'Vierzehn', 15 => 'Fünfzehn', 16 => 'Sechzehn', 19 => 'Neunzehn', 20 => 'Zwanzig', 24 => 'Vierundzwanzig', 29 => 'Neunundzwanzig'],
-                'en' => [14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen', 19 => 'Nineteen', 20 => 'Twenty', 24 => 'Twenty-four', 29 => 'Twenty-nine']];
+        // v3.13.0 — dreißig mit `letters_admin_only`; (K2d) achtunddreißig mit den übrigen Einstellungen der Texterkennung,
+        // des Auslesens und der Benachrichtigung; neununddreißig mit dem Speicher für Belege (`attachments_max_mb`)
+        $num = ['de' => [14 => 'Vierzehn', 15 => 'Fünfzehn', 16 => 'Sechzehn', 19 => 'Neunzehn', 20 => 'Zwanzig', 24 => 'Vierundzwanzig', 29 => 'Neunundzwanzig', 30 => 'Dreißig', 38 => 'Achtunddreißig', 39 => 'Neununddreißig'],
+                'en' => [14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen', 19 => 'Nineteen', 20 => 'Twenty', 24 => 'Twenty-four', 29 => 'Twenty-nine', 30 => 'Thirty', 38 => 'Thirty-eight', 39 => 'Thirty-nine']];
         foreach (['de' => 'docs/referenz/einstellungen.md', 'en' => 'docs/en/referenz/einstellungen.md'] as $lang => $rel) {
             $d = self::flat($rel);
             $start = (int)strpos($d, $num[$lang][$n] ?? "($n)");
             self::assertGreaterThan(0, $start, "$rel: „{$num[$lang][$n]} …“ fehlt (ADMIN_SETTINGS hat $n Schlüssel)");
-            $para = substr($d, $start, 1300);
+            $para = substr($d, $start, 2000);   // v3.13.0 (K2d) — die Liste ist länger geworden (bisher 1300)
             foreach ($keys as $k) self::assertStringContainsString("`$k`", $para, "$rel: `$k` fehlt in der Liste der Verwalter-Schlüssel");
         }
     }

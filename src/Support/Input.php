@@ -108,4 +108,16 @@ final class Input
         if (in_array($s, ['0', 'false', 'nein', 'no', 'off', ''], true)) return false;
         return null;
     }
+
+    /**
+     * v3.13.0 — Wahrheitswert einer Eingabe nach der einen Regel (bool()), Unlesbares → 400
+     * `errors.common.boolExpected` mit dem Feld. Für jeden Schalter auf einem Schreibweg: Bis v3.12 lasen
+     * einige Wege selbst (`(bool)`, `!empty()`, `FILTER_VALIDATE_BOOLEAN`, eigene Listen), und „nein“
+     * ersetzte beim Laden der Beispieldaten den Haushalt, „false“ schaltete die Kürzung der CO₂-Erstattung
+     * ein, „Ja“ galt als nein.
+     */
+    public static function flag(mixed $v, string $field): bool
+    {
+        return self::bool($v) ?? throw new LocalizedException('errors.common.boolExpected', ['field' => $field], "field $field: bool expected");
+    }
 }

@@ -229,6 +229,42 @@ final class AssigneeTest extends ServiceTestCase
         self::assertSame(['Dora', 'u_dora', true], [$d['assignee'], $d['assignee_id'], $d['assignee_deleted']], 'Name aus dem Verzeichnis');
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — „ehemalige Person“ im Verlauf (ActivityService::anonymize) ersetzt auch die
+     * Zuständige eines erledigten Termins, ohne ID und Namen; andere Zuständige bleiben. Bis v3.5.0 prüfte das
+     * testDeletingAPersonDropsTheIdAndOnRequestTheName, v3.6.0 ersetzte ihn ohne diese Zusicherung.
+     */
+    public function testAnonymizingReplacesTheAssigneeInTheLog(): void
+    {
+        $anna = $this->rem(['assignee_id' => 'u_anna', 'title' => 'Ablesung', 'recurrence' => 'none']);
+        $ben = $this->rem(['assignee_id' => 'u_ben', 'title' => 'Zähler', 'recurrence' => 'none']);
+        $a = $this->activity->get((string)$this->reminderService->markDone($anna['id'], $this->today)['activity_id']);
+        $b = $this->activity->get((string)$this->reminderService->markDone($ben['id'], $this->today)['activity_id']);
+        self::assertSame('u_anna', $a['assignee']['id'] ?? null, 'Momentaufnahme mit ID');
+        self::assertGreaterThanOrEqual(1, $this->activity->anonymize('u_anna'));
+        self::assertSame(['former' => true], $this->activity->get($a['id'])['assignee'], 'Verlauf: ehemalige Person');
+        self::assertStringNotContainsString('Anna', (string)json_encode($this->activity->get($a['id'])['assignee']));
+        self::assertSame('u_ben', $this->activity->get($b['id'])['assignee']['id'] ?? null, 'andere Zuständige bleiben');
+    }
+
+    /**
+     * v3.13.0 (Paket gegenproben) — „ehemalige Person“ beim Löschen: Am gespeicherten erledigten Termin fallen Name und
+     * ID weg (nicht nur in der Aufbereitung durch withAssignee, die die ID ohnehin verdeckt).
+     */
+    public function testAnonymizingDropsNameAndIdFromTheStoredReminder(): void
+    {
+        $this->people['u_carl'] = 'Carl';
+        $done = $this->rem(['assignee_id' => 'u_carl', 'title' => 'Einmal', 'recurrence' => 'none']);
+        $this->reminderService->markDone($done['id'], $this->today);
+        unset($this->people['u_carl']);
+        self::assertSame(['handed_over' => 0, 'kept' => 1], $this->reminderService->personDeleted('u_carl', true, null, 'Carl'));
+        $s = $this->stored($done['id']);
+        self::assertTrue($s['assignee_former'] ?? false);
+        self::assertArrayNotHasKey('assignee_id', $s, 'ID weg');
+        self::assertArrayNotHasKey('assignee', $s, 'Name weg');
+        self::assertStringNotContainsString('u_carl', (string)json_encode($s));
+    }
+
     /** v3.6.0 — Der Name eines einmaligen Termins wird beim Erledigen eingefroren (umbenannt danach: bleibt). */
     public function testTheNameIsFrozenWhenTheReminderIsDone(): void
     {

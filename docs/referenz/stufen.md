@@ -70,7 +70,8 @@ Netzbetreibers: Dann rechnet die Flexibilität je Zähler nach.
 
 ✓ heißt: Die Stufe zeigt es. – heißt: ausgeblendet, aber per Link erreichbar.
 Die Spalten gelten von links nach rechts: Was Einsteiger sehen, sehen alle
-höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
+höheren Stufen auch. Ein Test prüft jede Zeile gegen den Code; seit v3.13.0
+trägt dafür jede Zeile eine Sprungmarke.
 
 ### Erfassen
 
@@ -84,10 +85,10 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-contract-terms"></a>Vertrag: Preisgarantie, „Kündigung wirkt“, Mindestlaufzeit, „Verlängert sich ohne Kündigung“ | – | ✓ | ✓ | Wechsel planen |
 | <a id="level-el-price-changes"></a>Vertrag: weitere Preiszeilen („+ Zeile“), Boni, Sonderzahlungen | – | ✓ | ✓ | Preiswechsel und Rückzahlungen genau abbilden |
 | <a id="level-el-contract-expert"></a>Vertrag: Kennwerte der Fernwärme (CO₂, Primärenergie), Preise je Zähler einer Gruppe, § 14a Modul 1 und Modul 3, Gutschriften des Direktvermarkters, „Monatspreise importieren“, Zählungen je Vertrag | – | – | ✓ | Sonderfälle von Tarif und Netzentgelt |
-| Ablesung: **„Nur für die Abrechnung“** und **„Stand ist richtig“** im Bearbeiten-Dialog *(v3.9.0)* | ✓ | ✓ | ✓ | ein Stand, mit dem der Versorger abgerechnet hat, der aber die Monate verzieht |
-| Vertrag: **Abschlag im Rhythmus** (alle 2 oder 3 Monate, Termine laut Rechnung) *(v3.9.0)* | ✓ | ✓ | ✓ | wie der Versorger abbucht; Saldo und Vorschlag zählen je Termin |
+| <a id="level-el-billing-only"></a>Ablesung: **„Nur für die Abrechnung“** und **„Stand ist richtig“** im Bearbeiten-Dialog *(v3.9.0)* | ✓ | ✓ | ✓ | ein Stand, mit dem der Versorger abgerechnet hat, der aber die Monate verzieht |
+| <a id="level-el-advance-rhythm"></a>Vertrag: **Abschlag im Rhythmus** (alle 2 oder 3 Monate, Termine laut Rechnung) *(v3.9.0)* | ✓ | ✓ | ✓ | wie der Versorger abbucht; Saldo und Vorschlag zählen je Termin |
 | <a id="level-household"></a><a id="level-household-meters"></a>Haushalt → **Zähler** — alle Zähler an einem Ort: Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | ✓ | ✓ | ✓ | Zähler einer Art verwalten (Knopf „Zähler“ oben in der Verbrauchsansicht) |
-| Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Haushalt → Verbrauchsarten und die Ersteinrichtung; der Knopf auf der Zählerseite ab Erfahren |
+| <a id="level-el-concept"></a>Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Haushalt → Verbrauchsarten, Haushalt → Zähler und die Ersteinrichtung |
 | <a id="level-el-meter-plant"></a>Zähler: **PV-Anlage** (Investition, Inbetriebnahme, Speicher, Balkonkraftwerk), **Stromzähler der Wärmepumpe** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Grundlage für Amortisation und Jahresarbeitszahl |
 | <a id="level-el-meter-expert"></a>Zähler: Zählergruppe, Analyse-Zäsuren, „Zeitreihe importieren“ | – | – | ✓ | Gruppenvertrag, Rechnen ab einer Sanierung, Viertelstunden aus Portalen |
 
@@ -102,8 +103,8 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-heat-pump"></a>Karte **„Wärmepumpe“** mit Jahresarbeitszahl | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* wie effizient die Wärmepumpe arbeitet |
 | <a id="level-el-utility-expert"></a>Verbrauch: Warmwasser-Wärme, CO₂-Preis im Brennstoff | – | – | ✓ | Rechengrößen hinter den Kosten |
 | <a id="level-todo"></a>**Zu tun** — Offen: Fristen, Empfehlungen, Rechte, Post, für Verwalter die Vorschläge der KI *(v3.12.0)* | ✓ | ✓ | ✓ | alles, was auf dich wartet |
-| „Zu tun“: **Heizgrenze anpassen** mit „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“, auch an Saldo-Karte, Prognose und Werkstatt *(v3.9.0)* | ✓ | ✓ | ✓ | ob der Abschlag reicht, hängt an der Heizgrenze |
-| „Zu tun“: **Ablesung prüfen**, doppelte Stände, Hinweis auf die Analyse-Zäsur *(v3.9.0)* | ✓ | ✓ | ✓ | ein vertippter Stand verzieht sonst still die Monate |
+| <a id="level-el-heat-limit"></a>„Zu tun“: **Heizgrenze anpassen** mit „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“, auch an Saldo-Karte, Prognose und Werkstatt *(v3.9.0)* | ✓ | ✓ | ✓ | ob der Abschlag reicht, hängt an der Heizgrenze |
+| <a id="level-el-reading-check"></a>„Zu tun“: **Ablesung prüfen**, doppelte Stände, Hinweis auf die Analyse-Zäsur *(v3.9.0)* | ✓ | ✓ | ✓ | ein vertippter Stand verzieht sonst still die Monate |
 | <a id="level-report"></a><a id="level-report-print"></a>**Jahresbericht** — auch als PDF und zum Drucken | ✓ | ✓ | ✓ | das Jahr auf einer Seite |
 | <a id="level-figures"></a>**Kennzahlen** — Effizienz, Einordnung, Tanks, Strom-Saldo, Schaubilder *(v3.12.0, bis dahin auf der Übersicht)* | – | ✓ | ✓ | wie der Haushalt dasteht |
 | <a id="level-analysis"></a>**Analyse** — Heizsignatur, Jahre im Vergleich | – | ✓ | ✓ | Verbrauch und Temperatur nebeneinander |
@@ -142,9 +143,9 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 |---|---|---|---|---|
 | <a id="level-inbox"></a>**Posteingang** — PDF ablegen, auslesen lassen, jede Angabe mit Belegstelle prüfen, übernehmen; von Hand neben dem Dokument | ✓ | ✓ | ✓ | die Post vom Versorger liest die App |
 | <a id="level-inbox-draft"></a>Entwurf aus Dokumenten — den Haushalt aus vielen Dokumenten auf einmal anlegen *(v3.7.0)* | ✓ | ✓ | ✓ | Erstbefüllung ohne Tippen |
-| Akte je Vertrag und Zähler — alle Dokumente in zeitlicher Folge *(v3.7.0)* | ✓ | ✓ | ✓ | nur eine Liste der Dokumente |
-| Auslesen einrichten — Karte „Auslesen“ (Lokal oder Cloud) unter Verbindungen → Post und Fotos auslesen | – | – | ✓ | einmal einrichten, meist durch die Person, die die Installation verwaltet; Posteingang und Einrichtungsassistent öffnen dieselbe Karte als Dialog, auf jeder Stufe |
-| Kurzbefehl „Teilen → Energietracker“, überwachter Ordner *(v3.7.0)* | – | ✓ | ✓ | Eingangskanäle, wie die Integrationen |
+| <a id="level-el-dossier"></a>Akte je Vertrag und Zähler — alle Dokumente in zeitlicher Folge *(v3.7.0)* | ✓ | ✓ | ✓ | nur eine Liste der Dokumente |
+| <a id="level-el-reading-setup"></a>Auslesen einrichten — Karte „Auslesen“ (Lokal oder Cloud) unter Verbindungen → Post und Fotos auslesen | ✓ | ✓ | ✓ | *seit v3.12.0 ab Einsteiger:* einmal einrichten, meist durch die Person, die die Installation verwaltet; Posteingang und Einrichtungsassistent öffnen dieselbe Karte als Dialog |
+| <a id="level-el-channels"></a>Kurzbefehl „Teilen → Energietracker“, überwachter Ordner *(v3.7.0)* | ✓ | ✓ | ✓ | Eingangskanäle; der Hinweis steht im Posteingang und unter Verbindungen → Post und Fotos auslesen |
 
 ### Haushalt und Personen
 
@@ -160,10 +161,10 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-household-building"></a>Haushalt → **Gebäude** — Wohnfläche, Gebäude, Wohnverhältnis, Heizung und Warmwasser | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-household"></a>Gebäude: eigene Vergleichswerte, Wasser-Referenzwerte | – | ✓ | ✓ | Einordnung mit eigenen Zahlen |
 | <a id="level-household-utilities"></a>Haushalt → **Verbrauchsarten** — aktive Arten, Messkonzept, Abrechnungsstichtage | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-utilities"></a>Verbrauchsarten: physikalische Konstanten, Energieträger (Lieferung), eigene Werte der Flexibilität, Photovoltaik | – | ✓ | ✓ | Photovoltaik *seit v3.7.0 ab Erfahren* |
+| <a id="level-el-settings-utilities"></a>Verbrauchsarten: physikalische Konstanten, Energieträger (Lieferung), eigene Werte der Flexibilität, Photovoltaik, Abschläge zählen | – | ✓ | ✓ | Photovoltaik *seit v3.7.0 ab Erfahren*, Abschläge zählen *neu in v3.13.0* |
 | <a id="level-el-settings-co2"></a>Rechnen: CO₂-Emissionsfaktoren | – | – | ✓ | Rechenparameter |
-| **Personen im Haushalt** anlegen, umbenennen, löschen (Haushalt → Gebäude), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
-| Zugänge und Rollen (Einstellungen → Zugang und Sicherheit → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
+| <a id="level-el-people"></a>**Personen im Haushalt** anlegen, umbenennen, löschen (Haushalt → Personen), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
+| <a id="level-el-users"></a>Zugänge und Rollen (Einstellungen → Zugang und Sicherheit → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
 
 ### Anbinden
 

@@ -27,8 +27,9 @@ final class RecommendationController
     public function dismiss(Request $req): never
     {
         $id = $req->param('id');
-        $until = is_array($req->body) ? ($req->body['until'] ?? null) : null;
-        $r = $this->recs->dismiss($id, is_string($until) && $until !== '' ? $until : null);
+        // v3.13.0 — eine Liste statt eines Tags ist 400 (Support\Input), nicht still „30 Tage“
+        $until = \Energietracker\Support\Input::text(is_array($req->body) ? $req->body : [], 'until', null);
+        $r = $this->recs->dismiss((string)$id, $until !== null && $until !== '' ? $until : null);
         Response::json(['dismissed' => true, 'id' => $id, 'until' => $r['until'], 'activity_id' => $r['activity_id']]);
     }
 

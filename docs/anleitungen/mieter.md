@@ -197,7 +197,10 @@ bezahlt  = Vorauszahlung Heizung + Betriebskosten
 - **Die übrigen Monate sind geschätzt:** die Wärme aus dem Heizmodell mit dem
   langjährigen Mittel des Wetters (Klimanormal), sonst aus dem Vorjahresmonat,
   sonst aus dem Tagesmittel der bekannten Monate. In der Tabelle „Monat für
-  Monat“ tragen sie den Vermerk „geschätzt“.
+  Monat“ tragen sie den Vermerk „geschätzt“. *(seit v3.13.0)* Ein abgelaufener
+  Monat, den die Ablesungen nur zum Teil decken (Ablesung am 31.12., Einzug oder
+  Auszug im Monat), zählt seine gemessenen Tage gemessen; nur die fehlenden Tage
+  sind geschätzt.
 - Monate am Rand des Zeitraums zählen anteilig.
 - Fehlt etwas, steht es unter der Karte: kein Preis für Wärme, Warmwasser oder
   Kaltwasser, keine Vorauszahlung für einen Teil des Zeitraums, keine Zähler

@@ -4,7 +4,8 @@
 // Bis v3.11 standen sie nur je Zähler unter „Beendet (n)“ in der Tabelle der Verbrauchsart; das
 // bleibt. Gerechnet wird nichts Neues: Die Zahlen kommen aus `contract-status`, derselben Quelle
 // wie diese Tabelle. Der Saldo ist der Saldo am Vertragsende (Verbraucht minus Bezahlt, mit
-// Sonderzahlungen), kein Preisvergleich mit dem Folgevertrag (Sichtung S2).
+// Sonderzahlungen), kein Preisvergleich mit dem Folgevertrag (Sichtung S2). Seit v3.13.0 zählt er
+// ab dem Tag nach der letzten gebuchten Rechnung des Vertrags; deckt sie das Ende, ist er abgerechnet.
 // =====================================================================
 
 import { api } from '../api.js';
@@ -60,10 +61,21 @@ export function pastRowHtml(row) {
   const bv = balanceView(c.current_balance, u);
   const bonus = c.bonus_to_date ?? c.actual_bonus_total;
   const special = Number(c.special_payment_net) || 0;
-  const billCell = !u.supports_bill_check || row.isGroup ? '<span class="muted">–</span>'
+  // v3.13.0 — abgerechnet: Eine gebuchte Rechnung deckt das Ende (`settled_until`). Nichts ist mehr offen, der Saldo steht
+  // bei 0,00 €; Verbraucht und Bezahlt zählen erst nach der Rechnung, also nichts mehr (–), statt 0,00 € neben einem
+  // Vertrag, der lief
+  const settled = typeof c.settled_until === 'string' && c.settled_until !== '';
+  const settledNote = settled ? `<small data-role="past-settled">${escapeHtml(t('contractsPast.settled', { date: fmt.date(c.settled_until) }))}</small>` : '';
+  // v3.13.0 (Paket K2e) — „Rechnung prüfen/erfassen“ steht bei „Ansehen“ in der angehefteten Spalte der Aktionen
+  // (.spalte-aktionen): Zwischen 900 und 1280 px lagen beide Knöpfe außerhalb des Tabellenrahmens. Die Spalte
+  // „Rechnung“ nennt den Stand.
+  const canBill = u.supports_bill_check && !row.isGroup;
+  const billCell = !canBill ? '<span class="muted">–</span>'
+    : `<small>${escapeHtml(row.bills.length ? tp('contractsPast.billCount', row.bills.length, {}) : t('contractsPast.billNone'))}</small>`;
+  const billBtn = !canBill ? ''
     : row.bills.length
-      ? `<a class="btn btn--ghost btn--sm" href="#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(row.meterId)}&from=${encodeURIComponent(row.bills[0].period_from)}&until=${encodeURIComponent(row.bills[0].period_to)}" data-role="past-bill">${escapeHtml(t('contractsPast.billOpen'))}</a><small>${escapeHtml(tp('contractsPast.billCount', row.bills.length, {}))}</small>`
-      : `<a class="btn btn--ghost btn--sm" href="#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(row.meterId)}&from=${encodeURIComponent(c.start)}&until=${encodeURIComponent(end)}" data-role="past-bill">${escapeHtml(t('contractsPast.billAdd'))}</a><small>${escapeHtml(t('contractsPast.billNone'))}</small>`;
+      ? `<a class="btn btn--ghost btn--sm" href="#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(row.meterId)}&from=${encodeURIComponent(row.bills[0].period_from)}&until=${encodeURIComponent(row.bills[0].period_to)}" data-role="past-bill">${escapeHtml(t('contractsPast.billOpen'))}</a>`
+      : `<a class="btn btn--ghost btn--sm" href="#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(row.meterId)}&from=${encodeURIComponent(c.start)}&until=${encodeURIComponent(end)}" data-role="past-bill">${escapeHtml(t('contractsPast.billAdd'))}</a>`;
   return `<tr data-contract-id="${escapeHtml(c.contract_id)}" data-art="${escapeHtml(u.key)}">
     <td class="provider-cell"><span class="past__name">${artIcon(u, { size: 16 })} ${escapeHtml(name)}</span><small>${escapeHtml(u.label)}, ${escapeHtml(row.meterName)}</small></td>
     <td class="period-cell">${escapeHtml(t('contractsOverview.term', { start: fmt.date(c.start), end: fmt.date(end) }))}
@@ -71,12 +83,38 @@ export function pastRowHtml(row) {
       <small>${phasePill(c)}${row.successor ? ` ${escapeHtml(t('contractsPast.supersededBy', { name: row.successor }))}` : ''}</small></td>
     <td class="muted">${prices.length ? prices.map(p => `<span class="tariff-part">${escapeHtml(p)}</span>`).join('<br>') : '–'}</td>
     <td class="num">${c.current_advance_amount != null ? escapeHtml(advanceAmountText(c.current_advance_amount, c.current_advance_every_months)) : '–'}</td>
-    <td class="num">${escapeHtml(fmt.eur(c.cost_to_date ?? c.actual_cost))}${bonus > 0 ? `<small class="ton-ok">${escapeHtml(t('contractsPast.bonus', { value: fmt.eur(bonus) }))}</small>` : ''}${feedIn ? `<small>${escapeHtml(t('utility.contractsTable.colEarned'))}</small>` : ''}</td>
-    <td class="num">${escapeHtml(fmt.eur(c.advance_paid))}${feedIn ? `<small>${escapeHtml(t('utility.contractsTable.colReceived'))}</small>` : ''}</td>
-    <td class="num" data-role="past-balance">${bv ? `<strong class="${bv.cls}">${escapeHtml(bv.signed)}</strong><small class="${bv.cls}">${escapeHtml(bv.credit === null ? '' : bv.word)}</small>` : '<span class="muted">–</span>'}${special ? `<small>${escapeHtml(t('contractsPast.special', { value: `${special > 0 ? '+' : '−'}${fmt.eur(Math.abs(special))}` }))}</small>` : ''}</td>
+    <td class="num">${settled ? '<span class="muted">–</span>' : `${escapeHtml(fmt.eur(c.cost_to_date ?? c.actual_cost))}${bonus > 0 ? `<small class="ton-ok">${escapeHtml(t('contractsPast.bonus', { value: fmt.eur(bonus) }))}</small>` : ''}`}${feedIn ? `<small>${escapeHtml(t('utility.contractsTable.colEarned'))}</small>` : ''}</td>
+    <td class="num">${settled ? '<span class="muted">–</span>' : escapeHtml(fmt.eur(c.advance_paid))}${feedIn ? `<small>${escapeHtml(t('utility.contractsTable.colReceived'))}</small>` : ''}</td>
+    <td class="num" data-role="past-balance">${bv ? `<strong class="${bv.cls}">${escapeHtml(bv.signed)}</strong><small class="${bv.cls}">${escapeHtml(bv.credit === null ? '' : bv.word)}</small>` : '<span class="muted">–</span>'}${special && !settled ? `<small>${escapeHtml(t('contractsPast.special', { value: `${special > 0 ? '+' : '−'}${fmt.eur(Math.abs(special))}` }))}</small>` : ''}${settledNote}</td>
     <td>${billCell}</td>
-    <td><button type="button" class="btn btn--ghost btn--sm" data-past-view="${escapeHtml(c.contract_id)}" aria-label="${escapeHtml(t('contractsPast.viewNamed', { name }))}">${escapeHtml(t('contractsPast.view'))}</button></td>
+    <td class="spalte-aktionen past__aktionen">${billBtn}<button type="button" class="btn btn--ghost btn--sm" data-past-view="${escapeHtml(c.contract_id)}" aria-label="${escapeHtml(t('contractsPast.viewNamed', { name }))}">${escapeHtml(t('contractsPast.view'))}</button></td>
   </tr>`;
+}
+
+/** Arten, deren Verträge diese Seite zeigt (ohne Lieferungen und Arten ohne Verträge). */
+const pastUtilities = async () => (await activeUtilities()).filter(u => u.has_contracts !== false && u.reading_kind !== 'delivery');
+
+/**
+ * v3.13.0 — Zahl der früheren Verträge für den Reiter (lib/sidebar.js): dieselbe Menge wie die Seite, aus
+ * weniger Anfragen. Die Seite liest den Vertragsstatus je Zähler und Gruppe; die Phase (`past`) rechnet der
+ * Server für die Vertragsliste mit derselben Regel (ContractService::phase). Gezählt werden Verträge an
+ * Zählern und Gruppen, die es gibt; Angebote zählen nicht (eigene Phase).
+ * @returns {Promise<number>}
+ */
+export async function countPastContracts() {
+  const utilities = await pastUtilities();
+  if (!utilities.length) return 0;
+  const [ov, lists] = await Promise.all([
+    api.metersOverview(),
+    Promise.all(utilities.map(u => api.contracts(u.key).catch(() => []))),
+  ]);
+  const byKey = new Map((ov?.utilities || []).map(x => [x.utility, x]));
+  return utilities.reduce((n, u, i) => {
+    const row = byKey.get(u.key);
+    const targets = new Set([...(row?.meters || []).map(m => m.id), ...(row?.groups || []).map(g => g.id)]);
+    return n + (lists[i] || []).filter(c => groupOf(c) === 'past'
+      && ((c.meter_id && targets.has(c.meter_id)) || (c.meter_group_id && targets.has(c.meter_group_id)))).length;
+  }, 0);
 }
 
 export async function render(container) {
@@ -85,7 +123,7 @@ export async function render(container) {
       <p class="view-header__subtitle">${rich('contractsPast.subtitle')}</p>
     </div></div>`;
   container.innerHTML = `${header}<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
-  const utilities = (await activeUtilities()).filter(u => u.has_contracts !== false && u.reading_kind !== 'delivery');
+  const utilities = await pastUtilities();
   const ctxOf = new Map();
   const lists = await Promise.all(utilities.map(async (u) => {
     const [meters, stored, groups, bills] = await Promise.all([api.meters(u.key), api.contracts(u.key).catch(() => []),
@@ -147,7 +185,7 @@ function draw(container, header, rows, ctxOf, utilities) {
           <th scope="col" class="num">${escapeHtml(t('utility.contractsTable.colPaid'))}</th>
           <th scope="col" class="num">${escapeHtml(t('contractsPast.col.balance'))}</th>
           <th scope="col">${escapeHtml(t('contractsPast.col.bill'))}</th>
-          <th scope="col"><span class="sr-only">${escapeHtml(t('contractsPast.col.action'))}</span></th>
+          <th scope="col" class="spalte-aktionen"><span class="sr-only">${escapeHtml(t('contractsPast.col.action'))}</span></th>
         </tr></thead>
         <tbody>${shown.map(pastRowHtml).join('')}</tbody>
       </table></div>

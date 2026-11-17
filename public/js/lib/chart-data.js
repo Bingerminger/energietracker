@@ -110,6 +110,38 @@ export function trendNeedsCheck(pct) {
   return ratio >= TREND_CHECK_FACTOR || ratio <= 1 / TREND_CHECK_FACTOR;
 }
 
+/** Heute als `YYYY-MM-DD` in der Ortszeit des Geräts. */
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * v3.13.0 (GitHub #64) — Fenster der Kachel-Balken im Abrechnungsjahr: die Monate der Periode `from` bis
+ * `until` (einschließlich), wie die Zahlen der Kachel. Künftige Monate sind leer (`null`); ein Monat, den die
+ * Periode nur zum Teil deckt oder der nur zum Teil gemessen ist, gilt als Teilmonat. Bis v3.12 zeigten die
+ * Balken auch im Abrechnungsjahr die letzten zwölf Monate.
+ *
+ * @param {Array<{ym: string, days?: number}>} rows  Monatszeilen
+ * @param {{from: string, until: string}|null} period  Abrechnungsperiode (until einschließlich)
+ * @param {string} [today]  ISO-Tag (Tests legen ihn fest)
+ * @returns {{months: string[], rows: Array<object|null>, partial: boolean[], from: string, to: string}|null}
+ *   null ohne gültige Periode (dann wie bisher die letzten zwölf Monate)
+ */
+export function periodMonths(rows, period, today = localToday()) {
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  if (!period || !ISO.test(period.from || '') || !ISO.test(period.until || '') || period.until < period.from) return null;
+  const byYm = new Map((Array.isArray(rows) ? rows : []).map(r => [r.ym, r]));
+  const first = period.from.slice(0, 7), last = period.until.slice(0, 7), now = String(today).slice(0, 7);
+  const months = [];
+  for (let ym = first; ym <= last && months.length < 24; ym = shiftYm(ym, 1)) months.push(ym);
+  const list = months.map(ym => (ym > now ? null : byYm.get(ym) ?? null));
+  const partial = months.map((ym, i) => !!list[i] && (isPartial(list[i])
+    || (i === 0 && period.from.slice(8) !== '01')
+    || (i === months.length - 1 && Number(period.until.slice(8)) !== daysInMonth(ym))));
+  return { months, rows: list, partial, from: first, to: last };
+}
+
 /** Die jüngsten `n` Monatszeilen mit Anfang, Ende und ob der letzte Monat unvollständig ist. */
 export function lastMonths(rows, n = 12) {
   const win = (Array.isArray(rows) ? rows : []).slice(-n);

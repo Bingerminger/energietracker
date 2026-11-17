@@ -23,6 +23,10 @@ export const SEITEN = {
 export const DATEI = (pfad) => (pfad === '/' ? 'index.html' : `${pfad.slice(1)}index.html`);
 const SCHMAL = '(max-width: 599.98px)';
 const DUNKEL = '(prefers-color-scheme: dark)';
+/** Animationen nur ohne „Bewegung reduzieren“; sonst gilt das Rückfallbild */
+export const BEWEGT = '(prefers-reduced-motion: no-preference)';
+/** Animationen und ihre Rückfallbilder (v3.13.0): tools/build-animations.mjs im Haupt-Repo */
+export const ANIM = 'assets/img/anim';
 
 export const esc = (s) => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -103,6 +107,34 @@ export function rende(lang, art, root) {
       + (f.dunkel ? src(f.dunkel, DUNKEL, true) : '')
       + `<img src="/${f.hell}" width="${w}" height="${h}" alt="${esc(alt)}"${lazy ? ' loading="lazy"' : ''}${prio ? ' fetchpriority="high"' : ''} decoding="async"></picture>`;
   };
+  /**
+   * Animation einer Szene (v3.13.0): animiertes WebP, nur ohne „Bewegung reduzieren“. Sonst das Rückfallbild
+   * (dieselbe Szene, gleiche Maße) aus assets/img/screens/. Kein GIF (Entscheidung 2026-11-16): Wer die
+   * WebP-Bilder der Seite zeigt, spielt auch animiertes WebP. Dunkle Quellen tragen data-thema und data-breite wie die übrigen Bilder: Erzwingt der
+   * Umschalter Dunkel, gilt für die animierte Quelle nur noch die Bedingung „Bewegung“ (seite.js).
+   * Ein Knopf hält die Animation an (seite.js), ohne Skript bleibt er verborgen.
+   */
+  const animation = (szene, alt) => {
+    const a = (v, ext) => `${ANIM}/${szene}${v}.${lang}.${ext}`;
+    const hell = `assets/img/screens/${szene}.${lang}.webp`, dunkel = `assets/img/screens/${szene}-dunkel.${lang}.webp`;
+    const [w, h] = dims(hell);
+    const src = (file, media, type, thema) => `<source media="${media}" srcset="/${file}"${type ? ` type="${type}"` : ''} width="${w}" height="${h}"`
+      + `${thema ? ` data-thema="dunkel"${thema === true ? '' : ` data-breite="${thema}"`}` : ''}>`;
+    // Der Link öffnet die Animation in voller Größe (am Handy sind die Zahlen sonst zu klein); der Knopf steht daneben
+    return `<span class="bewegt"><a class="bewegt__gross" href="/${a('', 'webp')}"><picture>`
+      + src(a('-dunkel', 'webp'), `${BEWEGT} and ${DUNKEL}`, 'image/webp', BEWEGT)
+      + src(a('', 'webp'), BEWEGT, 'image/webp')
+      + src(dunkel, DUNKEL, '', true)
+      + `<img src="/${hell}" width="${w}" height="${h}" alt="${esc(alt)}" loading="lazy" decoding="async"></picture>`
+      + `<span class="unsichtbar"> ${E(X.UI.gross)}</span></a>`
+      + `<button type="button" class="knopf knopf--klein bewegt__knopf" hidden data-bewegt data-an="${E(X.UI.anhalten)}" data-aus="${E(X.UI.abspielen)}">`
+      + `${ico('pause', { cls: 'bewegt__pause' })}${ico('abspielen', { cls: 'bewegt__spielen' })}<span>${E(X.UI.anhalten)}</span></button></span>`;
+  };
+  /** Figur mit Animation: Rahmen, Animation, Bildunterschrift; der Rahmen öffnet die Animation in voller Größe */
+  const animFigur = (a) => `<figure class="bild bild--bewegt"${dc(a.alt)}>`
+    + `<div class="bild__rahmen">${animation(a.anim, tx(a.alt))}</div>`
+    + (a.text ? `<figcaption${dc(a.text)}>${R(a.text)}</figcaption>` : '') + '</figure>';
+
   const figur = (name, alt, text, { cls = '' } = {}) => {
     const f = fassungen(name);
     return `<figure class="bild${name.startsWith('wegweiser:') ? ' bild--schaubild' : ''}${cls ? ` ${cls}` : ''}"${dc(alt)}>`
@@ -160,7 +192,7 @@ ${sprachen}
     const mac = fassungen('uebersicht'), handy = fassungen('iphone');
     const held = `<section class="held" aria-labelledby="titel"><div class="wrap held__raster">
 <div class="held__text">
-<p class="abzeichen-reihe"><a class="abzeichen abzeichen--neu" href="#ki"${dc(H.neu)}>${ico('neu', { size: 16 })}<span>${R(H.neu)}</span></a><a class="abzeichen" href="${X.REPO}/blob/main/LICENSE"${dc(H.frei)}>${E(H.frei)}</a></p>
+<p class="abzeichen-reihe"><a class="abzeichen abzeichen--neu" href="#neu"${dc(H.neu)}>${ico('neu', { size: 16 })}<span>${R(H.neu)}</span></a><a class="abzeichen" href="${X.REPO}/blob/main/LICENSE"${dc(H.frei)}>${E(H.frei)}</a></p>
 <h1 id="titel"${dc(H.h1)}>${R(H.h1)}</h1>
 ${P(H.lead, 'lead')}
 <p class="knoepfe" id="held-knoepfe">${knopf(X.demo(lang), X.UI.demoStarten, 'knopf--haupt knopf--gross')}${knopf('#installieren', X.UI.installieren, 'knopf--gross')}</p>
@@ -185,10 +217,12 @@ ${P(H.demoNote, 'klein')}
 <div class="slider" data-slider aria-roledescription="${E(X.UI.karussell)}" aria-labelledby="funktionen-t">
 <div class="slider__reiter" role="tablist" aria-label="${E(L.reiter)}">${L.folien.map((f, i) => `<a role="tab" id="reiter-${f.id}" href="#folie-${f.id}" aria-controls="folie-${f.id}" aria-selected="${i === 0}">${E(f.frage)}</a>`).join('')}</div>
 <div class="slider__spur" data-spur>${L.folien.map((f, i) => {
-      const fs = fassungen(f.bild);
-      const medium = f.video
-        ? `<video controls preload="none" poster="/${f.video.poster}" src="/${f.video.src}"></video>`
-        : `<a href="/${fs.hell}">${picture(fs, tx(f.alt))}<span class="unsichtbar"> ${E(X.UI.gross)}</span></a>`;
+      // v3.13.0 — `anim`: Animation mit Rückfallbild statt eines Bildes (Link und Knopf zum Anhalten in animation())
+      const medium = f.anim
+        ? animation(f.anim, tx(f.alt))
+        : f.video
+          ? `<video controls preload="none" poster="/${f.video.poster}" src="/${f.video.src}"></video>`
+          : `<a href="/${fassungen(f.bild).hell}">${picture(fassungen(f.bild), tx(f.alt))}<span class="unsichtbar"> ${E(X.UI.gross)}</span></a>`;
       return `<figure class="folie${f.handy ? ' folie--handy' : ''}" id="folie-${f.id}" role="tabpanel" aria-labelledby="reiter-${f.id}" aria-roledescription="${E(X.UI.folieRolle)}"${dc(f.alt)}>`
         + `<div class="folie__medium">${medium}</div>`
         + `<figcaption class="folie__text"><span class="folie__zahl">${esc(stand(i))}</span><b class="folie__frage">${E(f.frage)}</b>`
@@ -196,6 +230,16 @@ ${P(H.demoNote, 'klein')}
     }).join('')}</div>
 <div class="slider__steuerung" hidden><button type="button" class="knopf knopf--klein" data-zurueck aria-label="${E(X.UI.zurueck)}">${ico('links')}</button><span class="slider__stand unsichtbar" aria-live="polite" data-stand="${E(X.UI.folie)}">${esc(stand(0))}</span><button type="button" class="knopf knopf--klein" data-weiter aria-label="${E(X.UI.weiter)}">${ico('rechts')}</button></div>
 </div>
+</div></section>`;
+
+    // v3.13.0 — Neu in 3.13: was dazukam, ehrlich mit dem, was noch aus ist, und zwei Animationen
+    const NE = X.NEU;
+    const neu = `<section class="abschnitt" id="neu" aria-labelledby="neu-t"><div class="wrap">
+<h2 id="neu-t">${E(NE.h2)}</h2>${P(NE.lead, 'abschnitt__lead')}
+<div class="neu__bilder">${NE.bilder.map(animFigur).join('')}</div>
+<ul class="zeilen zeilen--2">${NE.liste.map(z => `<li${dc(z.text)}>${ico(z.icon, { size: 20 })}<span>${R(z.text)}</span></li>`).join('')}</ul>
+<div class="infobox infobox--info"${dc(NE.ehrlich)}>${ico('info', { size: 20 })}<p class="infobox__text">${R(NE.ehrlich)}</p></div>
+<p class="knoepfe neu__knoepfe">${knopf(X.demo(lang, NE.demo.persona, NE.demo.route), NE.demo.text)}<a href="${esc(href(NE.changelog.href))}">${E(NE.changelog.text)}</a></p>
 </div></section>`;
 
     const N = X.NUTZEN;
@@ -230,7 +274,8 @@ ${k.ehrlich ? `<p class="karte__ehrlich"${dc(k.ehrlich)}>${ico('info', { size: 1
 <ul class="zeilen zeilen--ha">${HA.punkte.map(z => `<li${dc(z.text)}>${ico(z.icon, { size: 20 })}<span>${R(z.text)}</span></li>`).join('')}</ul>
 <h3>${E(HA.schritteH3)}</h3>
 <ol class="nummern">${HA.schritte.map(s => `<li${dc(s)}>${R(s)}</li>`).join('')}</ol>
-<p class="knoepfe">${knopf(X.HA_ADD, HA.app, 'knopf--haupt')}${knopf(X.HACS_OPEN, HA.hacs)}<a href="${esc(X.doc(lang, 'anleitungen/home-assistant.md'))}">${E(HA.anleitung)}</a></p>
+<p class="ha__logo"${dc(HA.logo)}>${picture({ hell: 'assets/img/integration-logo.png', dunkel: 'assets/img/integration-logo-dunkel.png' }, tx(HA.logo))}<span>${E(HA.logoText)}</span></p>
+<p class="knoepfe">${knopf(X.HA_ADD, HA.app, 'knopf--haupt')}${knopf(X.INTEGRATION_OPEN, HA.integration)}<a href="${esc(X.doc(lang, 'anleitungen/home-assistant.md'))}">${E(HA.anleitung)}</a></p>
 <div class="infobox infobox--info"${dc(HA.ehrlich)}>${ico('info', { size: 20 })}<p class="infobox__text">${R(HA.ehrlich)}</p></div>
 </div>
 ${figur('wegweiser:home-assistant', HA.bildAlt, HA.bildText)}
@@ -290,7 +335,7 @@ ${w.note ? P(w.note, 'klein') : ''}
     // Mitlaufender Knopf am Handy: Demo und Installieren immer greifbar
     const leiste = `<div class="leiste" data-leiste>${knopf(X.demo(lang), X.UI.demoStarten, 'knopf--haupt')}${knopf('#installieren', X.UI.installieren)}</div>`;
 
-    return `<main id="inhalt">\n${held}\n${schritte}\n${slider}\n${nutzen}\n${arten}\n${wege}\n${ha}\n${vertrauen}\n${fragen}\n${install}\n${vorhaben}\n${mitmachen}\n</main>\n${leiste}`;
+    return `<main id="inhalt">\n${held}\n${neu}\n${schritte}\n${slider}\n${nutzen}\n${arten}\n${wege}\n${ha}\n${vertrauen}\n${fragen}\n${install}\n${vorhaben}\n${mitmachen}\n</main>\n${leiste}`;
   }
 
   function ueberseite() {
@@ -314,8 +359,8 @@ ${(a.absaetze || []).map(t => P(t)).join('')}${a.liste ? `<ul class="liste">${a.
     url: SITE + hier.slice(1),
     description: tx(X.META.description),
     applicationCategory: 'UtilitiesApplication',
-    operatingSystem: 'Docker (amd64, arm64), Home Assistant OS, PHP 8.3',
-    softwareVersion: '3.12.0',
+    operatingSystem: 'Docker (amd64, arm64), Home Assistant OS, PHP 8.4',
+    softwareVersion: '3.13.0',
     license: 'https://www.gnu.org/licenses/agpl-3.0.html',
     isAccessibleForFree: true,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },

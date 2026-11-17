@@ -124,7 +124,10 @@ deine eigenen Werte ein, am besten aus einer Energieberatung oder vom Fahrzeug.
   ein Hinweis, „10 % sparen“ bleibt.
 - **Beim Strom gibt es kein Heizmodell, auch nicht bei der Wärmepumpe.** Darum dort
   weder Winter noch Raumtemperatur. Die Prozente einer Maßnahme wirken auf den ganzen
-  Strom des Zählers, und Grundlast und Sparen rechnen gleich.
+  Strom des Zählers, und Grundlast und Sparen rechnen gleich. Die Rechnung der
+  Wärmepumpe nach dem Wetter ist gebaut, aber noch nicht freigeschaltet
+  ([Strom](../verstehen/02-strom.md#wärmepumpe-nach-dem-wetter-v3130-noch-nicht-freigeschaltet));
+  die Werkstatt sagt es dazu.
 - **Ohne eingetragenes Angebot kein Wechsel.** „Preis steigt“ braucht einen Preis.
 - **Beim Wasser gibt es keinen Tarif zur Wahl:** Du wechselst dort nicht den
   Anbieter, die Werkstatt rechnet mit dem laufenden Vertrag.
@@ -229,8 +232,15 @@ Tank. Abschlag und Abrechnung gibt es bei Lieferungen nicht.
 - **Heizungstausch: eine zweite Rechnung über dieselbe Wärme.** Wärme =
   Brennstoff × Nutzungsgrad des alten Kessels. Eine Wärmepumpe braucht Wärme ÷
   Jahresarbeitszahl an Strom, eine Pelletheizung Wärme ÷ ihren Nutzungsgrad an
-  Pellets. Die Arbeitszahl gilt das ganze Jahr; im Winter ist sie in
-  Wirklichkeit kleiner, im Sommer größer. Leere Felder rechnen mit genannten
+  Pellets. **Seit v3.13.0 verteilt sich die Arbeitszahl nach dem Wetter auf die
+  Monate:** im Winter kleiner, im Sommer größer, die Jahresarbeitszahl bleibt genau
+  deine Eingabe (Strom im Jahr = Wärme ÷ JAZ). Die Form kommt aus der Leistungszahl
+  nach Carnot zur mittleren Außentemperatur des Monats im Klimanormal, mit der
+  Vorlauftemperatur einer Heizkurve für Heizkörper (Teillastpunkte der DIN EN 14825,
+  Mitteltemperatur: 52 °C bei −7 °C bis 30 °C bei +12 °C) und 55 °C für Warmwasser;
+  angenommen ist eine Luft/Wasser-Wärmepumpe. Misst ein Wärmezähler im Haushalt eine
+  Wärmepumpe, nimmt die Werkstatt deren gemessene Arbeitszahl je Monat. Ohne
+  Klimanormal gilt die Arbeitszahl das ganze Jahr gleich. Leere Felder rechnen mit genannten
   Beispielwerten, keinen Richtwerten. Die Kosten für den Einbau sind nicht
   eingerechnet, mit eingetragenen Kosten nennt die Werkstatt die Amortisation.
 

@@ -463,6 +463,105 @@ final class HomeAssistantNotifyTest extends ServiceTestCase
         self::assertCount(2, $this->calls, 'abgelehnte Adressen werden nie verbunden');
     }
 
+    /**
+     * v3.13.0 — Umleitung: nur Schema, Host und Port des Ziels (der Pfad trägt die
+     * Webhook-ID), nie Benutzerdaten, nie etwas außer http(s) oder ein ungültiger Name;
+     * derselbe Ursprung ist keine neue Adresse.
+     */
+    public function testARedirectNamesOnlyTheNewOrigin(): void
+    {
+        $from = 'http://homeassistant.local:8123/api/webhook/Geheim_12345678';
+        foreach ([
+            'http://homeassistant.local/api/webhook/Geheim_12345678'        => 'http://homeassistant.local',
+            'https://homeassistant.local:443/api/webhook/Geheim_12345678?a=1' => 'https://homeassistant.local',
+            'https://HomeAssistant.Local:8443/x#frag'                       => 'https://homeassistant.local:8443',
+            'http://192.168.178.10:80/api'                                  => 'http://192.168.178.10',
+            'http://[fd00::10]:8123/api'                                    => 'http://[fd00::10]:8123',
+            'http://homeassistant.local:8123/anders'                        => null,   // derselbe Ursprung
+            'HTTP://HOMEASSISTANT.LOCAL:8123/'                              => null,
+            'http://user:pw@homeassistant.local/'                           => null,
+            'ftp://homeassistant.local/'                                    => null,
+            'javascript:alert(1)'                                           => null,
+            'http://<b>x</b>/'                                              => null,
+            '/api/webhook/x'                                                => null,
+        ] as $to => $want) {
+            self::assertSame($want, NotifyTransport::redirectOrigin($from, $to), $to);
+        }
+        self::assertNull(NotifyTransport::redirectOrigin('http://192.168.178.10/x', 'http://192.168.178.10:80/y'), 'Port 80 ist derselbe');
+        // nie von https auf http raten (der Token ginge im Klartext); umgekehrt schon
+        self::assertNull(NotifyTransport::redirectOrigin('https://homeassistant.local:8443/x', 'http://homeassistant.local/x'));
+        self::assertSame('https://homeassistant.local', NotifyTransport::redirectOrigin('http://homeassistant.local:8123/x', 'https://homeassistant.local/x'));
+
+        // im Transport: Umleitung mit Ziel → redirect + location; ohne brauchbares Ziel bleibt es bei http
+        $this->answers = [
+            ['ok' => false, 'http_code' => 307, 'error_code' => 'redirect', 'location' => 'http://homeassistant.local/api/webhook/x'],
+            ['ok' => false, 'http_code' => 307, 'error_code' => 'redirect', 'location' => 'http://homeassistant.local:8123/api/webhook/y'],
+            ['ok' => false, 'http_code' => 302, 'error_code' => 'redirect'],
+        ];
+        $t = $this->transport();
+        self::assertSame(['ok' => false, 'status' => 307, 'error' => 'redirect', 'location' => 'http://homeassistant.local'],
+            $t->post('http://homeassistant.local:8123/api/webhook/x', []));
+        self::assertSame(['ok' => false, 'status' => 307, 'error' => 'http'], $t->post('http://homeassistant.local:8123/api/webhook/x', []));
+        self::assertSame(['ok' => false, 'status' => 302, 'error' => 'http'], $t->post('http://homeassistant.local:8123/api/webhook/x', []));
+
+        // die Karte nennt die Adresse in jeder Sprache (Fehlercode → settings.haNotify.error.<code>)
+        $root = dirname(__DIR__, 3);
+        foreach (['de', 'en', 'fr', 'it', 'es', 'pt', 'nl'] as $l) {
+            $cat = json_decode((string)file_get_contents("$root/public/locales/$l.json"), true);
+            self::assertStringContainsString('{location}', (string)($cat['settings']['haNotify']['error']['redirect'] ?? ''), "$l: Text für redirect");
+        }
+        self::assertStringContainsString('location: r.location', (string)file_get_contents("$root/public/js/components/ha-notify.js"), 'reasonText gibt location weiter');
+        // die API-Referenz nennt den Fehlercode und das Feld (DE und EN)
+        foreach (['docs/referenz/api.md', 'docs/en/referenz/api.md'] as $rel) {
+            $d = (string)preg_replace('/\s+/', ' ', (string)file_get_contents("$root/$rel"));
+            self::assertMatchesRegularExpression('/`redirect`.{0,40}`noTransport`/', $d, "$rel: redirect in der Liste der Testnachricht");
+            self::assertMatchesRegularExpression('/`redirect`[^.]*Home Assistant.{0,120}`location`/', $d, "$rel: was bei redirect in location steht");
+        }
+    }
+
+    /**
+     * v3.13.0 — Über echtes HTTP: Das nachgebaute Home Assistant leitet mit 307 auf
+     * Port 80 um (wie Home Assistant OS 18.4). Die Testnachricht nennt die neue
+     * Adresse, gefolgt wird nicht (genau eine Anfrage, der Token geht nirgends sonst
+     * hin), die Webhook-ID steht weder im Ergebnis noch im Status. Der tägliche Lauf
+     * merkt sich die Adresse für „Letzter Versuch gescheitert“. Das Ziel der
+     * Umleitung liegt unter .invalid (löst nie auf): Kein echtes Gerät wird erreicht.
+     */
+    public function testARedirectIsNamedAndNotFollowed(): void
+    {
+        $ha = new FakeHomeAssistant();
+        $to = 'http://homeassistant.invalid';
+        try {
+            $send = fn(string $url, string $json, array $headers, int $timeout, ?string $ip): array =>
+                NotifyTransport::curlPost(str_replace('http://homeassistant.local:8123', $ha->base . '/umleitung', $url), $json, $headers, $timeout, '127.0.0.1');
+            $s = $this->service($this->transport($send));
+            $this->webhook($s);
+            $r = $s->sendTest();
+            self::assertSame(['ok' => false, 'status' => 307, 'error' => 'redirect', 'location' => $to, 'target' => 'webhook'], $r);
+            self::assertCount(1, $ha->requests(), 'der Umleitung wird nicht gefolgt');
+            self::assertSame('/umleitung/api/webhook/Energietracker-Hook_42', $ha->requests()[0]['path']);
+            $status = $s->status();
+            self::assertSame(['redirect', $to], [$status['last']['error'], $status['last']['location']]);
+            self::assertStringNotContainsString('Energietracker-Hook_42', json_encode($r) . json_encode($status), 'die Webhook-ID bleibt auf dem Server');
+
+            // Adresse und Token: dieselbe Meldung, der Token geht nur an die eingetragene Adresse
+            $ha->reset();
+            $s->update(['target' => 'token', 'token' => FakeHomeAssistant::TOKEN]);
+            self::assertSame($to, $s->sendTest()['location']);
+            self::assertCount(1, $ha->requests());
+            self::assertSame('/umleitung/api/services/persistent_notification/create', $ha->requests()[0]['path']);
+
+            // der tägliche Lauf: gescheitert, mit der Adresse im Protokoll
+            $ha->reset();
+            $this->events = [$this->event('reading_due', 'reading-strom-m1')];
+            self::assertSame(['sent' => 0, 'error' => 'redirect'], $s->tick()['daily']);
+            self::assertSame($to, $s->status()['last']['location']);
+            self::assertCount(1, $ha->requests());
+        } finally {
+            $ha->stop();
+        }
+    }
+
     // ── Zu tun ───────────────────────────────────────────────────────
 
     public function testToDoOrderAndNextItem(): void

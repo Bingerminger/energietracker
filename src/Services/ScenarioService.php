@@ -270,8 +270,11 @@ final class ScenarioService
         }
         $meter = $this->meters->target($utility, $s['meter_id']);
         if (!$meter) throw new NotFoundException('meter not found');   // der Controller meldet es übersetzt
+        if (!empty($meter['is_group']) && $utility === 'strom') $meter = $this->withMemberRole($utility, $meter);
         if ($calc === 'pv') {
-            $pv = new ScenarioPv($this->pvSummary ?? new PvSummaryService($this->consumption, $this->settings), $this->intervals, $this->meters, $this->settings);
+            // v3.13.0 (Paket sonne) — mit der Einstrahlung (ConsumptionService) rechnet sie das Grundjahr auf normale Sonne
+            $pv = new ScenarioPv($this->pvSummary ?? new PvSummaryService($this->consumption, $this->settings), $this->intervals, $this->meters, $this->settings,
+                $this->consumption);
             return $head + $pv->compute($s, $utility, $meter, $today ?? date('Y-m-d'));
         }
         if ($calc === 'delivery') return $this->computeDelivery($s, $head, $meter, $today);
@@ -287,6 +290,8 @@ final class ScenarioService
         // Saisonprofil; die Werkstatt sagt es wie die Prognose
         foreach ($fc['warnings'] ?? [] as $w) {
             if (($w['code'] ?? '') === 'interpolated') $warnings[] = ['code' => 'interpolated', 'months' => (int)($w['months'] ?? 0)];
+            // v3.13.0 (Paket waermepumpe) — die Wärmepumpe rechnet noch ohne Wetter: kein Winter, keine Raumtemperatur
+            if (($w['code'] ?? '') === 'heat_pump_no_weather') $warnings[] = ['code' => 'heat_pump_no_weather', 'reason' => (string)($w['reason'] ?? '')];
         }
         // v3.7.0 (wirklichkeit-2) — Gütesperre: Heizanteil, Band und Abschlag sind dann
         // unsicher. Bei echten Daten lag der Heizanteil bei etwa der Hälfte des
@@ -624,6 +629,46 @@ final class ScenarioService
      * @param array<string,mixed> $head Kopf der Antwort
      * @return array<string,mixed>
      */
+    /**
+     * v3.13.0 (Paket waermepumpe, Konzept §4.6 B) — Form der Arbeitszahl je Prognosemonat für den Heizungstausch
+     * (ScenarioDelivery::copShape): Heizkurve und Klimanormal; misst ein Wärmezähler im Haushalt eine Wärmepumpe
+     * (HeatPumpService, `by_hdd` der letzten drei Jahre), deren Kennlinie über die Gradtage je Tag. Null ohne Normal.
+     *
+     * @param list<array<string,mixed>> $months Monate der Werkstatt (ym, heat_share, days)
+     * @return array{shape:list<float>,source:string}|null
+     */
+    private function copShape(array $months): ?array
+    {
+        $climate = $this->consumption->climate();
+        if ($climate->get() === null) return null;
+        $measured = null;
+        $year = (int)substr((string)($months[0]['ym'] ?? date('Y-m')), 0, 4);
+        $hp = new HeatPumpService($this->meters, $this->consumption);
+        $points = []; $heatMeter = null;
+        foreach ([$year, $year - 1, $year - 2] as $y) {
+            foreach ($hp->forYear($y)['pumps'] as $p) {
+                if ($heatMeter !== null && $p['heat_meter_id'] !== $heatMeter) continue;
+                foreach ($p['by_hdd'] as $b) {
+                    $days = (int)date('t', (int)strtotime($b['ym'] . '-01'));
+                    if ($b['hdd'] === null || $b['cop'] === null || $days <= 0) continue;
+                    $points[] = [(float)$b['hdd'] / $days, (float)$b['cop']];
+                    $heatMeter ??= (string)$p['heat_meter_id'];
+                }
+            }
+        }
+        if ($heatMeter !== null && count($points) >= ScenarioDelivery::MEASURED_MIN_POINTS) {
+            $base = $this->consumption->hddBaseFor($this->meters->get('waerme', $heatMeter));
+            $perDay = [];
+            foreach ($months as $m) {
+                $n = $this->consumption->hddNormal((int)$m['month'], $base);
+                $perDay[] = $n !== null ? (float)$n['mean'] / max(1, (int)$m['days']) : 0.0;
+            }
+            $measured = ['points' => $points, 'hdd_per_day' => $perDay];
+        }
+        return ScenarioDelivery::copShape(array_map(fn($m) => ['ym' => (string)$m['ym'], 'heat_share' => $m['heat_share'], 'days' => (int)$m['days']], $months),
+            fn(string $d): ?float => $climate->dayAvg($d), $measured);
+    }
+
     private function computeDelivery(array $s, array $head, array $meter, ?string $today): array
     {
         $utility = $s['utility'];
@@ -705,7 +750,10 @@ final class ScenarioService
         $pelletPerKg = (float)$this->settings->get('pellets_kwh_per_kg', 4.8);
         $rep = $s['replace'];
         if ($rep !== null && $rep['to'] === $utility) { $warnings[] = ['code' => 'replace_same']; $rep = null; }
-        $replaced = $rep !== null ? ScenarioDelivery::replacement($fuelQty, $rep, $pelletPerKg) : null;
+        // v3.13.0 (Paket waermepumpe, Konzept §4.6 B) — die Arbeitszahl der Wärmepumpe nach dem Wetter verteilt (die
+        // Jahresarbeitszahl bleibt die Eingabe); ohne Klimanormal übers Jahr gleich wie bisher
+        $shape = $rep !== null && $rep['to'] === 'heat_pump' ? $this->copShape($months) : null;
+        $replaced = $rep !== null ? ScenarioDelivery::replacement($fuelQty, $rep, $pelletPerKg, $shape['shape'] ?? null) : null;
         $scenQty = $replaced['energy'] ?? $fuelQty;
         $scenCost = $replaced['cost'] ?? $fuelCost;
 
@@ -794,7 +842,7 @@ final class ScenarioService
         $repOut = null;
         if ($replaced !== null) {
             // allein gegen den Ausgangsfall: dieselbe Wärme, die neue Heizung statt des Brennstoffs
-            $alone = ScenarioDelivery::replacement($baseQty, $rep, $pelletPerKg);
+            $alone = ScenarioDelivery::replacement($baseQty, $rep, $pelletPerKg, $shape['shape'] ?? null);
             $saving = $bc - array_sum($alone['cost']);
             $ranking[] = ['kind' => 'replacement', 'saving_eur' => round($saving, 2), 'saving_qty' => round($bq - array_sum($alone['energy']), 1),
                 'payback_years' => $rep['invest_eur'] !== null && $saving > 0.005 ? round($rep['invest_eur'] / $saving, 1) : null,
@@ -816,6 +864,12 @@ final class ScenarioService
                 'invest_eur'    => $rep['invest_eur'],
                 'payback_years' => $rep['invest_eur'] !== null && $fuelSum - $repSum > 0.005 ? round($rep['invest_eur'] / ($fuelSum - $repSum), 1) : null,
             ];
+            // v3.13.0 (Paket waermepumpe, §4.6 B, additiv) — Arbeitszahl je Monat und woher ihre Form kommt
+            // (`carnot`: Heizkurve und Klimanormal, `measured`: gemessene Kennlinie); ohne Form null wie bisher
+            if ($replaced['to'] === 'heat_pump') {
+                $repOut['jaz_months'] = $replaced['jaz_months'] !== null ? array_map(fn($v) => round((float)$v, 2), $replaced['jaz_months']) : null;
+                $repOut['jaz_shape'] = $replaced['jaz_months'] !== null ? ($shape['source'] ?? null) : null;
+            }
         }
         usort($ranking, fn($x, $y) => $y['saving_eur'] <=> $x['saving_eur']);
         $optimization = null;
@@ -1170,6 +1224,23 @@ final class ScenarioService
      * @param list<string> $reasons
      * @return array<string,mixed>
      */
+    /**
+     * v3.13.0 (Paket vertrag, #40) — Eine Gruppe nimmt die Rolle ihrer Mitglieder, wenn alle (ohne Subzähler
+     * eines Mitglieds) dieselbe tragen: HT und NT einer Wärmepumpe bekommen so die Hebel der Wärmepumpe
+     * (Arbeitszahl). Bis v3.12 rechnete jede Gruppe als „Haushalt“; gemischte Gruppen bleiben es. Nur Strom:
+     * Bei Wasser wählt die Rolle (warm) die Rechnung der Monate selbst, das bleibt wie bisher.
+     *
+     * @param array<string,mixed> $group Ziel aus MeterService::groupTarget
+     * @return array<string,mixed>
+     */
+    private function withMemberRole(string $utility, array $group): array
+    {
+        $roles = [];
+        foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $m) $roles[(string)Utilities::roleOf($utility, $m)] = true;
+        $role = count($roles) === 1 ? (string)array_key_first($roles) : '';
+        return $role !== '' ? ['role' => $role] + $group : $group;
+    }
+
     /** v3.7.0 (Nachlauf) — `projection_uncertain` des laufenden Vertrags (dieselbe Quelle wie Karte und Übersicht), sonst null. */
     public static function currentUncertainty(ConsumptionService $consumption, string $utility, array $meter, ?string $today = null): ?array
     {
@@ -1267,6 +1338,8 @@ final class ScenarioService
             'scen_end_balance' => round($scen, 2),
             'months_left'      => $left,
             'beyond_horizon'   => $last !== false && $untilYm > $last['ym'],
+            // v3.13.0 (additiv) — ohne Arbeitspreis fehlen diesen Salden Verbrauchskosten (wie `price_missing` der Periode)
+            'price_missing'    => !empty($running['price_missing']),
         ];
     }
 
@@ -1292,6 +1365,8 @@ final class ScenarioService
     {
         $rows = array_values(array_filter($rows, fn($r) => is_array($r['billing_period'] ?? null)));
         if ($rows === []) return null;
+        // v3.13.0 — ohne gemessenen Verbrauch (`projection_missing`) kein Saldo zur Abrechnung: Er wäre aus einem Verbrauch von null
+        if (array_filter($rows, fn($r) => is_string($r['projection_missing'] ?? null)) !== []) return null;
         $cur = array_values(array_filter($rows, fn($r) => !empty($r['is_current'])))[0] ?? $rows[count($rows) - 1];
         $p = $cur['billing_period'];
         $settle = max(array_map(fn($r) => (string)($r['settle_on'] ?? $p['until']), $rows));
@@ -1344,6 +1419,11 @@ final class ScenarioService
             'suggested_range'     => $unc['suggested_range'] ?? null,
             'advance_ongoing'     => $cur['advance_ongoing'] ?? null,
             'suggestion_withheld' => $cur['suggestion_withheld'] ?? null,
+            // v3.13.0 (additiv) — ein Vertrag dieser Abrechnung ohne Arbeitspreis: Dem Saldo fehlen Verbrauchskosten
+            'price_missing'       => array_filter($rows, fn($r) => !empty($r['price_missing'])) !== [],
+            // v3.13.0 (additiv) — der Vertrag des Abschlags und ob er ohne Eintrag weiterläuft (Herkunft des Abschlags)
+            'contract_id'         => is_string($cur['contract_id'] ?? null) ? $cur['contract_id'] : null,
+            'renewed'             => !empty($cur['renewed']),
         ];
     }
 
@@ -1395,12 +1475,21 @@ final class ScenarioService
         if (($months[0]['ym'] ?? '') <= $ym) return null;   // die Prognose deckt den Monat
         $row = null;
         foreach ($history as $h) if ((string)($h['ym'] ?? '') === $ym) $row = $h;
-        $end = min(date('Y-m-t', (int)strtotime($asOf)), $until);
+        // v3.13.0 (Paket K2a) — bis zum Tag vor dem ersten Prognosemonat: Endet die Periode an der letzten echten Ablesung
+        // und liegt danach ein geschätzter Stand im Folgemonat, beginnt die Prognose erst nach jenem Monat; der Monat
+        // dazwischen fiel sonst heraus (zur Tagesrate des gemessenen Teils wie der Rest des Monats)
+        $first = (string)($months[0]['ym'] ?? '');
+        $gap = preg_match('/^\d{4}-\d{2}$/', $first) ? date('Y-m-d', (int)strtotime("$first-01 -1 day")) : '';
+        $end = min(max(date('Y-m-t', (int)strtotime($asOf)), $gap), $until);
         $days = (int)round((strtotime($end . ' 12:00') - strtotime($asOf . ' 12:00')) / 86400);
         if ($row === null || $days <= 0 || (int)($row['days'] ?? 0) <= 0) return null;
         $dim = (int)date('t', (int)strtotime($asOf));
-        $energy = (float)($row['kwh_cost'] ?? 0.0) / (int)$row['days'] * $days;
-        $base = (float)($row['base_price_eur'] ?? 0.0) * $days / $dim;
+        // v3.13.0 (Paket K2a) — deckt ein Vertrag den Monat nur zum Teil, rechnet der Rest nur seine Tage: Arbeitspreis für
+        // diese Tage, Grundpreis nach ihrem Anteil an seinen Tagen (die Zeile trägt ihn schon gekürzt), wie der Abschlag in
+        // advanceBetween. Nach einem Vertragsende ohne Folgevertrag ist der Rest 0
+        $own = ConsumptionService::contractDaysIn($row, date('Y-m-d', (int)strtotime($asOf . ' +1 day')), date('Y-m-d', (int)strtotime($end . ' +1 day')));
+        $energy = (float)($row['kwh_cost'] ?? 0.0) / (int)$row['days'] * ($own === null ? $days : $own[0]);
+        $base = (float)($row['base_price_eur'] ?? 0.0) * ($own === null ? $days / $dim : $own[0] / $own[1]);
         // v3.9.0 (auswertung, Nachtrag) — tagesanteilig, Raten mit Rhythmus aber an ihrem Tag (ConsumptionService::advanceBetween)
         $adv = ConsumptionService::advanceBetween($row, date('Y-m-d', (int)strtotime($asOf . ' +1 day')), date('Y-m-d', (int)strtotime($end . ' +1 day')), []);
         return ['days' => $days, 'cost' => round($energy + $base, 2), 'advance' => round($adv, 2)];

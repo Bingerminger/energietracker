@@ -67,6 +67,10 @@ const model = (body) => {
     ...(String(body.finding_id || '').includes('fee_notice_received') ? { known_basis: 'received', soft_until: '2026-12-04' } : {}) },
   // v3.12.0 — Kündigung: der Termin bleibt eine Lücke, der Dialog sagt warum
   ...(body.kind === 'termination' && body.contract_id === 'c_gap' ? { term_gap: { reason: 'missed', cancel_by: '2026-09-30', end: '2026-12-31' } } : {}),
+  // v3.13.0 — keine Frist mit und ohne Ende; Grundversorgung (zwei Wochen ab Zugang)
+  ...(body.kind === 'termination' && body.contract_id === 'c_gap_end' ? { term_gap: { reason: 'no_notice', cancel_by: null, end: '2027-06-30' } } : {}),
+  ...(body.kind === 'termination' && body.contract_id === 'c_gap_open' ? { term_gap: { reason: 'no_notice', cancel_by: null, end: null } } : {}),
+  ...(body.kind === 'termination' && body.contract_id === 'c_gap_basic' ? { term_gap: { reason: 'basic_supply', cancel_by: null, end: '2025-12-31' } } : {}),
   };
 };
 const calls = [];
@@ -299,6 +303,20 @@ console.log('Vertragskarte');
     && /31\.12\.2026/.test(gapText) && /30\.09\.2026/.test(gapText) && /Trag ihn hier ein/.test(gapText), gapText);
   gap.close(null);
   await tick(20);
+
+  // v3.13.0 — der Satz passt zum Fall: mit Ende nicht „weder ein Ende noch …“; Grundversorgung: zwei Wochen ab Zugang
+  for (const [id, want, not] of [['c_gap_end', /keine Kündigungsfrist eingetragen/, /weder ein Ende/],
+    ['c_gap_open', /weder ein Ende noch eine Kündigungsfrist/, /^$/],
+    ['c_gap_basic', /Grundversorgung.*zwei Wochen.*wann dein Brief ankommt/, /weder ein Ende|keine Kündigungsfrist/]]) {
+    calls.length = 0;
+    const dlg = D.openLetterDialog({ utility: 'strom', contract_id: id, letter: 'termination' });
+    await until(() => calls.length > 0 && root.querySelector('[data-role="letter-term-gap"]'));
+    const txt = root.querySelector('[data-role="letter-term-gap"]')?.textContent || '';
+    t(`Termin als Lücke (${id}): der Satz passt zum Fall`, want.test(txt) && (String(not) === '/^$/' || !not.test(txt))
+      && root.querySelector('[data-role="letter-term-gap"] strong')?.textContent === 'Warum der Termin fehlt:', txt);
+    dlg.close(null);
+    await tick(20);
+  }
 
   // Abschlag: gleiche Vorlage wie aus dem Befund, Felder wie dort
   calls.length = 0;

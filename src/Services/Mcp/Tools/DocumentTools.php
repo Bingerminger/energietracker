@@ -424,7 +424,11 @@ final class DocumentTools extends ToolGroup
         $rows = [];
         foreach ($items as $item) {
             if (!is_array($item)) continue;
+            // v3.13.0 (Paket F) — verworfen zählt nicht; Herkunft je Eintrag (gelesen oder von der Person korrigiert)
+            if (($item['status'] ?? '') === 'discarded') continue;
             $row = ['status' => (string)($item['status'] ?? 'ok'), 'basis' => 'entered'];
+            if (($item['origin'] ?? null) === 'corrected') $row['origin'] = 'corrected';   // ohne: wie gelesen
+            if (!empty($item['confirmed'])) $row['confirmed'] = true;
             $reasons = array_values(array_map('strval', (array)($item['reasons'] ?? [])));
             if ($reasons !== []) $row['reasons'] = $reasons;
             if (is_int($item['page'] ?? null) && $item['page'] > 0) $row['page'] = $item['page'];
@@ -528,6 +532,9 @@ final class DocumentTools extends ToolGroup
                 ], 'required' => ['name', 'value', 'basis'], 'additionalProperties' => false]],
                 'untrusted' => ['type' => 'object', 'additionalProperties' => ['type' => 'string']],
                 'withheld'  => ['type' => 'string', 'enum' => ['identifier']],
+                // v3.13.0 (Paket F) — Herkunft je Eintrag einer Liste (additiv)
+                'origin'    => ['type' => 'string', 'enum' => ['read', 'corrected']],
+                'confirmed' => ['type' => 'boolean'],
             ],
             'required'             => ['status', 'basis'],
             'additionalProperties' => false,

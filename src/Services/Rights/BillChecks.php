@@ -443,7 +443,7 @@ final class BillChecks
 
     /**
      * A6 — Posten der Art `metering` an einer Stromrechnung, umgerechnet auf ein Jahr (Summe
-     * brutto ÷ Tage des Zeitraums × 365; netto mit dem Steuersatz des Postens, ohne Satz keine
+     * brutto über perYear(): genau ein Jahr bleibt, sonst ÷ Tage × 365, v3.13.0; netto mit dem Steuersatz des Postens, ohne Satz keine
      * Prüfung), über der Preisobergrenze für den Einbaufall + METERING_TOLERANCE_EUR.
      * Einbaufall aus dem Zähler (`metering_device` mme/imsys, nicht bei `msb_basic: false`),
      * dem Jahresverbrauch (Mittel der letzten höchstens drei vollen Kalenderjahre bis zum Ende
@@ -507,7 +507,8 @@ final class BillChecks
                 $case = $cap;
             }
             if ($checked === 0 || $case === null) continue;
-            $year = round($gross / $days * 365, 2);
+            // v3.13.0 — Betrag und Menge nach derselben Regel aufs Jahr (perYear): ein Zeitraum von genau einem Jahr bleibt
+            $year = round(self::perYear($gross, $from, $to), 2);
             $capYear = round($capDays / $checked, 2);
             if ($year <= $capYear + Rights::METERING_TOLERANCE_EUR) continue;
             // Einbau im Zeitraum: ein Einmalbetrag bis METERING_ONE_OFF_EUR ist erlaubt
@@ -516,7 +517,7 @@ final class BillChecks
             foreach ($meters as $m) foreach ((array)($m['devices'] ?? []) as $d) {
                 if (($d['installed_on'] ?? '') >= $from && ($d['installed_on'] ?? '') <= $to) $installed = true;
             }
-            $excessInPeriod = $gross - $capYear * $days / 365;
+            $excessInPeriod = $gross - $capYear / self::yearFactor($from, $to);   // die Grenze für den Zeitraum
             if ($installed && $oneOff !== null && $excessInPeriod <= $oneOff) continue;
             $over = round($year - $capYear, 2);
             $date = self::presentedOn($b) ?? self::dayAfter($to);
@@ -547,7 +548,14 @@ final class BillChecks
     /**
      * A6 — Jahresverbrauch für die Fallgruppe (§ 30 Abs. 4 MsbG): Mittel der letzten höchstens
      * drei vollen Kalenderjahre (alle zwölf Monate mit Menge, je Zählwerk) bis zum Ende des
-     * Zeitraums, sonst die Menge der Rechnung auf ein Jahr hochgerechnet, sonst unbekannt.
+     * Zeitraums, sonst die Menge der Rechnung auf ein Jahr gerechnet, sonst unbekannt.
+     *
+     * v3.13.0 — Eine Regel für beide Wege (perYear): Ein Kalenderjahr aus Ablesungen und eine Rechnung über genau ein
+     * Jahr bleiben, wie sie sind; nur kürzere oder längere Zeiträume werden auf 365 Tage umgerechnet. Bis v3.12 wurde
+     * auch eine Rechnung über ein Schaltjahr umgerechnet (dasselbe Jahr aus Ablesungen nicht). Und der Jahreswert aus
+     * Ablesungen ist die ungerundete Menge des Jahres (ConsumptionService::amountBetween), nicht die Summe der auf
+     * 0,1 kWh gerundeten Monatszeilen: Aus genau 6.000 kWh zwischen zwei Jahresständen konnten so einige Zehntel mehr
+     * werden, also „über 6.000“. Welche Jahre voll sind, sagen weiter die Monatszeilen.
      *
      * @param list<array<string,mixed>> $meters
      * @return array{0: ?float, 1: ?string} [kWh, Grundlage years|bill]
@@ -566,15 +574,38 @@ final class BillChecks
         foreach ($byYear as $y => $perMeter) {
             if ("$y-12-31" > (string)$b['period_to'] || count($perMeter) !== count($meters)) continue;
             foreach ($perMeter as $months) if (count($months) !== 12) continue 2;
-            $full[(string)$y] = array_sum(array_map('array_sum', $perMeter));
+            $sum = 0.0;
+            foreach ($meters as $m) $sum += $this->consumption->amountBetween('strom', $m, "$y-01-01", ((int)$y + 1) . '-01-01', $today)['kwh'];
+            $full[(string)$y] = self::perYear($sum, "$y-01-01", "$y-12-31");   // ein Kalenderjahr: unverändert
         }
         krsort($full);
         $last = array_slice($full, 0, 3, true);
         if ($last !== []) return [array_sum($last) / count($last), 'years'];
         $kwh = $b['invoice']['energy_kwh'] ?? null;
         $days = Rights::daysBetween((string)$b['period_from'], (string)$b['period_to']) + 1;
-        // v3.12.0 — erst malnehmen, dann teilen: 6000 ÷ 365 × 365 ist im Gleitkomma 6000,000000000001
-        return is_numeric($kwh) && (float)$kwh > 0 && $days > 0 ? [(float)$kwh * 365 / $days, 'bill'] : [null, null];
+        return is_numeric($kwh) && (float)$kwh > 0 && $days > 0
+            ? [self::perYear((float)$kwh, (string)$b['period_from'], (string)$b['period_to']), 'bill'] : [null, null];
+    }
+
+    /**
+     * v3.13.0 — Menge oder Betrag eines Zeitraums [von, bis] (beide eingeschlossen) für ein Jahr: Ein Zeitraum von genau
+     * einem Jahr (Stichtag zu Stichtag, 365 oder 366 Tage: bis = von + 1 Jahr − 1 Tag) bleibt, wie er ist; ein kürzerer
+     * oder längerer wird auf 365 Tage umgerechnet. Das Gesetz nennt brutto jährliche Beträge und den Jahresverbrauch,
+     * keine Umrechnung (§ 30 MsbG, Wortlaut 2026-11-13). Eine Regel für Menge und Betrag, für Rechnung und Ablesungen.
+     */
+    public static function perYear(float $amount, string $from, string $to): float
+    {
+        return $amount * self::yearFactor($from, $to);
+    }
+
+    /** v3.13.0 — der Faktor von perYear(): 1 für genau ein Jahr, sonst 365 ÷ Tage. */
+    private static function yearFactor(string $from, string $to): float
+    {
+        $days = Rights::daysBetween($from, $to) + 1;
+        if ($days <= 0) return 0.0;
+        // ohne Klemmen: ein Jahr ab dem 29.02. endet am 28.02. (Tag vor dem 01.03.)
+        $anniversary = (new \DateTimeImmutable($from, new \DateTimeZone('UTC')))->modify('+1 year')->format('Y-m-d');
+        return self::dayAfter($to) === $anniversary ? 1.0 : 365 / $days;
     }
 
     // ── A7 Widerspruchsfrist beim Gebührenbescheid (Wasser/Abwasser) ─────

@@ -35,9 +35,12 @@ final class Provenance
     /**
      * v3.12.0 — was ein Saldo heißt, ohne dass jemand das Vorzeichen deuten muss. Im Praxistest las ein
      * lokales Modell ohne Server-Anweisungen −828,01 als „Nachzahlung“, obwohl `sign` danebenstand.
-     * `no_price`: Vertrag ohne Arbeitspreis, die Zahl sind nur die Abschläge (Skeptiker M5).
+     * `no_price`: Vertrag ohne Arbeitspreis, der Zahl fehlen Verbrauchskosten (v3.12.0). v3.13.0 — nicht „nur die
+     * Abschläge“: Grundpreis und Monate mit Preis stecken darin; der Satz nennt darum keinen Betrag.
+     * `too_few_readings` (v3.13.0): noch kein verwertbarer gemessener Verbrauch, die Tage seit dem letzten Stand zählen mit
+     * null; weder Guthaben noch Nachzahlung, der Satz nennt keinen Betrag.
      */
-    public const MEANINGS = ['credit', 'back_payment', 'balanced', 'payout', 'reclaim', 'no_price'];
+    public const MEANINGS = ['credit', 'back_payment', 'balanced', 'payout', 'reclaim', 'no_price', 'too_few_readings'];
 
     public static function isBasis(mixed $basis): bool
     {
@@ -66,8 +69,10 @@ final class Provenance
 
     // ── Abbildungen aus den Diensten (Paket lesen, Konzept §3.1) ──────────
 
-    /** Anteile unter diesem Wert fallen weg (Num rundet Anteile auf zwei Stellen). */
+    /** Anteile unter diesem Wert fallen weg (Num rundet Anteile auf zwei Stellen) — außer die schwächste Herkunft. */
     public const PART_MIN = 0.005;
+    /** v3.13.0 — so viel bekommt die schwächste Herkunft mindestens (Num zeigt 0,01) */
+    private const PART_KEEP = 0.006;
 
     /**
      * Monatszeile (ConsumptionService::forMeter, `monthly_total`) → Herkunft der Menge,
@@ -90,10 +95,76 @@ final class Provenance
         return 'measured';
     }
 
-    /** Herkunft eines Preises der Monatszeile: fortgeschriebener Vertrag → angenommen. */
-    public static function monthPrice(array $row): string
+    /**
+     * Herkunft eines Preises der Monatszeile: fortgeschriebener Vertrag → angenommen.
+     * v3.13.0 — mit dem Vertrag der Zeile auch nach dem Ende der Preisgarantie angenommen (wie price()), außer ein
+     * Preis-Eintrag beginnt erst danach. Bis dahin galt der Preis eines Monats nach der Garantie als eingetragen,
+     * während derselbe Preis am Vertrag „angenommen“ hieß.
+     *
+     * @param array<string,mixed> $row
+     * @param array<string,mixed>|null $contract gespeicherter Vertrag der Zeile
+     */
+    public static function monthPrice(array $row, ?array $contract = null): string
     {
-        return !empty($row['contract_assumed']) ? 'assumed' : 'entered';
+        if (!empty($row['contract_assumed'])) return 'assumed';
+        $guarantee = (string)($contract['price_guarantee_until'] ?? '');
+        $ym = (string)($row['ym'] ?? '');
+        if ($guarantee === '' || !preg_match('/^\d{4}-\d{2}$/', $ym)) return 'entered';
+        // der letzte Tag, den die Zeile deckt: `to` (Stück eines Monats) oder der angebrochene Monat nach `days`
+        $end = date('Y-m-t', (int)strtotime("$ym-01"));
+        $days = (int)($row['days'] ?? 0);
+        $last = is_string($row['to'] ?? null) ? $row['to']
+            : ($days > 0 ? min($end, date('Y-m-d', (int)strtotime("$ym-01 +" . ($days - 1) . ' days'))) : $end);
+        if ($last <= $guarantee) return 'entered';
+        $list = isset($contract['trinkwasser']) && is_array($contract['trinkwasser']) ? (array)($contract['trinkwasser']['working_prices'] ?? [])
+            : (array)($contract['working_prices'] ?? []);
+        foreach ($list as $e) {
+            $from = is_array($e) ? (string)($e['from'] ?? '') : '';
+            if ($from > $guarantee && $from <= $last) return 'entered';
+        }
+        return 'assumed';
+    }
+
+    /**
+     * v3.13.0 — Herkunft folgt der schwächsten Eingabe: die eine Stelle für eine Größe aus mehreren Bestandteilen
+     * (Saldo aus Arbeitskosten, Grundpreis, Bonus und Abschlägen; Kosten aus Menge und Preis). Jeder Bestandteil ist
+     * `[Betrag, Anteile je Herkunft]`; die Anteile der Summe gewichten nach dem Betrag. Die schwächste Herkunft, die
+     * überhaupt beiträgt, fällt nie weg (normalize()).
+     *
+     * @param list<array{0:float|int, 1:array<string,float>}> $components
+     * @return array<string,float>
+     */
+    public static function combine(array $components): array
+    {
+        $weights = [];
+        foreach ($components as [$amount, $parts]) {
+            $a = abs((float)$amount);
+            if ($a <= 0.0) continue;
+            foreach ($parts !== [] ? $parts : ['entered' => 1.0] as $b => $share) $weights[$b] = ($weights[$b] ?? 0.0) + $a * (float)$share;
+        }
+        return self::normalize($weights);
+    }
+
+    /**
+     * v3.13.0 — Anteile, keiner stärker als `$floor` (eine Eingabe, die für alle gilt, etwa ein angenommener Preis).
+     *
+     * @param array<string,float> $parts
+     * @return array<string,float>
+     */
+    public static function capped(array $parts, string $floor): array
+    {
+        $out = [];
+        foreach ($parts as $b => $share) {
+            $w = self::weakest((string)$b, $floor);
+            $out[$w] = ($out[$w] ?? 0.0) + (float)$share;
+        }
+        return self::normalize($out);
+    }
+
+    /** Anteile einer Herkunft (`$basis` = 1), oder die gegebenen, wenn es welche gibt. @param array<string,float> $parts */
+    public static function orOnly(array $parts, string $basis): array
+    {
+        return $parts !== [] ? $parts : [$basis => 1.0];
     }
 
     /** Ablesung → gemessen, als geschätzt erfasst → geschätzt. */
@@ -149,7 +220,12 @@ final class Provenance
         $weights = array_filter($weights, fn($w) => is_numeric($w) && (float)$w > 0);
         $sum = array_sum($weights);
         if ($sum <= 0) return [];
-        $weights = array_filter($weights, fn($w) => (float)$w / $sum >= self::PART_MIN);
+        $weakest = self::weakest(...array_map('strval', array_keys($weights)));
+        $kept = array_filter($weights, fn($w) => (float)$w / $sum >= self::PART_MIN);
+        // v3.13.0 — die schwächste Herkunft fällt nie weg: ein kleiner geschätzter Rest bleibt mit dem kleinsten Anteil
+        // stehen, den ein Zahl-Objekt zeigt (sonst hieße eine Summe mit geschätzter Stütze wieder „gemessen“)
+        if (!isset($kept[$weakest])) $kept[$weakest] = self::PART_KEEP * array_sum($kept) / (1 - self::PART_KEEP);
+        $weights = $kept;
         $sum = array_sum($weights);
         $out = [];
         foreach (self::BASES as $b) {
@@ -216,29 +292,39 @@ final class Provenance
      * verteilt), geschätzte Arbeitskosten danach (`estimated_cost_to_date`), Grundpreis,
      * Bonus und Abschläge eingetragen. Anteile am Betrag der Bestandteile.
      *
+     * v3.13.0 — Herkunft folgt der schwächsten Eingabe (combine()): Arbeitskosten mit der Herkunft aus Menge und
+     * Preis ihrer Monate, Grundpreis und Abschläge mit der Herkunft ihres Preises (fortgeschrieben oder nach der
+     * Preisgarantie angenommen), nur der Bonus bleibt eingetragen. Bis dahin hießen Grundpreis und Abschläge immer
+     * eingetragen und die Arbeitskosten so gut wie ihre Menge: Ein Saldo aus angenommenen Preisen hieß gemessen.
+     *
      * @param array<string,mixed> $contract
-     * @param array<string,float> $monthParts Anteile der Monate bis zur letzten Ablesung
+     * @param array<string,float> $monthParts Anteile der Arbeitskosten bis zur letzten Ablesung (Menge und Preis)
+     * @param array<string,float> $priceParts Herkunft der Preise für Grundpreis und Abschläge (leer: eingetragen)
      * @return array<string,float>
      */
-    public static function balanceParts(array $contract, array $monthParts): array
+    public static function balanceParts(array $contract, array $monthParts, array $priceParts = []): array
     {
         if (array_key_exists('energy_cost_to_date', $contract)) {
             $estimated = (float)($contract['estimated_cost_to_date'] ?? 0.0);
-            $energy = abs((float)($contract['energy_cost_to_date'] ?? 0.0) - $estimated);
-            $entered = abs((float)($contract['base_to_date'] ?? 0.0)) + abs((float)($contract['bonus_to_date'] ?? 0.0))
-                + abs((float)($contract['cost_to_date'] ?? 0.0) - (float)($contract['current_balance'] ?? 0.0));
+            $energy = (float)($contract['energy_cost_to_date'] ?? 0.0) - $estimated;
+            $base = (float)($contract['base_to_date'] ?? 0.0);
+            $bonus = (float)($contract['bonus_to_date'] ?? 0.0);
+            $advances = (float)($contract['cost_to_date'] ?? 0.0) - (float)($contract['current_balance'] ?? 0.0);
         } else {
             // abgelaufener Vertrag: nur die abgelesenen Monate (actual_*), keine Schätzung
             $estimated = 0.0;
-            $energy = abs((float)($contract['actual_kwh_cost'] ?? 0.0));
-            $entered = abs((float)($contract['actual_base_total'] ?? 0.0)) + abs((float)($contract['actual_bonus_total'] ?? 0.0))
-                + abs((float)($contract['advance_paid'] ?? 0.0));
+            $energy = (float)($contract['actual_kwh_cost'] ?? 0.0);
+            $base = (float)($contract['actual_base_total'] ?? 0.0);
+            $bonus = (float)($contract['actual_bonus_total'] ?? 0.0);
+            $advances = (float)($contract['advance_paid'] ?? 0.0);
         }
-        $weights = ['estimated' => abs($estimated), 'entered' => $entered];
-        foreach ($monthParts !== [] ? $monthParts : ['measured' => 1.0] as $b => $share) {
-            $weights[$b] = ($weights[$b] ?? 0.0) + $energy * $share;
-        }
-        return self::normalize($weights) ?: ['entered' => 1.0];
+        return self::combine([
+            [$energy, self::orOnly($monthParts, 'measured')],
+            [$estimated, ['estimated' => 1.0]],
+            [$base, self::orOnly($priceParts, 'entered')],
+            [$bonus, ['entered' => 1.0]],
+            [$advances, self::orOnly($priceParts, 'entered')],
+        ]) ?: ['entered' => 1.0];
     }
 
     /**

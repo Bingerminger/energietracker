@@ -102,6 +102,70 @@ final class InboxEvidenceBoundaryTest extends TestCase
     }
 
     /**
+     * v3.13.0 — Eine Kennung, die mit Ziffern beginnt, belegt keinen Wert: ohne Bezeichnung davor, hinter dem Wort
+     * „Zähler“ (es steht nicht unter den Bezeichnungen einer Nummer, „Zähler 1.000 kWh“ ist ein Stand), mit Bindestrich
+     * oder mit einem Großbuchstaben direkt dahinter. Bis v3.12 erkannte die Prüfung eine Kennung nur an Buchstaben VOR
+     * der Zahl: Die führende Ziffer zählte als eigene Zahl, ein als 3 gelesener Stand galt als belegt. Kennungen und
+     * Stände erfunden.
+     */
+    public function testAnIdentifierThatStartsWithADigitIsNoEvidence(): void
+    {
+        $v = new \ReflectionMethod(Evidence::class, 'valueFor');
+        $num = ['kind' => 'number'];
+        $at = fn(mixed $raw, string $quote): array => $v->invoke(null, $num, $raw, $quote);
+        // Ziffer vorn, ohne Bezeichnung: die 3 steht nur in der Kennung, der Stand danach gilt (deutsch gelesen)
+        self::assertSame([3.0, false], $at(3, '3QXZ0098765432 14.03.2024 2.400 m³ abgelesen'));
+        self::assertSame([3000.0, true], $at(3, '3QXZ0098765432 14.03.2024 3.000 m³ abgelesen'), 'die freie Zahl gilt, deutsch gelesen');
+        self::assertSame([2400.0, true], $at(2400, '3QXZ0098765432 14.03.2024 2.400 m³ abgelesen'));
+        // hinter „Zähler“ (keine strenge Bezeichnung): ebenso
+        self::assertSame([6.0, false], $at(6, 'Zähler 6TRW5550001234 Stand alt 2.400 kWh'));
+        self::assertSame([2400.0, true], $at(2400, 'Zähler 6TRW5550001234 Stand alt 2.400 kWh'));
+        // mit Bindestrich: beide Ziffernfolgen gehören zur Kennung
+        self::assertSame([9.0, false], $at(9, 'Zähler 9KLM-55 Stand 4.100 kWh'));
+        self::assertSame([55.0, false], $at(55, 'Zähler 9KLM-55 Stand 4.100 kWh'));
+        self::assertSame([4100.0, true], $at(4100, 'Zähler 9KLM-55 Stand 4.100 kWh'));
+        // Ziffern vorn, ein Großbuchstabe hinten
+        self::assertSame([5208.0, false], $at(5208, 'Zähler 5208K Stand alt 7.000 m³'));
+        self::assertSame([7000.0, true], $at(7000, 'Zähler 5208K Stand alt 7.000 m³'));
+        // Ziffer hinten (Buchstaben davor, wie bisher)
+        self::assertSame([7.0, false], $at(7, 'Gerät QXZ7 Stand 300 kWh'));
+        // der echte Stand direkt hinter der Kennung bleibt Beleg
+        self::assertSame([2400.0, true], $at(2400, '3QXZ0098765432 2.400 m³'));
+        self::assertSame([2400.0, true], $at(2400, '3QXZ0098765432: 2.400'));
+        self::assertNotContains(3.0, Evidence::numbersIn('3QXZ0098765432 2.400 m³'));
+        // Gegenfälle: eine Zahl mit Einheit oder Wort direkt dahinter bleibt eine Zahl
+        self::assertSame([1250.0, true], $at(1250, 'Stand 1.250m³'));
+        self::assertSame([1250.0, true], $at(1250, 'Stand 1.250m3'));
+        self::assertSame([1000.0, true], $at(1000, 'Verbrauch 1000KWh'));
+        self::assertSame([1000.0, true], $at(1000, 'Verbrauch 1000kWh'));
+        self::assertSame([100.0, true], $at(100, 'Betrag 100EUR'));
+        self::assertSame([100.0, true], $at(100, 'Betrag 100Euro'));
+        self::assertSame([30.0, true], $at(30, 'Zeitraum 30Tage'));
+        self::assertSame([230.0, true], $at(230, 'Netz 230V'));
+        self::assertSame([5.0, true], $at(5, 'Heizöl 5L'));
+        self::assertSame([12.0, true], $at(12, 'Leistung 12KW'));
+        // Währung direkt hinter der Zahl, wie davor („CHF1500“): dieselbe Liste
+        self::assertSame([1500.0, true], $at(1500, 'Betrag 1500CHF'));
+        self::assertSame([50.0, true], $at(50, 'Betrag 50GBP'));
+        self::assertSame([80.0, true], $at(80, 'Abschlag 80EUR'));
+    }
+
+    /** Derselbe Fall über Evidence::check: Der falsch gelesene Stand bekommt die Marke, der gedruckte nicht. */
+    public function testAnIdentifierThatStartsWithADigitFlagsTheMisreadReading(): void
+    {
+        $quote = 'Zähler 6TRW5550001234 Stand alt 2.400 kWh';
+        $page = "Musterwerke\n$quote\nEnde";
+        $wrong = Evidence::check('invoice', ['reading_old' => ['value' => 6, 'quote' => $quote, 'page' => 1]], [$page])['reading_old'];
+        self::assertNotSame('ok', $wrong['status'], 'ein als 6 gelesener Stand ist nicht belegt');
+        $right = Evidence::check('invoice', ['reading_old' => ['value' => 2400, 'quote' => $quote, 'page' => 1]], [$page])['reading_old'];
+        self::assertSame(['ok', 2400.0], [$right['status'], (float)$right['value']]);
+        // ebenso ohne Bezeichnung davor
+        $quote2 = '3QXZ0098765432 14.03.2024 2.400 m³ abgelesen';
+        $wrong2 = Evidence::check('invoice', ['reading_old' => ['value' => 3, 'quote' => $quote2, 'page' => 1]], ["Musterwerke\n$quote2\nEnde"])['reading_old'];
+        self::assertNotSame('ok', $wrong2['status']);
+    }
+
+    /**
      * v3.12.0 — Eine Nummer, die mit Leerraum hinter ihrer Bezeichnung steht, belegte jeden gleich großen Wert: ein
      * Betrag 7 aus „Kundennummer 0007“, ein Verbrauch aus „Vertragskonto 512340“. Die Bezeichnungen sind dieselben wie
      * in der Maske der KI-Schnittstelle; was danach im Zitat steht, bleibt Beleg. Werte erfunden.

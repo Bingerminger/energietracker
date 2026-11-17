@@ -28,12 +28,22 @@ use Energietracker\Support\Outbound;
  * Ergebnis: {ok, status, error} mit `error` aus dns, address, insecure,
  * timeout, network, http, noTransport, url und (v3.10.0) den Zertifikatsfehlern
  * aus HomeTls::CERT_ERRORS (tlsIssuer, tlsName, tlsExpired, tlsFile, tlsOther).
+ *
+ * v3.13.0 — Umleitung (301, 302, 303, 307, 308) auf eine andere Adresse:
+ * `error` = redirect und `location` = Schema, Host und Port des Ziels, ohne
+ * Pfad (darin stünde die Webhook-ID). Gefolgt wird weiter nicht: Ein neues Ziel
+ * bräuchte dieselben Prüfungen wie die eingetragene Adresse (Auflösen, Sperren,
+ * https außerhalb), und der Token ginge an eine Stelle, die der Verwalter nicht
+ * eingetragen hat. Anlass: Home Assistant OS 18.4 antwortet auf Port 80 und
+ * leitet :8123 mit 307 dorthin um (Farm); bis v3.12 hieß es nur „Status 307“.
  */
 final class NotifyTransport
 {
     public const TIMEOUT = 8;
+    /** Umleitungen, bei denen die Testnachricht die neue Adresse nennt. */
+    public const REDIRECTS = [301, 302, 303, 307, 308];
 
-    /** @var callable(string, string, list<string>, int, ?string): array{ok:bool, http_code:?int, error_code:?string} */
+    /** @var callable(string, string, list<string>, int, ?string): array{ok:bool, http_code:?int, error_code:?string, location?:string} */
     private $send;
     /** @var callable(string): list<string> */
     private $resolver;
@@ -47,7 +57,7 @@ final class NotifyTransport
     /**
      * @param array<string,mixed> $payload
      * @param list<string> $headers zusätzliche Kopfzeilen (Authorization)
-     * @return array{ok:bool, status:?int, error:?string}
+     * @return array{ok:bool, status:?int, error:?string, location?:string}
      */
     public function post(string $url, array $payload, array $headers = []): array
     {
@@ -67,7 +77,44 @@ final class NotifyTransport
         if ($public && $scheme !== 'https') return ['ok' => false, 'status' => null, 'error' => 'insecure'];
         $json = (string)json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         $r = ($this->send)($url, $json, $headers, self::TIMEOUT, $ips[0]);
-        return ['ok' => (bool)$r['ok'], 'status' => $r['http_code'] ?? null, 'error' => $r['ok'] ? null : ($r['error_code'] ?? 'network')];
+        $out = ['ok' => (bool)$r['ok'], 'status' => $r['http_code'] ?? null, 'error' => $r['ok'] ? null : ($r['error_code'] ?? 'network')];
+        // v3.13.0 — das Ziel einer Umleitung nur als Ursprung (redirectOrigin), nur in diesem Fall
+        if ($out['error'] === 'redirect') {
+            $to = is_string($r['location'] ?? null) ? self::redirectOrigin($url, $r['location']) : null;
+            if ($to === null) $out['error'] = 'http';
+            else $out['location'] = $to;
+        }
+        return $out;
+    }
+
+    /**
+     * v3.13.0 — Ursprung (Schema, Host, Port) des Ziels einer Umleitung, oder
+     * null, wenn es keiner ist, der sich eintragen ließe: kein http(s), kein
+     * gültiger Name, Benutzerdaten in der Adresse, von https auf http oder derselbe
+     * Ursprung wie die Anfrage (dann bleibt es bei `http` mit dem Status). Pfad, Abfrage und
+     * Fragment fallen weg: Im Pfad des Webhooks steht die geheime ID.
+     */
+    public static function redirectOrigin(string $from, string $to): ?string
+    {
+        $p = parse_url($to);
+        if (!is_array($p) || isset($p['user']) || isset($p['pass'])) return null;
+        $scheme = strtolower((string)($p['scheme'] ?? ''));
+        $host = strtolower(trim((string)($p['host'] ?? ''), '[]'));
+        if (!in_array($scheme, ['http', 'https'], true) || $host === '') return null;
+        $ip = filter_var($host, FILTER_VALIDATE_IP) !== false;
+        if (!$ip && !preg_match('/^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/', $host)) return null;
+        $origin = static function (string $s, string $h, ?int $port): string {
+            $default = $s === 'https' ? 443 : 80;
+            return $s . '://' . (str_contains($h, ':') ? "[$h]" : $h) . ($port !== null && $port !== $default ? ":$port" : '');
+        };
+        $target = $origin($scheme, $host, isset($p['port']) ? (int)$p['port'] : null);
+        $f = parse_url($from);
+        $fromScheme = is_array($f) ? strtolower((string)($f['scheme'] ?? '')) : '';
+        // von https auf http rät die Karte nie: der Token ginge dann im Klartext
+        if ($fromScheme === 'https' && $scheme === 'http') return null;
+        $source = is_array($f) ? $origin($fromScheme, strtolower(trim((string)($f['host'] ?? ''), '[]')),
+            isset($f['port']) ? (int)$f['port'] : null) : '';
+        return $target === $source ? null : $target;
     }
 
     /**
@@ -105,7 +152,7 @@ final class NotifyTransport
      * nur für Tests gegen einen nachgebauten Dienst (Adresse umgeleitet).
      *
      * @param list<string> $headers
-     * @return array{ok:bool, http_code:?int, error_code:?string}
+     * @return array{ok:bool, http_code:?int, error_code:?string, location?:string}
      */
     public static function curlPost(string $url, string $json, array $headers, int $timeout, ?string $ip): array
     {
@@ -136,6 +183,12 @@ final class NotifyTransport
             $error = $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout'
                 : (HomeTls::certError($errno, (int)curl_getinfo($ch, CURLINFO_SSL_VERIFYRESULT)) ?? 'network');
             return ['ok' => false, 'http_code' => null, 'error_code' => $error];
+        }
+        // v3.13.0 — Umleitung: nicht folgen (Outbound ohne Weiterleitung), aber das Ziel weitergeben;
+        // post() kürzt es auf den Ursprung
+        if (in_array($code, self::REDIRECTS, true)) {
+            $location = (string)curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            if ($location !== '') return ['ok' => false, 'http_code' => $code, 'error_code' => 'redirect', 'location' => $location];
         }
         if ($code < 200 || $code >= 300) return ['ok' => false, 'http_code' => $code, 'error_code' => 'http'];
         return ['ok' => true, 'http_code' => $code, 'error_code' => null];

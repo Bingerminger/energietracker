@@ -313,12 +313,116 @@ t('Region: Sprungmarken', ['language', 'country', 'currency', 'timezone'].every(
 t('Region: Für dich und Für alle getrennt', !!$('[data-role="lang-for-you"]') && !!$('[data-role="lang-for-all"]') && !!$('[data-role="lang-effective"]'));
 t('Region: keine Speicherleiste, Änderungen wirken sofort', !$('[data-role="savebar"]'));
 
+// ── v3.13.0 (Paket K1) — Diagnose unter der Mindestversion von PHP; Texte der Fundstellen beim Backup-Import ──
+{
+  const sys = await import(`${JS}/views/settings-system.js`);
+  const diag = (extra) => sys.renderDiagnostics({ app_version: '3.13.0', schema_version: '1.8.0', now: '2026-01-15T10:00:00+01:00', utilities: {}, temperatures: { rows: 0 }, ...extra });
+  const old = diag({ php_version: '8.3.27', php_minimum: '8.4', php_supported: false });
+  t('Diagnose: Hinweis unter PHP 8.4', old.includes('data-role="php-outdated"')
+    && /PHP 8\.3\.27 wird ab v3\.13 nicht mehr getestet\. Bitte aktualisiere auf PHP 8\.4 oder neuer\./.test(old), old.slice(0, 500));
+  t('Diagnose: kein Hinweis ab PHP 8.4', !diag({ php_version: '8.4.12', php_minimum: '8.4', php_supported: true }).includes('php-outdated'));
+  t('Diagnose: kein Hinweis ohne Angabe des Servers (älterer Server)', !diag({ php_version: '8.3.1' }).includes('php-outdated'));
+
+  const bp = await import(`${JS}/lib/backup-problems.js`);
+  // je Art, die der Server meldet (Liste: BackupProblemCatalogTest), ein Fund wie aus detail.problems
+  const finds = ['not_an_object', 'not_a_list', 'unknown_utility', 'missing:devices', 'date:start', 'date_range:start', 'date_range:0001-01-01',
+    'counter', 'devices', 'entry:2025-13-01', 'unsafe_id:meter_id', 'id', 'too_long:note', 'value:2025-01-01.avg', 'personal:customer_name',
+    'setting:forecast_model', 'unknown:att_1', 'sha256:att_1', 'mime', 'mime:att_1', 'invalid:iv_1', 'amount', 'amount:working_prices',
+    'action', 'subject', 'status', 'assignee_id', 'assignee_former', 'bool:is_estimated', 'list:working_prices', 'object:invoice', 'number:value', 'recurrence'];
+  for (const f of finds) {
+    const text = bp.backupProblemText(f.startsWith('too_long') ? { problem: f, field: 'note', max: 200 } : { problem: f });
+    t(`Backup-Import: Text für „${f}“`, !!text && text !== f && !text.includes('settings.backup.problem') && !/\{[a-z]+\}/.test(text), text);
+  }
+  t('Backup-Import: Feld im Text', bp.backupProblemText({ problem: 'date_range:start' }) === '„start“ liegt nicht zwischen den Jahren 1900 und 2100');
+  t('Backup-Import: Angabe in Klammern, wo der Text sie nicht nennt', bp.backupProblemText({ problem: 'amount:working_prices' }) === 'Betrag ist keine gültige Zahl (working_prices)');
+  t('Backup-Import: ohne Angabe nichts angehängt', bp.backupProblemText({ problem: 'amount' }) === 'Betrag ist keine gültige Zahl');
+  t('Backup-Import: Grenze aus dem Fund', bp.backupProblemText({ problem: 'too_long:note', field: 'note', max: 200 }) === '„note“ ist länger als 200 Zeichen');
+  t('Backup-Import: unbekannte Art wie gemeldet', bp.backupProblemText({ problem: 'neu:x' }) === 'neu:x');
+}
+
+// ── v3.13.0 (K2d) — Diagnose: Werte einer älteren Version mit Bereich, Kennung, Fund und Wirkung ──
+{
+  const sys = await import(`${JS}/views/settings-system.js`);
+  const diag = (issues) => sys.renderDiagnostics({ app_version: '3.13.0', schema_version: '1.8.0', now: '2026-01-15T10:00:00+01:00', utilities: {},
+    temperatures: { rows: 0 }, data_issues: issues });
+  const html = diag([
+    { pot: 'gas/readings', index: 3, id: 'r_alt', problems: ['date_range:date'], excluded: true },
+    { pot: 'gas/meters', index: 1, id: 'm_alt', problems: ['text:name', 'number:capacity'], excluded: false },
+    { pot: 'settings', index: null, id: 'forecast_model', problems: ['setting:forecast_model'], excluded: false },
+  ]);
+  const box = document.createElement('div');
+  box.innerHTML = html;
+  const rows = [...box.querySelectorAll('[data-role="data-issues-table"] tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
+  t('Diagnose: Hinweis mit Zahl der Funde', /3 gespeicherte Werte aus einer älteren Version/.test(box.querySelector('[data-role="data-issues"]')?.textContent || ''),
+    box.querySelector('[data-role="data-issues"]')?.textContent);
+  t('Diagnose: je Fund eine Zeile mit Bereich und Kennung', rows.length === 3 && rows[0][0] === 'gas/readings' && rows[0][1] === 'r_alt' && rows[2][1] === 'forecast_model',
+    JSON.stringify(rows));
+  t('Diagnose: Fund als Text, nicht als Schlüssel', rows[0][2] === '„date“ liegt nicht zwischen den Jahren 1900 und 2100' && !rows.some(r => r[2].includes('settings.backup')),
+    JSON.stringify(rows));
+  t('Diagnose: Wirkung je Fund', rows[0][3] === i18n.t('settings.diag.effectExcluded') && rows[1][3] === i18n.t('settings.diag.effectField')
+    && rows[2][3] === i18n.t('settings.diag.effectDefault'), JSON.stringify(rows));
+  t('Diagnose: ohne Funde kein Hinweis', !diag([]).includes('data-issues') && !diag(undefined).includes('data-issues'));
+
+  // v3.13.0 — Wirkung laut Server (`effect`): Verweis ins Leere, langer Text und geklemmter Fälligkeitstag bleiben,
+  // wie gespeichert; die Grenze eines langen Texts kommt aus derselben Liste wie am Feld
+  const kept = document.createElement('div');
+  kept.innerHTML = diag([
+    { pot: 'strom/meters', index: 1, id: 'm_sub', problems: ['reference:parent_meter_id'], excluded: false, effect: 'kept' },
+    { pot: 'strom/readings', index: 4, id: 'r_lang', problems: ['too_long:note'], excluded: false, effect: 'kept' },
+    { pot: 'settings', index: null, id: 'advance_due_day', problems: ['setting:advance_due_day'], excluded: false, effect: 'kept' },
+    { pot: 'settings', index: null, id: 'forecast_model', problems: ['setting:forecast_model'], excluded: false, effect: 'default' },
+  ]);
+  const krows = [...kept.querySelectorAll('[data-role="data-issues-table"] tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
+  t('Diagnose: Wirkung „bleibt“ aus effect', krows.slice(0, 3).every(r => r[3] === i18n.t('settings.diag.effectKept'))
+    && krows[3][3] === i18n.t('settings.diag.effectDefault') && i18n.t('settings.diag.effectKept') !== 'settings.diag.effectKept', JSON.stringify(krows));
+  t('Diagnose: Verweis ins Leere als Text', krows[0][2] === '„parent_meter_id“ verweist auf einen Zähler oder eine Gruppe, die es nicht gibt', JSON.stringify(krows));
+  t('Diagnose: langer Text mit seiner Grenze', krows[1][2] === '„note“ ist länger als 2000 Zeichen', JSON.stringify(krows));
+}
+
 // ── Haushalt ──
 beWho('admin', 'beginner');
 await house('utilities');
 t('Messkonzept ist die zweite Box (S9)', $$('.settings-grid > .card').slice(0, 2).map(c => c.id).join() === 'active-utils-card,concept-card');
 t('Verbrauchsarten: Stichtag, Kopf des Haushalts', !!$('[data-key="billing_cycle_anchor_gas"]') && $('h1').textContent === i18n.t('household.utilities.title'));
 t('CO₂ steht nicht mehr hier', !$('[data-key="co2_gas"]'));
+// v3.13.0 (Paket wechsel) — Abschläge zählen: eine Auswahl ab Erfahren (Maintainer 13.11.); Tag und Warnung nur bei „ganze Rate“
+{
+  const adv = $('[data-key="advance_counting"]');
+  const dayField = () => $('[data-key="advance_due_day"]')?.closest('.settings-field');
+  const note = () => $('[data-role="advance-note"]');
+  t('Abschläge zählen: Auswahl ab Erfahren, tagesanteilig vorgewählt', !!adv && adv.value === 'pro_rata' && adv.closest('[data-min-level]')?.getAttribute('data-min-level') === 'advanced');
+  t('Abschläge zählen: Tag und Warnung verborgen', dayField()?.hidden === true && note()?.hidden === true);
+  t('Abschläge zählen: ⓘ zum Abschlag am Titel', !!adv?.closest('.card')?.querySelector('.card__title [data-glossary="advance"]'));
+  t('Abschläge zählen: Beispiel im Hinweis', (adv?.closest('.settings-field')?.textContent || '').includes('40,65 €'));
+  adv.value = 'due_day';
+  adv.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  t('„Ganze Rate“: Tag und Warnung erscheinen', dayField()?.hidden === false && note()?.hidden === false && note().textContent.includes('Sonderzahlung'));
+  t('„Ganze Rate“: die Speicherleiste steht', $('[data-role="savebar"]')?.hidden === false);
+  $('[data-key="advance_due_day"]').value = '15';
+  $('#btn-save').click();
+  await tick(20);
+  t('„Ganze Rate“: gespeichert werden Wahl und Tag', STATE.settings.advance_counting === 'due_day' && STATE.settings.advance_due_day === 15,
+    JSON.stringify([STATE.settings.advance_counting, STATE.settings.advance_due_day]));
+  await house('utilities');
+  t('„Ganze Rate“: nach dem Laden sichtbar, mit dem Tag', dayField()?.hidden === false && $('[data-key="advance_due_day"]').value === '15');
+  const back = $('[data-key="advance_counting"]');
+  back.value = 'pro_rata';
+  back.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  t('Zurück auf tagesanteilig: Tag und Warnung wieder verborgen', dayField()?.hidden === true && note()?.hidden === true);
+  delete STATE.settings.advance_counting;
+  delete STATE.settings.advance_due_day;
+  // Sprung aus Suche oder Lesezeichen: bei „tagesanteilig“ ist der Tag verborgen, Ziel ist die Karte, nicht das Nichts
+  await house('utilities', 'field=advance_due_day');
+  await tick(10);
+  const card = $('[data-key="advance_counting"]')?.closest('.card');
+  t('Sprung zum verborgenen Tag: Fokus und Marke an der Karte', !!card && document.activeElement === card && card.hasAttribute('data-target') && dayField()?.hidden === true,
+    document.activeElement?.className);
+  STATE.settings.advance_counting = 'due_day';
+  await house('utilities', 'field=advance_due_day');
+  await tick(10);
+  t('Sprung bei „ganze Rate“: Fokus am Feld', document.activeElement === $('[data-key="advance_due_day"]') && dayField()?.hasAttribute('data-target'));
+  delete STATE.settings.advance_counting;
+}
 await house('building');
 t('Gebäude: Felder und Speicherleiste', !!$('[data-key="wohnflaeche_m2"]') && !!$('[data-role="savebar"]'));
 t('Gebäude: Personen stehen woanders', !$('[data-field="people"]'));

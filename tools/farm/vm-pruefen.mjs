@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HaWs, api, bericht, erwartung, haAnmelden, haEinrichten, http, isObj, sensorAbweichungen, sleep, warten } from './lib.mjs';
+import { HaWs, api, bericht, erwartung, haAnmelden, haEinrichten, http, integrationVersion, isObj, sensorAbweichungen, sleep, warten } from './lib.mjs';
 
 const FARM = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(FARM, '..', '..');
@@ -26,6 +26,7 @@ const SCHEMA = (/SCHEMA_VERSION = '([\d.]+)'/.exec(readFileSync(join(ROOT, 'src'
 const SSH_KEY = E.FARM_VM_SSH_KEY || join(CACHE, 'ssh', 'id_ed25519');
 const APP_DIR = E.FARM_VM_APP_DIR || join(CACHE, 'vm-app');
 const INTEGRATION = E.FARM_INTEGRATION || join(E.HOME || '', 'Code', 'energietracker-hacs');
+const INTEGRATION_VERSION = integrationVersion(INTEGRATION);   // 1.1.0: Tank, Prognose der Gruppe, Auszahlungen
 const PORT_APP = Number(E.FARM_VM_PORT_APP || 19851);
 const HOST_IP = E.FARM_VM_HOST_IP || '10.211.55.2';       // der Mac im Netz „Shared“ von Parallels
 const PORT_EVCC = Number(E.FARM_PORT_EVCC_DEMO || 19852);
@@ -358,7 +359,7 @@ async function lauf() {
         ing = b.ing;
         const summary = (await ing.api('GET', '/summary')).d;
         const todo = (await ing.api('GET', '/todo')).d;
-        const soll = erwartung(summary);
+        const soll = erwartung(summary, INTEGRATION_VERSION);
         const reg = await warten('Sensoren der Integration', 120, async () => {
             const ents = (await ws.call({ type: 'config/entity_registry/list' })).filter((x) => x.platform === 'energietracker' && x.config_entry_id === r.entry);
             return ents.length >= soll.sensoren ? ents : null;
@@ -367,9 +368,10 @@ async function lauf() {
         check(`${soll.geraete} Geräte und ${soll.sensoren} Sensoren wie aus /api/summary erwartet`, geraete.length === soll.geraete && reg.length === soll.sensoren,
             `${geraete.length} und ${reg.length}`);
         const states = await http('GET', `${BASE}/api/states`, { headers: auth() });
-        const zustand = new Map((Array.isArray(states.data) ? states.data : []).map((s) => [s.entity_id, s.state]));
-        const { falsch, leer } = sensorAbweichungen(reg, zustand, summary, todo);
-        check('Werte wie /api/summary und /api/todo, leer nur bei null', falsch.length === 0, falsch.length ? falsch.slice(0, 4).join(', ') : `${leer} leer`);
+        const zustand = new Map((Array.isArray(states.data) ? states.data : []).map((s) => [s.entity_id, s]));
+        const { falsch, leer, einheitenGeprueft } = sensorAbweichungen(reg, zustand, summary, todo, INTEGRATION_VERSION);
+        check('Werte wie /api/summary und /api/todo, leer nur bei null', falsch.length === 0,
+            falsch.length ? falsch.slice(0, 4).join(', ') : `${leer} leer${soll.ab11 ? `, ${einheitenGeprueft} Einheiten` : ''}`);
     });
 
     await abschnitt('Benachrichtigungen über den Supervisor', async () => {

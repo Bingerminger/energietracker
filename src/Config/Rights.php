@@ -98,7 +98,8 @@ final class Rights
             'url' => 'https://www.verbraucherzentrale-niedersachsen.de/wissen/energie/preise-tarife-anbieterwechsel/abschlagszahlungen-fuer-strom-und-gas-richtig-berechnen-120062',
             'checked_on' => self::CHECKED_ON, 'status' => 'S', 'report' => 17, 'utilities' => ['strom', 'gas'], 'supply_kinds' => null],
         // ── Preisänderung und Kündigung (A3, C) ──
-        'de.enwg.41.5.s1' => ['norm' => '§ 41 Abs. 5 Satz 1 bis 3 EnWG', 'url' => self::G . 'enwg_2005/__41.html', 'checked_on' => self::CHECKED_ON,
+        // v3.13.0 — Wortlaut von Satz 2 (Ankündigung) und § 5 Abs. 2 GVV abgerufen 2026-11-16 (Zählung der Frist wie Nr. 52)
+        'de.enwg.41.5.s1' => ['norm' => '§ 41 Abs. 5 Satz 1 bis 3 EnWG', 'url' => self::G . 'enwg_2005/__41.html', 'checked_on' => '2026-11-16',
             'status' => 'W', 'report' => 18, 'utilities' => ['strom', 'gas'], 'supply_kinds' => ['special']],
         'de.enwg.41.5.s4' => ['norm' => '§ 41 Abs. 5 Satz 4 EnWG', 'url' => self::G . 'enwg_2005/__41.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 19, 'utilities' => ['strom', 'gas'], 'supply_kinds' => ['special']],
@@ -111,18 +112,19 @@ final class Rights
             'status' => 'W', 'report' => 22, 'utilities' => ['strom', 'gas'], 'supply_kinds' => ['special']],
         'de.enwg.41.4' => ['norm' => '§ 41 Abs. 4 Satz 2 Nr. 6, Abs. 1 Satz 2 Nr. 5 EnWG', 'url' => self::G . 'enwg_2005/__41.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 23, 'utilities' => ['strom', 'gas'], 'supply_kinds' => null],
-        'de.stromgvv.5.2' => ['norm' => '§ 5 Abs. 2 StromGVV', 'url' => self::G . 'stromgvv/__5.html', 'checked_on' => self::CHECKED_ON,
+        'de.stromgvv.5.2' => ['norm' => '§ 5 Abs. 2 StromGVV', 'url' => self::G . 'stromgvv/__5.html', 'checked_on' => '2026-11-16',
             'status' => 'W', 'report' => 24, 'utilities' => ['strom'], 'supply_kinds' => ['basic']],
-        'de.gasgvv.5.2' => ['norm' => '§ 5 Abs. 2 GasGVV', 'url' => self::G . 'gasgvv/__5.html', 'checked_on' => self::CHECKED_ON,
+        'de.gasgvv.5.2' => ['norm' => '§ 5 Abs. 2 GasGVV', 'url' => self::G . 'gasgvv/__5.html', 'checked_on' => '2026-11-16',
             'status' => 'W', 'report' => 24, 'utilities' => ['gas'], 'supply_kinds' => ['basic']],
         'de.stromgvv.5.3' => ['norm' => '§ 5 Abs. 3 StromGVV', 'url' => self::G . 'stromgvv/__5.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 25, 'utilities' => ['strom'], 'supply_kinds' => ['basic']],
         'de.gasgvv.5.3' => ['norm' => '§ 5 Abs. 3 GasGVV', 'url' => self::G . 'gasgvv/__5.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 25, 'utilities' => ['gas'], 'supply_kinds' => ['basic']],
-        'de.stromgvv.20' => ['norm' => '§ 20 StromGVV', 'url' => self::G . 'stromgvv/__20.html', 'checked_on' => self::CHECKED_ON,
+        'de.stromgvv.20' => ['norm' => '§ 20 StromGVV', 'url' => self::G . 'stromgvv/__20.html', 'checked_on' => '2026-11-13',
             'status' => 'W', 'report' => 26, 'utilities' => ['strom'], 'supply_kinds' => ['basic']],
-        'de.gasgvv.20' => ['norm' => '§ 20 GasGVV', 'url' => self::G . 'gasgvv/__20.html', 'checked_on' => self::CHECKED_ON,
-            'status' => 'G', 'report' => 26, 'utilities' => ['gas'], 'supply_kinds' => ['basic']],
+        // v3.13.0 — Wortlaut abgerufen 2026-11-13: gleichlautend mit § 20 StromGVV (zwei Wochen, Textform, Bestätigung)
+        'de.gasgvv.20' => ['norm' => '§ 20 GasGVV', 'url' => self::G . 'gasgvv/__20.html', 'checked_on' => '2026-11-13',
+            'status' => 'W', 'report' => 26, 'utilities' => ['gas'], 'supply_kinds' => ['basic']],
         'de.stromgvv.17' => ['norm' => '§ 17 Abs. 1 StromGVV', 'url' => self::G . 'stromgvv/__17.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 27, 'utilities' => ['strom'], 'supply_kinds' => ['basic']],
         'de.gasgvv.17' => ['norm' => '§ 17 Abs. 1 GasGVV', 'url' => self::G . 'gasgvv/__17.html', 'checked_on' => self::CHECKED_ON,
@@ -134,7 +136,7 @@ final class Rights
         // ── Fernwärme, Wasser, BGB (B1, B2, A1, A5) ──
         'de.avbfernwaermev.24.4' => ['norm' => '§ 24 Abs. 4 bis 7 AVBFernwärmeV', 'url' => self::G . 'avbfernw_rmev/__24.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 29, 'utilities' => ['fernwaerme'], 'supply_kinds' => null],
-        'de.avbfernwaermev.32' => ['norm' => '§ 32 AVBFernwärmeV', 'url' => self::G . 'avbfernw_rmev/__32.html', 'checked_on' => self::CHECKED_ON,
+        'de.avbfernwaermev.32' => ['norm' => '§ 32 AVBFernwärmeV', 'url' => self::G . 'avbfernw_rmev/__32.html', 'checked_on' => '2026-11-13',
             'status' => 'W', 'report' => 30, 'utilities' => ['fernwaerme'], 'supply_kinds' => null],
         'de.bgb.310.2' => ['norm' => '§ 310 Abs. 2 BGB', 'url' => self::G . 'bgb/__310.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 31, 'utilities' => ['strom', 'gas', 'fernwaerme', 'wasser'], 'supply_kinds' => null],
@@ -162,11 +164,12 @@ final class Rights
         'de.bgb.195' => ['norm' => '§§ 195, 199 Abs. 1 BGB', 'url' => self::G . 'bgb/__195.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'G', 'report' => 39, 'utilities' => null, 'supply_kinds' => null],
         // ── Messstellenbetrieb (A6, nur Strom) ──
-        'de.msbg.30' => ['norm' => '§ 30 Abs. 1, 3 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => self::CHECKED_ON,
+        // v3.13.0 — Wortlaut § 30 Abs. 1 bis 6 MsbG abgerufen 2026-11-13 (keine Regel zur Umrechnung auf 365 Tage)
+        'de.msbg.30' => ['norm' => '§ 30 Abs. 1, 3 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => '2026-11-13',
             'status' => 'W', 'report' => 40, 'utilities' => ['strom'], 'supply_kinds' => null],
-        'de.msbg.30.1.4' => ['norm' => '§ 30 Abs. 1 Nr. 4 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => self::CHECKED_ON,
+        'de.msbg.30.1.4' => ['norm' => '§ 30 Abs. 1 Nr. 4 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => '2026-11-13',
             'status' => 'W', 'report' => 41, 'utilities' => ['strom'], 'supply_kinds' => null],
-        'de.msbg.30.4' => ['norm' => '§ 30 Abs. 4 bis 6 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => self::CHECKED_ON,
+        'de.msbg.30.4' => ['norm' => '§ 30 Abs. 4 bis 6 MsbG', 'url' => self::G . 'messbg/__30.html', 'checked_on' => '2026-11-13',
             'status' => 'W', 'report' => 42, 'utilities' => ['strom'], 'supply_kinds' => null],
         'de.msbg.32.1' => ['norm' => '§ 32 Abs. 1 MsbG', 'url' => self::G . 'messbg/__32.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 43, 'utilities' => ['strom'], 'supply_kinds' => null],
@@ -195,8 +198,14 @@ final class Rights
             'status' => 'W', 'report' => 50, 'utilities' => ['wasser'], 'supply_kinds' => null],
         'de.vwgo.80' => ['norm' => '§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO', 'url' => self::G . 'vwgo/__80.html', 'checked_on' => self::CHECKED_ON,
             'status' => 'W', 'report' => 51, 'utilities' => ['wasser'], 'supply_kinds' => null],
-        'de.bgb.188' => ['norm' => '§§ 187 Abs. 1, 188 Abs. 2, 3 BGB', 'url' => self::G . 'bgb/__188.html', 'checked_on' => self::CHECKED_ON,
-            'status' => 'G', 'report' => 52, 'utilities' => null, 'supply_kinds' => null],
+        // v3.13.0 — Wortlaut §§ 186–188, 193 BGB, § 222 ZPO, § 31 VwVfG abgerufen 2026-11-13; dazu der Kündigungsstichtag
+        // (ContractService::lastNoticeDay): letzter Zugangstag, dessen Frist spätestens mit dem Vertragsende abläuft
+        'de.bgb.188' => ['norm' => '§§ 187 Abs. 1, 188 Abs. 2, 3 BGB', 'url' => self::G . 'bgb/__188.html', 'checked_on' => '2026-11-13',
+            'status' => 'W', 'report' => 52, 'utilities' => null, 'supply_kinds' => null],
+        // v3.13.0 — § 193 BGB verschiebt keinen Kündigungsstichtag; das Berufungsgericht nannte dort für „bis zum 30.04.
+        // mit einer Frist von einem Monat“ den 31.03. als Fristende (Volltext abgerufen 2026-11-13). Nur für die Doku.
+        'de.bgh.iii_zr_172_04' => ['norm' => 'BGH, 17.02.2005, III ZR 172/04', 'url' => 'https://lorenz.userweb.mwn.de/urteile/iiizr172_04.htm',
+            'checked_on' => '2026-11-13', 'status' => 'S', 'report' => 52, 'utilities' => ['strom', 'gas', 'fernwaerme'], 'supply_kinds' => null, 'cite' => false],
         'de.land.vorverfahren' => ['norm' => '§ 110 JustG NRW, Art. 12 AGVwGO (Bayern)',
             'url' => 'https://steuerzahler.de/aktuelles/detail/rechtsschutz-gegenueber-behoerden-das-widerspruchsverfahren/', 'checked_on' => self::CHECKED_ON,
             'status' => 'U', 'report' => 53, 'utilities' => ['wasser'], 'supply_kinds' => null, 'cite' => false],
@@ -433,25 +442,41 @@ final class Rights
     /**
      * A3, C — Ankündigungsfrist einer Preisänderung. Beide Fälle, der Aufrufer wählt nach
      * `supply_kind` (unbekannt: nur dann ein Befund, wenn auch die mildere Frist verfehlt ist):
-     *   special  spätestens einen Monat vor dem Wirksamwerden (§ 41 Abs. 5 Satz 2 EnWG);
-     *            `announce_by` = valid_from − 1 Monat (Monatsende geklemmt, Lektion 26)
+     *   special  spätestens einen Monat vor dem Wirksamwerden (§ 41 Abs. 5 Satz 2 EnWG)
      *   basic    mindestens sechs Wochen vorher, wirksam zum Monatsbeginn (§ 5 Abs. 2 GVV);
      *            `month_start` false, wenn valid_from kein Monatserster ist
+     * v3.13.0 (Entscheidung des Maintainers vom 16.11.2026) — gerechnet wie der Kündigungsstichtag (Vorwärtsprobe,
+     * §§ 187, 188 BGB, ContractService::lastNoticeDay): Die Frist beginnt am Tag nach dem Schreiben und muss mit dem
+     * letzten Tag des alten Preises abgelaufen sein. `announce_by` ist der letzte rechtzeitige Tag. Bis v3.12 galt ein
+     * Kalendermonat bzw. 42 Tage Abstand (valid_from − 1 Monat, Monatsende geklemmt): Der eine Tag, den diese Rechnung
+     * noch rechtzeitig nennt, die Vorwärtsprobe nicht, heißt `tight` („knapp, prüfen“; keine Entscheidung belegt beide
+     * Lesarten, maßgeblich ist der Zugang). `late` erst danach: zu spät nach beiden Rechnungen. Fällt der Tag im
+     * Vormonat weg (Änderung zum 31.03.), stimmen beide überein, und es gibt keinen knappen Tag.
      * null für ein Land ohne Regeln oder ein ungültiges Datum.
      *
-     * @return array{days_before:int, special:array{announce_by:string, late:bool},
-     *               basic:array{announce_by:string, late:bool, month_start:bool}}|null
+     * @return array{days_before:int, special:array{announce_by:string, late:bool, tight:bool},
+     *               basic:array{announce_by:string, late:bool, tight:bool, month_start:bool}}|null
      */
     public static function announcement(string $country, string $announcedOn, string $validFrom): ?array
     {
         $d = self::DEADLINES[$country] ?? null;
         if ($d === null || !Dates::isIsoDate($announcedOn) || !Dates::isIsoDate($validFrom)) return null;
-        $special = self::plusMonths($validFrom, -(int)$d['announce_special_months']);
-        $basic = self::plusDays($validFrom, -(int)$d['announce_basic_days']);
+        $months = (int)$d['announce_special_months'];
+        $days = (int)$d['announce_basic_days'];
+        $lastOld = self::plusDays($validFrom, -1);   // letzter Tag des alten Preises
+        // Vorwärtsprobe: letzter Tag, dessen Frist spätestens mit dem letzten Tag des alten Preises abläuft
+        $special = \Energietracker\Services\ContractService::lastNoticeDay($lastOld, $months);
+        $basic = self::plusDays($lastOld, -$days);
+        // die Rechnung bis v3.12 (Kalenderabstand): bis zu diesem Tag „knapp“, danach zu spät nach beiden
+        $specialCalendar = max($special, self::plusMonths($validFrom, -$months));
+        $basicCalendar = self::plusDays($validFrom, -$days);
         return [
             'days_before' => self::daysBetween($announcedOn, $validFrom),
-            'special' => ['announce_by' => $special, 'late' => $announcedOn > $special],
-            'basic' => ['announce_by' => $basic, 'late' => $announcedOn > $basic, 'month_start' => substr($validFrom, 8, 2) === '01'],
+            'special' => ['announce_by' => $special, 'late' => $announcedOn > $specialCalendar,
+                          'tight' => $announcedOn > $special && $announcedOn <= $specialCalendar],
+            'basic' => ['announce_by' => $basic, 'late' => $announcedOn > $basicCalendar,
+                        'tight' => $announcedOn > $basic && $announcedOn <= $basicCalendar,
+                        'month_start' => substr($validFrom, 8, 2) === '01'],
         ];
     }
 

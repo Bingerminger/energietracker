@@ -19,7 +19,10 @@
 //  R10 Darstellung wie in der App: Umschalter mit Beschriftung, Thema vor dem ersten Zeichnen gesetzt,
 //      dunkle Tokens für System und Wahl gleich, jede dunkle Bildquelle umschaltbar
 //  R11 Bilder-Slider: je Reiter genau ein Bild, verknüpft, jedes mit Frage, Text und Alternativtext
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+//  R12 Animationen (v3.13.0): jede ist ein animiertes WebP mit ihrem Rückfallbild (dieselbe Szene, gleiche Maße,
+//      hell und dunkel), gilt nur ohne „Bewegung reduzieren“, lädt erst beim Scrollen; jede Datei unter
+//      assets/img/anim/ ist benutzt und höchstens 1,5 MB groß; kein GIF (Entscheidung 2026-11-16)
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rende, SEITEN, DATEI, SITE, BASE } from '../src/seiten.mjs';
@@ -228,6 +231,62 @@ for (const lang of ['de', 'en']) {
   }
 }
 
+// ── R12: Animationen ───────────────────────────────────────────────
+const ANIM_MAX = 1.5 * 1024 * 1024;
+const BEWEGUNG = '(prefers-reduced-motion: no-preference)';
+const ANIM_DIR = join(ROOT, 'assets/img/anim');
+const animListe = existsSync(join(ANIM_DIR, 'quellen.json')) ? JSON.parse(readFileSync(join(ANIM_DIR, 'quellen.json'), 'utf8')).bilder : [];
+const bildListe = JSON.parse(readFileSync(join(ROOT, 'assets/img/quellen.json'), 'utf8')).bilder;
+const ohneBasis = (u) => u.replace(/^\//, '').replace(BASE.slice(1), '');
+const animGenutzt = new Set();
+for (const [file, html] of Object.entries(pages)) {
+  for (const m of html.matchAll(/<picture>([\s\S]*?)<\/picture>/g)) {
+    const quellen = [...m[1].matchAll(/<source\b([^>]*)>/g)].map(s => ({
+      tag: s[1],
+      media: (s[1].match(/\smedia="([^"]*)"/) || [])[1] || '',
+      src: ohneBasis((s[1].match(/\ssrcset="([^"]*)"/) || [])[1] || ''),
+      type: (s[1].match(/\stype="([^"]*)"/) || [])[1] || '',
+    }));
+    const anim = quellen.filter(q => q.src.startsWith('assets/img/anim/'));
+    if (!anim.length) continue;
+    const img = ohneBasis((m[1].match(/<img\b[^>]*\ssrc="([^"]+)"/) || [])[1] || '');
+    if (!/<img\b[^>]*\sloading="lazy"/.test(m[1])) bad('R12', `${file}: Animation lädt nicht erst beim Scrollen (${anim[0].src})`);
+    const ersteStatisch = quellen.findIndex(q => !q.src.startsWith('assets/img/anim/'));
+    if (ersteStatisch >= 0 && quellen.slice(ersteStatisch).some(q => q.src.startsWith('assets/img/anim/'))) bad('R12', `${file}: Animation steht nach einem Rückfallbild (${anim[0].src})`);
+    for (const q of anim) {
+      animGenutzt.add(q.src);
+      const n = q.src.match(/^assets\/img\/anim\/(.+?)(-dunkel)?\.(de|en)\.webp$/);
+      if (!n) { bad('R12', `${file}: Animation nicht als WebP nach dem Muster <szene>[-dunkel].<de|en>.webp: ${q.src}`); continue; }
+      const [, szene, dunkel = '', lang] = n;
+      if (!q.media.includes(BEWEGUNG)) bad('R12', `${file}: ${q.src} gilt auch bei „Bewegung reduzieren“`);
+      if (dunkel && !q.tag.includes(`data-breite="${BEWEGUNG}"`)) bad('R12', `${file}: ${q.src} verliert beim Umschalter die Bedingung „Bewegung“`);
+      if (q.type !== 'image/webp') bad('R12', `${file}: ${q.src} ohne type="image/webp"`);
+      // Rückfallbild: dieselbe Szene, hell als <img>, dunkel als Quelle für das dunkle Thema
+      const rueckfall = `assets/img/screens/${szene}${dunkel}.${lang}.webp`;
+      if (!dunkel && img !== rueckfall) bad('R12', `${file}: Rückfallbild zu ${q.src} ist „${img}“, erwartet ${rueckfall}`);
+      if (dunkel && !quellen.some(x => x.src === rueckfall && x.media === '(prefers-color-scheme: dark)')) bad('R12', `${file}: dunkles Rückfallbild ${rueckfall} fehlt neben ${q.src}`);
+      const a = animListe.find(b => b.datei === q.src);
+      const p = bildListe.find(b => b.datei === rueckfall);
+      if (!a) bad('R12', `${q.src} fehlt in assets/img/anim/quellen.json (node tools/build-animations.mjs im Haupt-Repo)`);
+      else if (!p) bad('R12', `${rueckfall} fehlt in assets/img/quellen.json (node tools/bilder.mjs)`);
+      else if (p.breite !== a.breite || p.hoehe !== a.hoehe) bad('R12', `${rueckfall}: ${p.breite} × ${p.hoehe}, die Animation ${a.breite} × ${a.hoehe}`);
+    }
+  }
+}
+if (existsSync(ANIM_DIR)) {
+  for (const f of readdirSync(ANIM_DIR).sort()) {
+    if (f === 'quellen.json' || f.startsWith('.')) continue;
+    const rel = `assets/img/anim/${f}`;
+    if (/\.gif$/i.test(f)) { bad('R12', `${rel}: GIF unter assets/img/anim/ (Animationen nur als WebP)`); continue; }
+    const n = f.match(/^(.+?)(-dunkel)?\.(de|en)\.webp$/);
+    if (!n) { bad('R12', `${rel}: keine Animation nach dem Muster <szene>[-dunkel].<de|en>.webp`); continue; }
+    if (!existsSync(join(ROOT, `assets/img/screens/${n[1]}${n[2] || ''}.${n[3]}.webp`))) bad('R12', `${rel} ohne Rückfallbild unter assets/img/screens/`);
+    const groesse = statSync(join(ANIM_DIR, f)).size;
+    if (groesse > ANIM_MAX) bad('R12', `${rel}: ${(groesse / 1048576).toFixed(2).replace('.', ',')} MB, mehr als 1,5 MB`);
+    if (!animGenutzt.has(rel)) bad('R12', `${rel} benutzt keine Seite`);
+  }
+}
+
 // ── Schreiben oder vergleichen ─────────────────────────────────────
 if (CHECK) {
   for (const [file, html] of Object.entries(pages)) {
@@ -245,4 +304,4 @@ if (fail.length) {
   console.error(`${fail.length} Regelverstöße:\n  ${fail.join('\n  ')}`);
   process.exit(1);
 }
-console.log(`${CHECK ? 'geprüft' : 'gebaut'}: ${Object.keys(pages).join(', ')}; ${belegt.size} belegte Aussagen; Regeln R1 bis R11 eingehalten`);
+console.log(`${CHECK ? 'geprüft' : 'gebaut'}: ${Object.keys(pages).join(', ')}; ${belegt.size} belegte Aussagen; ${animGenutzt.size} Animationen; Regeln R1 bis R12 eingehalten`);

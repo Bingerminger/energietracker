@@ -1,5 +1,5 @@
 {
-  "commit": "8e35bdc9",
+  "commit": "1871bc44",
   "bilder": [
     {
       "datei": "assets/img/screens/uebersicht.de.webp",
@@ -56,54 +56,6 @@
       "ausschnitt": null,
       "breite": 780,
       "hoehe": 1688
-    },
-    {
-      "datei": "assets/img/screens/gas.de.webp",
-      "quelle": "energietracker/docs/ui/screenshots/gas-view.png",
-      "ausschnitt": [
-        220,
-        48,
-        1220,
-        762
-      ],
-      "breite": 1220,
-      "hoehe": 762
-    },
-    {
-      "datei": "assets/img/screens/gas-dunkel.de.webp",
-      "quelle": "tools/quellen/dunkel/gas-view.de.png",
-      "ausschnitt": [
-        220,
-        48,
-        1220,
-        762
-      ],
-      "breite": 1220,
-      "hoehe": 762
-    },
-    {
-      "datei": "assets/img/screens/gas.en.webp",
-      "quelle": "energietracker/docs/ui/screenshots/en/gas-view.png",
-      "ausschnitt": [
-        220,
-        48,
-        1220,
-        762
-      ],
-      "breite": 1220,
-      "hoehe": 762
-    },
-    {
-      "datei": "assets/img/screens/gas-dunkel.en.webp",
-      "quelle": "tools/quellen/dunkel/gas-view.en.png",
-      "ausschnitt": [
-        220,
-        48,
-        1220,
-        762
-      ],
-      "breite": 1220,
-      "hoehe": 762
     },
     {
       "datei": "assets/img/screens/rechnung.de.webp",
@@ -538,54 +490,6 @@
       "hoehe": 780
     },
     {
-      "datei": "assets/img/screens/brief.de.webp",
-      "quelle": "energietracker/docs/ui/screenshots/brief-dialog.png",
-      "ausschnitt": [
-        235,
-        40,
-        970,
-        810
-      ],
-      "breite": 970,
-      "hoehe": 810
-    },
-    {
-      "datei": "assets/img/screens/brief-dunkel.de.webp",
-      "quelle": "tools/quellen/dunkel/brief-dialog.de.png",
-      "ausschnitt": [
-        235,
-        40,
-        970,
-        810
-      ],
-      "breite": 970,
-      "hoehe": 810
-    },
-    {
-      "datei": "assets/img/screens/brief.en.webp",
-      "quelle": "energietracker/docs/ui/screenshots/en/brief-dialog.png",
-      "ausschnitt": [
-        235,
-        40,
-        970,
-        810
-      ],
-      "breite": 970,
-      "hoehe": 810
-    },
-    {
-      "datei": "assets/img/screens/brief-dunkel.en.webp",
-      "quelle": "tools/quellen/dunkel/brief-dialog.en.png",
-      "ausschnitt": [
-        235,
-        40,
-        970,
-        810
-      ],
-      "breite": 970,
-      "hoehe": 810
-    },
-    {
       "datei": "assets/img/screens/erfassen.de.webp",
       "quelle": "energietracker/docs/ui/screenshots/erfassen-iphone.png",
       "ausschnitt": null,
@@ -612,6 +516,174 @@
       "ausschnitt": null,
       "breite": 780,
       "hoehe": 1688
+    },
+    {
+      "datei": "assets/img/screens/fristen.de.webp",
+      "quelle": "tools/quellen/anim/fristen.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/fristen-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/fristen-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/fristen.en.webp",
+      "quelle": "tools/quellen/anim/fristen.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/fristen-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/fristen-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/ki.de.webp",
+      "quelle": "tools/quellen/anim/ki.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/ki-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/ki-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/ki.en.webp",
+      "quelle": "tools/quellen/anim/ki.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/ki-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/ki-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/posteingang.de.webp",
+      "quelle": "tools/quellen/anim/posteingang.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/posteingang-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/posteingang-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/posteingang.en.webp",
+      "quelle": "tools/quellen/anim/posteingang.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/posteingang-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/posteingang-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/prognose-strom.de.webp",
+      "quelle": "tools/quellen/anim/prognose-strom.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/prognose-strom-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/prognose-strom-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/prognose-strom.en.webp",
+      "quelle": "tools/quellen/anim/prognose-strom.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/prognose-strom-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/prognose-strom-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/rueckfrage.de.webp",
+      "quelle": "tools/quellen/anim/rueckfrage.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/rueckfrage-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/rueckfrage-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/rueckfrage.en.webp",
+      "quelle": "tools/quellen/anim/rueckfrage.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/rueckfrage-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/rueckfrage-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/saldo.de.webp",
+      "quelle": "tools/quellen/anim/saldo.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/saldo-dunkel.de.webp",
+      "quelle": "tools/quellen/anim/saldo-dunkel.de.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/saldo.en.webp",
+      "quelle": "tools/quellen/anim/saldo.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
+    },
+    {
+      "datei": "assets/img/screens/saldo-dunkel.en.webp",
+      "quelle": "tools/quellen/anim/saldo-dunkel.en.png",
+      "ausschnitt": null,
+      "breite": 1280,
+      "hoehe": 800
     },
     {
       "datei": "assets/img/wegweiser/together.de.hell.svg",
@@ -688,6 +760,18 @@
       "quelle": "tools/quellen/vorschau.en.png (Social Preview aus M6)",
       "breite": 1280,
       "hoehe": 640
+    },
+    {
+      "datei": "assets/img/integration-logo.png",
+      "quelle": "energietracker-integration/custom_components/energietracker/brand/logo.png (pngquant)",
+      "breite": 460,
+      "hoehe": 128
+    },
+    {
+      "datei": "assets/img/integration-logo-dunkel.png",
+      "quelle": "energietracker-integration/custom_components/energietracker/brand/dark_logo.png (pngquant)",
+      "breite": 460,
+      "hoehe": 128
     }
   ]
 }

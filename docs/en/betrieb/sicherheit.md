@@ -465,7 +465,12 @@ network, here none may be.
 **Only an admin may switch it on**: `PATCH /api/inbox/cloud`, the model list
 `GET /api/inbox/cloud/models`, the check of your own service
 `GET /api/inbox/local/check` and the `inbox_*` keys in `PATCH /api/settings`
-answer members with `403`. Without sign-in anyone
+answer members with `403`. *(v3.13.0)* So do the interface, the model and the time
+limit of text recognition (`ocr_api`, `ocr_model`, `ocr_timeout_s`) and the events
+and hour of the Home Assistant notification (`ha_notify_events`, `ha_notify_hour`):
+they apply to everyone. An unchanged value that a page sends along goes through;
+members see these fields locked. A test assigns every settings key to a role (admin
+or member), so that a new one is not silently open to members. Without sign-in anyone
 who can reach the app may do it — like everything else (section 1).
 
 ### Inbox *(v3.7.0)*

@@ -112,9 +112,17 @@ final class McpController
             if ($e->status !== 413) throw $e;
             $this->reject(new RpcError(413, Server::ERR_TOO_LARGE, 'errors.mcp.tooLarge', ['max' => (int)($e->params['max'] ?? 1)]), $locale, $started, $key);
         }
+        // v3.13.0 — ein Stapel (Fassung 2025-03-26): jede weitere Nachricht zählt in der Ratenbegrenzung wie eine Anfrage
+        for ($i = 1, $n = min(Server::batchSize($raw), Server::BATCH_MAX); $i < $n; $i++) {
+            $wait = $this->limiter->hit('all', $key['id']);
+            if ($wait !== null) $this->reject(Server::rateLimited($wait), $locale, $started, $key);
+        }
         $ctx = new McpContext($key['id'], $key['name'], $key['scope'], $locale);
         $reply = ($this->server)()->handle($raw, $ctx, self::headers($_SERVER));
-        $this->journal->append($this->journal->entry($reply['log'], $key, $reply['status'], self::ms($started)));
+        // je Nachricht eines Stapels ein Eintrag im Zugriffsprotokoll
+        foreach ($reply['logs'] ?? [['log' => $reply['log'], 'status' => $reply['status']]] as $entry) {
+            $this->journal->append($this->journal->entry($entry['log'], $key, $entry['status'], self::ms($started)));
+        }
         Response::raw($reply['body'], $reply['status'], $reply['headers']);
     }
 

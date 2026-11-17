@@ -28,6 +28,11 @@ final class WeatherService implements WeatherSource
     private const ARCHIVE_API  = 'https://archive-api.open-meteo.com/v1/archive';
     private const FORECAST_API = 'https://api.open-meteo.com/v1/forecast';
     private const GEOCODE_API  = 'https://geocoding-api.open-meteo.com/v1/search';
+    /**
+     * v3.13.0 (Paket sonne) — Globalstrahlung kommt als `shortwave_radiation_sum` in MJ/m² am Tag;
+     * gespeichert wird `rad` in kWh/m² am Tag (1 kWh = 3,6 MJ).
+     */
+    public const MJ_PER_KWH = 3.6;
 
     public function fetchArchive(float $lat, float $lon, string $start, string $end): array
     {
@@ -43,32 +48,53 @@ final class WeatherService implements WeatherSource
      * v2.8.0 — nur Tagesmittel, für das Klimanormal (30 Jahre; ein Drittel der
      * Antwortgröße gegenüber avg/min/max).
      *
-     * @return array{data:array<string,float>,error:?string}
+     * v3.13.0 (Paket sonne) — dazu die Einstrahlung je Tag (`rad`, kWh/m²) für die
+     * Monatssummen des Normals (`rad_month`). Die Antwort wächst für 30 Jahre am
+     * Standard-Standort von rund 190 auf rund 250 KB.
+     *
+     * @return array{data:array<string,float>,rad?:array<string,float>,error:?string}
      */
     public function fetchArchiveMeans(float $lat, float $lon, string $start, string $end): array
     {
-        $url = sprintf(
-            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean&timezone=%s',
+        $resp = $this->httpGet($this->meansUrl($lat, $lon, $start, $end), 120);
+        if (!$resp['ok']) return ['data' => []] + self::failure($resp);
+        return self::parseMeans(json_decode((string)$resp['body'], true));
+    }
+
+    /** v3.13.0 — Adresse des Abrufs fürs Klimanormal (Tagesmittel und Einstrahlung). */
+    public function meansUrl(float $lat, float $lon, string $start, string $end): string
+    {
+        return sprintf(
+            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean,shortwave_radiation_sum&timezone=%s',
             self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
         );
-        $resp = $this->httpGet($url, 120);
-        if (!$resp['ok']) return ['data' => []] + self::failure($resp);
-        $data = json_decode((string)$resp['body'], true);
-        if (!is_array($data) || !isset($data['daily']['time'])) {
+    }
+
+    /**
+     * Antwort des Abrufs fürs Klimanormal → Tagesmittel und (v3.13.0, additiv) Einstrahlung je Tag.
+     *
+     * @return array{data:array<string,float>,rad?:array<string,float>,error:?string}
+     */
+    public static function parseMeans(mixed $data): array
+    {
+        if (!is_array($data) || !isset($data['daily']['time']) || !is_array($data['daily']['time'])) {
             return ['data' => [], 'error' => self::BAD_FORMAT, 'error_code' => 'badFormat'];
         }
-        $out = [];
+        $out = []; $rad = [];
         foreach ($data['daily']['time'] as $i => $date) {
             $v = $data['daily']['temperature_2m_mean'][$i] ?? null;
             if ($v !== null) $out[(string)$date] = (float)$v;
+            // v3.13.0 (Paket sonne) — Einstrahlung fürs Klimanormal (`rad_month`)
+            $r = self::radiation($data['daily']['shortwave_radiation_sum'][$i] ?? null);
+            if ($r !== null) $rad[(string)$date] = $r;
         }
-        return $out ? ['data' => $out, 'error' => null] : ['data' => [], 'error' => self::NO_DAYS, 'error_code' => 'noDays'];
+        return $out ? ['data' => $out, 'rad' => $rad, 'error' => null] : ['data' => [], 'error' => self::NO_DAYS, 'error_code' => 'noDays'];
     }
 
     public function archiveUrl(float $lat, float $lon, string $start, string $end): string
     {
         return sprintf(
-            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=%s',
+            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max,shortwave_radiation_sum&timezone=%s',
             self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
         );
     }
@@ -76,7 +102,7 @@ final class WeatherService implements WeatherSource
     public function forecastUrl(float $lat, float $lon, int $forecastDays = 14, int $pastDays = 0): string
     {
         return sprintf(
-            '%s?latitude=%.2f&longitude=%.2f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&forecast_days=%d&past_days=%d&timezone=%s',
+            '%s?latitude=%.2f&longitude=%.2f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max,shortwave_radiation_sum&forecast_days=%d&past_days=%d&timezone=%s',
             self::FORECAST_API, $lat, $lon,
             max(0, min(16, $forecastDays)), max(0, min(92, $pastDays)), self::timezone()
         );
@@ -126,6 +152,13 @@ final class WeatherService implements WeatherSource
                 'http_code' => $resp['http_code'] ?? null];
     }
 
+    /** Tagessumme in MJ/m² → kWh/m² (drei Nachkommastellen), null ohne verwertbaren Wert. */
+    public static function radiation(mixed $mj): ?float
+    {
+        if ($mj === null || is_bool($mj) || !is_numeric($mj) || !is_finite((float)$mj) || (float)$mj < 0) return null;
+        return round((float)$mj / self::MJ_PER_KWH, 3);
+    }
+
     private static function timezone(): string
     {
         return rawurlencode(date_default_timezone_get());
@@ -137,19 +170,9 @@ final class WeatherService implements WeatherSource
         if (!$resp['ok']) {
             return ['data' => [], 'url' => $url, 'http_code' => $resp['http_code']] + self::failure($resp);
         }
-        $data = json_decode($resp['body'], true);
-        if (!is_array($data) || !isset($data['daily']['time'])) {
+        $out = self::parseDays(json_decode($resp['body'], true));
+        if ($out === null) {
             return ['data' => [], 'error' => self::BAD_FORMAT, 'error_code' => 'badFormat', 'url' => $url];
-        }
-        $out = [];
-        $times = $data['daily']['time'];
-        foreach ($times as $i => $date) {
-            $a = $data['daily']['temperature_2m_mean'][$i] ?? null;
-            $mi = $data['daily']['temperature_2m_min'][$i] ?? null;
-            $ma = $data['daily']['temperature_2m_max'][$i] ?? null;
-            if ($a !== null && $mi !== null && $ma !== null) {
-                $out[$date] = ['avg' => (float)$a, 'min' => (float)$mi, 'max' => (float)$ma];
-            }
         }
         return [
             'data'      => $out,
@@ -159,6 +182,30 @@ final class WeatherService implements WeatherSource
             'http_code' => $resp['http_code'],
             'rows'      => count($out),
         ];
+    }
+
+    /**
+     * Tageswerte einer Archiv- oder Vorhersage-Antwort: Tag → {avg, min, max} und (v3.13.0, Paket sonne)
+     * optional `rad`, die Einstrahlung in kWh/m². Ohne Einstrahlung bleibt der Tag gültig. Null bei
+     * unerwartetem Format.
+     *
+     * @return array<string,array{avg:float,min:float,max:float,rad?:float}>|null
+     */
+    public static function parseDays(mixed $data): ?array
+    {
+        if (!is_array($data) || !isset($data['daily']['time']) || !is_array($data['daily']['time'])) return null;
+        $out = [];
+        foreach ($data['daily']['time'] as $i => $date) {
+            $a = $data['daily']['temperature_2m_mean'][$i] ?? null;
+            $mi = $data['daily']['temperature_2m_min'][$i] ?? null;
+            $ma = $data['daily']['temperature_2m_max'][$i] ?? null;
+            if ($a !== null && $mi !== null && $ma !== null) {
+                $out[$date] = ['avg' => (float)$a, 'min' => (float)$mi, 'max' => (float)$ma];
+                $r = self::radiation($data['daily']['shortwave_radiation_sum'][$i] ?? null);
+                if ($r !== null) $out[$date]['rad'] = $r;
+            }
+        }
+        return $out;
     }
 
     private function httpGet(string $url, int $timeout): array

@@ -26,6 +26,7 @@ import { openConceptWizard, conceptOffered } from '../components/concept-wizard.
 import { icon, artIcon, meterGlyph } from '../lib/icons.js';
 import { meterTreeHtml } from '../lib/meter-tree.js';   // v3.12.0 (Sichtung S8)
 import { rich } from '../lib/rich.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
@@ -88,10 +89,15 @@ export async function renderHouseholdMeters(container, ctx = {}) {
     return el;
   };
   if (wanted) return render(section(wanted), [wanted], ctx);
+  // v3.13.0 — „Alle“ mit einer Sammelabfrage (GET /api/meters-overview) statt je Art Zähler und Gruppen
+  // (bei neun Arten 18 Anfragen); nach einer Änderung lädt der Abschnitt seine Art wieder einzeln. Ohne
+  // Antwort wie bisher je Art.
+  const ov = await api.metersOverview().catch(() => null);
+  const byKey = new Map((ov?.utilities || []).map(x => [x.utility, x]));
   await Promise.all(active.map(async (u) => {
     const el = section(u.key);
     el.setAttribute('data-utility', u.key);
-    await refresh(el, u);
+    await refresh(el, u, byKey.get(u.key) || null);
   }));
 }
 
@@ -107,14 +113,17 @@ export function swapPrefill(q) {
   };
 }
 
-async function refresh(container, u) {
+async function refresh(container, u, preloaded = null) {
   container.innerHTML = `<div class="loading">${t('meters.loading')}</div>`;
   let meters, groups;
   try {
-    [meters, groups] = await Promise.all([
-      api.meters(u.key),
-      api.meterGroups(u.key),
-    ]);
+    // v3.13.0 — beim ersten Zeichnen unter „Alle“ aus der Sammelabfrage
+    [meters, groups] = Array.isArray(preloaded?.meters) && Array.isArray(preloaded?.groups)
+      ? [preloaded.meters, preloaded.groups]
+      : await Promise.all([
+        api.meters(u.key),
+        api.meterGroups(u.key),
+      ]);
   } catch (e) {
     // v2.11.0 (Review FE-25) — sonst hing die Ansicht nach dem Speichern bei „Lädt…"
     renderError(container, e, () => refresh(container, u));
@@ -363,7 +372,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <div class="fgrid">
             <div class="field field--l">
               <label>${t('meters.modal.name')}</label>
-              <input class="input input--text" name="name" required value="${escapeHtml(existing?.name || '')}" placeholder="${t('meters.modal.namePlaceholder')}">
+              <input class="input input--text" name="name" required ${maxAttr('meters', 'name')} value="${escapeHtml(existing?.name || '')}" placeholder="${t('meters.modal.namePlaceholder')}">
             </div>
             <div class="field field--s">
               <label>${t('meters.modal.icon')}</label>
@@ -416,7 +425,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             ${existing ? '' : `
             <div class="field field--s">
               <label>${t('meters.modal.deviceSerial')}</label>
-              <input class="input" name="device_serial" type="text">
+              <input class="input" name="device_serial" type="text" ${maxAttr('meters', 'devices.serial')}>
             </div>
             <div class="field field--s">
               <label>${t('meters.modal.installedOn')}</label>
@@ -564,7 +573,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             <div class="field field--s">
               <label for="bl-label">${t('meters.baseline.label')}</label>
               <input class="input input--text" id="bl-label" type="text"
-                     maxlength="80" placeholder="${t('meters.baseline.labelPlaceholder')}">
+                     ${maxAttr('meters', 'baseline_events.label')} placeholder="${t('meters.baseline.labelPlaceholder')}">
             </div>
             <div class="field field--s">
               <button type="button" class="btn btn--ghost" id="bl-add">${t('meters.baseline.add')}</button>
@@ -574,7 +583,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
         <div class="fgrid">
           <div class="field field--full">
             <label>${t('meters.modal.notes')}</label>
-            <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
+            <textarea class="input input--text" name="notes" ${maxAttr('meters', 'notes')} data-counter>${escapeHtml(existing?.notes || '')}</textarea>
           </div>
           ${existing ? `
           <div class="field field--full">
@@ -905,7 +914,7 @@ async function openReplaceDeviceModal(u, meter, prefill = {}) {
           </div>
           <div class="field field--s">
             <label>${t('meters.replace.serial')}</label>
-            <input class="input" name="serial" type="text" value="${escapeHtml(pre.serial)}">
+            <input class="input" name="serial" type="text" ${maxAttr('meters', 'devices.serial')} value="${escapeHtml(pre.serial)}">
           </div>
           <div class="field field--l">
             <label>${t('meters.replace.reason')}</label>
@@ -1016,8 +1025,13 @@ async function openImportReadingsModal(u, meter) {
               api.importReadingCsv(u.key, meter.id, text, { dryRun: true }),
               api.readings(u.key, meter.id).catch(() => []),
             ]);
+            const list = Array.isArray(existing) ? existing : [];
+            // v3.13.0 (Paket K1, #65) — Erwartung nach dem Wetter für alle Abstände der Datei in einer Anfrage;
+            // die Zeilen (voriger und nächster Stand) einmal gerechnet, für Anfrage und Vorschau
+            const rows = previewRows(preview, list);
+            const weather = await previewWeather(u, meter, rows);
             drop.hidden = true;
-            result.innerHTML = previewHtml(u, meter, preview, Array.isArray(existing) ? existing : []);
+            result.innerHTML = previewHtml(u, meter, preview, list, weather, rows);
             result.querySelector('[data-act="other-file"]')?.addEventListener('click', () => {
               result.innerHTML = ''; drop.hidden = false; input.value = ''; drop.focus();
             });
@@ -1155,22 +1169,12 @@ async function openImportPeriodsModal(u, meter) {
 }
 
 /**
- * v2.12.0 (Review UI-23) — Vorschau eines CSV-Imports. Jede gelesene Zeile
- * mit ihrer Wirkung (neu, ersetzt, unverändert) und den Rückfragen der
- * Erfassung (lib/plausibility.js): Rückgang, Sprung, Größenordnung, Zukunft.
- * Verglichen wird mit dem jeweils vorigen Stand aus Bestand und Datei.
+ * v3.13.0 (Paket K1) — die gelesenen Zeilen nach Datum, je Zeile der vorige und der nächste Stand aus Bestand und
+ * Datei: eine Regel für die Rückfragen der Vorschau und die Abstände der Erwartung nach dem Wetter.
  */
-function previewHtml(u, meter, preview, existing) {
-  const rows = [...(preview.rows || [])].map((r, i) => ({ ...r, i })).sort((a, b) => a.date.localeCompare(b.date) || a.i - b.i);
-  const unit = u.unit || '';
-  const today = todayIso();
-  const byDate = new Map(existing.map(e => [e.date, e]));
-  const typical = typicalPerDay(existing.filter(e => (e.meter_id ?? meter.id) === meter.id));
-  const dates = rows.map(r => r.date);
-  let counts = { new: 0, overwrite: 0, same: 0, flagged: 0 };
-  const items = rows.map((r, idx) => {
-    const old = byDate.get(r.date) || null;
-    const effect = !old ? 'new' : Number(old.counter) === Number(r.counter) ? 'same' : 'overwrite';
+export function previewRows(preview, existing) {
+  const rows = [...(preview?.rows || [])].map((r, i) => ({ ...r, i })).sort((a, b) => a.date.localeCompare(b.date) || a.i - b.i);
+  return rows.map((r, idx) => {
     // voriger Stand: der jüngste aus Bestand und Datei vor diesem Datum
     const prevExisting = existing.filter(e => e.date < r.date && !e.is_future).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
     const prevFile = rows.slice(0, idx).filter(p => p.date < r.date).pop() || null;
@@ -1179,10 +1183,72 @@ function previewHtml(u, meter, preview, existing) {
     const nextExisting = existing.filter(e => e.date > r.date && !e.is_future && !e.is_suspect).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
     const nextFile = rows.slice(idx + 1).filter(p => p.date > r.date)[0] || null;
     const next = [nextExisting, nextFile].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+    // v3.13.0 (Paket K2e) — der gespeicherte Stand dieses Tags, den die Zeile mit einem anderen Wert überschreibt
+    const same = existing.find(e => e.date === r.date && e.id) || null;
+    const replaces = same && Number(same.counter) !== Number(r.counter) ? same : null;
+    return { r, prev, next, replaces };
+  });
+}
+
+/** v3.13.0 (Paket K1) — die Abstände voriger Stand → Zeile, jeder einmal (für die Sammelabfrage). */
+export function previewPairs(items) {
+  const seen = new Set();
+  const out = [];
+  for (const { r, prev } of items) {
+    if (!prev || !(prev.date < r.date)) continue;
+    const k = `${prev.date}|${r.date}`;
+    if (!seen.has(k)) { seen.add(k); out.push({ from: prev.date, to: r.date }); }
+  }
+  return out;
+}
+
+/**
+ * v3.13.0 (Paket K1, Entscheidung 11 b, #65) — Erwartung nach dem Wetter für alle Abstände der Datei, in EINER
+ * Anfrage (`POST …/reading-expectations`): bei vielen Zeilen keine Anfrage je Zeile, und das Paar (vorher, Datum)
+ * bestimmt die Vorschau selbst (previewRows), der Server rechnet genau diese Abstände. Fehler, keine Verbindung, zu
+ * viele Abstände oder die Demo: leer, dann prüft die Vorschau nach der bisherigen Regel.
+ * v3.13.0 (Paket K2e) — die gespeicherten Stände, die die Datei mit einem anderen Wert überschreibt, bestimmen die
+ * Erwartung nicht mit (wie „Ersetzen“ im Dialog „+ Ablesung“ und auf der Seite „Zählerstände“). Gleiche Werte
+ * bleiben: Sie ändern nichts, und ein erneuter Import derselben Datei rechnet wie zuvor.
+ *
+ * @returns {Promise<Map<string, object>>} `vorher|Datum` → Erwartung
+ */
+export async function previewWeather(u, meter, items) {
+  const pairs = previewPairs(items);
+  if (!pairs.length) return new Map();
+  try {
+    const exclude = [...new Set(items.filter(x => x.replaces).map(x => String(x.replaces.id)))];
+    const res = await api.readingExpectations(u.key, meter.id, pairs, exclude);
+    const list = Array.isArray(res?.expectations) ? res.expectations : [];
+    return new Map(list.filter(e => e && typeof e === 'object' && e.from && e.to).map(e => [`${e.from}|${e.to}`, e]));
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * v2.12.0 (Review UI-23) — Vorschau eines CSV-Imports. Jede gelesene Zeile
+ * mit ihrer Wirkung (neu, ersetzt, unverändert) und den Rückfragen der
+ * Erfassung (lib/plausibility.js): Rückgang, Sprung, Größenordnung, Zukunft.
+ * Verglichen wird mit dem jeweils vorigen Stand aus Bestand und Datei.
+ * v3.13.0 (Paket K1, #65) — `weather`: Erwartung nach dem Wetter je Abstand (`vorher|Datum`, previewWeather); bei
+ * Heizarten misst der Sprung daran wie in Dialog und Seite „Zählerstände“, ohne Antwort die bisherige Regel.
+ */
+function previewHtml(u, meter, preview, existing, weather = new Map(), sorted = previewRows(preview, existing)) {
+  const unit = u.unit || '';
+  const today = todayIso();
+  const byDate = new Map(existing.map(e => [e.date, e]));
+  const typical = typicalPerDay(existing.filter(e => (e.meter_id ?? meter.id) === meter.id));
+  const dates = sorted.map(x => x.r.date);
+  let counts = { new: 0, overwrite: 0, same: 0, flagged: 0 };
+  const items = sorted.map(({ r, prev, next }) => {
+    const old = byDate.get(r.date) || null;
+    const effect = !old ? 'new' : Number(old.counter) === Number(r.counter) ? 'same' : 'overwrite';
     const issues = checkReading({
       value: Number(r.counter), date: r.date, today, prev, typical,
       deviceChanged: prev ? deviceChangedBetween(meter, prev.date, r.date) : false,
       next, nextDeviceChanged: next ? deviceChangedBetween(meter, r.date, next.date) : false,
+      expected: prev ? weather.get(`${prev.date}|${r.date}`) ?? null : null,
     });
     const notes = issues.map(i => issueText(i, { unit, date: r.date }));
     if (dates.indexOf(r.date) !== dates.lastIndexOf(r.date)) notes.push(t('meters.import.duplicate'));
@@ -1266,7 +1332,7 @@ async function openMergeModal(u, meters, groups) {
           </div>
           <div class="field">
             <label>${t('meters.mergeModal.newGroupName')}</label>
-            <input class="input input--text" name="name" placeholder="${t('meters.mergeModal.newGroupPlaceholder')}">
+            <input class="input input--text" name="name" ${maxAttr('meter_groups', 'name')} placeholder="${t('meters.mergeModal.newGroupPlaceholder')}">
             <div class="field-error" data-role="name-msg" role="alert" hidden></div>
           </div>
         </div>

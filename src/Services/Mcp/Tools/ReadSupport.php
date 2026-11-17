@@ -15,6 +15,7 @@ use Energietracker\Services\MeterService;
 use Energietracker\Services\ReadingService;
 use Energietracker\Services\RightsService;
 use Energietracker\Services\SettingsService;
+use Energietracker\Support\Dates;
 use Energietracker\Support\LocalizedException;
 
 /**
@@ -76,7 +77,8 @@ trait ReadSupport
     /**
      * v3.12.0 — ein Saldo in Klartext neben `sign`: `meaning` und ein fertiger Satz in der Sprache
      * des Servers. Geschätzt heißt es im Satz auch so. Ohne Arbeitspreis (`$noPrice`) gibt es
-     * keinen Saldo, nur die Abschläge: `no_price` (Skeptiker M5).
+     * keinen Saldo (`no_price`); v3.13.0 — der Satz nennt keinen Betrag, weil Grundpreis und Monate
+     * mit Preis darin stecken können.
      *
      * @param array<string,mixed>|null $num Zahl-Objekt
      * @return array<string,mixed>|null
@@ -84,13 +86,23 @@ trait ReadSupport
     private function withMeaning(?array $num, string $utility, bool $noPrice = false, ?string $since = null): ?array
     {
         if ($num === null) return null;
+        return $num + $this->balanceWords((float)$num['value'], $utility, $noPrice, (string)($num['basis'] ?? ''), $since);
+    }
+
+    /**
+     * v3.13.0 — die eine Stelle für einen Saldo in Worten: Zahl-Objekte (withMeaning), Abrechnungsjahre
+     * (`balance_meaning`, `balance_text`) und der Saldo zur Abrechnung im Szenario.
+     *
+     * @return array{meaning:string, text:string}
+     */
+    private function balanceWords(float $value, string $utility, bool $noPrice = false, string $basis = '', ?string $since = null): array
+    {
         $i18n = $this->services->get(I18nService::class);
-        $value = (float)$num['value'];
         $meaning = $noPrice ? 'no_price' : Provenance::meaning($value, Utilities::isFeedIn($utility));
         $text = $i18n->t("mcp.balance.$meaning", ['amount' => $i18n->money(abs($value))], $this->textLocale);
         if ($since !== null && !$noPrice && abs($value) >= 0.005) $text = $i18n->t('mcp.balance.since', ['text' => $text, 'date' => $i18n->date($since)], $this->textLocale);
-        if (!$noPrice && ($num['basis'] ?? null) === 'estimated') $text = $i18n->t('mcp.balance.estimated', ['text' => $text], $this->textLocale);
-        return $num + ['meaning' => $meaning, 'text' => $text];
+        if (!$noPrice && $basis === 'estimated') $text = $i18n->t('mcp.balance.estimated', ['text' => $text], $this->textLocale);
+        return ['meaning' => $meaning, 'text' => $text];
     }
 
     /**
@@ -260,7 +272,7 @@ trait ReadSupport
             'footer'      => (string)$f['footer'],
             // v3.12.0 (Skeptiker M10) — Text aus dem Katalog: eigene Länge, der letzte Satz bleibt
             // v3.12.0 — Titel und Text nennen Anbieter und Zähler: dieselbe Maske wie dort (Kennnummern, Angaben für Briefe)
-            'untrusted'   => Sanitize::finding($this->masked((string)$f['title']), $this->masked((string)$f['text'])),
+            'untrusted'   => Sanitize::finding($this->maskedName((string)$f['title']), $this->maskedName((string)$f['text'])),
         ]);
     }
 
@@ -384,6 +396,145 @@ trait ReadSupport
         return $parts !== [] && $this->alignedWindow($utility, $members, $start, $endExcl) ? Provenance::aligned($parts, $alignedTo) : $parts;
     }
 
+    /**
+     * v3.13.0 — Anteile wie windowParts(), aber je Zähler über seine eigene Spanne [start, eigenes Ende) (Summe der Art:
+     * BillingPeriodService `member_as_of`), nach seiner Menge gewichtet. Ein Zähler, dessen Ziel vor seiner nächsten
+     * Ablesung endet (am Vertragsende verteilt), bleibt verteilt, auch wenn die Periode an einer Ablesung des spätesten
+     * Ziels endet. Bis dahin prüfte die Summe der Art die Ränder nur am Ende der Periode und hieß dann gemessen.
+     *
+     * @param list<array<string,mixed>> $members
+     * @param list<array<string,mixed>> $rows Monatszeilen der Zähler (memberRows, mit `meter_id`)
+     * @param array<string,?string> $ends Zähler → letzter gezählter Tag (null: nichts gezählt); fehlt einer, das Ende der Periode
+     * @return array<string,float>
+     */
+    private function memberWindowParts(string $utility, array $members, array $rows, string $start, string $endExcl, array $ends,
+                                       ?string $field = null, ?callable $basisOf = null, string $alignedTo = 'measured'): array
+    {
+        $f = $field ?? self::valueField($utility);
+        $acc = []; $weights = 0.0; $count = 0;
+        foreach ($members as $m) {
+            $id = (string)($m['id'] ?? '');
+            $own = array_key_exists($id, $ends) ? ($ends[$id] !== null ? date('Y-m-d', (int)strtotime($ends[$id] . ' +1 day')) : null) : $endExcl;
+            if ($own === null || $own <= $start) continue;
+            $mine = array_values(array_filter($rows, fn($r) => (string)($r['meter_id'] ?? '') === $id));
+            $parts = $this->windowParts($utility, [$m], $mine, $start, $own, $field, $basisOf, $alignedTo);
+            if ($parts === []) continue;
+            $last = substr(date('Y-m-d', (int)strtotime($own . ' -1 day')), 0, 7);
+            $w = 0.0;
+            foreach ($mine as $r) if ((string)($r['ym'] ?? '') >= substr($start, 0, 7) && (string)($r['ym'] ?? '') <= $last) $w += abs((float)($r[$f] ?? 0.0));
+            $acc[] = [$parts, $w];
+            $weights += $w;
+            $count++;
+        }
+        if ($acc === []) return [];
+        $out = [];
+        foreach ($acc as [$parts, $w]) {
+            $share = $weights > 1e-9 ? $w / $weights : 1.0 / $count;
+            foreach ($parts as $b => $s) $out[$b] = ($out[$b] ?? 0.0) + (float)$s * $share;
+        }
+        return array_filter($out, fn($s) => $s > 0.0);
+    }
+
+    /** @var array<string,\Closure> Herkunft des Preises je Art (einmal je Anfrage) */
+    private array $priceBasisFns = [];
+
+    /**
+     * v3.13.0 — Herkunft des Preises einer Monatszeile mit ihren Verträgen (Provenance::monthPrice): fortgeschrieben
+     * oder nach der Preisgarantie angenommen, sonst eingetragen; zwei Verträge im Monat: der schwächere.
+     *
+     * @return \Closure(array<string,mixed>): string
+     */
+    private function priceBasisOf(string $utility): \Closure
+    {
+        if (isset($this->priceBasisFns[$utility])) return $this->priceBasisFns[$utility];
+        $byId = [];
+        if (Utilities::hasContracts($utility)) {
+            foreach ($this->services->get(ContractService::class)->list($utility) as $c) $byId[(string)($c['id'] ?? '')] = $c;
+        }
+        return $this->priceBasisFns[$utility] = static function (array $r) use ($byId): string {
+            if (!empty($r['contract_parts']) && is_array($r['contract_parts'])) {
+                $b = array_map(fn(array $p): string => Provenance::monthPrice(['contract_assumed' => !empty($p['assumed'])] + $r,
+                    $byId[(string)($p['contract_id'] ?? '')] ?? null), $r['contract_parts']);
+                return $b !== [] ? Provenance::weakest(...$b) : Provenance::monthPrice($r);
+            }
+            return Provenance::monthPrice($r, is_string($r['contract_id'] ?? null) ? ($byId[$r['contract_id']] ?? null) : null);
+        };
+    }
+
+    /**
+     * v3.13.0 — Herkunft der Kosten einer Monatszeile: die schwächere aus Menge und Preis (Provenance::monthCost mit
+     * den Verträgen). Die eine Stelle für Monate, Jahre, Abrechnungsjahre, Summen, Saldo und Jahresbericht.
+     *
+     * @return \Closure(array<string,mixed>): string
+     */
+    private function costBasisOf(string $utility): \Closure
+    {
+        $price = $this->priceBasisOf($utility);
+        return static fn(array $r): string => Provenance::weakest(Provenance::month($r), $price($r));
+    }
+
+    /**
+     * v3.13.0 — Herkunft der Arbeitskosten in einem Saldo: die Herkunft der Menge ihres Monats, gekappt durch einen
+     * angenommenen Preis. Ein eingetragener Preis schwächt den Saldo nicht (Kosten bis zur letzten Ablesung heißen
+     * gemessen, „Woher eine Zahl kommt“), ein angenommener schon: Ein Saldo aus angenommenen Preisen heißt nie gemessen.
+     *
+     * @return \Closure(array<string,mixed>): string
+     */
+    private function energyBasisOf(string $utility): \Closure
+    {
+        $price = $this->priceBasisOf($utility);
+        return static fn(array $r): string => $price($r) === 'assumed' ? Provenance::weakest(Provenance::month($r), 'assumed') : Provenance::month($r);
+    }
+
+    /**
+     * v3.13.0 — Herkunft des Geldes über [start, endExcl): Arbeitskosten aus Menge und Preis, über ganze
+     * Ablesungsabstände wie eingetragen (windowParts); dazu die Herkunft der Preise (Grundpreis, Abschläge).
+     *
+     * @param list<array<string,mixed>> $members
+     * @param list<array<string,mixed>> $rows Monatszeilen der Zähler (memberRows)
+     */
+    private function moneyBasis(string $utility, array $members, array $rows, string $start, string $endExcl, ?array $ends = null): string
+    {
+        // v3.13.0 — Summe der Art: je Zähler über seine eigene Spanne (memberWindowParts)
+        $parts = fn(?callable $basisOf, string $to) => $ends !== null
+            ? $this->memberWindowParts($utility, $members, $rows, $start, $endExcl, $ends, 'cost', $basisOf, $to)
+            : $this->windowParts($utility, $members, $rows, $start, $endExcl, 'cost', $basisOf, $to);
+        $cost = $parts($this->costBasisOf($utility), 'entered');
+        $price = $parts($this->priceBasisOf($utility), 'measured');
+        return Provenance::weakest('entered', ...array_keys($cost), ...array_keys($price));
+    }
+
+    /**
+     * v3.13.0 — Herkunft der Preise eines Vertrags über [from, toIncl], nach Tagen: verlängert ohne Eintrag (nach dem
+     * Ende, bis ein neuer Preis eingetragen ist) oder nach der Preisgarantie angenommen, sonst eingetragen
+     * (Provenance::monthPrice je Monatsstück). Unabhängig von Ablesungen: Grundpreis und Abschläge laufen auch nach
+     * der letzten Ablesung weiter.
+     *
+     * @param array<string,mixed> $c Zeile aus contractStatus
+     * @return array<string,float>
+     */
+    private function contractPriceParts(string $utility, array $c, string $from, string $toIncl): array
+    {
+        if (!Dates::isIsoDate($from) || !Dates::isIsoDate($toIncl) || $toIncl < $from) return [];
+        $raw = $this->storedContract($utility, (string)($c['contract_id'] ?? ''));
+        $end = !empty($c['renewed']) ? (string)($c['end'] ?? '') : '';
+        $list = $utility === 'wasser' ? (array)($raw['trinkwasser']['working_prices'] ?? []) : (array)($raw['working_prices'] ?? []);
+        $rows = [];
+        for ($m = substr($from, 0, 7) . '-01'; $m <= $toIncl; $m = date('Y-m-01', (int)strtotime("$m +1 month"))) {
+            $a = max($m, $from);
+            $b = min(date('Y-m-t', (int)strtotime($m)), $toIncl);
+            // ein verlängerter Vertrag: das Stück nach dem Ende getrennt
+            $cuts = $end !== '' && $end >= $a && $end < $b ? [[$a, $end], [date('Y-m-d', (int)strtotime("$end +1 day")), $b]] : [[$a, $b]];
+            foreach ($cuts as [$x, $y]) {
+                $renewed = $end !== '' && $x > $end;
+                // ein Preis, der erst nach dem Ende eingetragen wurde, gilt ab seinem Tag (wie Provenance::price)
+                foreach ($list as $e) if ($renewed && is_array($e) && (string)($e['from'] ?? '') > $end && (string)$e['from'] <= $x) $renewed = false;
+                $rows[] = ['ym' => substr($x, 0, 7), 'to' => $y, 'days' => (int)round((strtotime($y) - strtotime($x)) / 86400) + 1, 'contract_assumed' => $renewed];
+            }
+        }
+        return Provenance::partsOf($rows, 'days_weight', fn(array $r): string => Provenance::monthPrice($r, $raw));
+    }
+
     /** Erster Tag des Monats nach `$ym` (Ende einer Monatsspanne, ausschließlich). */
     private static function afterMonth(string $ym): string
     {
@@ -406,6 +557,20 @@ trait ReadSupport
     {
         $cur = $this->currency();
         $sign = Provenance::signFor(Utilities::isFeedIn($utility));
+        // v3.13.0 — früherer Vertrag, dessen Ende eine gebuchte Rechnung deckt (contractStatus `settled_until`): 0,00 €
+        // aus der eingetragenen Rechnung, mit dem Satz wie „Frühere Verträge“; kein zweiter Saldo am letzten Stand
+        if (is_string($c['settled_until'] ?? null)) {
+            $i18n = $this->services->get(I18nService::class);
+            return self::compact([
+                'balance_today' => Num::money(0.0, $cur, 'entered', ['as_of' => $c['settled_until'], 'sign' => $sign])
+                    + ['meaning' => 'balanced', 'text' => $i18n->t('mcp.balance.settled', ['date' => $i18n->date($c['settled_until'])], $this->textLocale)],
+                'expected_balance' => Num::money(0.0, $cur, 'entered', ['sign' => $sign])
+                    + ['meaning' => 'balanced', 'text' => $i18n->t('mcp.balance.settled', ['date' => $i18n->date($c['settled_until'])], $this->textLocale)],
+                'settled_until' => $c['settled_until'],
+                'balance_from'  => $c['balance_from'] ?? null,
+                'verdict'       => 'balanced',
+            ]);
+        }
         $members = $this->membersOf($utility, $target);
         $rows = $this->memberRows($utility, $members);
         $measuredUntil = is_string($c['measured_until'] ?? null) ? $c['measured_until'] : null;
@@ -413,8 +578,23 @@ trait ReadSupport
         $projected = array_key_exists('energy_cost_to_date', $c);
         $asOfToday = $projected ? (string)($c['balance_as_of'] ?? '') : (string)($this->lastMeasuredOf($utility, $members) ?? $c['balance_as_of'] ?? '');
         if (!$projected && $measuredUntil === null && Utilities::isCumulative($utility) && $asOfToday !== '') $measuredUntil = $asOfToday;
+        // v3.13.0 — ein früherer Vertrag: „Saldo heute“ zählt auch Zahlungen nach seinem Ende (etwa eine zusätzliche
+        // Abschlagszahlung; das Ergebnis einer gebuchten Rechnung zählt nicht mehr), `balance_measured` nur die bis zur letzten
+        // Ablesung. Sein Tag ist dann der Tag der letzten dieser Zahlungen: Bis dahin nannten beide denselben Tag mit
+        // verschiedenen Beträgen.
+        if (!empty($c['is_past']) && $projected && Dates::isIsoDate($asOfToday)) {
+            foreach ((array)($c['special_payments'] ?? []) as $sp) {
+                $d = is_array($sp) ? (string)($sp['date'] ?? '') : '';
+                if (Dates::isIsoDate($d) && $d > $asOfToday) $asOfToday = $d;
+            }
+        }
         $from = (string)($c['balance_from'] ?? $c['start'] ?? '');
-        $monthParts = $measuredUntil !== null && $from !== '' ? $this->windowParts($utility, $members, $rows, $from, $measuredUntil) : [];
+        // v3.13.0 — Herkunft folgt der schwächsten Eingabe: Arbeitskosten aus Menge und Preis ihrer Monate, Grundpreis
+        // und Abschläge mit der Herkunft ihres Preises (Provenance::balanceParts); bis dahin nur die Menge
+        $energy = $this->energyBasisOf($utility);
+        $monthParts = $measuredUntil !== null && $from !== '' ? $this->windowParts($utility, $members, $rows, $from, $measuredUntil, null, $energy) : [];
+        $asOf = (string)($c['balance_as_of'] ?? '');
+        $priceParts = $from !== '' && $asOf !== '' ? $this->contractPriceParts($utility, $c, $from, $asOf) : [];
         $unc = is_array($c['projection_uncertain'] ?? null) ? $c['projection_uncertain'] : null;
         $reasons = $unc !== null ? array_values(array_map('strval', (array)($unc['reasons'] ?? []))) : [];
         $band = is_array($c['projection_band'] ?? null) ? $c['projection_band'] : null;
@@ -423,19 +603,34 @@ trait ReadSupport
         $projRange = $band !== null && is_numeric($band['low'] ?? null) ? $range([$band['low'], $band['high']]) : $range($unc['projected_range'] ?? null);
         $estOpts = static fn(?array $rg) => array_filter(['range' => $rg, 'uncertain' => $reasons]);
         $measured = is_array($c['balance_measured'] ?? null) ? $c['balance_measured'] : null;
+        // v3.13.0 — die Herkunft seiner Monate, gekappt durch einen angenommenen Preis (energyBasisOf): Ein Saldo aus
+        // angenommenen Preisen heißt nie gemessen. Bis dahin zählte nur die Menge.
         $measuredParts = $measured !== null && is_string($measured['from'] ?? null) && is_string($measured['until'] ?? null)
-            ? ($this->windowParts($utility, $members, $rows, $measured['from'], $measured['until']) ?: ['measured' => 1.0]) : ['measured' => 1.0];
+            ? ($this->windowParts($utility, $members, $rows, $measured['from'], $measured['until'], null, $energy) ?: ['measured' => 1.0]) : ['measured' => 1.0];
+        if ($measured !== null && is_string($measured['from'] ?? null) && is_string($measured['until'] ?? null) && $measured['until'] > $measured['from']
+            && isset($this->contractPriceParts($utility, $c, $measured['from'], date('Y-m-d', (int)strtotime($measured['until'] . ' -1 day')))['assumed'])) {
+            $measuredParts = Provenance::capped($measuredParts, 'assumed');
+        }
         $settleUnc = is_array($c['settle_uncertain'] ?? null) ? $c['settle_uncertain'] : null;
         // v3.12.0 (Skeptiker M5) — ohne Arbeitspreis sind das nur die Abschläge: keine Bewertung, kein „Rückzahlung“
         $noPrice = !empty($c['price_missing']);
         $priceFlag = $noPrice ? ['price_missing'] : [];
+        $payouts = is_array($c['payouts'] ?? null) && (int)($c['payouts']['count'] ?? 0) > 0 ? $c['payouts'] : null;   // v3.13.0
 
+        // v3.13.0 — noch zu wenig Ablesungen (`projection_missing`): „Saldo heute“ rechnet die Tage seit dem letzten Stand mit
+        // einem Verbrauch von null. Kein Guthaben, sondern der Satz dazu, Herkunft angenommen; wie die Karte (kein „Saldo
+        // heute“) und /api/summary (`balance` null). Bis dahin nannte die KI „Guthaben von …“, eingetragen.
+        $tooFew = is_string($c['projection_missing'] ?? null) && !$noPrice && is_numeric($c['current_balance'] ?? null);
+        $today = $tooFew
+            ? Num::money((float)$c['current_balance'], $cur, 'assumed', array_filter(['as_of' => $asOfToday ?: null]) + ['sign' => $sign])
+                + ['meaning' => 'too_few_readings', 'text' => $this->services->get(I18nService::class)->t('mcp.balance.too_few_readings', [], $this->textLocale)]
+            : $this->withMeaning(self::maybe($c['current_balance'] ?? null, fn($v) => Provenance::money($v, $cur,
+                Provenance::balanceParts($c, $monthParts, $priceParts), array_filter(['as_of' => $asOfToday ?: null, 'uncertain' => $priceFlag]) + ['sign' => $sign])), $utility, $noPrice,
+                Utilities::isFeedIn($utility) && $from !== '' ? $from : null);
         return self::compact([
             // v3.12.0 (Nachprüfung C4) — Einspeisung: Die Summe läuft seit `balance_from` (seit v3.12.0 der Beginn des
             // Abrechnungsjahres, wie bei Strom); der Satz sagt das
-            'balance_today'     => $this->withMeaning(self::maybe($c['current_balance'] ?? null, fn($v) => Provenance::money($v, $cur,
-                Provenance::balanceParts($c, $monthParts), array_filter(['as_of' => $asOfToday ?: null, 'uncertain' => $priceFlag]) + ['sign' => $sign])), $utility, $noPrice,
-                Utilities::isFeedIn($utility) && $from !== '' ? $from : null),
+            'balance_today'     => $today,
             // v3.12.0 (Nachprüfung C5) — ohne Arbeitspreis sind das nur Abschläge: eingetragen, nicht gemessen
             'balance_measured'  => $measured !== null ? $this->withMeaning(self::maybe($measured['balance'] ?? null, fn($v) => Provenance::money($v, $cur,
                 $noPrice ? ['entered' => 1.0] : $measuredParts, array_filter(['uncertain' => $priceFlag]) + ['as_of' => (string)$measured['until'], 'sign' => $sign])), $utility, $noPrice) : null,
@@ -453,12 +648,53 @@ trait ReadSupport
             'advance_ongoing'   => self::maybe($c['advance_ongoing'] ?? null, fn($v) => Num::money($v, $cur, 'estimated', array_filter(['uncertain' => $reasons]))),
             // v3.11.0 (#56) — der Bonus in diesem Saldo: nach dem Tag der Gutschrift, nicht je Kalendermonat
             'bonus_to_date'     => (float)($c['bonus_to_date'] ?? 0.0) !== 0.0 ? Num::money((float)$c['bonus_to_date'], $cur, 'entered') : null,
+            // v3.13.0 (Paket vertrag, additiv) — Einspeisung mit erfassten Auszahlungen: im Abrechnungsjahr erhalten
+            // (eingetragen) und was offen ist (Anspruch bis heute bzw. zur Abrechnung minus erhalten)
+            'payouts_received'  => $payouts !== null ? Num::money((float)$payouts['received'], $cur, 'entered',
+                Dates::isIsoDate($c['balance_as_of'] ?? null) ? ['as_of' => (string)$c['balance_as_of']] : []) : null,
+            'payouts_open'      => $payouts !== null && is_numeric($payouts['open'] ?? null)
+                ? Num::money((float)$payouts['open'], $cur, 'estimated', ['derived' => true, 'sign' => $sign]) : null,
+            'payouts_open_at_settle' => $payouts !== null && is_numeric($payouts['open_at_settle'] ?? null)
+                ? Num::money((float)$payouts['open_at_settle'], $cur, 'estimated', ['derived' => true, 'sign' => $sign]) : null,
             'measured_until'    => $measuredUntil,
             'balance_from'      => $c['balance_from'] ?? null,
             'months_left'       => isset($c['months_left']) && is_numeric($c['months_left']) ? (int)$c['months_left'] : null,
             'suggestion_withheld' => is_string($c['suggestion_withheld'] ?? null) ? $c['suggestion_withheld'] : null,
             'verdict'           => !$noPrice && is_string($c['verdict'] ?? null) ? $c['verdict'] : null,
         ]);
+    }
+
+    /**
+     * v3.13.0 — der Tag der Ablesung, bis zu der eine Periode zählt: der Tag nach `as_of` (eine Ablesung zählt bis
+     * zum Vortag) oder, liegt sie auf dem letzten Tag der Periode, `as_of` selbst (dieser Tag zählt mit). Nur, wenn
+     * dort bei jedem Zähler mit Ständen eine Ablesung liegt; sonst null: Dann ist der Stand am Ende zwischen zwei
+     * Ablesungen verteilt. Bis dahin hieß immer `as_of + 1` „Tag der Ablesung“, auch ohne Ablesung an diesem Tag.
+     *
+     * @param list<array<string,mixed>> $members
+     */
+    private function readingDayAt(string $utility, array $members, string $asOf, string $until): ?string
+    {
+        if (!Utilities::isCumulative($utility) || $members === []) return null;
+        $next = date('Y-m-d', (int)strtotime($asOf . ' +1 day'));
+        $candidates = $asOf === $until ? [$next, $asOf] : [$next];
+        $readings = $this->services->get(ReadingService::class);
+        $days = [];
+        foreach ($members as $m) {
+            if (!empty($m['is_group']) || ($m['capture'] ?? null) === 'period') return null;
+            $mine = [];
+            foreach ($readings->list($utility, (string)$m['id']) as $r) {
+                if (!empty($r['is_future']) || !empty($r['is_suspect']) || !is_numeric($r['counter'] ?? null)) continue;
+                $mine[(string)$r['date']] = true;
+            }
+            if ($mine !== []) { ksort($mine); $days[] = $mine; }
+        }
+        if ($days === []) return null;
+        foreach ($candidates as $d) {
+            // nur Zähler, deren Stände diesen Tag umschließen (ein stillgelegter Zähler mit alten Ständen zählt nicht)
+            $around = array_filter($days, fn(array $mine) => (string)array_key_first($mine) <= $d && (string)array_key_last($mine) >= $d);
+            if ($around !== [] && array_filter($around, fn(array $mine) => !isset($mine[$d])) === []) return $d;
+        }
+        return null;
     }
 
     /**
@@ -482,31 +718,41 @@ trait ReadSupport
             $asOf = $p['as_of'] ?? null;
             if (!is_string($asOf)) continue;
             $endExcl = date('Y-m-d', (int)strtotime($asOf . ' +1 day'));
-            $parts = $this->windowParts($utility, $members, $rows, (string)$p['from'], $endExcl) ?: ['measured' => 1.0];
+            // v3.13.0 — Summe der Art: die Herkunft aus den Zielen, je Zähler bis zu seinem eigenen Ende (`member_as_of`)
+            $ends = is_array($p['member_as_of'] ?? null) ? $p['member_as_of'] : null;
+            $parts = ($ends !== null ? $this->memberWindowParts($utility, $members, $rows, (string)$p['from'], $endExcl, $ends)
+                : $this->windowParts($utility, $members, $rows, (string)$p['from'], $endExcl)) ?: ['measured' => 1.0];
             $basis = Provenance::weakest(...array_keys($parts));
             $avc = is_array($p['advance_vs_cost'] ?? null) ? $p['advance_vs_cost'] : null;
             $balance = round((float)($p['balance'] ?? 0.0), 2);
-            $i18n = $this->services->get(I18nService::class);
             $noPrice = !empty($p['price_missing']);
-            $meaning = $noPrice ? 'no_price' : Provenance::meaning($balance, Utilities::isFeedIn($utility));
-            // v3.12.0 (Nachprüfung B2) — kein Vertrag in der Periode: kein Betrag und kein Satz wie an der Monatszeile.
+            // v3.13.0 — Herkunft des Geldes (Kosten, Abschläge, Saldo): Menge und Preise, die schwächste Eingabe
+            $moneyBasis = $this->moneyBasis($utility, $members, $rows, (string)$p['from'], $endExcl, $ends);
+            $words = $this->balanceWords($balance, $utility, $noPrice, $moneyBasis);
+            // v3.12.0 — kein Vertrag in der Periode: kein Betrag und kein Satz wie an der Monatszeile.
             // Bis dahin stand dort „Ausgeglichen“, die KI las das als Aussage über den Saldo.
             $noContract = !empty($p['no_contract']);
             $hasMoney = self::moneyField($utility) !== null;
+            // v3.13.0 — `as_of` ist der letzte gezählte Tag; `reading_on` nur, wo wirklich eine Ablesung liegt
+            $readingOn = $this->readingDayAt($utility, $members, $asOf, (string)$p['until']);
+            // v3.13.0 (Paket K3) — endet die Periode am letzten Tag des letzten Vertrags, ist eine Ablesung dort ihr Endstand
+            if ($readingOn === null && isset($p['contract_end'])) $readingOn = $this->readingDayAt($utility, $members, $asOf, (string)$p['contract_end']);
             $out[] = self::compact([
                 'period'         => $p['from'] . '/' . $p['until'],
                 'from'           => (string)$p['from'],
                 'until'          => (string)$p['until'],
                 'as_of'          => $asOf,
-                // v3.12.0 (Skeptiker N6) — `as_of` ist der letzte gezählte Tag; die Ablesung lag einen Tag später (so nennt sie `balance_measured.as_of`)
-                'reading_on'     => $endExcl,
+                'reading_on'     => $readingOn,
+                'end_distributed' => $readingOn === null ? true : null,
                 'value'          => round((float)($p[$vf] ?? 0.0), 3),
-                'cost'           => $noContract ? null : round((float)($p['cost'] ?? 0.0), 2),
+                // v3.13.0 — ohne Arbeitspreis kein Kostenbetrag (die Abschläge bleiben, der Saldo heißt `no_price`)
+                'cost'           => $noContract || $noPrice ? null : round((float)($p['cost'] ?? 0.0), 2),
                 'advances'       => $noContract ? null : round((float)($p['advances'] ?? 0.0), 2),
                 'balance'        => $noContract ? null : $balance,
                 'balance_sign'   => $noContract ? null : $sign,
-                'balance_meaning' => $noContract ? null : $meaning,
-                'balance_text'   => $noContract ? null : $i18n->t("mcp.balance.$meaning", ['amount' => $i18n->money(abs($balance))], $this->textLocale),
+                'balance_meaning' => $noContract ? null : $words['meaning'],
+                'balance_text'   => $noContract ? null : $words['text'],
+                'money_basis'    => $noContract || !$hasMoney ? null : $moneyBasis,
                 'no_contract'    => $noContract && $hasMoney ? true : null,
                 'included_in_parent' => $noContract && $hasMoney && count($members) === 1 && !empty($members[0]['parent_meter_id']) ? true : null,
                 'days'           => (int)($p['days'] ?? 0),
@@ -529,6 +775,7 @@ trait ReadSupport
     {
         return self::obj([
             'period' => self::str(), 'from' => self::date(), 'until' => self::date(), 'as_of' => self::date(), 'reading_on' => self::date(),
+            'end_distributed' => self::bool(), 'money_basis' => self::basisSchema(),   // v3.13.0
             'value' => self::number(), 'cost' => self::number(), 'advances' => self::number(), 'balance' => self::number(),
             'balance_sign' => self::str(Provenance::SIGNS), 'balance_meaning' => self::str(Provenance::MEANINGS), 'balance_text' => self::str(),
             'no_contract' => self::bool(), 'included_in_parent' => self::bool(),
@@ -615,7 +862,9 @@ trait ReadSupport
         return ['type' => 'object', 'properties' => [
             'balance_today' => $num, 'balance_measured' => $num, 'expected_balance' => $num, 'settle_balance' => $num,
             'suggested_advance' => $num, 'suggested_advance_range' => $num, 'advance_ongoing' => $num, 'bonus_to_date' => $num,
+            'payouts_received' => $num, 'payouts_open' => $num, 'payouts_open_at_settle' => $num,   // v3.13.0 (Paket vertrag)
             'measured_until' => ['type' => 'string', 'format' => 'date'], 'balance_from' => ['type' => 'string', 'format' => 'date'],
+            'settled_until' => ['type' => 'string', 'format' => 'date'],   // v3.13.0 — abgerechnet mit der Rechnung bis
             'months_left' => ['type' => 'integer', 'minimum' => 0], 'suggestion_withheld' => ['type' => 'string'], 'verdict' => ['type' => 'string'],
         ], 'additionalProperties' => false];
     }

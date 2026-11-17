@@ -5,6 +5,9 @@
 import { fmt, escapeHtml } from '../lib/format.js';
 import { t, tp } from '../lib/i18n.js';
 import { icon } from '../lib/icons.js';
+import { richText } from '../lib/rich.js';
+import { backupProblemText } from '../lib/backup-problems.js';
+import { LIMITS } from '../lib/text-limits.js';
 
 
 // ── Seite „System": Version und Verweise (v2.12.0, Review UI-29) ──────────
@@ -40,10 +43,13 @@ export function renderSupportCard() {
 }
 
 
+// v3.13.0 (Paket K1) — unter der Mindestversion von PHP (`php_supported` false) ein Hinweis über der Tabelle; am Feld, nicht an der Zahl
 export function renderDiagnostics(d) {
   return `
     <div class="card settings-card settings-card--wide" id="diag-card" data-field="diagnostics">
       <h2 class="card__title">${icon('puls')} ${t('settings.diag.title')}</h2>
+      ${d.php_supported === false ? `<div class="infobox infobox--achtung" data-role="php-outdated">${escapeHtml(t('settings.diag.phpOutdated', { version: d.php_version, min: d.php_minimum }))}</div>` : ''}
+      ${renderDataIssues(d.data_issues)}
       <dl class="diag-grid">
         ${renderDiagRow(t('settings.diag.appVersion'),    d.app_version,    'mono')}
         ${renderDiagRow(t('settings.diag.schemaVersion'), d.schema_version, 'mono')}
@@ -88,6 +94,44 @@ export function renderDiagnostics(d) {
       </div>
     </div>
   `;
+}
+
+
+// v3.13.0 (K2d) — gespeicherte Werte einer älteren Version, die die Schreibwege heute abweisen (`data_issues` aus
+// GET /api/diagnostics): ein Hinweis und je Fund Bereich, Kennung, Fund (Text wie beim Backup-Import) und Wirkung.
+// Die App rechnet ohne sie weiter; die Datei bleibt, wie sie ist (DataIssues, Support\FieldRules).
+// v3.13.0 — Wirkung je Fund laut Server (`effect`); `kept`: Der Wert bleibt, wie gespeichert (Verweis ins Leere, Text
+// über der Höchstlänge, geklemmter Fälligkeitstag), nur ein Backup davon spielt der Import erst nach dem Korrigieren ein
+const DATA_ISSUE_EFFECT = {
+  excluded: 'settings.diag.effectExcluded', field: 'settings.diag.effectField',
+  default: 'settings.diag.effectDefault', kept: 'settings.diag.effectKept',
+};
+
+// v3.13.0 — Höchstlänge zu `too_long:<feld>` im Bestand (der Import nennt sie selbst als `max`)
+function issueMax(pot, problem) {
+  const m = /^too_long:(.+)$/.exec(String(problem));
+  return m ? LIMITS[String(pot || '').split('/').pop()]?.[m[1]] : undefined;
+}
+
+export function renderDataIssues(list) {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  const rows = list.slice(0, 200).map(i => `
+    <tr>
+      <td><code>${escapeHtml(String(i.pot || ''))}</code></td>
+      <td><code>${escapeHtml(String(i.id ?? (i.index ?? '')))}</code></td>
+      <td>${(i.problems || []).map(p => escapeHtml(backupProblemText({ problem: p, max: issueMax(i.pot, p) }))).join('<br>')}</td>
+      <td>${escapeHtml(t(DATA_ISSUE_EFFECT[i.effect] || (i.excluded ? 'settings.diag.effectExcluded' : (i.pot === 'settings' ? 'settings.diag.effectDefault' : 'settings.diag.effectField'))))}</td>
+    </tr>`).join('');
+  return `<div class="infobox infobox--achtung" data-role="data-issues">${richText(tp('settings.diag.dataIssues', list.length, { count: fmt.int(list.length) }))}</div>
+      <div class="table-wrap"><table class="table table--compact" data-role="data-issues-table">
+        <thead><tr>
+          <th>${escapeHtml(t('settings.diag.colPot'))}</th>
+          <th>${escapeHtml(t('settings.diag.colId'))}</th>
+          <th>${escapeHtml(t('settings.diag.colFinding'))}</th>
+          <th>${escapeHtml(t('settings.diag.colEffect'))}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
 }
 
 

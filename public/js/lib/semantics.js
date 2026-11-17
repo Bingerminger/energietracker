@@ -197,3 +197,16 @@ export function uncertainRangeHtml(unc) {
 export function costWithoutContract({ u, hasContract, cost, billing = false, delivery = false }) {
   return !billing && !hasContract && !isFeedIn(u) && !delivery && u?.has_contracts !== false && Math.abs(Number(cost) || 0) < 0.005;
 }
+
+/**
+ * v3.13.0 — Kosten ohne Arbeitspreis: Gilt in einem der Monate (bzw. im Abrechnungsjahr) ein Vertrag ohne
+ * Arbeitspreis (`price_missing` vom Server), gibt es keinen Kostenbetrag (nicht 0 €, nicht nur den Grundpreis),
+ * sondern „Preis fehlt“. Eine Stelle für Startansicht der Verbrauchsart und Übersicht. Einspeisung und Erzeugung
+ * brauchen keinen Arbeitspreis.
+ * @param {{u: object, rows?: Array<object>, billing?: object|null}} o
+ * @returns {boolean}
+ */
+export function costPriceMissing({ u, rows = [], billing = null }) {
+  if (isFeedIn(u) || isGeneration(u)) return false;
+  return billing ? !!billing.price_missing : (rows || []).some(r => r && r.price_missing);
+}

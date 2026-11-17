@@ -104,6 +104,28 @@ final class McpEvidenceBoundaryTest extends McpInboxTestCase
         self::assertSame('ok', array_values(array_filter($doc['fields'], fn($f) => $f['name'] === 'consumption'))[0]['status']);
     }
 
+    /**
+     * v3.13.0 — Eine Kennung, die mit einer Ziffer beginnt, belegt auch über die KI keinen Wert: Der neue Stand, als
+     * führende Ziffer der Kennung gelesen, bekommt die Marke; der gedruckte Stand in derselben Zeile bleibt belegt.
+     * Kennung erfunden.
+     */
+    public function testAnIdentifierStartingWithADigitIsNoEvidenceForTheAi(): void
+    {
+        $this->gasHousehold();
+        $pages = InboxFixture::invoicePages();
+        $pages[0] .= "\nZähler 6TRW5550001234 Stand neu 13.580 m³";
+        $answer = InboxFixture::invoiceAnswer();
+        $answer['reading_new'] = ['value' => 6, 'quote' => 'Zähler 6TRW5550001234 Stand neu 13.580 m³', 'page' => 1];
+        $id = (string)$this->inbox->upload(InboxFixture::pdf('kennung'), 'kennung.pdf')['id'];
+        $doc = $this->callTool('read_document', ['document_id' => $id, 'type' => 'invoice', 'pages' => $pages, 'fields' => $answer], $this->writer());
+        $row = array_values(array_filter($doc['fields'], fn($f) => $f['name'] === 'reading_new'))[0];
+        self::assertSame('check', $row['status'], 'die 6 steht nur in der Kennung');
+        $answer['reading_new']['value'] = 13580;
+        $ok = (string)$this->inbox->upload(InboxFixture::pdf('kennung2'), 'kennung2.pdf')['id'];
+        $doc = $this->callTool('read_document', ['document_id' => $ok, 'type' => 'invoice', 'pages' => $pages, 'fields' => $answer], $this->writer());
+        self::assertSame('ok', array_values(array_filter($doc['fields'], fn($f) => $f['name'] === 'reading_new'))[0]['status']);
+    }
+
     public function testTheSameAnswerWithThePrintedValueIsFine(): void
     {
         $this->gasHousehold();

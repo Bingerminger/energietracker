@@ -40,7 +40,7 @@ data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # Einstellungen (Defaults: SettingsService::DEFAULTS)
 ├── auth.json                 # Anmeldung, Personen (v3.2.0), HA-Token, API-Schlüssel — Passwörter und Schlüssel nur als Hash; nicht im Backup
-├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source seit v2.8.0
+├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, rad?, source }, … } — source seit v2.8.0, rad seit v3.13.0
 ├── climate_normal.json       # Klimanormal am Standort (v2.8.0) — nur Kennzahlen, keine Rohdaten
 ├── weather_sync.json         # Zustand des letzten Open-Meteo-Abgleichs (v2.8.0)
 ├── reminders.json            # Termine/Wartung
@@ -56,6 +56,7 @@ data/
 ├── activity.json             # Verlauf erledigter Hinweise (v3.4.0) — entsteht mit dem ersten Eintrag
 ├── people.json               # Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (v3.6.0) — im Backup, ohne Passwörter
 ├── inbox.json                # Posteingang: Versorgerpost mit Auslesung (v3.7.0) — entsteht mit dem ersten Dokument
+├── feed_in_payouts.json      # Auszahlungen der Einspeisung (v3.13.0) — entsteht mit der ersten Auszahlung, im Backup
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── mcp/                      # KI-Schnittstelle (v3.12.0): offene Vorschläge (pending.json), Zugriffsprotokoll, Zähler der Ratengrenzen, je mit eigener Sperre — entsteht beim ersten Gebrauch, nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -114,17 +115,41 @@ Kennung.
   ersetzt), `csv` oder `manual` (eigene Werte, werden nie überschrieben).
   Einträge ohne `source` stammen aus älteren Versionen; älter als die
   Archiv-Verzögerung (sechs Tage) gelten sie als gemessen.
+  **Seit v3.13.0 optional `rad`:** die Einstrahlung des Tags (Globalstrahlung
+  auf die Waagerechte, Open-Meteo `shortwave_radiation_sum` in MJ/m² ÷ 3,6)
+  in **kWh/m² am Tag**, eine Zahl von 0 bis 15. Sie kommt im selben Abruf wie
+  die Temperatur (Archiv, täglicher Abgleich, Vorhersage). Tage ohne `rad`
+  bleiben gültig. Gemessene Tage ohne Einstrahlung (Bestand von vor v3.13.0,
+  CSV, Hand) bekommen sie beim nächsten Archivabruf nachgetragen, ihre
+  Temperaturen bleiben. Eine Handeingabe oder ein CSV-Import behält die
+  gemessene Einstrahlung des Tags. Das Backup trägt `rad` mit, ein Backup ohne
+  `rad` spielt sich wie bisher ein.
 - `climate_normal.json`: `version`, `latitude`/`longitude` (gerundet),
   `period` `{from, to}` (die letzten 30 vollen Kalenderjahre), `fetched_at`,
   `days`, `doy_avg` (366 mittlere Tagesmittel, Tag 60 = 29. Februar) und
-  `hdd` — je Heizgrenze von `"10.0"` bis `"22.0"` in halben Grad
-  `{mean[12], sd[12], year_sd, years}`. Wird neu geholt, wenn der Standort
-  sich um mehr als 0,05° verschiebt oder die Periode nicht mehr an das
-  Vorjahr heranreicht. Kein Backup-Bestandteil: Die Datei lässt sich
-  jederzeit neu erzeugen.
+  `hdd` — je Heizgrenze von `"6.0"` bis `"22.0"` in halben Grad
+  `{mean[12], sd[12], year_sd, years}`. **Seit v3.13.0** dazu `rad_month`
+  (zwölf mittlere Monatssummen der Einstrahlung in kWh/m², Januar zuerst,
+  null ohne Einstrahlung), `rad_sd` (ihre Streuung über die Jahre),
+  `rad_year_sd` (Streuung der Jahressumme) und `rad_years`, dazu `rad_month_trend` (dieselben Monate mit dem
+  linearen Trend der Jahressummen auf das Jahr nach der Periode fortgeschrieben, `rad_trend_factor`, Verfahren
+  `rad_trend_method` = `linear_annual`; null unter zehn vollständigen Jahren, siehe
+  [Messung](../entwicklung/messung-einstrahlung.md)). Dazu `temp_trend` (Kelvin: der lineare Trend der
+  Jahresmitteltemperatur, auf das Jahr nach der Periode fortgeschrieben, minus das Mittel der Periode, höchstens
+  ± 2 K; null unter zehn vollständigen Jahren), `temp_trend_years`, `temp_trend_method` = `linear_annual`,
+  `temp_trend_slope` (Kelvin je Jahr) und `temp_trend_center` (Mitte der Jahre). Nur die Wärmepumpe nach dem Wetter
+  rechnet damit, je Prognosejahr: Heizgradtage der Heizgrenze − Steigung × (Jahr − Mitte); alle anderen Arten mit
+  `hdd` wie bisher. Wird neu geholt,
+  wenn der Standort sich um mehr als 0,05° verschiebt oder die Periode nicht
+  mehr an das Vorjahr heranreicht. Einem Normal ohne den Schlüssel
+  `rad_month_trend` oder `temp_trend` (von vor v3.13.0) ergänzt der nächste Wetterabgleich einmal
+  Einstrahlung und Trend der Temperatur aus denselben 30 Jahren; die Heizgradtage bleiben, wie sie sind.
+  Kein Backup-Bestandteil: Die Datei lässt sich jederzeit neu erzeugen.
 - `weather_sync.json`: `last_sync_at`, `last_sync_date` (für „einmal am
   Tag"), `measured_until`, `forecast_until`, `archive_error`,
-  `forecast_error`, `climate_normal` (Status des letzten Abgleichs).
+  `forecast_error`, `climate_normal` (Status des letzten Abgleichs), seit
+  v3.13.0 `radiation_checked` `{from, to}`: für diese Tage wurde das Archiv
+  schon nach der Einstrahlung gefragt (kein zweiter Abruf derselben Jahre).
 
 > **`auth.json`** (F1009, erweitert in v2.6.0) enthält nur **Hashes**, nie
 > Klartext, und wird vom Backup **ausgenommen**. Fehlt die Datei, ist die
@@ -455,7 +480,7 @@ monatliche Verbrauchsinfo des Messdienstes. Nur an Zählern mit
   "reference": {                     // optional, Vergleichswerte der Verbrauchsinfo
     "prev_month": 760, "prev_year_month": 900, "average_user": 850
   },
-  "note": "",                        // bis 500 Zeichen
+  "note": "",                        // bis 2000 Zeichen (bis v3.12 still auf 500 gekürzt)
   "attachment_id": null,             // optional: Beleg (Foto, PDF)
   "client_ref": "…"                  // optional, wie bei Ablesungen
 }
@@ -840,6 +865,14 @@ das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt); ein
 älterer Wasservertrag behält es fehlend, bis Sonderzahlungen kommen, und wird
 wie `[]` gelesen.
 
+### Auszahlungen der Einspeisung (`feed_in_payouts.json`) *(v3.13.0)*
+
+Was der Netzbetreiber für die Einspeisung überwiesen hat, eine Liste über alle
+Einspeisezähler: `{id, meter_id, date, amount, period_from, period_until, note,
+source, created_at}`. Felder, Zuordnung zum Abrechnungsjahr und Saldo-Karte:
+[API](api.md#auszahlungen-der-einspeisung-v3130). Die Datei entsteht mit der
+ersten Auszahlung; kein Schema-Schritt. Im Backup unter `feed_in_payouts`.
+
 ### Ladevorgänge (`ev_sessions.json`) *(v3.2.0)*
 
 Ladevorgänge der Wallbox aus evcc, eine Liste über alle Zähler — gefüllt aus
@@ -1049,7 +1082,7 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 | `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}`, *(v3.6.0)* nach dem Löschen `{name, id, deleted: true}`; *(v3.7.0)* auch bei Fristen und Terminen mit geerbter Zuständigkeit (Vertrag, Zähler) |
 | `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
 | `undone` | `{at, by}` nach Rückgängig — der Eintrag bleibt, durchgestrichen |
-| `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat |
+| `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat. *(v3.13.0)* `records` an einer Übernahme der KI: `changes` (je Datensatz `{file, id` bzw. `key, before, after}`; `null` = gab es nicht), `also` (Einträge, die die Übernahme mit anlegte), `proposal_id` |
 
 **Aufbewahrung:** `activity_keep_months` (Standard 60, `0` = unbegrenzt);
 aufgeräumt wird beim Schreiben, nach `done_on`.
@@ -1164,6 +1197,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   "cache": { "local|qwen3.8|7": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
   "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
   "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
+  "item_edits": {},            // v3.13.0: je Eintrag einer Liste {feld: {"<stelle>": {action: confirm|correct|discard, value?, at}}}; optional
   "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde
   "error": null,               // {key, params, at} beim letzten Fehlschlag
   "gist": null                 // v3.7.0 (Paket betrieb): Kernaussage nach dem letzten Schreiben, s. u.
@@ -1250,6 +1284,72 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
 - **Backup:** Topf `inbox`, das PDF reist mit den Belegen. Der Import prüft je
   Eintrag `id`, `sha256` und `status`.
 
+### Höchstlängen für Freitext *(v3.13.0)*
+
+Notizen und Namen haben eine Höchstlänge, gezählt in Zeichen ohne Leerraum am
+Rand. **Dieselbe Liste gilt überall:** über die API und die Oberfläche (`maxlength`
+am Feld, ein Zähler unter langen Feldern ab 80 %), im CSV-Import (die Zeile mit
+Meldung), im Backup-Import (Problem `too_long:<feld>` mit Feld und Grenze) und für
+die KI (`maxLength` im Schema). **Zu lang ist ein Fehler** (`errors.common.tooLong`),
+gekürzt wird nie. *(v3.13.0)* <!-- doc-claim: file-name -->**Ausnahme ist der Dateiname** eines Belegs
+(`original_name`) und damit eines Dokuments im Posteingang (`inbox` › `name`):
+Er ist keine Eingabe in ein Feld. Ist er länger als 120 Zeichen, kürzt die App
+den Stamm vor der Endung, die Endung bleibt (`…-Seite-2.pdf`); bis v3.12 fiel
+sie weg.<!-- /doc-claim --> Ein Wert über der Grenze aus einer älteren Version bleibt lesbar
+und unverändert; die Meldung kommt, sobald eine Anfrage ihn mitschickt. Die
+Diagnose und `/api/health` (`data_issues`, Wirkung `kept`) nennen ihn schon
+vorher, wie der Import eines Backups davon *(v3.13.0)*. Bei
+Einträgen einer Liste (Sonderzahlungen, Peilstände …) gilt ein Eintrag, der
+wortgleich schon gespeichert ist, als Bestand. `liste.feld` heißt: das Feld in
+jedem Eintrag der Liste.
+
+<!-- doc-claim: text-limits -->
+| Topf | Feld | Zeichen |
+|---|---|---|
+| `meters` | `name` | 120 |
+| `meters` | `notes` | 2000 |
+| `meters` | `baseline_events.label` | 80 |
+| `meters` | `tank_levels.note` | 80 |
+| `meters` | `devices.serial` | 64 |
+| `meter_groups` | `name` | 120 |
+| `readings` | `note` | 2000 |
+| `contracts` | `provider` | 160 |
+| `contracts` | `tariff_name` | 120 |
+| `contracts` | `shadow_label` | 120 |
+| `contracts` | `notes` | 2000 |
+| `contracts` | `contract_number` | 64 |
+| `contracts` | `customer_number` | 64 |
+| `contracts` | `bonuses.label` | 120 |
+| `contracts` | `special_payments.note` | 120 |
+| `deliveries` | `supplier` | 120 |
+| `deliveries` | `note` | 2000 |
+| `periods` | `note` | 2000 |
+| `bills` | `note` | 2000 |
+| `bills` | `invoice_number` | 80 |
+| `bills` | `items.label` | 120 |
+| `bills` | `notice.file_number` | 80 |
+| `reminders` | `title` | 300 |
+| `reminders` | `notes` | 2000 |
+| `reminders` | `assignee` | 60 |
+| `tenancies` | `label` | 120 |
+| `tenancies` | `landlord` | 120 |
+| `tenancies` | `notes` | 2000 |
+| `tenancies` | `fixed_costs.label` | 120 |
+| `tenancy_statements` | `note` | 2000 |
+| `tenancy_statements` | `positions.label` | 120 |
+| `tenancy_statements` | `positions.unit` | 12 |
+| `people` | `name` | 60 |
+| `inbox` | `name` | 120 |
+| `inbox` | `note` | 500 |
+| `activity` | `note` | 500 |
+| `settings` | `location_name` | 120 |
+| `feed_in_payouts` | `note` | 500 |
+
+Dazu: die Notiz einer Ablesung, die eine KI vorschlägt (`propose_reading`), bis
+200 Zeichen, und ein korrigierter Textwert im Posteingang bis 200 Zeichen. Namen
+von Zugängen (40), Angaben für Briefe (je Zeile 60) und die Anschrift des
+Anbieters haben ihre eigenen Regeln seit v3.2.0 bzw. v3.12.0.
+
 ---
 
 ## 3. Einstellungen (`settings.json`)
@@ -1286,6 +1386,7 @@ eine Auswahl mit Hintergrund:
 | `efficiency_class_thresholds` | A+…G | Bandgrenzen kWh/m²·a |
 | `billing_cycle_anchor_*` | 01-01 | Abrechnungsstichtag — gespeichert `MM-TT`, **angezeigt `TT-MM`** (v1.4.2); seit v2.9.0 muss es ein Kalendertag sein, sonst 400. Seit v2.13.0 auch `…_pv_einspeisung` (die Vergütung rechnet bis zum Stichtag) |
 | `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **veraltet (v2.13.0)**, ohne Wirkung (keine Abschläge, kein Saldo) und nicht mehr in der Oberfläche; entfallen mit v3.0.0 |
+| `advance_counting`, `advance_due_day` | `pro_rata`, 1 | *(v3.13.0)* Abschlag zählen, für alle Verträge: `pro_rata` tagesanteilig (wie bisher) oder `due_day` ganze Rate am Fälligkeitstag `advance_due_day` (1 bis 31, ganzzahlig, am Monatsende geklemmt). Fehlen sie (älteres Backup), gilt der Standard. Gewirkt im aufbereiteten Abschlagsplan (`due_day` je monatlicher Zeile, nie gespeichert); [Einstellungen](einstellungen.md#abschläge-zählen-v3130) |
 | `delivery_baseload_share` | 0.15 | wetterunabhängiger Grundlastanteil bei Lieferarten |
 | `tank_warn_pct` | 15 | Warnschwelle Tankfüllstand in %; Alarm ab der Hälfte (seit v2.13.0 auch in der Oberfläche) |
 | `active_utilities` | gas, strom, wasser | welche Arten Menü und Auswertungen zeigen; abgewählte behalten ihre Daten. Heizwärme (`waerme`, v3.1.0) ist nicht standardmäßig aktiv |

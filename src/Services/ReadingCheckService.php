@@ -296,6 +296,221 @@ final class ReadingCheckService
         return $out;
     }
 
+    // ── Erwartung je Abstand (v3.13.0, #65) ──────────────────────────────
+
+    /**
+     * v3.13.0 (#65) — Vergleichsabstände der Gradtage allein: die letzten bis zu zehn, mindestens
+     * zwei (wie der typische Tagesverbrauch, ReadingService::typicalPerDay).
+     */
+    public const COMPARE_INTERVALS = 10;
+
+    /**
+     * v3.13.0 (#65) — Erwartete Menge zwischen zwei Ständen nach dem Wetter, für die Rückfrage beim
+     * Eintragen (public/js/lib/plausibility.js `checkReading`, ReadingService::plausibilityIssues). Bis
+     * v3.12 verglich die Erfassung den Tagesverbrauch mit dem Median der letzten zehn Abstände, ohne
+     * Jahreszeit, und fragte bei jedem Heizbeginn nach einem Tippfehler. Nur Heizarten (isHeatMeter:
+     * Gas, Fernwärme, Heizwärme, Strom der Wärmepumpe); andere Arten und Abstände ohne Temperaturen
+     * bleiben bei der alten Regel (`basis` null).
+     *
+     * Die Erwartung kommt aus derselben Quelle wie die Prüfung der Zwischenablesungen, der erste Weg,
+     * der etwas liefert:
+     *   heat_model   das Heizmodell a × HGT + c × Tage mit den Gradtagen des Abstands (Ist-Temperaturen,
+     *                fehlende Tage aus dem Normal), wenn es so kaltes Wetter kennt: mindestens
+     *                ForecastService::HEAT_SUPPORT_MIN seiner Stücke mit höchstens HEAT_SUPPORT_MARGIN
+     *                Gradtagen je Tag weniger (die Prognose fragt dasselbe zur warmen Seite). Ein Modell
+     *                aus Sommer und ungeheiztem Herbst kennt das Heizen nicht und erwartete sonst beim
+     *                Heizbeginn den Sommer.
+     *   other_years  dieselben Tage in anderen Jahren (Median, otherYears)
+     *   degree_days  die Gradtage allein, für eine kurze Vorgeschichte: die letzten bis zu
+     *                COMPARE_INTERVALS Abstände mit mindestens so viel Heizwetter je Tag (höchstens
+     *                HEAT_SUPPORT_MARGIN weniger), Median ihrer Tagesmenge × Tage, mindestens zwei. Gibt es
+     *                keine zwei (der neue Abstand ist kälter als alles bisher, etwa der Heizbeginn nach
+     *                einem Sommer), ist die Höhe offen: `high` null, `reason` colder_than_history. Wie viel
+     *                Heizen kostet, weiß die App dann noch nicht; die Erfassung fragt nur bei „Komma
+     *                vergessen“ (zehnfacher Stand). Eine Kennlinie wird nicht erfunden.
+     * Gefragt wird über `high` = max(JUMP_FACTOR × erwartet, erwartet + max(MIN_SHARE eines typischen
+     * Monats, SIGMA × Streuung)): erst über dem Dreifachen wie bisher, dazu wie bei der Prüfung der
+     * Zwischenablesungen mindestens eine Mindestmenge und drei Streuungen des Modells (bzw. der Jahre)
+     * darüber. Die Mindestmenge hält ein fast leeres Sommerintervall (Heizung ohne Warmwasser) davon ab,
+     * bei jedem kleinen Verbrauch zu fragen; die Streuung ein schlecht passendes Modell (im unordentlichen
+     * Testhaushalt gerät die Grundlast auf c = 0, ein Sommerabstand von 91 Tagen erwartete ein Viertel des
+     * Gemessenen). `spread`: die Streuung für diesen Abstand (Gradtage allein: 0). Mengen in der Einheit
+     * des Zählers (Gas m³, mit den datierten Faktoren des Abstands umgerechnet). Ein Wechsel des Niveaus
+     * (Hinweis auf die Analyse-Zäsur) bleibt hier unberücksichtigt: Das Modell über beide Niveaus liegt
+     * dazwischen, und für einen Tippfehler reicht das mit dem Dreifachen als Schwelle.
+     *
+     * `$excludeId`: der Stand, der gerade bearbeitet wird (seine alte Zahl bestimmt die Erwartung
+     * nicht, Lektion 46). `$today`: Stand der Daten, spätere Ablesungen zählen nicht.
+     *
+     * v3.13.0 (Paket K1) — rechnet über expectationsFor() (ein Abstand), ergebnisgleich.
+     *
+     * @return array{basis:?string, reason:?string, from:string, to:string, days:int, expected:?float, spread:?float, high:?float, unit:string, hdd_per_day:?float}
+     */
+    public function expectationFor(string $utility, array $meter, string $from, string $to, ?string $excludeId = null, ?string $today = null): array
+    {
+        return $this->expectationsFor($utility, $meter, [[$from, $to]], $excludeId, $today)[0];
+    }
+
+    /**
+     * v3.13.0 (Paket K1, #65) — so viele Abstände nimmt expectationsFor() in einem Aufruf (Vorschau eines
+     * CSV-Imports): zehn Jahre tägliche Stände in einer Datei. Gemessen am großen erfundenen Haushalt
+     * (tools/large-household.mjs, zehn Jahre täglich, Gas, 2026-11-13): 3.651 Abstände in einer Sammelabfrage
+     * 0,09 s, eine Einzelabfrage 0,03 s (Zeile für Zeile also rund zwei Minuten).
+     */
+    public const MAX_PAIRS = 4000;
+
+    /**
+     * v3.13.0 (Paket K1) — … und zusammen höchstens so viele Tage: Die Gradtage rechnet die Abfrage je Tag jedes
+     * Abstands. Gut hundert Jahre, also zehn Jahre tägliche oder hundert Jahre monatliche Stände; gemessen am großen
+     * Haushalt 3.641 Abstände mit zusammen 40.051 Tagen in 0,10 s. Darüber ist es kein Import mehr, sondern Unsinn.
+     */
+    public const MAX_PAIR_DAYS = 40000;
+
+    /**
+     * v3.13.0 (Paket K1, Entscheidung 11 b) — dieselbe Erwartung wie expectationFor() für viele Abstände eines
+     * Zählers in einem Aufruf, für die Vorschau eines CSV-Imports (`POST …/reading-expectations`): Stände,
+     * Abstände, Heizmodell und Temperaturen einmal, je Abstand nur seine Gradtage und der Vergleich. Je Abstand
+     * dasselbe Ergebnis wie expectationFor() (ReadingExpectationBatchTest). Die Abstände der Datei selbst gehen
+     * nicht in die Vorgeschichte ein: verglichen wird mit den gespeicherten Ständen, wie in der Erfassung.
+     * v3.13.0 (Paket K2e) — `$excludeId` auch als Liste: die Stände, die eine Datei überschreibt, zählen für keinen
+     * Abstand (eine Regel mit dem bearbeiteten Stand, dem Stand am selben Tag im Dialog und dem Vorschlag einer KI).
+     *
+     * @param list<array{0:string,1:string}> $pairs je Abstand [vorher, Datum]
+     * @param string|list<string>|null $excludeId Stand oder Stände, die die Erwartung nicht mitbestimmen
+     * @return list<array{basis:?string, reason:?string, from:string, to:string, days:int, expected:?float, spread:?float, high:?float, unit:string, hdd_per_day:?float}>
+     */
+    public function expectationsFor(string $utility, array $meter, array $pairs, string|array|null $excludeId = null, ?string $today = null): array
+    {
+        $today ??= date('Y-m-d');
+        $out = []; $one = [];
+        foreach (array_values($pairs) as $i => $p) {
+            [$out[$i], $x] = $this->expectationStart($utility, $meter, (string)$p[0], (string)$p[1]);
+            if ($x !== null) $one[$i] = $x;
+        }
+        if ($one === []) return $out;
+        // Gradtage der neuen Abstände (Temperaturen einmal gelesen): ohne Temperaturen (und ohne Normal) die alte Regel
+        $base = $this->baseFor($utility, $meter);
+        $this->addDegreeDays($one, $base);
+        $hist = null;
+        $history = function () use (&$hist, $utility, $meter, $excludeId, $today, $base): array {
+            return $hist ??= $this->expectationHistory($utility, $meter, $excludeId, $today, $base);
+        };
+        foreach ($one as $i => $x) $out[$i] = $this->expectationOf($utility, $x, $out[$i], $history);
+        return $out;
+    }
+
+    /**
+     * Antwort ohne Erwartung und der neue Abstand (null: andere Art oder kein Abstand, wie bisher).
+     *
+     * @return array{0: array<string,mixed>, 1: ?array<string,mixed>}
+     */
+    private function expectationStart(string $utility, array $meter, string $from, string $to): array
+    {
+        $unit = (string)(Utilities::exists($utility) ? (Utilities::get($utility)['unit'] ?? '') : '');
+        $days = self::days($from, $to);
+        $out = ['basis' => null, 'reason' => 'not_weather', 'from' => $from, 'to' => $to, 'days' => $days,
+                'expected' => null, 'spread' => null, 'high' => null, 'unit' => $unit, 'hdd_per_day' => null];
+        if (!Utilities::exists($utility) || !Utilities::isCumulative($utility) || !empty($meter['is_group'])
+            || ($meter['capture'] ?? 'counter') === 'period' || empty($meter['id']) || $days <= 0
+            || !self::isHeatMeter($utility, $meter)) {
+            return [$out, null];   // andere Arten wie bisher
+        }
+        $baseline = MeterService::activeBaselineDate($meter);
+        return [$out, ['j' => 0, 'from' => $from, 'to' => $to, 'd0' => self::dayNo($from), 'd1' => self::dayNo($to), 'days' => $days,
+                       'raw' => 0.0, 'kwh' => 0.0, 'valid' => true, 'pre' => $baseline !== null && $from < $baseline, 'hdd' => 0.0, 'temp_ok' => false]];
+    }
+
+    /**
+     * Die Vorgeschichte der Erwartung, einmal je Aufruf: Abstände der gespeicherten Stände (ohne `$excludeId`, bis
+     * `$today`), Heizmodell und Mindestmenge.
+     *
+     * @param string|list<string>|null $excludeId
+     * @return array{ctx: ?array<string,mixed>, usable: list<array<string,mixed>>, min: float}
+     */
+    private function expectationHistory(string $utility, array $meter, string|array|null $excludeId, string $today, float $base): array
+    {
+        $skip = array_flip(array_map('strval', (array)($excludeId ?? [])));
+        $all = array_values(array_filter($this->readings->list($utility, (string)$meter['id']),
+            fn($r) => !isset($skip[(string)($r['id'] ?? '')])));
+        $points = $this->points($utility, $meter, $all, $today);
+        $iv = $this->intervals($utility, $meter, $points);
+        $ctx = $this->context($utility, $meter, $iv);   // ergänzt `hdd` und `temp_ok` je Abstand
+        if ($ctx === null) $this->addDegreeDays($iv, $base);
+        $usable = array_values(array_filter($iv, fn($y) => $y['valid'] && !$y['pre']));
+        $min = $usable !== [] ? self::MIN_SHARE * $this->typicalMonth($usable) : 0.0;
+        return ['ctx' => $ctx, 'usable' => $usable, 'min' => $min];
+    }
+
+    /**
+     * Erwartung eines Abstands (`$x` mit seinen Gradtagen) gegen die Vorgeschichte; die Regel steht bei expectationFor().
+     *
+     * @param array<string,mixed> $out Antwort ohne Erwartung (expectationStart)
+     * @param \Closure(): array{ctx: ?array<string,mixed>, usable: list<array<string,mixed>>, min: float} $history
+     * @return array<string,mixed>
+     */
+    private function expectationOf(string $utility, array $x, array $out, \Closure $history): array
+    {
+        $from = (string)$x['from']; $to = (string)$x['to']; $days = (int)$x['days'];
+        $out['reason'] = 'no_temperatures';
+        if (empty($x['temp_ok'])) return $out;
+        $h = (float)$x['hdd'] / $days;
+        $out['hdd_per_day'] = round($h, 2);
+
+        ['ctx' => $ctx, 'usable' => $usable, 'min' => $min] = $history();
+        $margin = ForecastService::HEAT_SUPPORT_MARGIN;
+
+        $e = null; $basis = null; $sd = 0.0;
+        if ($ctx !== null && $ctx['method'] === 'heat_model' && $ctx['model'] !== null) {
+            // so kaltes Wetter gesehen? (die Stücke des Fits)
+            $colder = 0;
+            foreach ($ctx['chunks'] as $c) {
+                if ((float)$c['kwh'] > 0 && $c['days'] > 0 && $c['hdd'] / $c['days'] >= $h - $margin) $colder++;
+            }
+            if ($colder >= ForecastService::HEAT_SUPPORT_MIN) {
+                $e = $ctx['model']['a'] * (float)$x['hdd'] + $ctx['model']['c'] * $days;
+                $sd = $ctx['model']['resid_sd'] * sqrt($days / self::MONTH_DAYS);   // wie expect()
+                $basis = 'heat_model';
+            }
+        }
+        if (($e === null || $e <= 0) && $ctx !== null) {
+            $oy = $this->otherYears($x, $ctx, []);
+            if ($oy !== null && $oy[0] > 0) { [$e, $sd] = [(float)$oy[0], (float)$oy[1]]; $basis = 'other_years'; }
+        }
+        if ($e === null || $e <= 0) {
+            $withTemps = array_values(array_filter($usable, fn($y) => !empty($y['temp_ok']) && $y['days'] > 0));
+            if (count($withTemps) < 2) return $out;   // Vergleichsabstände ohne Temperaturen: alte Regel
+            $cold = array_values(array_filter($withTemps, fn($y) => $y['hdd'] / $y['days'] >= $h - $margin));
+            $rates = array_map(fn($y) => (float)$y['kwh'] / $y['days'], array_slice($cold, -self::COMPARE_INTERVALS));
+            $out['basis'] = 'degree_days';
+            $out['reason'] = 'colder_than_history';
+            if (count($rates) < 2) return $out;
+            sort($rates);
+            $n = count($rates);
+            $e = ($n % 2 ? $rates[intdiv($n, 2)] : ($rates[$n / 2 - 1] + $rates[$n / 2]) / 2) * $days;
+            $sd = 0.0;
+            $basis = 'degree_days';
+        }
+        // gefragt wird erst über dem Dreifachen, und mindestens eine Mindestmenge bzw. drei Streuungen darüber
+        $high = max(ReadingService::JUMP_FACTOR * $e, $e + max($min, self::SIGMA * $sd));
+        $out['basis'] = $basis;
+        if ($high <= 0) { $out['reason'] = 'colder_than_history'; return $out; }   // nichts verbraucht, kein Maßstab
+        // in der Einheit des Zählers (Gas: m³ mit den Faktoren des Abstands)
+        $f = !empty(Utilities::get($utility)['unit_to_kwh']) ? $this->rawToKwh($utility, $from, $to, 1.0) : 1.0;
+        if ($f <= 0) $f = 1.0;
+        $out['reason'] = null;
+        $out['expected'] = round(max(0.0, $e) / $f, 3);
+        $out['spread'] = round($sd / $f, 3);
+        $out['high'] = round($high / $f, 3);
+        return $out;
+    }
+
+    /** Heizart der Prüfung: Art mit Heizbezug oder Strom der Wärmepumpe (context(), expectationFor()). */
+    private static function isHeatMeter(string $utility, array $meter): bool
+    {
+        return Utilities::isHgtRelevant($utility)
+            || ($utility === 'strom' && Utilities::roleOf('strom', $meter) === 'heat_pump');
+    }
+
     // ── Reihe ────────────────────────────────────────────────────────────
 
     /**
@@ -397,8 +612,7 @@ final class ReadingCheckService
         if (Utilities::roleOf($utility, $meter) === 'ev_charger') return null;
         $typical = $this->typicalMonth($usable);
         if ($typical <= 0) return null;
-        $heat = Utilities::isHgtRelevant($utility)
-            || ($utility === 'strom' && Utilities::roleOf('strom', $meter) === 'heat_pump');
+        $heat = self::isHeatMeter($utility, $meter);
         $ctx = ['typical' => $typical, 'min' => self::MIN_SHARE * $typical, 'heat' => $heat, 'min_from' => null,
                 'base' => null, 'model' => null, 'chunks' => [], 'method' => null, 'level_method' => null];
         if ($heat) {

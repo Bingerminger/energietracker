@@ -32,8 +32,11 @@ final class Journal
     /** GET /api/mcp/journal: Standard und Höchstzahl der Einträge */
     public const LIST_DEFAULT = 100;
     public const LIST_MAX = 500;
-    /** Ergebnis einer Anfrage */
-    public const RESULTS = ['ok', 'tool_error', 'error', 'denied', 'rate_limited'];
+    /**
+     * Ergebnis einer Anfrage. v3.13.0 (Paket F) — `undone`: keine Anfrage der KI, sondern die Rücknahme einer
+     * ihrer Übernahmen im Verlauf der App (Methode `app/undo`, Name `apply_proposal`, Schlüsselname der KI).
+     */
+    public const RESULTS = ['ok', 'tool_error', 'error', 'denied', 'rate_limited', 'undone'];
     /** die einzigen Felder eines Eintrags */
     public const ENTRY_FIELDS = ['at', 'key_id', 'key_name', 'client', 'method', 'name', 'result', 'status', 'code', 'error_id', 'version', 'ms'];
 

@@ -86,6 +86,23 @@ final class McpEndpointTest extends HttpServerTestCase
         self::assertStringNotContainsString('etk_', $all);
     }
 
+    /** v3.13.0 — Stapel in der Fassung 2025-03-26 über HTTP: eine Liste als Antwort, je Nachricht eine Zeile im Protokoll. */
+    public function testABatchInVersion20250326(): void
+    {
+        $this->startServer();
+        $key = $this->key('mcp');
+        $this->enable();
+        $r = $this->mcp('[{"jsonrpc":"2.0","id":1,"method":"ping"},{"jsonrpc":"2.0","id":2,"method":"tools/list"}]', $key, ['MCP-Protocol-Version: 2025-03-26']);
+        self::assertSame(200, $r['status'], $r['body']);
+        self::assertSame('application/json; charset=utf-8', $r['headers']['content-type']);
+        self::assertTrue(array_is_list($r['json']));
+        self::assertSame([1, 2], array_column($r['json'], 'id'));
+        $journal = $this->json('GET', '/api/mcp/journal');
+        self::assertSame(['tools/list', 'ping'], array_column(array_slice($journal, 0, 2), 'method'), 'je Nachricht ein Eintrag, neueste zuerst');
+        $later = $this->mcp('[{"jsonrpc":"2.0","id":1,"method":"ping"}]', $key, ['MCP-Protocol-Version: 2025-06-18']);
+        self::assertSame([400, 'errors.mcp.batch'], [$later['status'], $later['json']['error']['data']['code']]);
+    }
+
     public function testEnvironmentLocksItEvenWhenSwitchedOn(): void
     {
         $this->startServer(['language' => 'de', 'mcp_enabled' => true], ['ET_MCP' => 'off']);

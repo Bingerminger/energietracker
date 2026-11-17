@@ -91,13 +91,7 @@ for (const [name, set] of Object.entries(themes)) {
     t(`${name}: Infobox ${tone}: Nebentext`, hint >= AA, `${hint.toFixed(2)}:1`);
     t(`${name}: Infobox ${tone}: Grafik mindestens 3:1`, graphic >= 3, `${graphic.toFixed(2)}:1`);
   }
-  // Abzeichen: Zustandsfarbe auf der eigenen Tönung, über Karte und verschachtelter Fläche
-  for (const [word, fg, soft] of [['Erfolg', 'success', 'success-soft'], ['Achtung', 'warning', 'warning-soft'], ['Fehler', 'danger', 'danger-soft']]) {
-    const f = color(set, set[fg]);
-    const a = contrast(f, color(set, set[soft], bg1));
-    const b = contrast(f, color(set, set[soft], bg2));
-    t(`${name}: Abzeichen ${word} auf Karte und Fläche`, a >= AA && b >= AA, `${a.toFixed(2)} / ${b.toFixed(2)}`);
-  }
+  // Abzeichen: v3.13.0 unten, aus den Regeln in components.css gelesen (alle Marken, nicht nur die drei Zustände)
   const active = contrast(color(set, set['accent-fg']), color(set, set.accent));
   t(`${name}: aktiver Untermenü-Knopf und Hauptknopf`, active >= AA, `${active.toFixed(2)}:1`);
   const danger = contrast(color(set, set['on-danger']), color(set, set['danger-strong']));
@@ -122,6 +116,40 @@ for (const [name, set] of Object.entries(themes)) {
 // ── Verbrauchsart-Farben (SSOT) ──
 const php = readFileSync(`${root}/src/Config/Utilities.php`, 'utf8');
 const utilColors = [...php.matchAll(/'key'\s*=>\s*'([a-z_]+)'[\s\S]*?'color'\s*=>\s*'(#[0-9a-f]{6})'/gi)].map(m => [m[1], m[2]]);
+
+// ── v3.13.0 — alle Abzeichen (Marken) aus components.css, nicht nur die drei Zustände: Schrift auf der eigenen
+// Fläche über jedem Grund, auf dem sie stehen (Seite --bg-0, Karte --bg-1, verschachtelte Fläche und Zeilen-Hover
+// --bg-2). Bis v3.12 lagen „Schatten“ und „Angebot“ (Violett) im Dunkeln bei 3,1 bis 4,1:1, „künftig“ (Blau) auf
+// --bg-2 bei 3,9:1; geprüft waren nur Grün, Orange und Rot auf --bg-1 und --bg-2.
+{
+  const BADGE = /\.(tag|badge|status-pill|chip|flex-tag|kpi__trend)\b/;
+  const decl = (body, prop) => body.match(new RegExp(`(?:^|[;{\\s])${prop}:\\s*var\\(--([a-z0-9-]+)(?:,\\s*var\\(--([a-z0-9-]+)\\))?\\)`));
+  const rules = [];
+  for (const m of compCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const sel = m[1].trim().replace(/\s+/g, ' ');
+    if (!BADGE.test(sel)) continue;
+    const bg = decl(m[2], 'background(?:-color)?'), fg = decl(m[2], 'color');
+    if (bg && fg) rules.push({ sel, bg: bg[1], fg: fg[1] });
+  }
+  t('Abzeichen mit Fläche und Schrift gefunden (Grundform, Zustände, Schatten, künftig, Verbrauchsart)',
+    rules.length >= 8 && rules.some(r => /badge--shadow/.test(r.sel)) && rules.some(r => /badge--info/.test(r.sel)) && rules.some(r => r.bg === 'util-soft'),
+    rules.map(r => r.sel.split(',')[0]).join(' | '));
+  const GROUND = ['bg-0', 'bg-1', 'bg-2'];
+  for (const [name, set] of Object.entries(themes)) {
+    const theme = name === 'hell' ? 'light' : 'dark';
+    for (const r of rules) {
+      // Verbrauchsart: Farbe und Tönung kommen zur Laufzeit aus der SSOT (lib/utility-theme.js), je Art geprüft
+      const fgOf = (raw) => (r.fg === 'util' ? themedColor(raw, theme) : color(set, set[r.fg], set['bg-1']));
+      const pairs = r.bg === 'util-soft'
+        ? utilColors.map(([key, raw]) => [key, fgOf(raw), (g) => mix(raw, color(set, set[g]), theme === 'light' ? 0.10 : 0.14)])
+        : [['', fgOf(null), (g) => color(set, set[r.bg], set[g])]];
+      for (const [key, fg, bgOn] of pairs) {
+        const ratios = GROUND.map(g => contrast(fg, bgOn(g)));
+        t(`${name}: Abzeichen ${r.sel.split(',')[0]}${key ? ` (${key})` : ''} auf --bg-0, --bg-1, --bg-2`, ratios.every(x => x >= AA), ratios.map(x => x.toFixed(2)).join(' / '));
+      }
+    }
+  }
+}
 t('Verbrauchsarten mit Farbe gefunden', utilColors.length >= 8, utilColors.map(u => u[0]).join(','));
 for (const [key, raw] of utilColors) {
   for (const [name, set] of Object.entries(themes)) {

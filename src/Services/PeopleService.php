@@ -38,7 +38,7 @@ final class PeopleService
     public const ID = '/^u_[0-9a-z]{1,32}$/';
     public const ROLES = ['admin', 'member'];
     /** Längster Name (wie die Namen im Verlauf und an Terminen). */
-    private const NAME_MAX = 60;
+    private const NAME_MAX = \Energietracker\Support\TextLimits::PERSON;   // v3.13.0 — aus der Liste der Grenzen
     /** v3.6.0 — beim Umbenennen wie ein Zugang (AuthService::NAME_MAX, errors.users.nameInvalid) */
     private const NAME_ACCOUNT_MAX = 40;
 

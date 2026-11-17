@@ -141,6 +141,76 @@ zeigt seine Verbrauchsansicht die Karte **„Ladestrom-Nachweis
 den Arbeitgeber. Schritt für Schritt:
 [Ladestrom für den Dienstwagen nachweisen](../anleitungen/ladestrom-nachweis.md).
 
+## Wallbox neu im Verlauf *(v3.13.0)*
+
+**Eine neue Wallbox kennt ihre ersten Winter nicht.** Bis v3.12 nahm die Prognose
+für jeden Kalendermonat ohne Vorgeschichte das Mittel aller gemessenen Monate, nach
+einem Sommer also zu wenig für den Winter.
+
+<!-- doc-claim: wallbox-arrival -->
+**Seit v3.13.0 rechnet die Prognose der Wallbox solche Monate nach einer Annahme:**
+Ein E-Auto braucht je Grad unter 20 °C rund 1 % mehr Strom, gefahren wird gleich viel.
+Die Grade kommen aus dem Klimanormal (sonst aus deinen eigenen Tagestemperaturen), die
+Höhe aus den gemessenen Monaten. Quelle: Lee, Song, Lim, Park (2024), Energy
+Conversion and Management 306, 118289: bei −15 °C 35,4 % mehr Energie als bei 24 °C,
+am sparsamsten zwischen 20 und 30 °C. Kennt der Zähler einen Monat nur verteilt
+(seltene Ablesungen) und gibt es Ladevorgänge aus evcc, kommt der Monat aus den
+Ladevorgängen. Nötig sind drei gemessene Monate und Temperaturen für jeden
+Kalendermonat (ohne sie bleibt es beim Mittel); die Prognose nennt die Monate, die so
+entstehen.
+
+**Der Zähler vor der Wallbox rechnet weiter mit den Monaten davor**, in denen das Auto
+fehlt. Gebaut ist, dass diese Monate den Netzbezug der Wallbox desselben Kalendermonats
+bekommen (ohne den Sonnenanteil der Ladevorgänge aus evcc); am Prüfhaushalt hat das
+seine Prüfung nicht bestanden. Ein Hinweis sagt es und schlägt eine Zäsur am Tag des
+Einbaus vor ([Glossar: Zäsur](09-glossar.md)). In der Kaskade (vorn die Wärmepumpe,
+dahinter der Haushalt) gilt der Hinweis auch für den Haushaltszähler: Die Wallbox
+hängt dort am vorderen Zähler, steckt aber im Haushalt. Die Hinweise stehen zwei Jahre
+ab dem Einbau, also ab dem Einbaudatum am Wallbox-Zähler.
+
+## Wärmepumpe nach dem Wetter *(v3.13.0, noch nicht freigeschaltet)*
+
+**Der Strom einer Wärmepumpe folgt dem Wetter, die Prognose rechnet ihn bisher wie
+Haushaltsstrom:** mit dem Saisonprofil der gemessenen Jahre. Nach einem milden
+Winter liegt sie deshalb zu niedrig, nach einem kalten zu hoch.
+
+**Welche Zähler dem Wetter folgen**, entscheidet eine Stelle (`UtilityWeather`), nur an
+Feldern, nie am Namen:
+
+| Zähler | folgt dem Wetter |
+|---|---|
+| Rolle **Wärmepumpe**, eigener Zähler (neben oder hinter dem Haushalt) | ja |
+| **Kaskade:** vorderer Zähler mit der Rolle Wärmepumpe, Haushalt dahinter | ja, gerechnet wird der **Rest** (die Menge, die sein Vertrag rechnet), nicht der ganze Zähler |
+| **Hauptstromzähler**, wenn die Heizung mit Strom läuft (Haushalt › Gebäude) und es keinen eigenen Wärmepumpenzähler gibt | ja; bei mehreren Zählern ohne Elternzähler keiner (die App rät nicht) |
+| **Gruppe** (etwa HT/NT einer Wärmepumpe) | ja, wenn alle Mitglieder es tun |
+
+**Gebaut ist derselbe Weg wie beim Gas:** Heizmodell aus Gradtagen und Tagen (auch über
+Ablesungsabstände), Klimanormal statt Wetterglück, Gütesperre, Band. Dazu wählt die
+Rechnung die Heizgrenze selbst, wenn der Zähler keine eigene hat, und nimmt für
+Prognose und Saldo dieselbe Kalibrierung am jüngsten Niveau.
+
+**Anders als beim Gas** rechnet das Klimanormal der Wärmepumpe mit dem **Trend der
+Temperatur**: Das Mittel der dreißig Jahre lag an zehn Wetterstationen des DWD die
+Gradtage des Folgejahrs **9 bis 12 % zu hoch**, mit dem Trend 2 bis 3 %
+([Messung](../entwicklung/messung-temperaturtrend.md)). Die
+**HT/NT-Gruppe** einer Wärmepumpe rechnet **ein** Modell und verteilt es nach den
+Anteilen ihrer Zählwerke je Kalendermonat; Gruppe = HT + NT bleibt.
+
+**Angezeigt wird es erst, wenn es seine Prüfung besteht.** Gemessen wird an einem
+Prüfhaushalt mit eigener Physik, der nicht aus dem Modell der App stammt, gegen vorab
+festgelegte Schwellen (Werkzeug `tools/rueckrechnung.php`, [Tests](../entwicklung/tests.md)).
+In v3.13.0 schafft die Rechnung sie noch nicht; Prognose, Band und „Erwartet bei
+Abrechnung“ bleiben beim Saisonprofil, und **ein Hinweis sagt es** in der Prognose, an
+der Saldo-Karte und in der Werkstatt.
+
+**Mindestens nötig**, wenn sie freigeschaltet ist: 8 gemessene Monate oder 8 Abstände
+zwischen Ablesungen ab 20 Tagen, darunter ein Winter- und ein Sommermonat, dazu ein
+Standort für das Klimanormal. Darunter bleibt das Saisonprofil, der Hinweis nennt, was
+fehlt (zeigen statt raten).
+
+**Bekannte Grenze:** Das Modell ist linear. In einem sehr kalten Winter sinkt die
+Arbeitszahl, und ein Heizstab springt an; dann liegt es eher zu niedrig.
+
 ## Typische Stolpersteine
 
 - **Erwartung einer Temperaturkorrelation.** Bei reinem Haushaltsstrom

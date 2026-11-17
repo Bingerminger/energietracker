@@ -205,6 +205,14 @@ kommen Zusatzsätze:
   näher an der Änderung als einen Monat (Sondervertrag) bzw. sechs Wochen
   (Grundversorgung), sagt die App das. Ob die Erhöhung deshalb nicht gilt, sagt
   sie nicht.
+- **Ankündigung knapp** *(v3.13.0)*: Gerechnet wird wie beim Kündigungsstichtag
+  nach den Fristregeln des BGB: Die volle Frist muss zwischen dem Schreiben und
+  dem Tag der Änderung liegen (Änderung zum 01.03., Sondervertrag: rechtzeitig
+  bis 31.01.). Ein Schreiben genau einen Kalendermonat bzw. 42 Tage vorher
+  (01.02.) nennt die App **„knapp, prüfen“**, nicht „zu spät“: Nach dieser
+  Zählung fehlt ein Tag, nach der üblichen Rechnung reicht es gerade, und eine
+  Entscheidung dazu gibt es nicht. Maßgeblich ist, wann das Schreiben bei dir
+  ankam (in der Grundversorgung der Tag der öffentlichen Bekanntgabe).
 - **Nur die Steuer ändert sich:** Tragen alter und neuer Preis einen Steuersatz,
   bleibt der Nettopreis gleich und ändert sich nur der Satz, meldet die App kein
   Kündigungsrecht und keinen Hinweis.
@@ -328,6 +336,15 @@ Kalenderjahre, sonst aus der Rechnung hochgerechnet, sonst keine Prüfung), aus
 der Leistung der Einspeisezähler und aus einer Vereinbarung nach § 14a EnWG am
 Vertrag. Mehr als 1 € über der Grenze ergibt einen Hinweis. Geprüft werden nur
 die Tage ab 2026-01-01; die Beträge älterer Fassungen sind nicht belegt.
+
+<!-- doc-claim: metering-one-year --> **Ein Jahr bleibt ein Jahr** *(v3.13.0)*:
+Eine Rechnung über **genau ein Jahr** (Stichtag zu Stichtag, 365 oder 366
+Tage) und ein Kalenderjahr aus deinen Ablesungen nimmt die App, wie sie sind;
+nur einen kürzeren oder längeren Zeitraum rechnet sie auf 365 Tage um, Menge
+und Betrag gleich (366 Tage vom 01.01. bis 01.01.: mal 365/366). So landet
+dasselbe Jahr auf beiden Wegen in derselben Gruppe. Den Jahreswert aus
+Ablesungen rechnet sie aus den ungerundeten Tagesmengen: Genau 6.000 kWh
+zwischen zwei Jahresständen bleiben in der Gruppe bis 6.000 kWh.
 
 **Grenzen.** Steckt das Entgelt im Grundpreis, kann die App es nicht prüfen. Für
 einen konventionellen Zähler und für Gas prüft sie nichts. Zusatzleistungen
@@ -501,7 +518,7 @@ Beispiele, von einem Test mit dem Code nachgerechnet:
 | Fall | Ausgang | Ergebnis |
 |---|---|---|
 | Rechnung kam spät <!-- doc-claim: rights-example bill_late --> | Zeitraum endet 2026-03-31 | Frist endet 2026-05-12; eine Rechnung vom 2026-05-14 bleibt ohne Hinweis, ab 2026-05-15 gibt es einen |
-| Sonderkündigung <!-- doc-claim: rights-example special_termination --> | Preisänderung zum 2026-12-01 | Kündigung muss bis 2026-11-30 zugehen, steht ab 2026-11-16 unter „Zu tun“; Ankündigung im Sondervertrag spätestens 2026-11-01, in der Grundversorgung 2026-10-20 |
+| Sonderkündigung <!-- doc-claim: rights-example special_termination --> | Preisänderung zum 2026-12-01 | Kündigung muss bis 2026-11-30 zugehen, steht ab 2026-11-16 unter „Zu tun“; Ankündigung im Sondervertrag spätestens 2026-10-31, in der Grundversorgung 2026-10-19 (der Tag danach heißt „knapp, prüfen“, v3.13.0) |
 | Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-27 | bekannt gegeben 2026-01-31, rechnerisch 2026-02-28 (ein Samstag), Frist endet frühestens 2026-03-02, möglicherweise abgelaufen bis 2026-03-09 |
 | Gebührenbescheid <!-- doc-claim: rights-example fee_notice --> | Bescheid vom 2026-01-28 | bekannt gegeben 2026-02-01, rechnerisch 2026-03-01 (ein Sonntag), Frist endet frühestens 2026-03-02, möglicherweise abgelaufen bis 2026-03-09 |
 | Gebührenbescheid, später erhalten <!-- doc-claim: rights-example fee_notice_received --> | Bescheid vom 2026-09-28, erhalten am 2026-10-13 | bekannt gegeben frühestens 2026-10-13, rechnerisch 2026-11-13 (ein Freitag), Frist endet frühestens 2026-11-13, möglicherweise abgelaufen bis 2026-11-17 (Monat ab dem vierten Tag nach dem Zugang) |

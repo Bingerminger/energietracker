@@ -254,7 +254,7 @@ final class JsonStore
         $this->lock();
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        [$tmp, $fp] = $this->openTemp($relative, $path) ?? throw new \RuntimeException('Could not write temporary file: ' . $relative);
+        [$tmp, $fp] = $this->openTemp($relative, $path) ?? throw new StorageNotWritableException($relative);   // v3.13.0 (K2d)
         $ok = false;
         try {
             $ok = fwrite($fp, $bytes) === strlen($bytes) && fflush($fp);
@@ -313,8 +313,9 @@ final class JsonStore
         // v2.6.0 — fflush + fsync vor dem rename: Ohne sie kann die umbenannte
         // Datei nach einem Stromausfall leer sein (je nach Dateisystem).
         // v3.12.0 — Härtung: Rechte des Ziels (0600 bei Geheimnissen) schon an der Temp-Datei
+        // v3.13.0 (K2d) — keine Temp-Datei im Verzeichnis: nicht beschreibbar (503 statt 500, s. ErrorHandler)
         [$tmp, $fp] = $this->openTemp($relative, $path)
-            ?? throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $relative);
+            ?? throw new StorageNotWritableException($relative);
         $ok = false;
         try {
             $ok = fwrite($fp, $json) === strlen($json) && fflush($fp);

@@ -82,8 +82,8 @@ need an instance of their own (see below).
 **Since v3.12.0 a script takes every image of the table:** `tools/build-screenshots.mjs` loads the sample
 household, sets the Expert level and takes every view in light mode, on the Mac and on the iPhone. It also
 takes the README images (light and dark) under `docs/assets/promo/screens/`. Then
-`pngquant --quality=88-100 --strip`, **no image above 150 KB**. **Every image shows the interface of v3.12.0,
-each in German and English.**
+`pngquant --quality=88-100 --strip`, **no image above 150 KB**. **The images of the table show the interface
+of v3.12.0, the README images that of v3.13.0, each in German and English.**
 
 **Three runs per language**, each against a server of its own with an empty data directory:
 

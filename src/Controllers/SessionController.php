@@ -403,6 +403,8 @@ final class SessionController
         if (($this->user()['id'] ?? null) === $id) {
             Response::error($this->i18n->t('errors.users.notSelf'), 400, null, 'errors.users.notSelf');
         }
+        // v3.13.0 — der Schalter vor dem Löschen geprüft (Request::flag, eine Regel für Wahrheitswerte)
+        $anonymize = $req->flag('anonymize_activity');
         $this->people?->all();   // Bestand: erst ins Verzeichnis, dann löschen
         [$name, $hasAccount] = $this->deletable($id);
         // eine Person ohne Zugang steht nur im Verzeichnis
@@ -410,7 +412,7 @@ final class SessionController
         $to = $this->recipient($id);
         $this->people?->markDeleted($id, $to['id'] ?? null, $name);
         // v3.4.0 (F1024) — auf Wunsch des Verwalters: im Verlauf „ehemalige Person"
-        $anon = $this->anonymizeActivity !== null && $req->queryParam('anonymize_activity') === '1';
+        $anon = $this->anonymizeActivity !== null && $anonymize;
         if ($anon) ($this->anonymizeActivity)($id);
         elseif ($this->markActivity !== null) ($this->markActivity)($id);
         // v3.5.0 (F1028) — Termine; v3.6.0: offene an die löschende Person

@@ -101,6 +101,28 @@ final class PdfWriterTest extends TestCase
         self::assertStringContainsString('(4) Tj', $s, '✔ = Code 52');
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — Die Ampel im PDF ist nie nur Farbe (Chart::light): Jede Stufe zeichnet eine eigene
+     * Grafik, deren Form sich unterscheidet, daneben steht das Wort. Bis v3.12 zählte nur ein Test die Bézier-Kurven
+     * einer ganzen Seite, ein farbiger Kreis allein fiel dort nicht auf.
+     */
+    public function testTrafficLightIsNeverOnlyColour(): void
+    {
+        $shapes = [];
+        foreach (array_keys(\Energietracker\Services\Pdf\Chart::LEVELS) as $level) {
+            $w = new PdfWriter();
+            $w->addPage();
+            \Energietracker\Services\Pdf\Chart::light($w, 60, 120, $level, 'Wort');
+            $pdf = $w->output();
+            // ohne Text und Farbangaben bleibt die Form
+            $geo = (string)preg_replace(['/BT\b.*?\bET\b/s', '/(?:[-\d.]+ ){3}(?:rg|RG)\b/'], '', PdfInspector::pageStreams($pdf)[0]);
+            self::assertMatchesRegularExpression('/\s[cl]\s/', $geo, "$level: keine Grafik");
+            self::assertStringContainsString('Wort', implode(' ', PdfInspector::texts($pdf)), "$level: das Wort fehlt");
+            $shapes[$level] = (string)preg_replace('/\s+/', ' ', trim($geo));
+        }
+        self::assertSame(array_keys($shapes), array_keys(array_unique($shapes)), 'Ampel: die Stufen unterscheiden sich nur in der Farbe');
+    }
+
     public function testBoxLogAndRollback(): void
     {
         $w = new PdfWriter();

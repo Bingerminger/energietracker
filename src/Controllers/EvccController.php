@@ -57,7 +57,7 @@ final class EvccController
     {
         $body = (array)$req->body;
         \Energietracker\Support\Input::assertTexts($body, ['counters', 'loadpoint']);   // v3.12.0 — Liste statt Text: 400
-        return ['dry_run' => $req->queryParam('dry_run') === '1', 'counters' => (string)($body['counters'] ?? 'auto'),
+        return ['dry_run' => $req->flag('dry_run'),'counters' => (string)($body['counters'] ?? 'auto'),
             'loadpoint' => isset($body['loadpoint']) ? (string)$body['loadpoint'] : null];
     }
 

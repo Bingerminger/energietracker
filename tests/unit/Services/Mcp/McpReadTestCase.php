@@ -57,6 +57,8 @@ abstract class McpReadTestCase extends McpTestCase
     public const MESSY_TODAY = '2026-02-10';
     /** „heute“ der Beispieldaten (Stand der Sicherung bis Ende Mai 2026) */
     public const DEMO_TODAY = '2026-06-15';
+    /** v3.13.0 — „heute“ des Testhaushalts mit Verträgen, die nicht glatt laufen (Daten bis 2026-10-31) */
+    public const EDGE_TODAY = '2026-11-01';
     /** Zahlen ohne Herkunft, die eine Zählung oder ein Kalenderabstand sind */
     public const EXEMPT = ['days_since_reading', 'months_left', 'gap_days', 'bills_recorded'];
 
@@ -72,6 +74,10 @@ abstract class McpReadTestCase extends McpTestCase
     /** Wie src/bootstrap.php, soweit die Werkzeuge es brauchen. */
     private function wire(): void
     {
+        // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung am Vertragsstatus wie in src/bootstrap.php
+        $payouts = new \Energietracker\Services\FeedInPayoutService($this->store, $this->meters, $this->i18n);
+        $this->consumption->attachFeedInPayouts($payouts);
+        $this->wired[$payouts::class] = $payouts;
         $benchmark = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
         $deliveries = new DeliveryService($this->store, $this->meters, $this->i18n);
         $recs = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $benchmark, $deliveries, $this->i18n);
@@ -184,6 +190,23 @@ abstract class McpReadTestCase extends McpTestCase
         $this->store->write('temperatures.json', $h['temperatures']);
         foreach (['gas', 'strom', 'wasser'] as $u) foreach (['meters', 'readings', 'contracts'] as $pot) $this->store->write("$u/$pot.json", []);
         foreach ($h['utilities'] as $u => $pots) foreach ($pots as $pot => $rows) $this->store->write("$u/$pot.json", $rows);
+    }
+
+    /**
+     * v3.13.0 — Der Testhaushalt mit Verträgen, die nicht glatt laufen (tests/fixtures/edge-household: Einzug und Auszug
+     * mitten im Monat, Zählergruppe HT/NT, Abschlag mit Terminen, Preis erst später, Mietverhältnis bis zum Auszug).
+     *
+     * @return array<string,mixed> die Datei des Generators (Ablesungen, Parameter, Wahrheit)
+     */
+    protected function edge(): array
+    {
+        $h = json_decode((string)file_get_contents(dirname(__DIR__, 3) . '/fixtures/edge-household/household.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->store->write('settings.json', $h['settings']);
+        $this->store->write('temperatures.json', $h['temperatures']);
+        foreach (['gas', 'strom', 'wasser'] as $u) foreach (['meters', 'readings', 'contracts'] as $pot) $this->store->write("$u/$pot.json", []);
+        foreach ($h['utilities'] as $u => $pots) foreach ($pots as $pot => $rows) $this->store->write("$u/$pot.json", $rows);
+        $this->store->write('tenancies.json', $h['tenancies']);
+        return $h;
     }
 
     /** Beispieldaten (demo oder eine Persona aus demo-data/personas). */

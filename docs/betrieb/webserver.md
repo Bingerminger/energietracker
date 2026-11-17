@@ -5,8 +5,8 @@
 [← Kompendium-Index](../README.md)
 
 Das Docker-Image bringt seinen Webserver mit ([Docker](docker.md)). Diese Seite
-ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.3 oder neuer
-(seit v3.12.0, vorher 8.2; empfohlen 8.4) — Apache (auch die Synology Web Station) oder
+ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.4 oder neuer
+(seit v3.13.0; 8.3 in v3.12, vorher 8.2) — Apache (auch die Synology Web Station) oder
 nginx. Die Regeln sind in beiden Fällen dieselben und stammen aus der
 getesteten Konfiguration des Images (`docker/nginx.conf`) bzw. der
 mitgelieferten `.htaccess`:
@@ -18,7 +18,9 @@ mitgelieferten `.htaccess`:
    Projektdateien im Wurzelverzeichnis (`composer.json`, `Dockerfile`,
    `VERSION`, `*.md`) gehören nie über HTTP heraus.
 2. **API über `api.php`.** Die Oberfläche ruft `api.php/api/…` auf; Umschreiben
-   ist nicht nötig.
+   ist nicht nötig. *(v3.13.0)* Wie nginx schreibt die mitgelieferte `.htaccess`
+   (mit `mod_rewrite`) zusätzlich `/api/…` auf `api.php` um, etwa
+   `…/api/ingest` für Home Assistant.
 3. **Oberfläche über `index.php`.** Navigiert wird per Hash (`#/…`).
 4. **Cache-Header.** Anwendungscode und Sprachkataloge immer revalidieren,
    Schriften lange behalten — sonst liefert ein Browser nach einem Update alte
@@ -34,13 +36,19 @@ mitgelieferten `.htaccess`:
 
 ## Apache
 
-Die mitgelieferte `.htaccess` setzt Punkt 1, 4 und 5 um, `data/.htaccess` ist
-die zweite Sicherung. Voraussetzungen:
+Die mitgelieferte `.htaccess` setzt Punkt 1, 2 (`/api/…`), 4 und 5 um,
+`data/.htaccess` ist die zweite Sicherung. Voraussetzungen:
 
 - `AllowOverride` mindestens `FileInfo` für das Projektverzeichnis,
-- die Module `mod_rewrite` (oder ersatzweise `mod_alias`, seit v3.4.0),
-  `mod_headers` und `mod_setenvif`,
-- PHP 8.3 oder neuer (PHP-FPM oder `mod_php`; geprüft bis 8.5).
+- die Module `mod_rewrite` (oder ersatzweise `mod_alias`, seit v3.4.0; dann
+  geht die API nur über `api.php/api/…`), `mod_headers` und `mod_setenvif`,
+- PHP 8.4 oder neuer (PHP-FPM oder `mod_php`; geprüft mit 8.4 und 8.5).
+  Ubuntu 24.04 und RHEL, AlmaLinux oder Rocky Linux 10 bringen PHP 8.3 mit:
+  Unter Ubuntu 24.04 kommt 8.4 aus dem PPA `ppa:ondrej/php` (zum Umzug nach
+  packages.sury.org stehen Hinweise des Betreuers auf der Seite des PPA),
+  unter RHEL 10, AlmaLinux 10 und Rocky Linux 10 ab 10.2 aus AppStream (Paket
+  `php8.4`) oder aus dem Remi-Repository. Sonst nimm das
+  [Docker-Image](docker.md), es bringt PHP 8.5 mit.
 
 Ein VirtualHost dafür:
 
@@ -80,8 +88,8 @@ relativ.
 
 ### Synology Web Station
 
-- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-Profil ab 8.3 (8.4,
-  wenn angeboten); den Ordner
+- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-Profil ab 8.4
+  (seit v3.13.0); den Ordner
   unter `web/` ablegen. Die `.htaccess` greift dort.
 - Der Benutzer `http` braucht Schreibrecht auf `data/` (File Station →
   Eigenschaften → Berechtigung).

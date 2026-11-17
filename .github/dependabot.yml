@@ -19,8 +19,9 @@ updates:
     schedule:
       interval: "monthly"
     # v3.10.0 — PHPUnit bleibt bei 11: Die Mindestversion des Energietrackers
-    # ist seit v3.12.0 PHP 8.3, die CI prüft 8.3 bis 8.5. PHPUnit 12 ginge damit,
-    # 13 verlangt 8.4. Updates innerhalb von 11 kommen weiter.
+    # ist seit v3.13.0 PHP 8.4, die CI prüft 8.4 und 8.5. PHPUnit 12 und 13
+    # gingen damit (ein Wechsel ist eine eigene Entscheidung). Updates innerhalb
+    # von 11 kommen weiter.
     ignore:
       - dependency-name: "phpunit/phpunit"
         update-types: ["version-update:semver-major"]

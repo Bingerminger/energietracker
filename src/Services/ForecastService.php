@@ -132,6 +132,14 @@ final class ForecastService
             unset($opts['today']);
             return $this->consumption->atDate($today, fn() => $this->forMeter($utility, $meter, $opts));
         }
+        // v3.13.0 (Paket vertrag) — intern: die ungerundete Menge, die der Vertrag je Monat rechnet (memberQuantities);
+        // nicht an Subzähler weitergeben
+        $sink = ($opts['qty_sink'] ?? null) instanceof \ArrayObject ? $opts['qty_sink'] : null;
+        unset($opts['qty_sink']);
+        // v3.13.0 (Paket waermepumpe, E2) — intern: der Rest je Monat, den die HT/NT-Gruppe einer Wärmepumpe nach dem
+        // Wetter auf ihre Zählwerke verteilt (groupWeatherShare); nicht an Subzähler weitergeben
+        $hpRestSink = ($opts['hp_rest_sink'] ?? null) instanceof \ArrayObject ? $opts['hp_rest_sink'] : null;
+        unset($opts['hp_rest_sink']);
         $u = Utilities::get($utility);
         $monthly = $this->consumption->forMeter($utility, $meter);
         if (count($monthly) < 6) {
@@ -147,8 +155,37 @@ final class ForecastService
         $blendMax   = (float)$this->settings->get('blend_max', 0.80);
         $tempOffset = (float)($opts['temp_offset'] ?? 0.0);
         $priceFactor= (float)($opts['price_factor'] ?? 1.0);
-        $hgt        = !empty($u['hgt_relevant']);
-        $hddBase    = $this->consumption->hddBaseFor($meter);   // v3.7.0 — die Heizgrenze des Zählers
+        // v3.13.0 (Paket waermepumpe) — Strom nach dem Wetter (UtilityWeather): derselbe Weg wie beim Gas, auf der
+        // Menge, die der Vertrag rechnet (`$series`, in der Kaskade der Rest ohne den Haushalt dahinter). Unter dem
+        // Mindestmaß oder mit ausgeschaltetem Baustein der alte Weg mit Hinweis (`heat_pump_no_weather`)
+        $hpw = $this->consumption->heatPumpWeather($utility, $meter, $monthly, 'forecast');
+        $hpOn = (bool)($hpw['on'] ?? false);
+        $series = $hpOn ? (array)$hpw['rows'] : $monthly;
+        $hpBand = $hpOn && (bool)($this->consumption->heatPumpWeather($utility, $meter, $monthly, 'band')['on'] ?? false);
+        $hgt        = !empty($u['hgt_relevant']) || $hpOn;
+        $hddBase    = $this->consumption->hddBaseFor($hpOn ? (array)$hpw['meter'] : $meter);   // v3.7.0 — die Heizgrenze des Zählers
+        // v3.13.0 (E2) — das Normal der Wärmepumpe mit dem Trend der Temperatur (Heizgrenze − ΔT des Prognosejahrs);
+        // sonst 0. `$hpShift` ist der Versatz des ersten Prognosemonats (Jahresband, Auskunft `normal_shift`)
+        $shiftFor   = fn(int $yr): float => $hpOn ? $this->consumption->weatherNormalShift($yr, $hddBase - $tempOffset) : 0.0;
+        $hpShift    = 0.0;
+        // v3.13.0 (Paket speicher-auto) — Speicher und Wallbox neu im Verlauf: die Monate vor dem Einbau bereinigt
+        // (DeviceArrival, Konzept §4.3 B, §4.4 A); nur auf dem alten Weg (nach dem Wetter rechnet die Wärmepumpe auf dem
+        // Rest der Kaskade, der weder Speicher noch Wallbox enthält). Dazu bei einer Wallbox die Monate ohne Vorgeschichte
+        // (§4.4 B). `historical` bleibt gemessen
+        $dev = !$hpOn ? $this->consumption->deviceArrival($utility, $meter, $series) : null;
+        if ($dev !== null && $dev['adjusted']) $series = $dev['rows'];
+        // v3.13.0 — Gruppe, deren Mitglieder verschieden weit abgelesen sind: Nach dem letzten Monat, den jedes Mitglied
+        // gemessen hat, fehlt in der Monatszeile ein Mitglied. Ein solcher Monat lernt nicht mit, wenn derselbe Kalendermonat
+        // aus einem vollständigen Jahr bekannt ist; bis dahin zog er dessen Wert (etwa ein September nur mit HT) nach unten.
+        // Ist er der einzige Wert seines Kalendermonats, bleibt er: Am Testhaushalt mit fünf Monaten Daten lag der Oktober
+        // ohne ihn noch weiter neben der Wahrheit (Mittel der Sommermonate statt Heizbeginn).
+        $lastYm = !empty($meter['is_group']) && !$hpOn ? $this->groupLastCommonMonth($utility, $meter) : null;
+        if ($lastYm !== null) {
+            $complete = [];
+            foreach ($series as $m) if ((string)($m['ym'] ?? '') <= $lastYm) $complete[(int)($m['month'] ?? 0)] = true;
+            $series = array_values(array_filter($series, fn($m) => (string)($m['ym'] ?? '') <= $lastYm || !isset($complete[(int)($m['month'] ?? 0)])));
+        }
+        $evm = $this->consumption->wallboxMonths($utility, $meter, $series);
 
         // Saisonprofil je Kalendermonat als Tagesrate (Teilmonate zählen
         // nicht, 28 und 31 Tage werden vergleichbar).
@@ -157,7 +194,7 @@ final class ForecastService
         $interpAll = array_fill(1, 12, []);     // v3.9.0 — auch aus langen Abständen
         $seasonalHdd = array_fill(1, 12, []);
         $allRates = [];
-        foreach ($monthly as $m) {
+        foreach ($series as $m) {
             // v1.4.0 — F1011: Monate vor der Zäsur beschreiben ein anderes
             // Gebäude. Sie dürfen weder das Saisonmittel noch die Regression
             // prägen, sonst prognostiziert der Tracker den Zustand vor der
@@ -198,7 +235,7 @@ final class ForecastService
         $reg = null;
         $regXMin = null;
         if ($hgt) {
-            $pts = $this->consumption->regressionPoints($monthly, $utility);
+            $pts = $this->consumption->regressionPoints($series, $utility);
             $model = (string)($opts['model'] ?? $this->settings->get('forecast_model', 'linear'));
             $reg = $this->regression->fit($model, $pts['x'], $pts['y'], $this->settings);
             // v3.7.0 (wirklichkeit-2) — die Heizkurve kennt nur Monate mit Heizgradtagen
@@ -206,11 +243,15 @@ final class ForecastService
             $regXMin = $pts['x'] !== [] ? (float)min($pts['x']) : null;
         }
         // v3.7.0 (#37) — mit dem Zähler: zu wenig gemessene Monate → über die Ablesungsabstände
-        $heat = $hgt ? $this->consumption->heatModel($utility, $monthly, $meter) : null;
+        $heat = $hpOn ? $hpw['model'] : ($hgt ? $this->consumption->heatModel($utility, $monthly, $meter) : null);
         // v3.7.0 (wirklichkeit-2) — Band und Heizanteil nur bei bestandener Gütesperre:
         // Bei echten Daten traf das 80-%-Band in keinem von fünf Rückblicken, weil das
         // Modell selbst danebenlag; ein Band um ein schlechtes Modell täuscht Sicherheit vor
-        $quality = $hgt ? $this->consumption->anomalyQuality($utility, $monthly) : null;
+        $quality = $hgt ? $this->consumption->anomalyQuality($utility, $series, $hpOn) : null;
+        // v3.13.0 (Paket waermepumpe) — das Heizmodell mit der Kalibrierung der Saldo-Karte (HeatPumpWeather::CALIBRATE_FORECAST):
+        // dieselben Monatsmengen in Prognose, Saldo und Werkstatt; nur mit verlässlichem Modell (sonst wie beim Gas)
+        $hpCal = $hpOn && HeatPumpWeather::CALIBRATE_FORECAST ? $this->consumption->heatPumpCalibration($utility, $hpw) : null;
+        if ($hpCal !== null && !$hpCal['trusted']) $hpCal = null;
         $poorFit = ($quality['model_quality'] ?? null) === 'poor';
         // v3.7.0 (wirklichkeit-2, Schritt 3, N3) — das Heizmodell steht nur auf den
         // Ablesungsabständen (oder fehlt), oder die Gütesperre kann es nicht prüfen:
@@ -224,6 +265,13 @@ final class ForecastService
         // Grundlast: a × HGT + max(c, gemessene Sommerrate Juni bis August) × Tage (`heat_model_summer`).
         // Ohne gemessenen Sommer das Heizmodell wie gehabt; ein Jahresmittel ist nie der Ersatz
         $baseEff = $heat !== null && !$heatTrusted && $summerRate !== null ? max((float)$heat['c'], $summerRate) : null;
+        // v3.13.0 (Paket sonne) — PV-Erzeugung und Einspeisung nach dem Wetter (PvWeatherModel); null bei anderen
+        // Zählern. Option `pv_weather` (true/false) übersteuert den Schalter (Rückrechnung alt gegen neu)
+        $pvw = $this->consumption->pvWeatherModel($utility, $meter, $monthly, isset($opts['pv_weather']) ? (bool)$opts['pv_weather'] : null);
+        $pvModel = $pvw['model'] ?? null;
+        // C2 — die Prognose verlangt das Klimanormal mit Einstrahlung (der Saldo kommt auch mit den eigenen Wetterdaten aus)
+        if ($pvModel !== null && !$this->consumption->climate()->hasRadiation()) { $pvw = ['model' => null, 'reason' => 'no_normal']; $pvModel = null; }
+        $pvRad12 = 0.0; $pvKRad12 = 0.0;
 
         // Fallback working price — the last month that carries one. Used only
         // when the active contract has no working price pflegt for a forecast
@@ -258,15 +306,17 @@ final class ForecastService
         // rechnete dann still mit einem Tarif, den es nicht gibt.
         // v3.1.0 (H6) — HT/NT einer Gruppe als Mischpreis
         // v3.12.0 (Nachprüfung B4) — bis wann jeder rechnet: Ein Bonus zählt an seinem Tag wie im Saldo (ContractService::bonusDay)
-        $contracts = array_values(array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->withRunsUntil(array_values(array_filter(
+        $rawContracts = $this->contracts->withRunsUntil(array_values(array_filter(
             $this->contracts->list($utility, (string)($meter['id'] ?? '')),
             fn($c) => empty($c['is_shadow'])
-        )))));
+        )));
+        $contracts = array_values(array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $rawContracts));
 
         // Unsicherheit (v2.8.0): Gewicht der Wetterstreuung = Verbrauch je
         // Gradtag, dazu das Rauschen des Modells.
         $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
         $slope = $heat['a'] ?? (($reg['model'] ?? '') === 'linear' ? (float)($reg['a'] ?? 0) : null);
+        if ($hpCal !== null && $slope !== null) $slope *= $hpCal['heat'];   // v3.13.0 — kalibrierter Heizanteil (s. $hpCal)
         $residSd = $heat['resid_sd'] ?? null;
         $fewYears = false;
         $ownSd = [];
@@ -292,6 +342,8 @@ final class ForecastService
             $fewYears = $dof < self::BAND_MIN_DOF;
             $residSd = $fewYears ? null : sqrt($sq / $dof);   // je Tag
         }
+        // v3.13.0 (Paket sonne) — PV nach dem Wetter: das Band kommt aus dem Modell (PvWeatherModel::month)
+        if ($pvModel !== null) $fewYears = false;
 
         // Build forecast months
         $start = new \DateTime((end($monthly)['ym'] ?? date('Y-m')) . '-01');
@@ -301,6 +353,20 @@ final class ForecastService
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Ihre Prognose rechnet der
         // Vertrag dieses Zählers nicht; Kosten und Abschlag nur auf den Rest
         $deduct = $this->deductionForecast($utility, $meter, $opts, $valueField, clone $start, $fcMonths);
+        // v3.13.0 (Paket vertrag, #40) — Gruppe mit HT/NT-Vertrag: die Menge eines Monats ist die Summe der
+        // Prognosen ihrer Zählwerke (s. memberQuantities)
+        // v3.13.0 (Paket vertrag, §4.5 B) — dazu je Monat die Menge, die der Vertrag je Zählwerk rechnet
+        // v3.13.0 (Paket waermepumpe, E2) — die HT/NT-Gruppe einer Wärmepumpe nach dem Wetter rechnet ihr eigenes
+        // Wettermodell und verteilt es nach den Anteilen ihrer Zählwerke (registerShares); die Zählwerke nehmen ihren
+        // Anteil davon (groupWeatherShare). Gruppe = HT + NT bleibt, ohne dass jedes Zählwerk ein eigenes Modell fittet
+        $hpShares = !empty($meter['is_group']) && $hpOn && $this->perRegisterGroup($utility, $meter, $contracts)
+            ? $this->consumption->registerShares($utility, $meter) : null;
+        ['qty' => $memberQty, 'billed' => $memberBilled] = !empty($meter['is_group']) && $hpShares === null
+            ? $this->memberQuantities($utility, $meter, $contracts, $opts, $valueField, $start->format('Y-m'), $fcMonths) : ['qty' => [], 'billed' => []];
+        // Das Zählwerk nimmt seinen Anteil auch dann, wenn es für sich unter dem Mindestmaß bleibt (die Gruppe besteht
+        // es): sonst wäre die Gruppe die Summe der Anteile, das Zählwerk aber nach dem alten Weg, Gruppe ≠ HT + NT
+        $fromGroup = empty($meter['is_group']) && $hpw !== null && ($hpOn || ($hpw['reason'] ?? null) !== 'not_validated')
+            ? $this->groupWeatherShare($utility, $meter, $opts) : [];
         // v3.9.0 (auswertung, Zusatzbefund) — ohne Wetterbezug und ohne zwölf gemessene
         // Kalendermonate ist das Profil ein Flickwerk: gemessene Monate aus einem Jahr, verteilte
         // als Mittel aller Jahre. Bei echten Strom-Daten (fast nur verteilt) lag die Prognose im
@@ -311,13 +377,18 @@ final class ForecastService
         $levelK = 1.0; $level = null;
         $coveredMonths = count(array_filter($avgRate, fn($v) => $v !== null));
         if (!$hgt && $coveredMonths < 12 && !Utilities::isDelivery($utility) && !Utilities::isFeedIn($utility)
-            && !Utilities::isGenerationOnly($utility) && ($level = self::lastYearLevel($monthly, $valueField)) !== null) {
+            && !Utilities::isGenerationOnly($utility)
+            // v3.13.0 (Paket speicher-auto) — das Niveau der letzten 365 Tage aus den bereinigten Monaten (s. $dev)
+            && ($level = self::lastYearLevel($dev !== null && $dev['adjusted'] ? $series : $monthly, $valueField)) !== null) {
             $profile = 0.0; $fcDays = 0;
             $d = clone $start;
             for ($i = 0; $i < 12; $i++, $d->modify('first day of next month')) {
                 $mo = (int)$d->format('n');
                 $dim = (int)$d->format('t');
-                $profile += ($avgRate[$mo] ?? $avgInterp[$mo] ?? $overallRate) * $dim;
+                // v3.13.0 (Paket speicher-auto) — Wallbox: Ladevorgänge vor verteilten Werten, die Annahme vor dem Mittel
+                $evS = ($evm['basis'][$mo] ?? null) === 'sessions' ? $evm['rate'][$mo] : null;
+                $evA = ($evm['basis'][$mo] ?? null) === 'assumption' ? $evm['rate'][$mo] : null;
+                $profile += ($avgRate[$mo] ?? $evS ?? $avgInterp[$mo] ?? $evA ?? $overallRate) * $dim;
                 $fcDays += $dim;
             }
             if ($profile > 0) $levelK = $level['per_day'] * $fcDays / $profile;
@@ -329,6 +400,7 @@ final class ForecastService
         $hddSource = null;
         $missing = [];
         $weatherVar = 0.0; $noiseVar = 0.0; $annualValue = 0.0; $bandMonths = 0; $bandOk = true; $regPart = 0.0;
+        $annualDed = 0.0;   // v3.13.0 (Paket waermepumpe) — Abzug der Subzähler in den ersten zwölf Monaten (Rest nach dem Wetter)
         for ($i = 0; $i < $fcMonths; $i++) {
             $ym = $start->format('Y-m');
             $mn = (int)$start->format('n');
@@ -338,7 +410,9 @@ final class ForecastService
             // Heizgradtage des Prognosemonats
             $hdd = null; $hddSd = null;
             if ($hgt) {
-                $normal = $this->consumption->hddNormal($mn, $hddBase - $tempOffset);
+                $shift = $shiftFor($yr);
+                if ($i === 0) $hpShift = $shift;
+                $normal = $this->consumption->hddNormal($mn, $hddBase - $tempOffset - $shift);
                 if ($normal !== null) {
                     $hdd = $normal['mean'];
                     $hddSd = $normal['sd'];
@@ -368,6 +442,12 @@ final class ForecastService
             }
             $heatVal = ($heat !== null && $hdd !== null)
                 ? $heat['a'] * $hdd + $heat['c'] * $daysInMonth : null;
+            // v3.13.0 (Paket waermepumpe) — kalibriert (s. $hpCal); die Mischung mit dem Saisonprofil nach R² bleibt,
+            // gemischt wird mit dem kalibrierten Heizmodell statt mit der Regression der Monatssummen
+            if ($hpCal !== null && $heatVal !== null) {
+                $heatVal = $heat['a'] * $hdd * $hpCal['heat'] + $heat['c'] * $daysInMonth * $hpCal['base'];
+                if ($regressionVal !== null) $regressionVal = $heatVal;
+            }
 
             if ($seasonalVal !== null && $regressionVal !== null) {
                 $blended = $blendW * $regressionVal + (1 - $blendW) * $seasonalVal;
@@ -390,6 +470,10 @@ final class ForecastService
                 // ohne Heizmodell: die Regression allein (bis v3.8 vor dem Heizmodell, s. HEAT_SUPPORT_MIN)
                 $blended = $regressionVal;
                 $method = 'regression_only';
+            } elseif (($evm['basis'][$mn] ?? null) === 'sessions') {
+                // v3.13.0 (Paket speicher-auto, §4.4 B) — Wallbox: der Kalendermonat aus ihren Ladevorgängen (evcc)
+                $blended = $evm['rate'][$mn] * $daysInMonth;
+                $method = 'ev_sessions';
             } elseif ($avgInterp[$mn] !== null) {
                 // v3.7.0 (#37) — nur verteilte Werte für diesen Kalendermonat
                 $blended = $avgInterp[$mn] * $daysInMonth;
@@ -398,12 +482,18 @@ final class ForecastService
                 // v3.9.0 — ohne Heizmodell auch aus langen Abständen: immer noch der Kalendermonat
                 $blended = $avgInterpAll[$mn] * $daysInMonth;
                 $method = 'seasonal_interpolated';
+            } elseif (($evm['basis'][$mn] ?? null) === 'assumption') {
+                // v3.13.0 (Paket speicher-auto, §4.4 B) — Wallbox ohne Vorgeschichte: nach der Annahme (DeviceArrival::EV_PER_KELVIN)
+                $blended = $evm['rate'][$mn] * $daysInMonth;
+                $method = 'ev_assumed';
             } else {
                 // Ohne Wetterbezug oder ohne Modell: Tagesmittel aller Monate
                 $blended = $overallRate * $daysInMonth;
                 $method = 'filled';
             }
             $blended *= $levelK;   // v3.9.0 — 1 außer beim Niveau der letzten 365 Tage (s. o.)
+            if (isset($memberQty[$ym])) $blended = $memberQty[$ym];   // v3.13.0 (Paket vertrag) — HT + NT
+            if (isset($fromGroup[$ym])) $blended = $fromGroup[$ym];   // v3.13.0 (E2) — Anteil am Wettermodell der Gruppe (Rest)
 
             // Band je Monat
             $bandLow = $bandHigh = null;
@@ -413,10 +503,22 @@ final class ForecastService
             // Ein Monat schwankt im Alltag um einige Prozent, auch wenn zwei Jahre gleich waren
             $nSd = $residSd !== null ? ($hgt ? $residSd
                 : max(max($residSd, $ownSd[$mn] ?? 0.0) * $daysInMonth, AnomalyService::noiseFloor($blended, 0.0))) : null;
+            // v3.13.0 (Paket waermepumpe) — Wärmepumpe nach dem Wetter ohne geprüftes Band: keins (HeatPumpWeather::BAND_ENABLED)
+            if ($hpOn && !$hpBand) { $wSd = null; $nSd = null; }
             if (!$poorFit && !$fewMeasured && ($wSd !== null || $nSd !== null)) {
                 $half = $z * sqrt(($wSd ?? 0.0) ** 2 + ($nSd ?? 0.0) ** 2);
                 $bandLow = round(max(0.0, $blended - $half), 1);
                 $bandHigh = round($blended + $half, 1);
+            }
+            // v3.13.0 (Paket sonne) — PV nach dem Wetter: k(Jahreszeit) × Einstrahlung des Normals, in gemessenen
+            // Kalendermonaten gemischt mit dem Saisonprofil (PvWeatherModel::PV_BLEND, wie die Heizkurve bei Gas)
+            $pvNormal = $pvModel !== null ? $this->consumption->climate()->radForMonth($mn) : null;
+            if ($pvNormal !== null) {
+                $p = PvWeatherModel::month($pvModel, $mn, $pvNormal, $daysInMonth, $z, $seasonalVal,
+                    PvWeatherModel::blendWeight($utility, !empty($pvNormal['trend'])));   // C2: mit Trend keine Mischung
+                [$blended, $bandLow, $bandHigh, $wSd, $nSd] = [$p['value'], $p['low'], $p['high'], $p['w_sd'], $p['n_sd']];
+                $method = $p['blended'] ? 'pv_weather_blend' : 'pv_weather';
+                if ($i < 12) { $pvRad12 += $pvNormal['mean']; $pvKRad12 += $p['k'] * $pvNormal['mean']; }
             }
             if ($i < 12) {
                 $annualValue += $blended;
@@ -433,19 +535,62 @@ final class ForecastService
             // F-02: full contract-aware monthly finance projection.
             // v3.9.0 (F1032) — mit Rest-Abrechnung auf die Restmenge (nie unter null)
             $ded = $deduct[$ym] ?? null;
+            // v3.13.0 (Paket waermepumpe) — nach dem Wetter steht $blended für die Menge des Vertrags (in der Kaskade
+            // der Rest); gemessen wird am Zähler Rest + Abzug, das Band wandert mit. Nicht bei der HT/NT-Gruppe mit der
+            // Summe ihrer Zählwerke (Paket vertrag, $memberQty): Dort ist $blended schon die Messung (jedes Zählwerk
+            // rechnet seinen Rest selbst nach dem Wetter, Gruppe = HT + NT). Seit E2 rechnet die HT/NT-Gruppe nach dem
+            // Wetter mit registerShares statt der Summe; die Bedingung bleibt als Rückfall. Das Zählwerk mit seinem
+            // Anteil an der Gruppe ($fromGroup) bekommt seinen Abzug auch unter dem eigenen Mindestmaß
+            if (($hpOn || isset($fromGroup[$ym])) && $ded !== null && !isset($memberQty[$ym])) {
+                $blended += $ded['kwh'];
+                if ($bandLow !== null) { $bandLow = round($bandLow + $ded['kwh'], 1); $bandHigh = round($bandHigh + $ded['kwh'], 1); }
+                if ($i < 12) $annualDed += $ded['kwh'];
+            }
             $billedVol = $ded !== null ? max(0.0, $blended - $ded['kwh']) : $blended;
+            // v3.13.0 (E2) — HT/NT-Gruppe nach dem Wetter: der Rest (auf 0,1 kWh, wie ihn die Zählwerke übernehmen) nach den
+            // Anteilen auf die Zählwerke; die Menge der Gruppe ist die Summe der Zählwerke (je Zeile gerundet wie dort)
+            if ($hpShares !== null) {
+                $restR = round($billedVol, 1);
+                $total = 0.0;
+                $memberBilled[$ym] = [];
+                foreach ($hpShares['shares'] as $mid => $byMonth) {
+                    $part = (float)($byMonth[$mn] ?? 0.0) * $restR;
+                    $own = 0.0;
+                    foreach ($hpShares['subs'][$mid] ?? [] as $sid) $own += (float)($ded['by'][$sid] ?? 0.0);
+                    $total += round($part + $own, 1);
+                    $memberBilled[$ym][$mid] = $part;
+                }
+                $blended = $total;
+                $billedVol = $restR;
+                if ($hpRestSink !== null) $hpRestSink[$ym] = $restR;
+            }
             $fin = $this->projectMonthFinances(
                 $utility, $contracts, $yr, $mn, $billedVol, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0
             );
-            $runningBalance += $fin['cost'] - ($fin['advance'] ?? 0.0);
             // v3.6.0 (F1031) — die Kosten eines Monats sind linear in der Menge
             // (Arbeitspreis × Menge + Grundpreis − Boni, tagesgenau). Fester Teil
             // und Preis je Einheit lassen die Prognose-Werkstatt andere Mengen
             // mit genau dieser Rechnung bewerten, ohne zweite Formel.
             $fixed = $this->projectMonthFinances($utility, $contracts, $yr, $mn, 0.0, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0)['cost'];
             $unit  = $this->projectMonthFinances($utility, $contracts, $yr, $mn, 1.0, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0)['cost'] - $fixed;
+            // v3.13.0 (Paket vertrag, Konzept §4.5 B) — HT/NT-Gruppe: die Arbeit des Monats je Zählwerk zu seinem Preis
+            // (memberEnergyCost) statt Gesamtmenge × Mischpreis der letzten zwölf Monate; Grundpreis, Abschlag und Boni
+            // wie bisher aus dem Gruppenvertrag. Der Preis je Einheit ist der des Monats (für die Werkstatt).
+            if (isset($memberBilled[$ym])) {
+                $billedVol = array_sum($memberBilled[$ym]);
+                $energy = $this->memberEnergyCost($utility, $rawContracts, $memberBilled[$ym], $yr, $mn, $fallbackPrice, $priceFactor);
+                $fin['cost'] = $fixed + $energy;
+                if ($billedVol > 0) {
+                    $unit = $energy / $billedVol;
+                    $fin['working_price_ct'] = $unit * 100;
+                }
+            }
+            $runningBalance += $fin['cost'] - ($fin['advance'] ?? 0.0);
+            if ($sink !== null) $sink[$ym] = $billedVol;
             // Heizanteil des Monats aus dem Heizmodell (a × HGT gegen Grundlast c × Tage)
-            $heatShare = ($heat !== null && $hdd !== null && $heatVal > 0) ? $heat['a'] * $hdd / $heatVal : null;
+            // v3.13.0 (Paket waermepumpe) — Rest nach dem Wetter: Anteil an der Menge des Zählers (Rest + Abzug)
+            $heatShare = ($heat !== null && $hdd !== null && $heatVal > 0)
+                ? $heat['a'] * $hdd / ($heatVal + ($hpOn && $ded !== null ? $ded['kwh'] : 0.0)) : null;
 
             $forecast[] = [
                 'ym'                => $ym,
@@ -476,6 +621,7 @@ final class ForecastService
             }
             $start->modify('first day of next month');
         }
+        $forecast = $this->withGroupContract($utility, $meter, $forecast);
 
         // Jahresband: Das Wetter eines Jahres wirkt auf alle Monate zugleich —
         // mit der Jahresstreuung aus dem Klimanormal statt der Monatssumme.
@@ -483,16 +629,25 @@ final class ForecastService
         // das Jahr ohne Band (v3.7.0, wirklichkeit-2): Gütesperre, zu wenig gemessen (Schritt 3,
         // N3) oder ohne Heizmodell keine Streuung über die Jahre (N1)
         $withheld = $poorFit ? 'poor_fit' : ($fewMeasured ? 'few_measured' : ($fewYears ? 'few_years' : null));
+        // v3.13.0 (Paket sonne) — PV nach dem Wetter mit zu wenigen Abständen für eine Streuung: das Jahr ohne Band
+        if ($pvModel !== null && empty($pvModel['band'])) $withheld = 'pv_few_points';
+        // v3.13.0 (Paket waermepumpe) — Wärmepumpe nach dem Wetter, Band nicht freigeschaltet (HeatPumpWeather::BAND_ENABLED)
+        if ($hpOn && !$hpBand) $withheld ??= 'heat_pump_band';
         if ($bandMonths === 12 && $withheld !== null) {
-            $annual = ['value' => round($annualValue, 1), 'low' => null, 'high' => null, 'sigma' => $z, 'level_pct' => null, 'withheld' => $withheld];
+            $annual = ['value' => round($annualValue + $annualDed, 1), 'low' => null, 'high' => null, 'sigma' => $z, 'level_pct' => null, 'withheld' => $withheld];
         } elseif ($bandMonths === 12 && $bandOk) {
-            $yearSd = ($hgt && $slope !== null) ? $this->consumption->hddNormalYearSd($hddBase - $tempOffset) : null;
+            $yearSd = ($hgt && $slope !== null) ? $this->consumption->hddNormalYearSd($hddBase - $tempOffset - $hpShift) : null;
             $weather = $yearSd !== null ? ($slope * $yearSd) ** 2 : $weatherVar;
+            // v3.13.0 (Paket sonne) — PV: die Sonne eines Jahres wirkt auf alle Monate zugleich (Streuung der
+            // Jahressumme im Normal × mittleres k der zwölf Monate, nach der Einstrahlung gewichtet)
+            $radYearSd = $pvModel !== null ? $this->consumption->climate()->radYearSd() : null;
+            if ($radYearSd !== null && $pvRad12 > 0) $weather = ($pvKRad12 / $pvRad12 * $radYearSd) ** 2;
             $half = $z * sqrt($weather + $noiseVar);
+            // v3.13.0 (Paket waermepumpe) — `$annualDed` 0 außer beim Rest nach dem Wetter (Band um den Rest, Jahr am Zähler)
             $annual = [
-                'value'     => round($annualValue, 1),
-                'low'       => round(max(0.0, $annualValue - $half), 1),
-                'high'      => round($annualValue + $half, 1),
+                'value'     => round($annualValue + $annualDed, 1),
+                'low'       => round(max(0.0, $annualValue - $half) + $annualDed, 1),
+                'high'      => round($annualValue + $half + $annualDed, 1),
                 'sigma'     => $z,
                 'level_pct' => (int)round((2 * self::normalCdf($z) - 1) * 100),
             ];
@@ -547,6 +702,18 @@ final class ForecastService
             $warnings[] = ['code' => 'regression_invalid', 'model' => (string)($reg['model'] ?? ''), 'reason' => (string)($reg['reason'] ?? 'too_few_points'),
                 'n' => (int)($reg['n'] ?? 0), 'r2' => isset($reg['r2']) ? (float)$reg['r2'] : null];
         }
+        // v3.13.0 (Paket sonne) — PV ohne Wettermodell: warum das Saisonprofil bleibt (Lektion 33: nicht stumm)
+        if ($pvw !== null && $pvModel === null) $warnings[] = ['code' => 'pv_no_weather', 'reason' => $pvw['reason']];
+        // v3.13.0 (Paket waermepumpe) — Wärmepumpe ohne Wettermodell: warum das Saisonprofil bleibt (zeigen statt raten)
+        if ($hpw !== null && !$hpOn) $warnings[] = ['code' => 'heat_pump_no_weather', 'reason' => $hpw['reason']];
+        // v3.13.0 (Paket speicher-auto) — Speicher bzw. Wallbox neu im Verlauf: bereinigt oder warum nicht (mit Zäsur-Vorschlag)
+        foreach ($dev['warnings'] ?? [] as $w) $warnings[] = $w;
+        // v3.13.0 (Paket speicher-auto, §4.4 B) — Wallbox: welche Kalendermonate aus Ladevorgängen bzw. der Annahme kommen
+        $evUsed = fn(string $m) => array_values(array_unique(array_map(fn($f) => (int)$f['month'], array_filter($forecast, fn($f) => $f['method'] === $m))));
+        if ($evm !== null && ($evUsed('ev_sessions') !== [] || $evUsed('ev_assumed') !== [])) {
+            $warnings[] = ['code' => 'ev_months', 'sessions' => $evUsed('ev_sessions'), 'assumed' => $evUsed('ev_assumed'),
+                'per_kelvin_pct' => DeviceArrival::EV_PER_KELVIN * 100, 'temp_ref' => DeviceArrival::EV_TEMP_REF];
+        }
 
         // v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario: Mehrkosten ab einem Jahr, wenn der
         // Preis höher läge. Nur Ausweis — cost_estimated bleibt unverändert.
@@ -570,7 +737,7 @@ final class ForecastService
             }
         }
 
-        return [
+        $result = [
             'valid'        => true,
             'utility'      => $u['key'],
             'meter_id'     => $meter['id'],
@@ -601,6 +768,173 @@ final class ForecastService
                 'forecast_months' => $fcMonths,
             ],
         ];
+        // v3.13.0 (Paket waermepumpe, additiv, nur Strom nach dem Wetter) — wie die Wärmepumpe gerechnet wird:
+        // `kind` (UtilityWeather), `on` (Heizmodell und Klimanormal), `reason` (sonst warum nicht), `band`
+        // v3.13.0 (E2) — `normal_shift`: um wie viele Kelvin das Normal wärmer gerechnet ist (Trend der Temperatur)
+        if ($hpw !== null) $result['heat_pump_weather'] = ['kind' => $hpw['kind'], 'on' => $hpOn, 'reason' => $hpw['reason'], 'band' => $hpBand]
+            + ($hpOn ? ['normal_shift' => round($hpShift, 3)] : []);
+        // v3.13.0 (Paket sonne, additiv, nur PV-Zähler) — das Wettermodell der PV oder warum es fehlt
+        if ($pvw !== null) {
+            $normal = $this->consumption->climate()->summary();
+            $trend = $this->consumption->climate()->hasRadiationTrend();
+            $result['pv_model'] = $pvModel !== null
+                ? ['blend' => PvWeatherModel::blendWeight($utility, $trend), 'normal_method' => $trend ? 'linear_annual' : 'flat']
+                    + PvWeatherModel::summary($pvModel) + ['normal_period' => $normal['period'] ?? null]
+                : ['reason' => $pvw['reason']];
+        }
+        return $result;
+    }
+
+    /**
+     * v3.13.0 (Paket waermepumpe, E2) — rechnet diese Gruppe je Zählwerk (Vertrag mit Preis je Zählwerk, mindestens
+     * zwei Zählwerke in der Summe)? Dieselbe Bedingung wie memberQuantities().
+     *
+     * @param list<array<string,mixed>> $contracts
+     */
+    /**
+     * v3.13.0 — Ein Zählwerk, das über einen Gruppenvertrag rechnet (ConsumptionService::contractScope): Ein Prognosemonat
+     * ohne eigenen Vertrag trägt den Gruppenvertrag, der am Monatsersten gilt (ContractService::resolveForDate, auch
+     * weiterlaufend), als `contract_id`. So greift „Preis fehlt“ (ConsumptionService::priceMissingIn) wie an den
+     * gemessenen Monaten: Prognose des Zählwerks, `/api/summary` (`forecast_12m.price_missing`), KI und Jahresbericht.
+     * Die Beträge bleiben (Arbeit zum Preis des Zählwerks; Grundpreis und Abschlag trägt die Prognose der Gruppe). Bis
+     * dahin `contract_id: null`: Ohne Arbeitspreis für das Zählwerk nannte `forecast_12m` 0,00 € Kosten ohne Kennzeichen.
+     *
+     * @param list<array<string,mixed>> $forecast
+     * @return list<array<string,mixed>>
+     */
+    private function withGroupContract(string $utility, array $meter, array $forecast): array
+    {
+        $gid = (string)($meter['meter_group_id'] ?? '');
+        if ($gid === '' || !empty($meter['is_group'])) return $forecast;
+        [$scope, $ctx] = $this->consumption->contractScope($utility, $meter);
+        if ($ctx === null) return $forecast;
+        $group = array_values(array_filter($scope, fn($c) => ($c['meter_group_id'] ?? null) === $gid));
+        foreach ($forecast as &$r) {
+            if (($r['contract_id'] ?? null) !== null || !preg_match('/^\d{4}-\d{2}$/', (string)($r['ym'] ?? ''))) continue;
+            $gc = $this->contracts->resolveForDate($group, $r['ym'] . '-01')['contract'] ?? null;
+            if (is_array($gc) && is_string($gc['id'] ?? null)) $r['contract_id'] = $gc['id'];
+        }
+        unset($r);
+        return $forecast;
+    }
+
+    private function perRegisterGroup(string $utility, array $group, array $contracts): bool
+    {
+        if (!array_filter($contracts, fn($c) => !empty($c['working_prices_by_meter']))) return false;
+        return count($this->consumption->groupSumMembers($utility, (string)$group['id'])) >= 2;
+    }
+
+    /**
+     * v3.13.0 (Paket waermepumpe, E2) — Zählwerk einer HT/NT-Gruppe, die nach dem Wetter rechnet: sein Anteil am Rest
+     * der Gruppe je Monat (Anteil des Kalendermonats × Rest der Gruppe auf 0,1 kWh), dazu rechnet forMeter() seinen
+     * eigenen Abzug. Leer, wenn der Zähler zu keiner solchen Gruppe gehört (dann rechnet er für sich). Bis E2 fittete
+     * nach dem Merge von Paket vertrag jedes Zählwerk sein eigenes Modell, und die Gruppe nahm die Summe: am
+     * Prüfhaushalt A/V1 nachgerechnet 21,1 % statt 9,3 % mit dem Modell der Gruppe.
+     *
+     * @return array<string,float> ym → Rest dieses Zählwerks
+     */
+    private function groupWeatherShare(string $utility, array $meter, array $opts): array
+    {
+        $gid = (string)($meter['meter_group_id'] ?? '');
+        $group = $gid !== '' ? $this->consumption->groupTarget($utility, $gid) : null;
+        if ($group === null) return [];
+        $gContracts = array_values(array_filter($this->contracts->list($utility, $gid), fn($c) => empty($c['is_shadow'])));
+        if (!$this->perRegisterGroup($utility, $group, $gContracts)) return [];
+        if (!($this->consumption->heatPumpWeather($utility, $group, $this->consumption->forMeter($utility, $group), 'forecast')['on'] ?? false)) return [];
+        $shares = $this->consumption->registerShares($utility, $group)['shares'][(string)$meter['id']] ?? null;
+        if ($shares === null) return [];
+        $rest = new \ArrayObject();
+        $this->forMeter($utility, $group, ['hp_rest_sink' => $rest] + $opts);
+        $out = [];
+        foreach ($rest->getArrayCopy() as $ym => $r) $out[(string)$ym] = (float)($shares[(int)substr((string)$ym, 5, 2)] ?? 0.0) * (float)$r;
+        return $out;
+    }
+
+    /**
+     * v3.13.0 — Der letzte Monat, den jedes Mitglied einer Gruppe mit einer Monatszeile gemessen hat, wenn das nicht bei
+     * allen derselbe ist; sonst null. Danach fehlt in der Monatszeile der Gruppe ein Mitglied.
+     */
+    private function groupLastCommonMonth(string $utility, array $group): ?string
+    {
+        $last = [];
+        foreach ($this->consumption->groupSumMembers($utility, (string)($group['id'] ?? '')) as $m) {
+            $rows = $this->consumption->forMeter($utility, $m);
+            if ($rows !== []) $last[] = (string)end($rows)['ym'];
+        }
+        return count($last) >= 2 && min($last) !== max($last) ? (string)min($last) : null;
+    }
+
+    /**
+     * v3.13.0 (Paket vertrag, #40) — Eine Gruppe, deren Vertrag Arbeitspreise je Zählwerk führt (HT/NT,
+     * `working_prices_by_meter`), prognostiziert je Monat die Summe der Prognosen ihrer Mitglieder (ohne
+     * Subzähler eines Mitglieds). Aus der Summe der Monate gerechnet wich die Gruppe ab, weil Arten ohne
+     * Wetterbezug ab drei Werten je Kalendermonat den Median nehmen (Median der Summe ist nicht die Summe der
+     * Mediane): im Beispielhaushalt „Eigenheim klassisch“ HT + NT 3.204,9 kWh, die Gruppe 3.204,6 kWh. Fehlt
+     * einem Mitglied die Prognose oder der Monat, rechnet die Gruppe diesen Monat wie bisher selbst.
+     *
+     * Dazu je Monat die ungerundete Menge, die der Vertrag je Zählwerk rechnet (`billed`: Messung, mit
+     * Rest-Abrechnung der Rest HT − HT, NT − NT), für die Arbeit zum Preis des Zählwerks (memberEnergyCost).
+     *
+     * v3.13.0 — Jedes Mitglied prognostiziert bis zum letzten Monat der Gruppe (`$startYm` + `$months`), auch wenn es
+     * früher zuletzt abgelesen ist: Seine Prognose beginnt nach seinem eigenen letzten Stand und reichte sonst Monate vor
+     * dem Ende der Gruppe aus. Dort rechnete die Gruppe dann selbst, aus Monatszeilen ohne dieses Mitglied (HT ohne NT).
+     *
+     * @param list<array<string,mixed>> $contracts Verträge der Gruppe (ohne Schattenverträge)
+     * @return array{qty: array<string,float>, billed: array<string,array<string,float>>} ym → Menge bzw. ym → Zählwerk → Menge
+     */
+    private function memberQuantities(string $utility, array $group, array $contracts, array $opts, string $vf, ?string $startYm = null, int $months = 12): array
+    {
+        $none = ['qty' => [], 'billed' => []];
+        if (!array_filter($contracts, fn($c) => !empty($c['working_prices_by_meter']))) return $none;
+        $members = $this->consumption->groupSumMembers($utility, (string)$group['id']);
+        if (count($members) < 2) return $none;
+        $sum = null; $billed = null;
+        foreach ($members as $m) {
+            // eine eigene Heizgrenze der Gruppe gilt für ihre Summe (wie ConsumptionService::forMeter)
+            if (is_numeric($group['hdd_base_temp'] ?? null)) $m['hdd_base_temp'] = (float)$group['hdd_base_temp'];
+            $sink = new \ArrayObject();
+            // v3.13.0 — so viele Monate mehr, wie sein letzter Stand vor dem der Gruppe liegt (s. oben)
+            $ownRows = $this->consumption->forMeter($utility, $m);
+            $mOpts = $opts;
+            if ($startYm !== null && $ownRows !== []) {
+                $mStart = (new \DateTimeImmutable((string)end($ownRows)['ym'] . '-01'))->modify('first day of next month');
+                $gap = ((int)substr($startYm, 0, 4) - (int)$mStart->format('Y')) * 12 + (int)substr($startYm, 5, 2) - (int)$mStart->format('n');
+                if ($gap > 0) $mOpts['forecast_months'] = $months + $gap;
+            }
+            $f = $this->forMeter($utility, $m, ['qty_sink' => $sink] + $mOpts);
+            if (empty($f['valid'])) return $none;
+            $mid = (string)$m['id'];
+            $rows = array_map('floatval', array_column((array)$f['forecast'], $vf, 'ym'));
+            $own = array_map(fn($v) => [$mid => (float)$v], $sink->getArrayCopy());
+            if ($sum === null) { $sum = $rows; $billed = $own; continue; }
+            $sum = array_intersect_key($sum, $rows);
+            foreach ($sum as $ym => $v) $sum[$ym] = $v + $rows[$ym];
+            $billed = array_intersect_key($billed, $own);
+            foreach ($billed as $ym => $v) $billed[$ym] = $v + $own[$ym];
+        }
+        return ['qty' => $sum ?? [], 'billed' => array_intersect_key($billed ?? [], $sum ?? [])];
+    }
+
+    /**
+     * v3.13.0 (Paket vertrag, Konzept §4.5 B) — Arbeit eines Prognosemonats einer HT/NT-Gruppe: je Zählwerk seine
+     * Menge zu seinem Arbeitspreis aus `working_prices_by_meter` (tagesgenau wie jeder Monat), auf den Cent je
+     * Zählwerk wie dessen eigene Monatszeile. Bis dahin rechnete die Gruppe die Gesamtmenge mit einem Mischpreis,
+     * gewichtet mit den letzten zwölf Monaten; verschob sich das Verhältnis HT : NT (Speicher, PV, Wallbox), lag sie
+     * im Prüfhaushalt bis 54 € im Jahr neben „Zählwerke + Grundpreis“.
+     *
+     * @param list<array<string,mixed>> $rawContracts Verträge der Gruppe ohne Mischpreis (vor contractView)
+     * @param array<string,float> $billed Zählwerk → Menge des Monats
+     */
+    private function memberEnergyCost(string $utility, array $rawContracts, array $billed, int $year, int $month, float $fallbackPrice, float $priceFactor): float
+    {
+        $sum = 0.0;
+        foreach ($billed as $mid => $q) {
+            $own = array_map(fn($c) => ['working_prices' => ContractService::workingPricesFor($c, (string)$mid)] + $c, $rawContracts);
+            $full = $this->projectMonthFinances($utility, $own, $year, $month, $q, $fallbackPrice, $priceFactor)['cost'];
+            $zero = $this->projectMonthFinances($utility, $own, $year, $month, 0.0, $fallbackPrice, $priceFactor)['cost'];
+            $sum += round($full - $zero, 2);
+        }
+        return $sum;
     }
 
     /**

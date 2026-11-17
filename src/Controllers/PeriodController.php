@@ -17,7 +17,8 @@ final class PeriodController
 
     public function index(Request $req): never
     {
-        Response::json($this->periods->list((string)$req->param('utility'), $req->queryParam('meter_id')));
+        // v3.13.0 (K2d) — was gespeichert ist, auch ein Zeitraum, den die Rechnung auslässt (zum Finden und Löschen)
+        Response::json($this->periods->stored((string)$req->param('utility'), $req->queryParam('meter_id')));
     }
 
     public function create(Request $req): never
@@ -40,7 +41,7 @@ final class PeriodController
     public function importCsv(Request $req): never
     {
         Response::json($this->periods->importCsv(
-            (string)$req->param('utility'), (string)$req->param('id'), $req->rawBody, $req->queryParam('dry_run') === '1'
+            (string)$req->param('utility'), (string)$req->param('id'), $req->rawBody, $req->flag('dry_run')
         ));
     }
 

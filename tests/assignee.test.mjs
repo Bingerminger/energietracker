@@ -157,6 +157,8 @@ t('Verlauf-Filter: Person mit Vermerk', A.personsIn([{ by: { type: 'person', id:
 t('Verlauf: KI über den Schlüssel (via mcp), sonst API-Schlüssel',
   A.byText({ type: 'key', name: 'Laptop', via: 'mcp' }) === 'KI (Schlüssel „Laptop“)' && A.byText({ type: 'key', name: 'HA' }) === 'API-Schlüssel „HA“'
   && A.AREAS.reading === 'readings', A.byText({ type: 'key', name: 'Laptop', via: 'mcp' }));
+// v3.13.0 (Paket vertrag) — eine erfasste Auszahlung der Einspeisung steht im Bereich Verträge
+t('Verlauf: Auszahlung der Einspeisung im Bereich Verträge', A.AREAS.feed_in_payout === 'contracts');
 // v3.12.0 (Skeptiker M1) — in der App bestätigt: Der Verlauf nennt den Schlüssel und die Person
 t('Verlauf: vorgeschlagen über den Schlüssel, bestätigt von der Person',
   /Laptop/.test(A.byText({ type: 'key', name: 'Laptop', via: 'mcp', confirmed_by: { type: 'person', name: 'Anna' } }))

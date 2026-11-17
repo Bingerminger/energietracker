@@ -43,8 +43,11 @@ final class HealthCheckService
         private JsonStore $store,
     ) {}
 
-    /** @return array<string,mixed> */
-    public function run(): array
+    /**
+     * @param bool $withIssues v3.13.0 (K2d) — die Funde im Bestand mitzählen (minimal() braucht sie nicht)
+     * @return array<string,mixed>
+     */
+    public function run(bool $withIssues = true): array
     {
         // VERSION-Datei: einzige Quelle für die App-Version (siehe
         // workflow-Skill, Schritt [2]). Liegt im Projekt-Root.
@@ -69,7 +72,9 @@ final class HealthCheckService
         $newer = $this->safe(fn() => $migrator->dataSchemaIsNewer());
         // v3.12.0 — ein leeres Datenverzeichnis wartet auf den ersten Aufruf der Oberfläche (der
         // Gesundheitscheck legt es nicht mehr an, s. App); dort steht keine Migration aus
-        $pending = $this->safe(fn() => $migrator->isPristine() ? 0 : $migrator->pendingSteps(), 0);
+        // v3.13.0 — und das sagt die Antwort ausdrücklich (`data_initialized`), statt „?“ als Schema zu melden
+        $pristine = (bool)$this->safe(fn() => $migrator->isPristine(), false);
+        $pending = $this->safe(fn() => $pristine ? 0 : $migrator->pendingSteps(), 0);
         $checks['schema'] = match (true) {
             $newer !== null => ['ok' => false, 'level' => 'error', 'data_schema' => $newer, 'app_schema' => Migrator::SCHEMA_VERSION],
             $pending > 0    => ['ok' => false, 'level' => 'degraded', 'pending_steps' => $pending],
@@ -105,7 +110,11 @@ final class HealthCheckService
         return [
             'status'             => $status,
             'version'            => $version,
-            'schema_version'     => (string)($meta['schema_version'] ?? '?'),
+            // v3.13.0 — ein frisches Datenverzeichnis bekommt beim ersten Aufruf genau dieses Schema (initFresh,
+            // ohne Migration); bis dahin stand hier „?“, und ein Monitor hielt es für beschädigt
+            'schema_version'     => $pristine ? Migrator::SCHEMA_VERSION : (string)($meta['schema_version'] ?? '?'),
+            // v3.13.0 (additiv) — false: noch nicht eingerichtet; der erste gewöhnliche Aufruf legt es an
+            'data_initialized'   => !$pristine,
             'data_dir_writable'  => $writable,
             // Seit v2.6.0 die Zahl der ausstehenden Stufen (bisher 0/1).
             'migrations_pending' => (int)$pending,
@@ -118,6 +127,12 @@ final class HealthCheckService
             'php_version'        => PHP_VERSION,
             'timezone'           => date_default_timezone_get(),
             'last_ingest'        => $this->lastIngest(),
+            // v3.13.0 (K2d) — additiv und bewusst nicht unter `checks`: Werte einer älteren Version, die die Schreibwege
+            // heute abweisen, mit Anzahl und Art (`date_range`, `setting` …). Die App rechnet ohne sie weiter; der Status
+            // bleibt deshalb, wie er ist (kein `degraded`, kein 503), und der HEALTHCHECK im Container kippt nicht.
+            // Die Liste mit Topf und Kennung steht in der Diagnose.
+            'data_issues'        => $pristine || !$withIssues ? ['count' => 0, 'kinds' => new \stdClass()]
+                                    : $this->safe(fn() => (new DataIssues($this->store))->summary(), ['count' => 0, 'kinds' => new \stdClass()]),
             'checks'             => $checks,
         ];
     }
@@ -125,7 +140,7 @@ final class HealthCheckService
     /** Minimalform für nicht angemeldete Aufrufer bei aktiver Anmeldung. */
     public function minimal(): array
     {
-        $full = $this->run();
+        $full = $this->run(false);
         return ['status' => $full['status'], 'version' => $full['version']];
     }
 
@@ -194,8 +209,9 @@ final class HealthCheckService
                 if (!is_array($r)) continue;
                 $isIngest = ($r['source'] ?? null) === 'ingest' || ($r['note'] ?? null) === 'Home Assistant';
                 if (!$isIngest) continue;
-                $id = (string)($r['meter_id'] ?? '');
-                $d  = (string)($r['date'] ?? '');
+                // v3.13.0 (K2d) — nur Text oder Zahl: `(string)` auf eine Liste aus einer älteren Version ist eine Warnung (500)
+                $id = is_scalar($r['meter_id'] ?? null) ? (string)$r['meter_id'] : '';
+                $d  = is_string($r['date'] ?? null) ? $r['date'] : '';
                 if ($id !== '' && $d > ($out[$id] ?? '')) $out[$id] = $d;
             }
         }

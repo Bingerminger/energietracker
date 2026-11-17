@@ -30,6 +30,8 @@ final class McpConsistencyTest extends McpReadTestCase
         yield 'erfunden' => ['household', self::TODAY];
         yield 'unordentlich' => ['messy', self::MESSY_TODAY];
         yield 'demo' => ['demo', self::DEMO_TODAY];
+        // v3.13.0 — Verträge, die nicht glatt laufen (Einzug, Auszug, Gruppe, Termine, Preis erst später)
+        yield 'vertraege' => ['edge', self::EDGE_TODAY];
     }
 
     private string $today = self::TODAY;
@@ -40,6 +42,7 @@ final class McpConsistencyTest extends McpReadTestCase
         match ($which) {
             'household' => $this->household(),
             'messy'     => $this->messy(),
+            'edge'      => $this->edge(),
             default     => $this->persona($which),
         };
     }
@@ -146,15 +149,16 @@ final class McpConsistencyTest extends McpReadTestCase
             $total = $this->consumption->forUtility($u)['monthly_total'];
             $out = $this->call('get_consumption', ['utility' => $u]);
             $rows = array_slice($total, -60);
-            self::assertSame(array_map(fn($r) => [(string)$r['ym'], round((float)$r[$vf], 3), round((float)$r['cost'], 2)], $rows),
-                array_map(fn($r) => [$r['period'], $r['value'], $r['cost'] ?? $r['revenue'] ?? 0.0], $out['rows']), "$which $u Summe der Art");
+            // v3.13.0 — Preis fehlt (ein Zähler der Art ohne Arbeitspreis): REST behält den Betrag mit Kennzeichen, die KI nennt keinen
+            self::assertSame(array_map(fn($r) => [(string)$r['ym'], round((float)$r[$vf], 3), !empty($r['price_missing']) ? null : round((float)$r['cost'], 2)], $rows),
+                array_map(fn($r) => [$r['period'], $r['value'], $r['cost'] ?? $r['revenue'] ?? (!empty($r['price_missing']) ? null : 0.0)], $out['rows']), "$which $u Summe der Art");
             foreach ($this->meters->list($u) as $m) {
                 $monthly = $this->consumption->forMeter($u, $m);
                 if ($monthly === []) continue;
                 $mo = $this->call('get_consumption', ['utility' => $u, 'meter' => (string)$m['id']]);
                 $last = array_slice($monthly, -60);
-                self::assertSame(array_map(fn($r) => [(string)$r['ym'], round((float)$r[$vf], 3), round((float)$r['cost'], 2), (int)$r['days']], $last),
-                    array_map(fn($r) => [$r['period'], $r['value'], $r['cost'] ?? $r['revenue'] ?? 0.0, $r['days']], $mo['rows']), "$which $u {$m['id']}");
+                self::assertSame(array_map(fn($r) => [(string)$r['ym'], round((float)$r[$vf], 3), !empty($r['price_missing']) ? null : round((float)$r['cost'], 2), (int)$r['days']], $last),
+                    array_map(fn($r) => [$r['period'], $r['value'], $r['cost'] ?? $r['revenue'] ?? (!empty($r['price_missing']) ? null : 0.0), $r['days']], $mo['rows']), "$which $u {$m['id']}");
                 // „≈“ der Oberfläche (interpolated === true) ⇔ nicht gemessen
                 foreach ($last as $i => $r) {
                     if (($r['interpolated'] ?? null) === null) continue;
@@ -164,9 +168,10 @@ final class McpConsistencyTest extends McpReadTestCase
                 $bp = $this->call('get_consumption', ['utility' => $u, 'meter' => (string)$m['id'], 'granularity' => 'billing_period']);
                 $periods = array_values(array_filter($this->svc(BillingPeriodService::class)->forTarget($u, $m, false, $today)['periods'],
                     fn($p) => is_string($p['as_of'] ?? null)));
-                self::assertSame(array_map(fn($p) => [$p['from'], $p['until'], round((float)$p[$vf], 3), round((float)$p['cost'], 2), round((float)$p['balance'], 2)], $periods),
+                self::assertSame(array_map(fn($p) => [$p['from'], $p['until'], round((float)$p[$vf], 3), !empty($p['price_missing']) ? null : round((float)$p['cost'], 2), round((float)$p['balance'], 2)], $periods),
                     // v3.12.0 (Nachprüfung B2) — ohne Vertrag steht dort kein Betrag; die App rechnet 0
-                    array_map(fn($r) => [$r['from'], $r['until'], $r['value'], $r['cost'] ?? 0.0, $r['balance'] ?? 0.0], $bp['rows']), "$which $u {$m['id']} Abrechnungsjahre");
+                    // v3.13.0 — Preis fehlt: kein Kostenbetrag, der Saldo bleibt (nur Grundpreis und Abschläge, `no_price`)
+                    array_map(fn($r) => [$r['from'], $r['until'], $r['value'], $r['cost'] ?? (!empty($r['price_missing']) ? null : 0.0), $r['balance'] ?? 0.0], $bp['rows']), "$which $u {$m['id']} Abrechnungsjahre");
                 self::assertSame(array_map(fn($p) => [$p['advance_vs_cost']['factor'] ?? null, $p['advance_vs_cost']['contract_id'] ?? null], $periods),
                     array_map(fn($r) => [$r['advance_vs_cost']['factor'] ?? null, $r['advance_vs_cost']['contract_id'] ?? null], $bp['rows']), "$which $u {$m['id']} Abschläge gegen Kosten");
             }

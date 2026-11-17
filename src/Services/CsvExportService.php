@@ -162,21 +162,33 @@ final class CsvExportService
             foreach ($this->meters->list($utility) as $meter) {
                 $meterNames[$meter['id']] = $meter['name'] ?? $meter['id'];
             }
+            // v3.13.0 (K2d) — drei Spalten mehr, hinten angehängt: „nur für die Abrechnung“, „gemeldet am“ und
+            // „Stand ist richtig“. Ohne sie war die Rundreise nicht verlustfrei: Ein Stand nur für die Abrechnung
+            // zählte nach dem Import wieder als Monatsstand.
             $rows = [$this->d['local']
-                ? $this->headers('csvLocal.readings.', ['meterId', 'meter', 'deviceId', 'date', 'reading', 'price', 'note', 'estimated', 'future'])
-                : ['Zaehler-ID', 'Zaehler', 'Geraet-ID', 'Datum', 'Zaehlerstand', 'Preis (ct)', 'Notiz', 'Geschaetzt', 'Zukunft']];
-            foreach ($this->readings->list($utility) as $r) {
+                ? $this->headers('csvLocal.readings.', ['meterId', 'meter', 'deviceId', 'date', 'reading', 'price', 'note', 'estimated', 'future',
+                    'billingOnly', 'reportedOn', 'verified'])
+                : ['Zaehler-ID', 'Zaehler', 'Geraet-ID', 'Datum', 'Zaehlerstand', 'Preis (ct)', 'Notiz', 'Geschaetzt', 'Zukunft',
+                    'Nur-Abrechnung', 'Gemeldet-am', 'Bestaetigt']];
+            $yes = fn(array $r, string $f): bool => \Energietracker\Support\Input::bool($r[$f] ?? false) === true;
+            foreach ($this->readings->stored($utility) as $r) {   // v3.13.0 (K2d) — alles, was gespeichert ist
+                // v3.13.0 (K2d) — gespeichert heißt auch: eine Liste oder ein Objekt aus einer älteren Version; die Zelle
+                // bleibt dann leer (bisher brach der Export ab)
+                $mid = self::text($r['meter_id'] ?? null);
                 $rows[] = [
-                    $r['meter_id'] ?? '',
-                    ($meterNames[$r['meter_id'] ?? ''] ?? ''),
-                    $r['device_id'] ?? '',
-                    $this->date($r['date'] ?? ''),
+                    $mid,
+                    self::text($meterNames[$mid] ?? ''),
+                    self::text($r['device_id'] ?? null),
+                    $this->date(self::text($r['date'] ?? null)),
                     $this->num($r['counter'] ?? null),
                     $this->num($r['price_cents'] ?? null),
                     // v3.12.0 — eine Notiz als Objekt (gespeichert von einer älteren Version) brach den Export ab
                     is_scalar($r['note'] ?? null) ? (string)$r['note'] : '',
-                    $this->bool(!empty($r['is_estimated'])),
-                    $this->bool(!empty($r['is_future'])),
+                    $this->bool($yes($r, 'is_estimated')),
+                    $this->bool($yes($r, 'is_future')),
+                    $this->bool($yes($r, 'is_billing_only')),
+                    is_string($r['reported_on'] ?? null) ? $this->date($r['reported_on']) : '',
+                    $this->bool($yes($r, 'is_verified')),
                 ];
             }
             return $this->build($rows);
@@ -252,16 +264,19 @@ final class CsvExportService
                 ? $this->headers('csvLocal.periods.', ['from', 'to', 'value', 'note', 'meterId', 'meter', 'unit', 'estimated', 'source'])
                 : ['Von', 'Bis', 'Wert', 'Notiz', 'Zaehler-ID', 'Zaehler', 'Einheit', 'Geschaetzt', 'Quelle']];
             foreach ($periods as $p) {
+                // v3.13.0 (K2d) — wie bei den Ablesungen: eine Liste oder ein Objekt aus einer älteren Version gibt eine
+                // leere Zelle (bisher brach der Export ab)
+                $mid = self::text($p['meter_id'] ?? null);
                 $rows[] = [
-                    $this->date((string)($p['from'] ?? '')),
-                    $this->date((string)($p['to'] ?? '')),
+                    $this->date(self::text($p['from'] ?? null)),
+                    $this->date(self::text($p['to'] ?? null)),
                     $this->num($p['value'] ?? null),
-                    ((string)($p['note'] ?? '')),
-                    $p['meter_id'] ?? '',
-                    ((string)($meterNames[$p['meter_id'] ?? ''] ?? '')),
+                    self::text($p['note'] ?? null),
+                    $mid,
+                    self::text($meterNames[$mid] ?? ''),
                     ($p['value_unit'] ?? 'consumption') === 'meter' ? $u['unit'] : $u['consumption_unit'],
-                    $this->bool(!empty($p['is_estimated'])),
-                    (string)($p['source'] ?? 'manual'),
+                    $this->bool(\Energietracker\Support\Input::bool($p['is_estimated'] ?? false) === true),
+                    self::text($p['source'] ?? 'manual'),
                 ];
             }
             return $this->build($rows);
@@ -452,6 +467,12 @@ final class CsvExportService
     }
 
     /** ISO-Datum; im Format „local" im Muster der Sprache (15.01.2026, 15/01/2026, 15-01-2026). */
+    /** v3.13.0 (K2d) — Text oder Zahl als Zelle; eine Liste oder ein Objekt (gespeichert von einer älteren Version) leer. */
+    private static function text(mixed $v): string
+    {
+        return is_scalar($v) ? (string)$v : '';
+    }
+
     private function date(string $iso): string
     {
         return $this->d['local'] && $iso !== '' ? $this->i18n->date($iso) : $iso;

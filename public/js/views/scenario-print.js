@@ -75,7 +75,9 @@ export function assumptions(st, result, contractLabel = (id) => id) {
     const a = result?.replacement?.assumed || b.replace;
     out.push(`${t('scenario.replace.title')}: ${t(`scenario.replace.to.${b.replace.to}`)}`
       + (result?.replacement ? ` (${b.replace.to === 'heat_pump'
-        ? t('scenario.replace.assumedHeatPump', { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
+        // v3.13.0 (Paket waermepumpe, §4.6 B) — Arbeitszahl nach dem Wetter verteilt (Server `jaz_shape`)
+        ? t(`scenario.replace.${{ carnot: 'assumedHeatPumpWeather', measured: 'assumedHeatPumpMeasured' }[result.replacement.jaz_shape] || 'assumedHeatPump'}`,
+            { jaz: fmt.num(a.jaz, 1), ct: fmt.num(a.power_ct, 1), eff: fmt.pct(a.efficiency_old, 0) })
         : t('scenario.replace.assumedPellets', { ct: fmt.num(a.pellet_ct, 1), eff: fmt.pct(a.efficiency_old, 0), effNew: fmt.pct(a.efficiency_new, 0), kwh: fmt.num(a.kwh_per_kg, 1) })})` : ''));
   }
   if (b.pv_size_pct) out.push(`${t('scenario.pv.size.label')}: ${pctSigned(b.pv_size_pct, 0)}`);

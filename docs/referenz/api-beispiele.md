@@ -637,8 +637,9 @@ Ablesung mit der ID des Belegs anlegen. Felder, Grenzen und Fehlercodes:
 
 ### Foto hochladen — `POST /api/attachments`
 
-Die Datei geht als **roher Body**, nicht als Formular (`multipart`). Den Typ
-bestimmt der Server am Inhalt; der `Content-Type` ist nur Höflichkeit.
+Die Datei geht als **roher Body** oder *(v3.13.0)* als Formular
+(`curl -F file=@zaehler.jpg …`). Den Typ bestimmt der Server am Inhalt; der
+`Content-Type` ist nur Höflichkeit.
 
 ```bash
 curl -X POST --data-binary @zaehler.jpg -H 'Content-Type: image/jpeg' \
@@ -792,7 +793,7 @@ Strikte F4-Validierung: halb-ausgefüllte Subzeilen (z.B. `{from: "2025-01-01"}`
 Monatsverbrauch **utility-weit** (über alle Zähler aggregiert).
 
 **Query-Parameter:**
-- `hdd_base` (optional, float) — überschreibt die HGT-Basistemperatur
+- `hdd_base` (optional, float) — überschreibt die Heizgrenze
   für diese eine Antwort
 
 **Response:**

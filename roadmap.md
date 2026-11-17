@@ -9,7 +9,7 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 10.11.2026 · **Aktuelle Version:** v3.12.0
+**Stand:** 17.11.2026 · **Aktuelle Version:** v3.13.0
 
 ---
 
@@ -20,8 +20,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.13.0** · in Arbeit, erscheint, wenn es fertig ist | **Prognose für Wärmepumpe, PV und E-Auto** | Die Prognose rechnet die Wärmepumpe nach dem Wetter und bezieht PV, Batterie und E-Auto ein; Auszahlungen der Einspeisung lassen sich erfassen. Dazu einheitliche Begriffe in allen Sprachen, Längengrenzen für Freitext und ein schnelleres Tankmodell. |
-| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. |
+| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. **Die Prognose der Wärmepumpe und der PV nach dem Wetter kommt erneut auf den Prüfstand,** weil sie in v3.13 an einem Prüfhaushalt ihre vorab festgelegten Schwellen noch nicht schafft; dazu ein Heizmodell für gekrümmte Heizkurven (#38). |
 | **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
 
 ---
@@ -58,6 +57,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Datum | Thema |
 |---|---|---|
+| v3.13.0 | 17.11.2026 | Speicher, Wallbox und HT/NT in der Prognose: die Einspeisung nach der Sonne, ein neuer Speicher und eine neue Wallbox in der Prognose, HT und NT als ein Vertrag (#40), die Rückfrage beim Eintragen kennt die Jahreszeit (#65), die Integration aus dem Marketplace (ehemals HACS) |
 | v3.12.0 | 10.11.2026 | Energietracker für deine KI: MCP mit Herkunft je Zahl, Vorschläge statt Schreiben, die HACS-Integration, eine neue Oberfläche, der Saldo von Zählergruppen (#58) |
 | v3.11.0 | 04.11.2026 | Deine Rechte als Kunde: sieben Prüfungen mit Quelle, fünf Briefe, Preisänderungen im Posteingang, widersprüchliche Verträge |
 | v3.10.1 | 03.11.2026 | Sicherheitskorrekturen im Docker-Image |

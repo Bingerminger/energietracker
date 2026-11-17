@@ -98,6 +98,33 @@
       "id": "meterSwap", "glossary": null,
       "use": { "de": "Zählertausch", "en": "meter swap" },
       "avoid": { "en": ["device swap"] }
+    },
+    {
+      "_comment": "v3.13.0 — eine Heizgrenze überall: Einstellung unter Rechnen, Zählerkarte, Hinweis, Glossar. follow: Nennt der deutsche Text die Heizgrenze, nennt jede Sprache ihre use-Form (CatalogStyleTest::testTermbaseFollowsTheGermanTerm). setting: Die alten Namen (avoid) bleiben Suchwörter der Einstellung (settings.search.alias.<setting>, tests/settings-search.test.mjs).",
+      "id": "heatingLimit", "glossary": "heatingLimit", "follow": true, "setting": "hdd_base_temp",
+      "allowKeys": ["settings.search.alias.*"],
+      "use": { "de": "Heizgrenze", "en": "heating limit", "fr": "température de non-chauffage", "it": "soglia di riscaldamento", "es": "umbral de calefacción", "pt": "limiar de aquecimento", "nl": "stookgrens" },
+      "avoid": {
+        "de": ["HGT-Basistemperatur"],
+        "en": ["HDD base temperature"],
+        "fr": ["température de base DJU", "limite de chauffe"],
+        "it": ["temperatura base GG", "limite di riscaldamento"],
+        "es": ["temperatura base GD", "límite de calefacción"],
+        "pt": ["temperatura base GD", "limite de aquecimento"],
+        "nl": ["graaddagen-basistemperatuur"]
+      }
+    },
+    {
+      "_comment": "v3.13.0 — Snapshot heißt in it und nl wie in den Einstellungen; das Kompositum steht eigens (avoid prüft nur ab Wortbeginn).",
+      "id": "snapshot", "glossary": null,
+      "use": { "de": "Snapshot", "en": "snapshot", "fr": "instantané", "it": "istantanea", "es": "instantánea", "pt": "instantâneo", "nl": "momentopname" },
+      "avoid": { "it": ["snapshot"], "nl": ["snapshot", "veiligheidssnapshot"] }
+    },
+    {
+      "_comment": "v3.13.0 — der Jahresbericht heißt im Englischen wie im Menü.",
+      "id": "annualReport", "glossary": null,
+      "use": { "de": "Jahresbericht", "en": "annual report", "fr": "rapport annuel", "it": "relazione annuale", "es": "informe anual", "pt": "relatório anual", "nl": "jaarverslag" },
+      "avoid": { "en": ["yearly report"] }
     }
   ]
 }

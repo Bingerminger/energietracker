@@ -93,7 +93,7 @@ final class ReminderService
     }
 
     /** v3.5.0 (F1028) — längster Name einer zuständigen Person (wie die Namen im Verlauf). */
-    public const ASSIGNEE_MAX = 60;
+    public const ASSIGNEE_MAX = \Energietracker\Support\TextLimits::PERSON;   // v3.13.0 — aus der Liste der Grenzen
 
     /** @var (callable(string): ?array)|null Person zu einer ID ({id, name, deleted?}) oder null */
     private $people = null;
@@ -151,8 +151,10 @@ final class ReminderService
     /** @return array<int,array<string,mixed>> */
     public function list(bool $includeInactive = false): array
     {
-        $all = $this->store->read('reminders.json', []);
-        if (!is_array($all)) $all = [];
+        // v3.13.0 (K2d) — Bestand nach der gemeinsamen Regel (Support\FieldRules::view): ein Titel als Liste aus
+        // einer älteren Version oder einem Backup gilt als nicht eingetragen (bisher 500 auf Agenda und Übersicht),
+        // „aktiv“ als Text nach der einen Regel; die Datei bleibt, wie sie ist
+        $all = \Energietracker\Support\FieldRules::view($this->store, 'reminders.json', 'reminders')[0];
         if (!$includeInactive) {
             $all = array_values(array_filter($all, fn($r) => ($r['active'] ?? true) !== false));
         }
@@ -387,6 +389,7 @@ final class ReminderService
         \Energietracker\Support\Input::assertDateInRange((string)$input['next_due'], 'next_due');   // v3.12.0
         $assignee = $this->assigneeInput($input) ?? [];   // v3.5.0 (F1028)
         $meter = $this->meterInput($input) ?? [];         // v3.7.0 — Termin am Zähler
+        \Energietracker\Support\TextLimits::assert($input, 'reminders');   // v3.13.0 (Paket F) — Titel, Notiz
 
         $reminder = [
             'id'                => 'rem_' . substr(bin2hex(random_bytes(5)), 0, 8),
@@ -472,6 +475,7 @@ final class ReminderService
         $patch = array_merge($patch, $this->checkFields($patch));
         $assignee = $this->assigneeInput($patch);   // v3.5.0 (F1028) — null: unverändert
         $meter = $this->meterInput($patch);         // v3.7.0 — null: unverändert, []: ohne Zähler
+        \Energietracker\Support\TextLimits::assert($patch, 'reminders');   // v3.13.0 (Paket F)
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;

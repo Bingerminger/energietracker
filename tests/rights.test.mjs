@@ -259,6 +259,13 @@ console.log('Nachprüfung');
     projected_range: [437.25, 735.75], suggested_range: null, group_readings: { earliest: '2026-04-30', latest: '2026-10-31' } } }, strom));
   t('A3: Saldo-Karte nennt verschieden weit abgelesene Zähler mit beiden Tagen', txt.includes('verschieden weit abgelesen') && txt.includes('30.04.2026') && txt.includes('31.10.2026')
     && !txt.includes('Heizmodell'), txt.slice(0, 400));
+  // v3.13.0 — nur der Anfangsstand eines neuen Vertrags (Form wie contract-status mit `projection_missing`): kein Betrag
+  // zur Abrechnung, kein „Saldo heute“ aus einem Verbrauch von null, dafür der Hinweis
+  txt = strip(U.balanceCard({ ...base, start: '2026-03-01', effective_end: '2027-01-01', settle_on: '2026-12-31', current_balance: -77.6,
+    projected_end_balance: null, verdict: null, suggested_advance: null, projection_missing: 'too_few_readings', cost_to_date: 12.4,
+    estimated_cost_to_date: 0, base_to_date: 12.4, advance_paid: 90, current_advance_amount: 90 }, strom));
+  t('Nur der Anfangsstand: „Noch zu wenig Ablesungen“ statt Guthaben, kein Betrag zur Abrechnung', txt.includes('Noch zu wenig Ablesungen')
+    && txt.includes('Noch zu wenig Verbrauch gemessen') && !txt.includes('77,60') && !/Guthaben|Ausgeglichen/.test(txt), txt.slice(0, 500));
   // NP7 — Bonus der Zeile wie im Saldo
   t('NP7: Bonus der Tabellenzeile aus bonus_to_date, sonst actual_bonus_total', U.contractRowBonus({ bonus_to_date: 0, actual_bonus_total: 38.71 }) === 0
     && U.contractRowBonus({ actual_bonus_total: 75 }) === 75);
@@ -282,6 +289,14 @@ console.log('Nachprüfung');
     renewal_term: { until: '2031-12-31', cancel_by: '2031-03-31' } }, { utility: 'fernwaerme', switch_date: '2032-01-01', switch_date_source: 'contract' });
   t('NP3: „Wechsel prüfen“ nennt die Verlängerung bis 31.12.2031 und den nächsten Kündigungstag', txt.includes('Frist verstrichen') && txt.includes('bis 31.12.2031')
     && txt.includes('31.03.2031'), txt);
+
+  // v3.13.0 — Wechselentscheidung: ein Bonus mit Datum im ersten Jahr steht unter Jahr 1 wie ein Neukundenbonus
+  const row2 = (x) => { const tb = document.createElement('tbody'); tb.innerHTML = T.candidateRowHtml({ contract_id: 's1', label: 'Angebot', computable: true,
+    is_shadow: true, year1_eur: 848, year2_eur: 948, vs_reference_year2_eur: -50, ...x }, 'kWh', {}); return tb.textContent.replace(/\s+/g, ' ').trim(); };
+  txt = row2({ signup_bonus_eur: null, bonus_year1_eur: 100 });
+  t('Bonus mit Datum: „inkl. … Bonus“ unter Jahr 1', txt.includes(fmt.eur(100).replace(/\s+/g, ' ')), txt);
+  txt = row2({ signup_bonus_eur: 60 });
+  t('ältere Antwort: der Neukundenbonus wie bisher', txt.includes(fmt.eur(60).replace(/\s+/g, ' ')), txt);
 
   // NP3/NP4 — Übersicht der Verträge
   const O = await import(`${JS}/views/contracts-overview.js`);

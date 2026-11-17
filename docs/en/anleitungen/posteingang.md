@@ -208,9 +208,14 @@ field stays flagged until you confirm it.
 You **confirm** a flagged field (“Correct”) or **change** it. Tapping “p. 2”
 next to the quote turns the document on the left to that page.
 
-- **Lists** (unit prices, advance payments made, credits) do not have these
-  buttons: a flagged entry does not go into the proposal, you enter it in the
-  contract or the bill yourself *(as of v3.12.0)*.
+- **Lists** (unit prices, water prices, advance payments made, gas conversion,
+  readings per meter, credits, due dates of advances) you decide **per entry**
+  *(v3.13.0)*: “Correct” on a flagged entry, “Change” opens a field for each value
+  of the entry, “Discard” takes it out of the proposals. The entry then shows
+  “confirmed”, “changed” (with the read value next to it) or is struck through;
+  “As read” takes the decision back. The reading itself stays as it was read; reading
+  the document again clears the decisions. The household from documents and the AI
+  see them too.
 - **A price without a tax rate read** counts as a gross price after “Correct”;
   if the bill shows it net, change it to gross *(v3.12.0: the note is at the
   field)*. A “net/gross” detail without a quote carries no tick.

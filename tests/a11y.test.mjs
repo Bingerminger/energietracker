@@ -430,6 +430,11 @@ const freePort = () => new Promise((res, rej) => {
       try { up = (await fetch(BASE + 'api/health')).ok; } catch { await sleep(100); }
     }
     t('Server mit Beispieldaten läuft', up);
+    // v3.13.0 (Paket K2e) — ein Gaszähler ohne Ablesung: Sein Tauschdialog kennt keinen „letzten Stand“, das Feld des
+    // Endstands darf auf keinen fehlenden Hinweis verweisen (aria-describedby). Der Durchlauf unten öffnet je Knopfart
+    // nur den ersten Zähler; dieser wird danach gezielt geöffnet.
+    const bareMeter = (await (await fetch(BASE + 'api/utility/gas/meters', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Ohne Ablesung', installed_on: '2024-01-01' }) })).json().catch(() => null))?.data?.id ?? null;
 
     const html = await (await fetch(BASE)).text();
     const vc = new VirtualConsole();   // „Not implemented: navigation/window.print“ (Downloads, Drucken) stumm
@@ -800,6 +805,27 @@ const freePort = () => new Promise((res, rej) => {
         if (w.location.hash !== hash) await go(route);
       }
     }
+    // v3.13.0 (Paket K2e) — Tauschdialog des Zählers ohne Ablesung (oben angelegt), mit allen Prüfungen je Dialog
+    let bareSwap = null;
+    if (bareMeter) {
+      await go('#/household/meters?art=gas');
+      const trig = [...doc.querySelectorAll('[data-replace-device]')].find(b => b.getAttribute('data-replace-device') === bareMeter);
+      if (trig) {
+        trig.focus();
+        trig.click();
+        await settle();
+        const bd = backdrops().at(-1);
+        const field = bd?.querySelector('input[name="old_final_counter"]');
+        if (field) {
+          const ids = String(field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+          bareSwap = { ids, missing: ids.filter(id => !doc.getElementById(id)), hint: !!bd.querySelector('#rp-old-hint') };
+          await checkDialog(bd, trig, 0, 'Haushalt › Zähler → Zähler ohne Ablesung tauschen');
+        }
+      }
+      modal.closeAllModals('navigation');
+    }
+    t('Zählertausch an einem Zähler ohne Ablesung: Dialog geprüft, kein Hinweis „letzter Stand“, kein Verweis ins Leere',
+      !!bareSwap && bareSwap.ids.length > 0 && bareSwap.missing.length === 0 && !bareSwap.hint, JSON.stringify(bareSwap));
     console.log(`  · ${done.size} Seiten, ${clicks} Klicks, ${blocked.length} Anfragen abgefangen (nur lesen), ${Math.round((Date.now() - started) / 1000)} s`);
 
     const MIN_DIALOGS = 25;
@@ -915,6 +941,55 @@ const freePort = () => new Promise((res, rej) => {
     t('Rückfrage aus gesperrtem Knopf: „Abbrechen“ gibt den Fokus an den Knopf zurück (nicht <body>)', asked === false && doc.activeElement === saveBtn && !saveBtn.disabled,
       describe(doc.activeElement));
     saveBtn.remove();
+    // v3.13.0 — derselbe Fall in einem offenen Dialog (Dialog „+ Ablesung“: „Anlegen“ → Rückfrage → „Abbrechen“). Bis v3.12
+    // gab modal.js den Fokus nur zurück, wenn danach kein Dialog mehr offen war; der Dialog darunter ist es aber.
+    for (const how of ['Abbrechen', 'Escape']) {
+      b.focus();
+      const outer = modal.openModal({ title: 'Neue Ablesung', body: formBody, footer: '<button type="button" class="btn btn--primary" id="u-create">Anlegen</button>' });
+      const create = outer.modalEl.querySelector('#u-create');
+      let answer2 = null;
+      create.addEventListener('click', modal.guardSubmit(create, async () => { answer2 = await modal.confirmModal({ title: 'Stand prüfen', message: 'Sehr hoch. Trotzdem?', confirmLabel: 'Speichern' }); }));
+      create.focus();
+      create.click();
+      await settle(10);
+      if (how === 'Escape') press('Escape'); else backdrops().at(-1)?.querySelector('[data-act="cancel"]')?.click();
+      await settle(30);
+      t(`Rückfrage aus gesperrtem Knopf in einem Dialog (${how}): Fokus zurück auf den Knopf, der Dialog bleibt offen`,
+        answer2 === false && doc.activeElement === create && !create.disabled && backdrops().length === 1, describe(doc.activeElement));
+      outer.close(null);
+      await settle(10);
+    }
+    // … und wenn der gesperrte Knopf den Fokus schon VOR der Rückfrage verloren hat (Chromium setzt ihn auf <body>, sobald
+    // die Aktion auf etwas wartet, etwa die Erwartung nach dem Wetter): Die Rückfrage kennt ihren Auslöser trotzdem.
+    for (const where of ['Seite', 'Dialog']) {
+      let outer2 = null;
+      let host = view;
+      if (where === 'Dialog') { b.focus(); outer2 = modal.openModal({ title: 'Neue Ablesung', body: '<p>Stand</p>', footer: '<span></span>' }); host = outer2.modalEl.querySelector('.modal__foot'); }
+      host.insertAdjacentHTML('beforeend', '<button type="button" id="u-save-all">Alle speichern</button>');
+      const all = host.querySelector('#u-save-all');
+      let answer3 = null, lost = false;
+      all.addEventListener('click', modal.guardSubmit(all, async () => {
+        // wie die Fokus-Korrektur des Browsers am gesperrten Knopf: der Fokus fällt auf <body>
+        const tmp = doc.createElement('button');
+        tmp.type = 'button';
+        host.appendChild(tmp);
+        tmp.focus();
+        tmp.remove();
+        await sleep(5);
+        lost = doc.activeElement === doc.body;
+        answer3 = await modal.confirmModal({ title: 'Stand prüfen', message: 'Sehr hoch. Trotzdem?', confirmLabel: 'Speichern' });
+      }));
+      all.focus();
+      all.click();
+      await settle(20);
+      backdrops().at(-1)?.querySelector('[data-act="cancel"]')?.click();
+      await settle(30);
+      t(`Rückfrage, nachdem der gesperrte Knopf den Fokus verlor (${where}): „Abbrechen“ gibt ihn dem Knopf zurück`,
+        lost && answer3 === false && doc.activeElement === all && !all.disabled, `${lost ? '' : 'Fokus ging nicht verloren; '}${describe(doc.activeElement)}`);
+      all.remove();
+      outer2?.close(null);
+      await settle(10);
+    }
     view.querySelector('#u-list').innerHTML = '';
     view.insertAdjacentHTML('beforeend', '<button type="button" id="u-gone">weg</button>');
     view.querySelector('#u-gone').focus();

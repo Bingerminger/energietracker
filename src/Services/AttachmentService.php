@@ -41,6 +41,18 @@ final class AttachmentService
         private I18nService $i18n,
     ) {}
 
+    /**
+     * v3.13.0 — Art eines Belegs aus der Liste KINDS, sonst 400 `errors.common.valueInvalid` (Feld `kind`, mit den
+     * erlaubten Arten in `detail.allowed`). Bisher wurde eine unbekannte Art still `other`; ein Beleg mit `kind=rechnung`
+     * (statt `bill_pdf`) passte danach zu keiner Rechnung.
+     */
+    public static function assertKind(string $kind): void
+    {
+        if (in_array($kind, self::KINDS, true)) return;
+        throw new LocalizedException('errors.common.valueInvalid',
+            ['field' => 'kind', 'value' => mb_substr($kind, 0, 40), 'allowed' => implode(', ', self::KINDS)], 'attachment kind');
+    }
+
     /** MIME-Typ aus den ersten Bytes, sonst null. */
     public static function sniff(string $bytes): ?string
     {
@@ -84,7 +96,7 @@ final class AttachmentService
      */
     public function store(string $bytes, string $kind, ?string $originalName = null): array
     {
-        if (!in_array($kind, self::KINDS, true)) $kind = 'other';
+        self::assertKind($kind);   // v3.13.0 — bisher still „other“
         $mime = self::sniff($bytes);
         if ($mime === null) {
             throw new LocalizedException('errors.attachment.type', [], 'Attachment: unsupported content');
@@ -109,12 +121,29 @@ final class AttachmentService
             'created_at' => date('c'),
             'ref'        => null,
         ];
-        $name = trim((string)$originalName);
-        if ($name !== '') $entry['original_name'] = mb_substr(basename($name), 0, 120);
+        $name = self::fileName((string)$originalName);
+        if ($name !== '') $entry['original_name'] = $name;
         $all = $this->list();
         $all[] = $entry;
         $this->store->write(self::INDEX, $all);
         return $entry;
+    }
+
+    /**
+     * v3.13.0 — Dateiname eines Belegs (und damit eines Dokuments im Posteingang), höchstens TextLimits::NAME Zeichen.
+     * Ein Dateiname ist keine Eingabe in ein Feld: Ist er länger, kürzt die App den Stamm und behält die Endung
+     * („…-Seite-2.pdf“ bleibt eine PDF). Bisher fiel die Endung beim Kürzen auf 120 Zeichen weg. Als Endung gilt ein
+     * Punkt mit 1 bis 10 Buchstaben oder Ziffern am Ende hinter einem Stamm; sonst wird der ganze Name gekürzt.
+     */
+    public static function fileName(string $name): string
+    {
+        $name = trim(basename(trim($name)));
+        $max = \Energietracker\Support\TextLimits::NAME;
+        if (mb_strlen($name) <= $max) return $name;
+        if (preg_match('/^(.+?)(\.[\p{L}\p{N}]{1,10})$/u', $name, $m)) {
+            return rtrim(mb_substr($m[1], 0, $max - mb_strlen($m[2])), " .") . $m[2];
+        }
+        return rtrim(mb_substr($name, 0, $max));
     }
 
     /** Löscht Datei und Indexeintrag; der Verweis im Datensatz verschwindet mit. */

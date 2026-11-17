@@ -14,7 +14,7 @@ Self-hosted, no account and no database. And, if you like, with your own AI in y
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.en.md"><img src="https://img.shields.io/badge/version-3.12.0-blue.svg" alt="Version 3.12.0"></a>
+  <a href="CHANGELOG.en.md"><img src="https://img.shields.io/badge/version-3.13.0-blue.svg" alt="Version 3.13.0"></a>
   <a href="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml"><img src="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg" alt="License: AGPL-3.0-or-later"></a>
   <a href="docs/en/betrieb/docker.md"><img src="https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg" alt="Docker: amd64 and arm64"></a>
@@ -34,7 +34,7 @@ Self-hosted, no account and no database. And, if you like, with your own AI in y
 | <img src="docs/assets/promo/icons/geld.svg" width="32" alt=""> | **Will I get money back?** Balance per contract: measured up to the last reading, estimated up to today, expected at the bill, with an honest range. As on the bill: “credit” or “additional payment”. [Balance](docs/en/verstehen/00-overview.md#balance-in-one-piece-since-v3100) |
 | <img src="docs/assets/promo/icons/kolben.svg" width="32" alt=""> | **What does a cold winter cost?** The forecast workshop runs winter, insulation, room temperature and tariff through your own data, with a ranking and the result as a PDF. [What if](docs/en/anleitungen/was-waere-wenn.md) |
 | <img src="docs/assets/promo/icons/beleg.svg" width="32" alt=""> | **Save where it can be shown.** Set the advance payment right, check a switch with notice period and break-even point, recalculate the annual bill section by section. No made-up savings: you see your own figures. [Annual bill](docs/en/anleitungen/jahresabrechnung.md) |
-| <img src="docs/assets/promo/icons/stecker.svg" width="32" alt=""> | **Home Assistant measures, Energietracker settles the bill.** Readings come from Home Assistant, deadlines and new mail go back as notifications. As an app for Home Assistant OS, sensors through the HACS integration without YAML. [Home Assistant](docs/en/anleitungen/home-assistant.md) |
+| <img src="docs/assets/promo/icons/stecker.svg" width="32" alt=""> | **Home Assistant measures, Energietracker settles the bill.** Readings come from Home Assistant, deadlines and new mail go back as notifications. As an app for Home Assistant OS, sensors without YAML through the integration from the Marketplace (formerly HACS). [Home Assistant](docs/en/anleitungen/home-assistant.md) |
 | <img src="docs/assets/promo/icons/schloss.svg" width="32" alt=""> | **Your data stays with you.** No accounts, no ads, no telemetry, no database, just files on your server. By default only the weather sync goes out, and it can be switched off; everything else you switch on yourself. [Your data](#your-data) |
 
 **Nine utilities:** gas, electricity, water, district heating, heating oil, pellets, PV feed-in, PV generation
@@ -60,9 +60,10 @@ your own data is not lost.
   Assistant ([step by step](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os)).
 
   [![Add the Energietracker app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
-- **Sensors in Home Assistant without YAML:** the integration through the Marketplace (Home Assistant 2026.11
-  or later) or HACS, [energietracker-integration](https://github.com/Bingerminger/energietracker-integration).
-- **Without Docker,** PHP 8.3 or later is enough: `git clone`, then `php -S 127.0.0.1:8080 router.php`.
+- **Sensors in Home Assistant without YAML:** search for “Energietracker” in the Marketplace
+  ([energietracker-integration](https://github.com/Bingerminger/energietracker-integration)). With Home Assistant
+  2026.3 to 2026.10 the way is still called HACS, likewise through the search.
+- **Without Docker,** PHP 8.4 or later is enough: `git clone`, then `php -S 127.0.0.1:8080 router.php`.
 - **For permanent use:** [Installation](docs/en/betrieb/installation.md) ·
   [Docker, also on Synology](docs/en/betrieb/docker.md) · [Apache and nginx](docs/en/betrieb/webserver.md) ·
   [Use on your phone](docs/en/einstieg/handy.md).
@@ -140,7 +141,7 @@ checks under German law. Elsewhere it calculates without classes and says why; i
 
 ## Status
 
-**v3.12.0** is the current version; what changed is in the [CHANGELOG](CHANGELOG.en.md) (German version:
+**v3.13.0** is the current version; what changed is in the [CHANGELOG](CHANGELOG.en.md) (German version:
 [CHANGELOG.md](CHANGELOG.md)). **APIs, CSV formats and the backup format change only additively;** anything is
 removed only with a new major version and after notice. What comes next is in the [roadmap](roadmap.en.md).
 Coming from a private v0.9.0: since 3.4.0 no version reads its backups any more; install 3.3.0, migrate there,

@@ -80,5 +80,86 @@ t('Rolle aus der Sitzung', /const canEdit = sessionRole\(\) === 'admin';/.test(t
 t('Abgleich speichert für Mitglieder keinen Standort', /const saveLocation = async[^\n]*\n\s*if \(!canEdit\) return true;/.test(temps));
 t('Hinweis, wer ändert', temps.includes("data-role=\"location-admin-only\">${escapeHtml(t('settings.region.adminOnly'))}"));
 
+// ── v3.13.0 — Verbindungen: Mitglieder sehen nur, was sie ändern dürfen ─────────────────────────────
+// Token-Knöpfe für Home Assistant, evcc und Sicherheit im Heimnetz richtet ein Verwalter ein. Mitglieder
+// bekommen dort den Satz, wer es einrichtet, statt Feldern und Knöpfen, die mit 403 enden; ohne Anmeldung und
+// für Verwalter bleibt alles bedienbar. Die Rechte am Server bleiben, wie sie sind (OutboundSettingsAccessTest).
+console.log('Verbindungen: Token, evcc, Heimnetz');
+const { renderHaTokenCard } = await import(`${JS}/views/settings-integrations.js`);
+const connSrc = readFileSync(resolve(JS, 'views', 'connections.js'), 'utf8');
+const settingsSrc = readFileSync(resolve(JS, 'views', 'settings.js'), 'utf8');
+for (const [who, session] of [['Mitglied', member], ['Verwalter', { ...member, role: 'admin' }], ['ohne Anmeldung', { mode: 'off' }]]) {
+  L.setSession(session);
+  const isAdmin = who !== 'Mitglied';
+  const card = frag(renderHaTokenCard({ enabled: true, last_used_at: null }, session, (session.role || 'admin') === 'admin'));
+  t(`${who}: Token-Knöpfe ${isAdmin ? 'da' : 'ausgeblendet'}`, isAdmin ? !!card.querySelector('#btn-ha-generate') && !!card.querySelector('#btn-ha-revoke')
+    : !card.querySelector('#btn-ha-generate, #btn-ha-revoke, #ha-token-state'));
+  t(`${who}: Satz, wer den Token einrichtet, ${isAdmin ? 'fehlt' : 'steht da'}`, isAdmin ? !card.querySelector('[data-role="ha-token-admin-only"]')
+    : card.querySelector('[data-role="ha-token-admin-only"]')?.textContent.trim() === I.t('settings.ha.memberToken'));
+  for (const gkey of ['evcc', 'homeTls']) {
+    const g = GROUPS.find(x => x.gkey === gkey);
+    const d = frag(renderGroup(g, { evcc_endpoint: 'http://192.168.178.30:7070', home_ca_pem: '', home_tls_insecure: false }));
+    const inputs = d.querySelectorAll('[data-key]').length;
+    t(`${who}: ${gkey} ${isAdmin ? 'mit Feldern' : 'ohne Felder, mit dem Satz'}`, isAdmin ? inputs === g.fields.length && !d.querySelector('[data-role="admin-only-group"]')
+      : inputs === 0 && d.querySelector('[data-role="admin-only"]')?.textContent.trim() === I.t('settings.adminOnlyCard'), `${inputs} Felder`);
+  }
+}
+L.setSession(null);
+t('evcc und Heimnetz: jede Taste der Gruppe steht in ADMIN_SETTINGS', ['evcc', 'homeTls'].every(k => GROUPS.find(g => g.gkey === k).fields.every(f => admin.has(f.key))));
+t('Verbindungen: Mitglieder fragen den Token-Stand nicht ab (adminOnly)', /admin \? api\.authStatus\(\)/.test(connSrc) && /needs\(HA, KEYS\) && adminRole \? api\.authStatus\(\)/.test(settingsSrc));
+t('Verbindungen: die Zeile Home Assistant zeigt Mitgliedern keinen Stand', /tag: !admin \? '' :/.test(connSrc));
+
+// ── v3.13.0 — Angaben für Briefe nur Verwalter (`letters_admin_only`) ─────────────────────────────────
+console.log('Haushalt → Gebäude: Angaben für Briefe');
+const letters = GROUPS.find(g => g.gkey === 'letters');
+for (const on of [false, true]) {
+  for (const [who, session] of [['Mitglied', member], ['Verwalter', { ...member, role: 'admin' }], ['ohne Anmeldung', { mode: 'off' }]]) {
+    L.setSession(session);
+    const d = frag(renderGroup(letters, { letter_sender_name: 'Ida Quellfeld', letter_sender_address: 'Weg 1', letter_supply_address: 'Weg 1', letters_admin_only: on }));
+    const locked = on && who === 'Mitglied';
+    const texts = ['letter_sender_name', 'letter_sender_address', 'letter_supply_address'].map(k => d.querySelector(`[data-key="${k}"]`));
+    t(`${on ? 'an' : 'aus'}, ${who}: Absender und Lieferanschrift ${locked ? 'gesperrt' : 'bedienbar'}`, texts.every(x => x && x.disabled === locked) && texts[0].value === 'Ida Quellfeld');
+    const sw = d.querySelector('[data-key="letters_admin_only"]');
+    t(`${on ? 'an' : 'aus'}, ${who}: Schalter ${who === 'Mitglied' ? 'gesperrt' : 'bedienbar'}, Stand lesbar`, !!sw && sw.disabled === (who === 'Mitglied') && sw.checked === on);
+  }
+}
+L.setSession(null);
+t('letters_admin_only steht in ADMIN_SETTINGS', admin.has('letters_admin_only'));
+const dialogSrc = readFileSync(resolve(JS, 'components', 'letter-dialog.js'), 'utf8');
+t('Brief-Dialog: Mitglieder mit Sperre bekommen kein „Im Haushalt übernehmen“', /const locked = getSettingsSync\(\)\?\.letters_admin_only === true && sessionRole\(\) !== 'admin';/.test(dialogSrc)
+  && /innerHTML = locked\s*\n?\s*\? \(changed/.test(dialogSrc) && /supplySrc\.innerHTML = locked/.test(dialogSrc));
+
+// ── v3.13.0 (K2d) — Härtung: Texterkennung, Auslesen und Benachrichtigung nur Verwalter ─────────────────
+// Jedes Feld mit einem Schlüssel aus ADMIN_SETTINGS ist für Mitglieder gesperrt: in der Karte „Auslesen“, in der
+// Gruppe „Texterkennung“ der Einstellungen und in der Karte der Benachrichtigung.
+console.log('Verbindungen: Auslesen, Texterkennung, Benachrichtigung');
+for (const k of ['ocr_api', 'ocr_model', 'ocr_timeout_s', 'inbox_model', 'inbox_timeout_s', 'inbox_cloud_timeout_s', 'ha_notify_events', 'ha_notify_hour']) {
+  t(`${k} steht in ADMIN_SETTINGS`, admin.has(k));
+}
+const { renderReadingCard } = await import(`${JS}/components/inbox-cloud.js`);
+const { renderHaNotifyCard } = await import(`${JS}/components/ha-notify.js`);
+const readStatus = { presets: [{ id: 'custom', label: 'Eigener Dienst' }], preset: 'custom', model: '', timeout_s: 120, enabled: false, has_key: false };
+const readSettings = { inbox_provider: 'local', ocr_api: 'ollama', inbox_model: 'qwen3.8', inbox_timeout_s: 300, ocr_endpoint: '' };
+for (const [who, isAdmin] of [['Mitglied', false], ['Verwalter', true]]) {
+  const card = frag(renderReadingCard(readStatus, readSettings, isAdmin));
+  const fields = [...card.querySelectorAll('[data-field]')].filter(el => admin.has(el.getAttribute('data-field')) && el.matches('input, select'));
+  t(`${who}: Auslesen, ${fields.length} Felder ${isAdmin ? 'bedienbar' : 'gesperrt'}`, fields.length >= 6 && fields.every(el => el.disabled === !isAdmin),
+    fields.filter(el => el.disabled === isAdmin).map(el => el.getAttribute('data-field')).join(', '));
+  const ha = frag(renderHaNotifyCard({ enabled: true, target: 'webhook', url: '', service: '', events: ['reminder'], hour: 8, has_token: false }, isAdmin));
+  const haFields = [...ha.querySelectorAll('[data-field="ha_notify_hour"], [data-field="ha_notify_events"] input')];
+  t(`${who}: Benachrichtigung, Ereignisse und Uhrzeit ${isAdmin ? 'bedienbar' : 'gesperrt'}`, haFields.length >= 2 && haFields.every(el => el.disabled === !isAdmin));
+}
+const ocrGroup = GROUPS.find(g => g.gkey === 'ocr');
+for (const [who, session] of [['Mitglied', member], ['Verwalter', { ...member, role: 'admin' }]]) {
+  L.setSession(session);
+  const d = frag(renderGroup(ocrGroup, { ocr_model: 'bildmodell', ocr_timeout_s: 30 }));
+  const ins = [...d.querySelectorAll('[data-key]')];
+  const locked = who === 'Mitglied';
+  t(`${who}: Texterkennung (Bildmodell, Zeitlimit) ${locked ? 'gesperrt, mit Hinweis' : 'bedienbar'}`, ins.length === 2 && ins.every(el => el.disabled === locked)
+    && (locked ? d.querySelectorAll('[data-role="admin-only"]').length === 2 : !d.querySelector('[data-role="admin-only"]')));
+}
+L.setSession(null);
+t('Texterkennung: jede Taste der Gruppe steht in ADMIN_SETTINGS', ocrGroup.fields.every(f => admin.has(f.key)));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

@@ -101,7 +101,16 @@ final class SettingsService
         'recommendation_anomaly_sigma'  => [0.1, 10, false],
         'recommendation_trend_pct_year' => [0, 100, false],
         'confidence_band_sigma'    => [0, 5, false],
+        'advance_due_day'          => [1, 31, true],   // v3.13.0 (Paket wechsel) — Tag im Monat, am Monatsende geklemmt
     ];
+
+    /**
+     * v3.13.0 (Paket wechsel) — wie ein monatlicher Abschlag zählt (`advance_counting`), eine Einstellung für alle
+     * Verträge: `pro_rata` tagesanteilig nach den Vertragstagen (Standard, wie bis v3.12), `due_day` als ganze Rate an
+     * jedem Fälligkeitstag `advance_due_day` im Vertrag. Abschläge mit Rhythmus zählen in beiden Fällen ganz an ihrem
+     * Tag. Gelesen über advanceDueDay(), gewirkt an einer Stelle: ContractService::effectiveAdvanceSchedule().
+     */
+    public const ADVANCE_COUNTING = ['pro_rata', 'due_day'];
 
     /** v3.12.0 — Auswahlwerte: was die Auswertung kennt (Regressionsmodelle, Knick, Gebäudetyp). */
     public const FORECAST_MODELS = ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'];
@@ -191,6 +200,10 @@ final class SettingsService
         'billing_cycle_anchor_pellets'    => '01-01',
         // v2.13.0 — die Einspeisevergütung rechnet ebenfalls nach einem Stichtag
         'billing_cycle_anchor_pv_einspeisung' => '01-01',
+        // v3.13.0 (Paket wechsel) — Abschlag zählen: tagesanteilig (Standard) oder ganze Rate am Fälligkeitstag
+        // (ADVANCE_COUNTING, advanceDueDay()); der Tag gilt nur mit `due_day`
+        'advance_counting'         => 'pro_rata',
+        'advance_due_day'          => 1,
 
         // ── Vertragserinnerungen (F-05, v1.1.0) ──
         'contract_remind_days_1'   => 90,
@@ -350,6 +363,8 @@ final class SettingsService
         'letter_sender_name'       => '',   // eine Zeile
         'letter_sender_address'    => '',   // Straße, Ort … je Zeile (\n), höchstens LETTER_ADDRESS_LINES
         'letter_supply_address'    => '',   // Lieferanschrift (Verbrauchsstelle), eine Zeile
+        // v3.13.0 — mit Anmeldung ändert auf Wunsch nur ein Verwalter diese Angaben (App::adminOnly); ab Werk jede Person
+        'letters_admin_only'       => false,
         // v3.1.0 (Paket H3) — Mieter-Paket (F1008) und Warmwasser (CALC-28).
         // eigentum = wie bisher; miete blendet „Mietverhältnis“ ein.
         'wohnverhaeltnis'          => 'eigentum', // eigentum | miete
@@ -543,6 +558,11 @@ final class SettingsService
             $b = $val === null ? null : \Energietracker\Support\Input::bool($val);
             if ($b === null) unset($user[$k]); else $user[$k] = $b;
         }
+        // v3.13.0 (K2d) — Bestand nach derselben Prüfung wie PATCH /api/settings und der Backup-Import (problems()):
+        // Ein gespeicherter Wert, den die Prüfung heute abweist (`forecast_model: []`, eine Heizgrenze von 10³⁰⁰ aus
+        // einer älteren Version), gilt mit der Vorgabe; die Datei bleibt, wie sie ist. Bisher legte er nach dem Update
+        // fast alle Ansichten mit 500 lahm. Ein zu langer Ortsname bleibt lesbar (Paket F: Bestand über der Grenze).
+        foreach ($this->storedProblems($user) as $k) unset($user[$k]);
         $this->memoGen = $this->store->generation();
         $this->memoUser = $user;
         return $this->memo = array_merge(self::DEFAULTS, $user);
@@ -615,6 +635,18 @@ final class SettingsService
         return $this->all()[$key] ?? $default;
     }
 
+    /**
+     * v3.13.0 (Paket wechsel) — der Fälligkeitstag, wenn ein monatlicher Abschlag als ganze Rate zählt
+     * (`advance_counting` = `due_day`), sonst null (tagesanteilig, Standard). Gespeichert ist der Tag geprüft
+     * (1 bis 31); ein anderer Wert aus einer von Hand geänderten Datei gilt geklemmt, ohne Zahl als 1.
+     */
+    public function advanceDueDay(): ?int
+    {
+        if ($this->get('advance_counting') !== 'due_day') return null;
+        $day = $this->get('advance_due_day');
+        return is_numeric($day) ? max(1, min(31, (int)$day)) : 1;
+    }
+
     public function set(array $patch): array
     {
         $current = $this->store->read('settings.json', []);
@@ -651,6 +683,45 @@ final class SettingsService
     }
 
     /**
+     * v3.13.0 (K2d) — Bestand: gespeicherte Schlüssel, deren Wert die Prüfung von set() heute abweist (wie problems()),
+     * ohne Höchstlängen (ein längerer Text aus einer älteren Version bleibt lesbar, Paket F). Für all() und die Funde
+     * des Bestands (DataIssues).
+     *
+     * @param array<string,mixed> $settings
+     * @return list<string>
+     */
+    /**
+     * v3.13.0 (K2d) — Schlüssel, die ihr Leser selbst nachsichtig liest (und die der Bestand deshalb nicht auf die
+     * Vorgabe setzt): der Fälligkeitstag wird geklemmt (advanceDueDay(), Paket wechsel).
+     */
+    private const TOLERANT_READ = ['advance_due_day'];
+
+    public function storedProblems(array $settings): array
+    {
+        $bad = [];
+        // ohne Übersetzung prüfen: Gefragt ist nur, ob, nicht die Meldung. Die Übersetzung liest selbst Einstellungen
+        // (Währung, Sprache) und käme sonst während all() wieder hier an.
+        $i18n = $this->i18n;
+        $this->i18n = null;
+        try {
+            foreach ($settings as $k => $v) {
+                if (!is_string($k) || !array_key_exists($k, self::DEFAULTS) || $v === null || in_array($k, self::TOLERANT_READ, true)) continue;
+                try {
+                    if ($k === 'gas_conversion_factors') { ConversionFactorService::normalizeList($v, $this->translator(), false); continue; }
+                    $this->apply([], [$k => $v]);
+                } catch (\Energietracker\Support\LocalizedException $e) {
+                    if ($e->key !== 'errors.common.tooLong') $bad[] = $k;
+                } catch (\InvalidArgumentException) {
+                    $bad[] = $k;
+                }
+            }
+        } finally {
+            $this->i18n = $i18n;
+        }
+        return $bad;
+    }
+
+    /**
      * Die Prüfung und Umwandlung von set(), auf eine Kopie angewandt.
      *
      * @param array<string,mixed> $current
@@ -661,6 +732,7 @@ final class SettingsService
     {
         foreach ($patch as $k => $v) {
             if (!array_key_exists($k, self::DEFAULTS)) continue;
+            \Energietracker\Support\TextLimits::assert([$k => $v], 'settings');   // v3.13.0 (Paket F) — Ortsname; auch im Backup-Import (problems())
             // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant: eine Prüfung für Karte und PATCH /api/settings
             if (str_starts_with($k, 'ha_notify_')) {
                 $current[$k] = \Energietracker\Services\HomeAssistant\NotifyConfig::normalizeSetting($k, $v);
@@ -695,15 +767,20 @@ final class SettingsService
                 unset($current[$k]);
                 continue;
             }
+            // v3.13.0 (Paket wechsel) — ein leerer Fälligkeitstag (das Feld steht nur bei „ganze Rate“) gilt wieder als 1
+            if ($k === 'advance_due_day' && ($v === null || $v === '')) {
+                unset($current[$k]);
+                continue;
+            }
             // v3.7.0 — Beispielwerte der Flexibilität: leer = zurück zum Beispielwert, sonst Zahl in den Grenzen
             if (isset(self::EXAMPLE_VALUES[$k])) {
                 if ($v === null || $v === '') { unset($current[$k]); continue; }
                 [$min, $max, $int] = self::EXAMPLE_VALUES[$k];
-                $num = is_string($v) ? str_replace(',', '.', trim($v)) : $v;
-                if (is_bool($num) || !is_numeric($num) || (float)$num < $min || (float)$num > $max || ($int && (float)$num != (int)$num)) {
+                $num = \Energietracker\Support\Input::decimal($v);   // v3.13.0 — dieselbe Lesart wie jede Zahl
+                if ($num === null || $num < $min || $num > $max || ($int && $num != floor($num))) {
                     throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
                 }
-                $current[$k] = $int ? (int)$num : round((float)$num, 2);
+                $current[$k] = $int ? (int)$num : round($num, 2);
                 continue;
             }
             // v3.12.0 — der Typ folgt der Vorgabe: Text bleibt Text (eine Zahl wird Text), eine Liste bleibt
@@ -780,6 +857,7 @@ final class SettingsService
                 'forecast_model'       => self::FORECAST_MODELS,
                 'segmented_split_mode' => ['auto', 'fixed'],
                 'gebaeudetyp'          => self::BUILDING_TYPES,
+                'advance_counting'     => self::ADVANCE_COUNTING,   // v3.13.0 (Paket wechsel)
                 'language'             => $this->i18n !== null ? $this->i18n->supported() : self::languageCodes(),
                 default       => null,
             };
@@ -803,7 +881,9 @@ final class SettingsService
                 default              => null,
             };
             // v3.12.0 — erst der Bereich, dann die Ganzzahl: (int)1e308 ist unter PHP 8.5 ein Fehler (500)
-            $bad = ($range !== null && (!is_numeric($v) || (float)$v < $range[0] || (float)$v > $range[1] || floor((float)$v) != (float)$v))
+            // v3.13.0 — jede Zahl gelesen wie die übrigen (Support\Input::decimal: Komma als Dezimaltrenner)
+            $rangeNum = $range !== null ? \Energietracker\Support\Input::decimal($v) : null;
+            $bad = ($range !== null && ($rangeNum === null || $rangeNum < $range[0] || $rangeNum > $range[1] || floor($rangeNum) != $rangeNum))
                 || (in_array($k, ['ocr_endpoint', 'evcc_endpoint'], true) && !self::isHttpUrlOrEmpty($v))
                 || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200))
                 // v3.7.0 — Modellname des lokalen Diensts wie beim Bildmodell (der Anbieter ist eine
@@ -820,21 +900,23 @@ final class SettingsService
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
                 ]));
             }
-            if ($range !== null) $v = (int)$v;
+            if ($range !== null) $v = (int)$rangeNum;
             // v3.1.0 (H7) — PV-Vermeidungsfaktor und angenommener Eigenverbrauch; leer = aus
             if (in_array($k, ['co2_pv_avoided', 'pv_assumed_self_consumption_pct', 'reference_strom_kwh', 'reference_heat_kwh_m2'], true)) {
                 $max = ['co2_pv_avoided' => 2000.0, 'pv_assumed_self_consumption_pct' => 100.0,
                         'reference_strom_kwh' => 100000.0, 'reference_heat_kwh_m2' => 1000.0][$k];
+                $n = \Energietracker\Support\Input::decimal($v);   // v3.13.0 — Komma wie an jeder Zahl
                 if ($v === '' || $v === null) $v = null;
-                elseif (!is_numeric($v) || (float)$v < 0 || (float)$v > $max) {
+                elseif ($n === null || $n < 0 || $n > $max) {
                     throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
-                } else $v = round((float)$v, 1);
+                } else $v = round($n, 1);
             }
             if ($k === 'co2_price_scenario_eur_t') {
+                $n = \Energietracker\Support\Input::decimal($v);   // v3.13.0 — Komma wie an jeder Zahl
                 if ($v === '' || $v === null) $v = null;
-                elseif (!is_numeric($v) || (float)$v < 0 || (float)$v > 1000) {
+                elseif ($n === null || $n < 0 || $n > 1000) {
                     throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
-                } else $v = round((float)$v, 2);
+                } else $v = round($n, 2);
             }
             if ($k === 'ocr_endpoint' || $k === 'ocr_model' || $k === 'evcc_endpoint' || $k === 'inbox_model'
                 || $k === 'inbox_cloud_endpoint' || $k === 'inbox_cloud_model') $v = trim((string)$v);

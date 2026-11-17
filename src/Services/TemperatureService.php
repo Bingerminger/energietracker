@@ -33,6 +33,15 @@ use Energietracker\Support\Dates;
  * Handwerte überschreibt er nie; Einträge aus der Zeit vor v2.8.0 (ohne
  * Quelle) nur auf ausdrücklichen Wunsch (`reload`) — ein Update soll keine
  * Werte ändern, die niemand angefasst hat (Lektion 36).
+ *
+ * v3.13.0 (Paket sonne) — je Tag optional `rad`: die Einstrahlung
+ * (Globalstrahlung, Open-Meteo `shortwave_radiation_sum`) in kWh/m² am Tag, im
+ * selben Abruf wie die Temperatur (Archiv, Abgleich, Vorhersage). Tage ohne
+ * `rad` bleiben gültig. Gemessene Tage ohne Einstrahlung (Bestand, CSV, Hand)
+ * bekommen sie beim nächsten Archivabruf nachgetragen, ihre Temperaturen
+ * bleiben; welcher Zeitraum schon danach gefragt wurde, merkt sich
+ * `weather_sync.json` (`radiation_checked`), damit kein Abgleich dieselben
+ * Jahre wieder holt.
  */
 final class TemperatureService
 {
@@ -73,9 +82,33 @@ final class TemperatureService
     public function upsert(string $date, float $avg, float $min, float $max, string $source = 'manual'): void
     {
         $all = $this->all();
-        $all[$date] = ['avg' => $avg, 'min' => $min, 'max' => $max, 'source' => $source];
+        $row = ['avg' => $avg, 'min' => $min, 'max' => $max, 'source' => $source];
+        // v3.13.0 (Paket sonne) — die gemessene Einstrahlung des Tags bleibt (eine Handeingabe ändert die Temperatur)
+        $rad = self::keptRadiation($all[$date] ?? null);
+        if ($rad !== null) $row['rad'] = $rad;
+        $all[$date] = $row;
         ksort($all);
         $this->store->write('temperatures.json', $all);
+    }
+
+    /**
+     * v3.13.0 (Paket sonne) — Einstrahlung eines Eintrags (kWh/m² am Tag), null ohne verwertbaren Wert. Gültig sind
+     * endliche Zahlen von 0 bis RAD_MAX (über 12 kWh/m² am Tag kommt auf der Erde nicht an).
+     */
+    public static function radValue(mixed $v): ?float
+    {
+        if ($v === null || is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v < 0 || (float)$v > self::RAD_MAX) return null;
+        return (float)$v;
+    }
+
+    /** v3.13.0 — größte gültige Einstrahlung eines Tags in kWh/m² (Schreibweg, Backup-Import). */
+    public const RAD_MAX = 15.0;
+
+    /** Einstrahlung eines bestehenden Eintrags, die ein neuer Wert ohne `rad` behält: nur gemessene, keine Vorhersage. */
+    private static function keptRadiation(mixed $prev): ?float
+    {
+        if (!is_array($prev) || ($prev['source'] ?? null) === 'forecast') return null;
+        return self::radValue($prev['rad'] ?? null);
     }
 
     /**
@@ -97,6 +130,10 @@ final class TemperatureService
                 'min' => (float)$vals['min'],
                 'max' => (float)$vals['max'],
             ];
+            // v3.13.0 (Paket sonne) — Einstrahlung, optional; bringt der neue Wert keine mit (CSV), bleibt die
+            // gemessene des Tags stehen
+            $rad = self::radValue($vals['rad'] ?? null) ?? self::keptRadiation($all[$date] ?? null);
+            if ($rad !== null) $row['rad'] = $rad;
             if ($source !== null) $row['source'] = $source;
             $all[$date] = $row;
             $count++;
@@ -209,6 +246,13 @@ final class TemperatureService
 
         $all = $this->all();
         $measured = fn(string $date, ?array $e): bool => self::isMeasured($date, $e, $horizon);
+        // v3.13.0 (Paket sonne) — gemessene Tage ohne Einstrahlung (Bestand von vor v3.13.0, CSV, Hand) holt derselbe
+        // Archivabruf nach, aber nur außerhalb des Zeitraums, für den das Archiv schon gefragt wurde: Liefert es für
+        // einen Tag keine, fragt nicht jeder Abgleich wieder alle Jahre ab
+        $radChecked = is_array($meta['radiation_checked'] ?? null) ? $meta['radiation_checked'] : null;
+        $radAsked = fn(string $d): bool => $radChecked !== null
+            && $d >= (string)($radChecked['from'] ?? '9999') && $d <= (string)($radChecked['to'] ?? '0000');
+        $needsRad = fn(string $d, ?array $e): bool => is_array($e) && self::radValue($e['rad'] ?? null) === null && !$radAsked($d);
 
         // Erste Lücke im Messbestand ab $from — ab dort das Archiv holen.
         $archiveFrom = null;
@@ -217,7 +261,8 @@ final class TemperatureService
                 $archiveFrom = $from;
             } else {
                 for ($d = $from; $d <= $end; $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
-                    if (!$measured($d, $all[$d] ?? null)) { $archiveFrom = $d; break; }
+                    $e = is_array($all[$d] ?? null) ? $all[$d] : null;
+                    if (!$measured($d, $e) || $needsRad($d, $e)) { $archiveFrom = $d; break; }
                 }
             }
         }
@@ -232,6 +277,7 @@ final class TemperatureService
         $climateFetch = $this->fetchClimateNormal($lat, $lon);
 
         $this->store->lock();
+        $radiationRows = 0;
         if ($res !== null) {
             $archiveError = $this->weatherError($res);
             $archiveCode = $res['error_code'] ?? null;
@@ -239,6 +285,9 @@ final class TemperatureService
                 fn(string $d, ?array $e): bool => $reload
                     ? !in_array($e['source'] ?? null, ['csv', 'manual'], true)
                     : !$measured($d, $e));
+            // v3.13.0 (Paket sonne) — Einstrahlung an gemessenen Tagen nachtragen, Temperaturen unverändert
+            $radiationRows = $this->addRadiation($res['data'] ?? []);
+            if (($res['data'] ?? []) !== []) $radChecked = self::radiationRange($radChecked, (string)$archiveFrom, $end, $res['data']);
         }
         $forecastRows = $this->bulkUpsert($forecast['data'] ?? [], 'forecast',
             fn(string $d, ?array $e): bool => !$measured($d, $e) || ($e['source'] ?? null) === 'forecast');
@@ -263,6 +312,7 @@ final class TemperatureService
             'forecast_error_code' => $forecast['error_code'] ?? null,
             'climate_normal'  => $climate,
         ];
+        if ($radChecked !== null) $meta['radiation_checked'] = $radChecked;   // v3.13.0 (Paket sonne)
         $this->store->write(self::META_FILE, $meta);
 
         return [
@@ -277,7 +327,54 @@ final class TemperatureService
             'measured_until'  => $measuredUntil,
             'forecast_until'  => $forecastUntil,
             'climate_normal'  => $climate,
+            // v3.13.0 (Paket sonne, additiv) — gemessene Tage, die ihre Einstrahlung nachgetragen bekamen
+            'radiation_rows'  => $radiationRows,
         ];
+    }
+
+    /**
+     * v3.13.0 (Paket sonne) — trägt die Einstrahlung an gemessenen Tagen nach, die noch keine haben (Bestand von
+     * vor v3.13.0, CSV, Hand). Temperaturen und Quelle bleiben, wie sie sind (Lektion 36).
+     *
+     * @param array<string,mixed> $entries Archivwerte je Tag
+     */
+    private function addRadiation(array $entries): int
+    {
+        $all = $this->all();
+        $n = 0;
+        foreach ($entries as $date => $vals) {
+            if (!is_string($date) || !is_array($vals) || !is_array($all[$date] ?? null)) continue;
+            if (($all[$date]['source'] ?? null) === 'forecast' || self::radValue($all[$date]['rad'] ?? null) !== null) continue;
+            $rad = self::radValue($vals['rad'] ?? null);
+            if ($rad === null) continue;
+            $all[$date]['rad'] = $rad;
+            $n++;
+        }
+        if ($n > 0) $this->store->write('temperatures.json', $all);
+        return $n;
+    }
+
+    /**
+     * v3.13.0 (Paket sonne) — Zeitraum, für den das Archiv schon nach der Einstrahlung gefragt wurde. Er reicht bis
+     * zum letzten Tag, für den es eine lieferte (ein jüngerer Tag ohne kommt beim nächsten Abgleich wieder dran);
+     * liefert es gar keine, bis zum Ende des Abrufs. Ein Abruf, der an den alten Zeitraum anschließt, verlängert ihn.
+     *
+     * @param array{from?:string,to?:string}|null $prev
+     * @param array<string,mixed> $data
+     * @return array{from:string,to:string}
+     */
+    private static function radiationRange(?array $prev, string $from, string $end, array $data): array
+    {
+        $last = null;
+        foreach ($data as $d => $v) {
+            if (is_array($v) && self::radValue($v['rad'] ?? null) !== null && ($last === null || (string)$d > $last)) $last = (string)$d;
+        }
+        $to = $last ?? $end;
+        if ($prev !== null && isset($prev['from'], $prev['to'])
+            && $from <= date('Y-m-d', (int)strtotime((string)$prev['to'] . ' +1 day')) && $to >= (string)$prev['from']) {
+            return ['from' => min($from, (string)$prev['from']), 'to' => max($to, (string)$prev['to'])];
+        }
+        return ['from' => $from, 'to' => $to];
     }
 
     /** @return array<string,mixed> Zustand des letzten Syncs */
@@ -326,7 +423,14 @@ final class TemperatureService
     {
         if ($this->climate === null || !$this->climate->isStale(round($lat, 2), round($lon, 2))) return null;
         $period = ClimateNormalService::period();
-        return ['res' => $this->weather->fetchArchiveMeans($lat, $lon, $period['from'], $period['to']), 'period' => $period];
+        // v3.13.0 (Paket sonne) — fehlt nur die Einstrahlung, ergänzt derselbe Abruf sie für die dreißig Jahre des
+        // gespeicherten Normals; seine Heizgradtage bleiben (saveClimateNormal)
+        $radOnly = $this->climate->lacksOnlyRadiation(round($lat, 2), round($lon, 2));
+        $stored = $radOnly ? ($this->climate->get()['period'] ?? null) : null;
+        if (is_array($stored) && is_string($stored['from'] ?? null) && is_string($stored['to'] ?? null)) {
+            $period = ['from' => $stored['from'], 'to' => $stored['to']];
+        }
+        return ['res' => $this->weather->fetchArchiveMeans($lat, $lon, $period['from'], $period['to']), 'period' => $period, 'radiation_only' => $radOnly];
     }
 
     /**
@@ -342,7 +446,15 @@ final class TemperatureService
         if (($res['data'] ?? []) === []) {
             return ['status' => 'failed', 'error' => $this->weatherError($res), 'error_code' => $res['error_code'] ?? null] + ($this->climate->summary() ?? []);
         }
-        $this->climate->save(ClimateNormalService::compute($res['data'], $lat, $lon, $fetched['period']));
+        $rad = is_array($res['rad'] ?? null) ? $res['rad'] : [];
+        $stored = !empty($fetched['radiation_only']) ? $this->climate->get() : null;
+        if ($stored !== null) {
+            // v3.13.0 (Paket sonne) — nur die Einstrahlung ergänzen (die Heizgradtage bleiben, Lektion 36)
+            // v3.13.0 (Paket waermepumpe, E2) — und den Trend der Temperatur aus denselben Tagesmitteln
+            $this->climate->save(ClimateNormalService::withRadiation($stored, $rad, is_array($res['data'] ?? null) ? $res['data'] : []));
+            return ['status' => 'fetched', 'radiation_only' => true] + ($this->climate->summary() ?? []);
+        }
+        $this->climate->save(ClimateNormalService::compute($res['data'], $lat, $lon, $fetched['period'], $rad));
         return ['status' => 'fetched'] + ($this->climate->summary() ?? []);
     }
 

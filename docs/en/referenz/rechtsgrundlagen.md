@@ -48,13 +48,51 @@ in the code.
 | Notice of a price change, special contract <!-- doc-claim: rights-deadline announce_special_months --> | 1 month before the change | § 41 Abs. 5 Satz 1 bis 3 EnWG |
 | Notice of a price change, basic supply <!-- doc-claim: rights-deadline announce_basic_days --> | 42 days (six weeks) before the change, which takes effect at the start of a month | § 5 Abs. 2 StromGVV, § 5 Abs. 2 GasGVV |
 | Notification of an assessment by post <!-- doc-claim: rights-deadline notice_postal_days --> | on the 4th day after posting | § 41 Abs. 2 Satz 1 VwVfG, § 122 Abs. 2 Nr. 1 AO |
-| Objection or action against an assessment <!-- doc-claim: rights-deadline notice_months --> | 1 month after notification | § 70 Abs. 1 VwGO; end of the period under §§ 187 Abs. 1, 188 Abs. 2, 3 BGB (to be checked); on a Saturday, Sunday or public holiday the next working day (§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG) |
+| Objection or action against an assessment <!-- doc-claim: rights-deadline notice_months --> | 1 month after notification | § 70 Abs. 1 VwGO; end of the period under §§ 187 Abs. 1, 188 Abs. 2, 3 BGB; on a Saturday, Sunday or public holiday the next working day (§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO, § 31 Abs. 3 VwVfG) |
 
 How the app calculates the dates:
 
+- **Cancellation deadline** *(v3.13.0, no. 52)*: the **last day on which the
+  cancellation can reach the supplier** so that the notice period ends no later
+  than the end of the contract. The period starts the day after receipt
+  (§ 187 Abs. 1 BGB) and ends on the day with the same number, in a shorter
+  month on its last day (§ 188 Abs. 2, 3 BGB). **If the contract ends on the
+  last day of a month, the deadline is the last day of a month:**
+  <!-- doc-claim: notice-last-day --> end 29.02.2028 with one month’s notice:
+  31.01.2028; end 30.09.2029 with six months: 31.03.2029; end 31.03.2029 with
+  one month: 28.02.2029. Otherwise the day with the same number (end
+  15.05.2028, one month: 15.04.2028). Up to v3.12 it was always the day with
+  the same number, 1 to 3 days too early for an end on the last day of a
+  month. A notice period in days: end minus days. The same rule applies to
+  the nine months for district heating (§ 32 AVBFernwärmeV). **If the deadline
+  falls on a weekend or public holiday, it stays:** § 193 BGB does not apply
+  to notice periods.
 - **Special termination:** the termination must arrive before the day of the
   price change; the date is the day before. If the letter names an earlier date,
   the earlier one is the date and the note names both.
+- **Notice of a price change** *(v3.13.0, no. 18, 24)*: counted like the
+  cancellation deadline. <!-- doc-claim: announcement-forward --> The period (one
+  month for a special contract, six weeks in basic supply) starts on the day
+  after the letter and must have run out by the last day of the old price:
+  **change on 01.03.2027, special contract: in time up to 31.01.2027, basic
+  supply up to 17.01.2027.** A letter exactly one calendar month or 42 days
+  ahead (01.02.2027 or 18.01.2027) is **“tight, please check”**, not “too
+  late”; only after that is it too late. Up to v3.12 that day counted as in
+  time. <!-- /doc-claim --> Reasons: §§ 187, 188 BGB apply accordingly to periods
+  that run back from an event (IHK München, “Rückwärtsfristen”, PDF of
+  24.10.2022, retrieved 2026-11-16: start on 07.05., 14 days, last day 22.04.);
+  for the statutory backward period of a general meeting the legislator counts
+  neither the day of the invitation nor the day of the meeting (§ 121 Abs. 7,
+  § 123 Abs. 1 AktG, retrieved 2026-11-16; comparison only). A guide for
+  suppliers, on the other hand (retrieved 2026-11-16), counts the calendar
+  distance. No court has decided how to count (BGH, 10.09.2024, EnVR 75/23, and
+  21.10.2025, EnZR 97/23: an increase announced too late is void, the period is
+  not counted out). **What counts is receipt** by the customer (Verbraucherzentrale,
+  “Preiserhöhungen bei Strom und Gas”, as of 19.11.2025, retrieved 2026-11-16);
+  the app only knows the date of the letter. In basic supply the public
+  announcement counts, the letter goes out at the same time. District heating
+  has no general notice period (§ 24 AVBFernwärmeV, retrieved 2026-11-16); the
+  app checks none there.
 - **Fee assessment:** date of the assessment plus four days, with a certificate
   of service the day of service; then one month. If the day does not exist in
   that month, the last day of the month applies. If that day is a Saturday,
@@ -86,6 +124,16 @@ applies to a smart metering system, the optional installation applies.
 
 The app takes annual consumption as the mean of the last three full years. It
 checks nothing for conventional meters and for gas.
+
+**A year stays a year** *(v3.13.0)*: the law names gross annual amounts and
+the annual electricity consumption, but no conversion to 365 days. A calendar
+year from readings and a bill covering **exactly one year** (anniversary to
+anniversary, 365 or 366 days) are therefore taken as they are; only a shorter
+or longer period is converted to 365 days, quantity and amount by the same
+rule. The annual value from readings comes from the unrounded daily amounts,
+not from the monthly rows rounded to 0.1 kWh. Up to v3.12 a leap year was
+converted too (6,012 kWh in 366 days counted as 5,996 kWh), and the sum of
+the monthly rows could lift exactly 6,000 kWh over the limit.
 
 ## Statements and sources
 
@@ -136,17 +184,17 @@ checks nothing for conventional meters and for gas.
 
 | No. | Statement | Norm and source | Checked | Status |
 |---|---|---|---|---|
-| 18 <!-- doc-claim: rights-rule de.enwg.41.5.s1 --> | Special contract: the supplier informs household customers of a price change no later than one month in advance, in simple and clear terms, with reason, conditions and extent. | [§ 41 Abs. 5 Satz 1 bis 3 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
+| 18 <!-- doc-claim: rights-rule de.enwg.41.5.s1 --> | Special contract: the supplier informs household customers of a price change no later than one month in advance, in simple and clear terms, with reason, conditions and extent. | [§ 41 Abs. 5 Satz 1 bis 3 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-16 | W |
 | 19 <!-- doc-claim: rights-rule de.enwg.41.5.s4 --> | Special contract: you can terminate without notice period with effect from the date the price change takes effect, without a separate charge. | [§ 41 Abs. 5 Satz 4 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
 | 20 <!-- doc-claim: rights-rule de.enwg.41.6 --> | Special contract: no duty to inform and no right to terminate if the supplier passes on a statutory change in VAT unchanged, or a reduction of the price components under § 40 Abs. 3 Nr. 1 to 5 EnWG. | [§ 41 Abs. 6 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41.html) | 2026-11-03 | W |
 | 21 <!-- doc-claim: rights-rule de.vz.special_termination --> | The termination must reach the supplier by the date the change takes effect; the supplier may not set its own deadline for it; a minimum term does not exclude the right. | [Verbraucherzentrale Niedersachsen: Sonderkündigungsrecht (Stand 24.04.2026)](https://www.verbraucherzentrale-niedersachsen.de/themen/energie-wohnen/energiepreise-anbieterwechsel/preiserhoehung-wenn-energieanbieter-das-sonderkuendigungsrecht-verweigern) | 2026-11-03 | S |
 | 22 <!-- doc-claim: rights-rule de.enwg.41b.1 --> | Special contract: the supplier confirms a termination in text form within one week of receipt, stating the end of the contract. | [§ 41b Abs. 1 Satz 2 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__41b.html) | 2026-11-03 | W |
-| 24 <!-- doc-claim: rights-rule de.stromgvv.5.2 --> | Basic supply, electricity: price changes take effect at the start of a month, publicly announced at least six weeks in advance, together with a letter stating extent, reason and conditions. | [§ 5 Abs. 2 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-03 | W |
-| 24 <!-- doc-claim: rights-rule de.gasgvv.5.2 --> | Basic supply, gas: the same. | [§ 5 Abs. 2 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-03 | W |
+| 24 <!-- doc-claim: rights-rule de.stromgvv.5.2 --> | Basic supply, electricity: price changes take effect at the start of a month, publicly announced at least six weeks in advance, together with a letter stating extent, reason and conditions. | [§ 5 Abs. 2 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-16 | W |
+| 24 <!-- doc-claim: rights-rule de.gasgvv.5.2 --> | Basic supply, gas: the same. | [§ 5 Abs. 2 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-16 | W |
 | 25 <!-- doc-claim: rights-rule de.stromgvv.5.3 --> | Basic supply, electricity: you can terminate without notice with effect from the date of the change; the change does not apply if you prove an initiated switch of supplier within one month of your termination being received. | [§ 5 Abs. 3 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__5.html) | 2026-11-03 | W |
 | 25 <!-- doc-claim: rights-rule de.gasgvv.5.3 --> | Basic supply, gas: the same. | [§ 5 Abs. 3 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__5.html) | 2026-11-03 | W |
-| 26 <!-- doc-claim: rights-rule de.stromgvv.20 --> | Basic supply, electricity: termination at any time with two weeks’ notice, in text form; the basic supplier confirms without delay, free of charge. | [§ 20 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__20.html) | 2026-11-03 | W |
-| 26 <!-- doc-claim: rights-rule de.gasgvv.20 --> | *To be checked:* Basic supply, gas: the same. | [§ 20 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__20.html) | 2026-11-03 | G |
+| 26 <!-- doc-claim: rights-rule de.stromgvv.20 --> | Basic supply, electricity: termination at any time with two weeks’ notice, in text form; the basic supplier confirms without delay, free of charge. When the two weeks end depends on receipt; the cancellation letter therefore leaves the date open *(v3.13.0)*. | [§ 20 StromGVV](https://www.gesetze-im-internet.de/stromgvv/__20.html) | 2026-11-13 | W |
+| 26 <!-- doc-claim: rights-rule de.gasgvv.20 --> | Basic supply, gas: the same (same wording). | [§ 20 GasGVV](https://www.gesetze-im-internet.de/gasgvv/__20.html) | 2026-11-13 | W |
 | 29 <!-- doc-claim: rights-rule de.avbfernwaermev.24.4 --> | District heating: prices change according to the price adjustment clause with a cost and a market element; the calculation factors must be shown. A special right of termination exists only in the special case of a gas price increase under the Energy Security Act. | [§ 24 Abs. 4 bis 7 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__24.html) | 2026-11-03 | W |
 | 58 <!-- doc-claim: rights-rule de.enwg.2026 --> | *Uncertain:* The EnWG was amended in 2026 (BGBl. 2026 I Nr. 226); whether this affects §§ 40 to 41b has not been checked. | [EnWG, Änderung durch BGBl. 2026 I Nr. 226](https://www.buzer.de/41_EnWG.htm) | 2026-11-03 | U |
 
@@ -154,7 +202,7 @@ checks nothing for conventional meters and for gas.
 
 | No. | Statement | Norm and source | Checked | Status |
 |---|---|---|---|---|
-| 30 <!-- doc-claim: rights-rule de.avbfernwaermev.32 --> | District heating: term at most ten years; without notice nine months before expiry it is extended by five years; termination is in writing. | [§ 32 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__32.html) | 2026-11-03 | W |
+| 30 <!-- doc-claim: rights-rule de.avbfernwaermev.32 --> | District heating: term at most ten years; without notice nine months before expiry it is extended by five years; termination is in writing. | [§ 32 AVBFernwärmeV](https://www.gesetze-im-internet.de/avbfernw_rmev/__32.html) | 2026-11-13 | W |
 | 31 <!-- doc-claim: rights-rule de.bgb.310.2 --> | §§ 308, 309 BGB do not apply to special customer contracts of electricity, gas, district heating and water suppliers unless these deviate from the supply conditions of the ordinances to the customer’s disadvantage; the same for sewage. | [§ 310 Abs. 2 BGB](https://www.gesetze-im-internet.de/bgb/__310.html) | 2026-11-03 | W |
 | 32 <!-- doc-claim: rights-rule de.bgb.309.9 --> | *To be checked:* An initial term of more than 24 months is invalid in the standard terms of a consumer contract. The app’s warning for electricity and gas is based on this. | [§ 309 Nr. 9 BGB](https://www.gesetze-im-internet.de/bgb/__309.html) | 2026-11-03 | G |
 | 59 <!-- doc-claim: rights-rule de.bgb.309.9.b --> | *Uncertain:* In standard terms, a tacit extension is only valid if the contract then runs for an indefinite period and can be cancelled at any time with at most one month’s notice. Whether this applies to an extended electricity or gas contract depends on § 310 Abs. 2 BGB (no. 31) and on the date the contract was concluded. The app therefore names no notice period and calculates no earliest end; it refers to the contract. | [§ 309 Nr. 9 Buchst. b BGB](https://www.gesetze-im-internet.de/bgb/__309.html) | 2026-11-03 | U |
@@ -172,9 +220,9 @@ checks nothing for conventional meters and for gas.
 
 | No. | Statement | Norm and source | Checked | Status |
 |---|---|---|---|---|
-| 40 <!-- doc-claim: rights-rule de.msbg.30 --> | Smart metering system: caps per case group for the connection user 40, 50, 110 and 140 € a year, above 100,000 kWh an appropriate charge, 30 € for an optional installation; gross per year and metering point, for the default metering operator (version of 23.12.2025). The amounts of older versions are not documented; the app checks only from 2026-01-01. | [§ 30 Abs. 1, 3 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
-| 41 <!-- doc-claim: rights-rule de.msbg.30.1.4 --> | With an agreement under § 14a EnWG or a system above 7 up to 15 kW the 50 € group applies. | [§ 30 Abs. 1 Nr. 4 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
-| 42 <!-- doc-claim: rights-rule de.msbg.30.4 --> | Annual consumption is the mean of the last three annual values, otherwise the grid operator’s forecast; if several groups apply, the highest cap applies; a determination by the Federal Network Agency would take precedence. Whether one exists is open (as of 2026-11). | [§ 30 Abs. 4 bis 6 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-03 | W |
+| 40 <!-- doc-claim: rights-rule de.msbg.30 --> | Smart metering system: caps per case group for the connection user 40, 50, 110 and 140 € a year, above 100,000 kWh an appropriate charge, 30 € for an optional installation; gross per year and metering point, for the default metering operator (version of 23.12.2025). The amounts of older versions are not documented; the app checks only from 2026-01-01. | [§ 30 Abs. 1, 3 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
+| 41 <!-- doc-claim: rights-rule de.msbg.30.1.4 --> | With an agreement under § 14a EnWG or a system above 7 up to 15 kW the 50 € group applies. | [§ 30 Abs. 1 Nr. 4 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
+| 42 <!-- doc-claim: rights-rule de.msbg.30.4 --> | Annual consumption is the mean of the last three annual values, otherwise the grid operator’s forecast; if several groups apply, the highest cap applies; a determination by the Federal Network Agency would take precedence. Whether one exists is open (as of 2026-11). The wording names no conversion to 365 days. | [§ 30 Abs. 4 bis 6 MsbG](https://www.gesetze-im-internet.de/messbg/__30.html) | 2026-11-13 | W |
 | 43 <!-- doc-claim: rights-rule de.msbg.32.1 --> | Modern metering device: at most 25 € gross a year (since 2025, before 20 €; the date of the increase is still to be checked). | [§ 32 Abs. 1 MsbG](https://www.gesetze-im-internet.de/messbg/__32.html) | 2026-11-03 | W |
 | 44 <!-- doc-claim: rights-rule de.msbg.35.1 --> | Additional service early installation on request: once up to 100 €, in the optional case up to 30 € a year; installation on request within four months. | [§ 35 Abs. 1 Nr. 1 MsbG](https://www.gesetze-im-internet.de/messbg/__35.html) | 2026-11-03 | W |
 | 45 <!-- doc-claim: rights-rule de.msbg.29 --> | Mandatory installation of a smart metering system above 6,000 kWh, with an agreement under § 14a EnWG and for systems above 7 kW; otherwise optional; modern metering device until the end of 2032. | [§ 29 MsbG](https://www.gesetze-im-internet.de/messbg/__29.html) | 2026-11-03 | W |
@@ -193,7 +241,8 @@ checks nothing for conventional meters and for gas.
 | 50 <!-- doc-claim: rights-rule de.vwvfg.41.2.3 --> | If the notice did not arrive or arrived later, the fourth day does not apply; in case of doubt the authority must prove receipt and its date (“Dies gilt nicht, wenn der Verwaltungsakt nicht oder zu einem späteren Zeitpunkt zugegangen ist …”). | [§ 41 Abs. 2 Satz 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__41.html) | 2026-11-09 | W |
 | 50 <!-- doc-claim: rights-rule de.ao.122.2.zugang --> | The same for levies (“außer wenn er nicht oder zu einem späteren Zeitpunkt zugegangen ist”). | [§ 122 Abs. 2 AO, letzter Halbsatz](https://www.gesetze-im-internet.de/ao_1977/__122.html) | 2026-11-09 | W |
 | 51 <!-- doc-claim: rights-rule de.vwgo.80 --> | Objection and action against public levies do not defer payment; enforcement should be suspended if there are serious doubts or it would cause undue hardship. | [§ 80 Abs. 2 Satz 1 Nr. 1, Abs. 4 Satz 3 VwGO](https://www.gesetze-im-internet.de/vwgo/__80.html) | 2026-11-03 | W |
-| 52 <!-- doc-claim: rights-rule de.bgb.188 --> | *To be checked:* A one-month deadline ends on the day of the following month with the same number; if there is none, on the last day of the month (the BGB applies under § 222 Abs. 1 ZPO and § 31 Abs. 1 VwVfG). For an end on a weekend or holiday see no. 60. | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-03 | G |
+| 52 <!-- doc-claim: rights-rule de.bgb.188 --> | A one-month period starts the day after the event and ends on the day of the last month with the same number; if there is none, on the last day of that month (the BGB also applies under § 222 Abs. 1 ZPO and § 31 Abs. 1 VwVfG). For an end on a weekend or holiday see no. 60. For the cancellation deadline the app counts forwards: the last day on which the cancellation can arrive so that the period ends no later than the end of the contract; for an end on the last day of a month, the last day of a month (see “How the app calculates the dates”). | [§§ 187 Abs. 1, 188 Abs. 2, 3 BGB](https://www.gesetze-im-internet.de/bgb/__188.html) | 2026-11-13 | W |
+| 52 <!-- doc-claim: rights-rule de.bgh.iii_zr_172_04 --> | § 193 BGB applies to notice periods neither directly nor by analogy: a cancellation deadline on a weekend or public holiday does not move. In that case (“by 30.04.2002 with one month’s notice”) the court of appeal named 31.03.2002 as the end of the period; the BGH did not decide on that. Not in app texts. | [BGH, 17.02.2005, III ZR 172/04](https://lorenz.userweb.mwn.de/urteile/iiizr172_04.htm) | 2026-11-13 | S |
 | 60 <!-- doc-claim: rights-rule de.vwgo.57.2 --> | If the end of a deadline falls on a Sunday, a general public holiday or a Saturday, it ends at the end of the next working day; under § 57 Abs. 2 VwGO this applies to the deadlines of the VwGO. | [§ 57 Abs. 2 VwGO, § 222 Abs. 2 ZPO](https://www.gesetze-im-internet.de/vwgo/__57.html) | 2026-11-03 | W |
 | 60 <!-- doc-claim: rights-rule de.vwvfg.31.3 --> | Likewise in administrative proceedings: a deadline ending on a Sunday, public holiday or Saturday ends at the end of the next working day (not if the authority, referring to the provision, named a specific day as the end). | [§ 31 Abs. 3 VwVfG](https://www.gesetze-im-internet.de/vwvfg/__31.html) | 2026-11-03 | W |
 | 60 <!-- doc-claim: rights-rule de.ao.108.3 --> | Likewise for levies under the Fiscal Code. | [§ 108 Abs. 3 AO](https://www.gesetze-im-internet.de/ao_1977/__108.html) | 2026-11-03 | W |
@@ -211,10 +260,9 @@ checks nothing for conventional meters and for gas.
 ## What is open
 
 - **Review** by a person before the release (all rows).
-- **To be checked (G):** GasGVV §§ 11, 17, 18, 20 in their wording; § 309 Nr. 9
+- **To be checked (G):** GasGVV §§ 11, 17, 18 in their wording; § 309 Nr. 9
   BGB as the basis of the term warning; limitation (§§ 195, 199 BGB); exclusion
-  of the objection procedure (§ 68, § 74 VwGO); end of a period (§§ 187, 188
-  BGB); the nationwide public holidays under the states’ holiday acts (no. 61);
+  of the objection procedure (§ 68, § 74 VwGO); the nationwide public holidays under the states’ holiday acts (no. 61);
   § 30 AVBWasserV; each state’s reference from the municipal levies act to
   the Fiscal Code; the date since which 25 € applies to the modern metering
   device.
@@ -223,3 +271,16 @@ checks nothing for conventional meters and for gas.
   versions of 2023 and 02/2025; a determination by the Federal Network Agency on
   the price caps; the notice period of a tacitly extended electricity or gas
   contract (no. 59).
+- **Not documented (notice of a price change, no. 18, 24):** a decision or a
+  commentary that counts the period of § 41 Abs. 5 Satz 2 EnWG or § 5 Abs. 2
+  GVV forwards or backwards (commentaries not consulted); a postal time for
+  receipt in civil law. That is why the one day on which the counts differ is
+  “tight, please check”.
+- **Not documented (cancellation deadline, no. 52):** a decision that
+  explicitly fixes the deadline for an energy contract ending on the last day
+  of a month, and a worked example in a supplier’s terms. Documented are the
+  wording of §§ 187, 188, 193 BGB, the forward calculation, the end of the
+  period 31.03. for the termination date 30.04. in case III ZR 172/04
+  (statement of the court of appeal) and that § 193 BGB does not apply. A contract that fixes the
+  deadline itself takes precedence; the supplier’s confirmation states the end
+  of the contract (§ 41b Abs. 1 Satz 2 EnWG).

@@ -314,6 +314,72 @@ final class ReportModelServiceTest extends ServiceTestCase
         self::assertSame($this->i18n->t('report.money.advanceLower'), $fw[0]['advance_text']);
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — Mangel 5 mit Gegenbeispiel: Die Persona hat am Stichtag nur den
+     * auffälligen Dezember des Berichtsjahres; dass ein Monat eines anderen Jahres draußen bleibt, war so
+     * nicht zu sehen. Hier steigt der Strom ab April 2026 um 600 kWh: Der März 2026 wird auffällig und
+     * steht in den Empfehlungen, im Bericht 2025 aber nicht.
+     */
+    public function testAnomaliesOnlyFromTheReportYearAlsoWithAnAnomalyOfAnotherYear(): void
+    {
+        $today = '2026-06-15';
+        $this->importPersona('eigenheim-modern');
+        $rows = $this->store->read('strom/readings.json', []);
+        foreach ($rows as &$r) if ((string)($r['date'] ?? '') >= '2026-04-01') $r['counter'] = (float)$r['counter'] + 600.0;
+        unset($r);
+        $this->store->write('strom/readings.json', $rows);
+        $svc = $this->reportServices();
+        $years = [];
+        foreach ($svc['recommendations']->allAt($today) as $rec) {
+            if (!in_array(substr((string)$rec['id'], 0, 3), ['r1_', 'r4_'], true)) continue;
+            $years[] = substr((string)($rec['evidence']['ym'] ?? ''), 0, 4);
+        }
+        self::assertContains((string)self::YEAR, $years, 'Vorbedingung: ein auffälliger Monat im Berichtsjahr');
+        self::assertNotSame([], array_diff($years, [(string)self::YEAR]), 'Vorbedingung: ein auffälliger Monat eines anderen Jahres');
+        $m = $svc['model']->build(self::YEAR, ['today' => $today]);
+        $anomalies = array_filter($m['tasks'], fn($t) => $t['rule'] === 'anomaly');
+        self::assertNotEmpty($anomalies);
+        foreach ($anomalies as $a) {
+            self::assertStringContainsString((string)self::YEAR, $a['title']);
+            self::assertDoesNotMatchRegularExpression('/20(23|24|26)/', $a['title']);
+        }
+    }
+
+    /**
+     * v3.13.0 (Paket gegenproben) — Mangel 11 an einem festen Tag: Der Test oben zahlt am echten heutigen
+     * Tag ein; kurz vor dem Abrechnungstag hält die App den Vorschlag zurück (zu wenige Monate), dann gibt es
+     * keinen Vorschlag 0 und die Regel fällt nicht auf. Am 15.06.2026 schlägt die App 0 vor (großes Guthaben):
+     * kein „Abschlag 0 €“, sondern „kann sinken“.
+     */
+    public function testZeroAdvanceSuggestionIsNotShownAsAmountOnAFixedDay(): void
+    {
+        $today = '2026-06-15';
+        $this->importPersona('etw-fernwaerme');
+        $contracts = $this->store->read('fernwaerme/contracts.json', []);
+        foreach ($contracts as &$c) {
+            if (empty($c['end'])) $c['special_payments'][] = ['id' => 'sp_test_extra', 'date' => $today, 'kind' => 'abschlagszahlung', 'amount_eur' => 5000.0, 'note' => ''];
+        }
+        unset($c);
+        $this->store->write('fernwaerme/contracts.json', $contracts);
+        $raw = [];
+        foreach ($this->meters->list('fernwaerme') as $meter) {
+            foreach ($this->consumption->contractStatus('fernwaerme', $meter, $today)['contracts'] ?? [] as $r) {
+                if (!empty($r['is_current'])) $raw[] = $r;
+            }
+        }
+        self::assertCount(1, $raw, 'Vorbedingung: ein laufender Fernwärmevertrag');
+        self::assertArrayHasKey('suggested_advance', $raw[0], 'Vorbedingung: ein Vorschlag, nicht zurückgehalten');
+        self::assertNotNull($raw[0]['suggested_advance'], 'Vorbedingung: ein Vorschlag, nicht zurückgehalten');
+        self::assertEqualsWithDelta(0.0, (float)$raw[0]['suggested_advance'], 1e-9, 'Vorbedingung: der Vorschlag ist 0');
+        self::assertGreaterThanOrEqual(1.0, (float)($raw[0]['current_advance_amount'] ?? 0), 'Vorbedingung: es gibt einen Abschlag');
+        $m = $this->reportServices()['model']->build(self::YEAR, ['today' => $today]);
+        $fw = array_values(array_filter($m['money']['balances'] ?? [], fn($b) => $b['utility'] === 'fernwaerme'));
+        self::assertNotSame([], $fw, 'Fernwärme im Geldteil');
+        self::assertLessThan(-3000, $fw[0]['projected_end_balance'], 'Vorbedingung: großes Guthaben');
+        self::assertNull($fw[0]['suggested_advance'], 'ein Vorschlag 0 ist kein Betrag');
+        self::assertSame($this->i18n->t('report.money.advanceLower'), $fw[0]['advance_text']);
+    }
+
     public function testDetailAppendixShowsWeatherColumnsOnlyForHeating(): void
     {
         $m = $this->model('eigenheim-klassisch', ['detail' => true]);

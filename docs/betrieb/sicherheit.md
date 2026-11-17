@@ -479,7 +479,13 @@ darf keine dort liegen.
 **Einschalten darf nur ein Verwalter**: `PATCH /api/inbox/cloud`, die
 Modellliste `GET /api/inbox/cloud/models`, die Prüfung des eigenen Diensts
 `GET /api/inbox/local/check` und die Schlüssel `inbox_*` in
-`PATCH /api/settings` antworten Mitgliedern mit `403`.
+`PATCH /api/settings` antworten Mitgliedern mit `403`. *(v3.13.0)* Ebenso die
+Schnittstelle, das Modell und das Zeitlimit der Texterkennung (`ocr_api`,
+`ocr_model`, `ocr_timeout_s`) und Ereignisse und Uhrzeit der Benachrichtigung an
+Home Assistant (`ha_notify_events`, `ha_notify_hour`): Sie wirken für alle. Ein
+unveränderter Wert, den eine Seite mitschickt, geht durch; Mitglieder sehen diese
+Felder gesperrt. Ein Test ordnet jeden Schlüssel der Einstellungen einer Rolle zu
+(Verwalter oder Mitglied), damit ein neuer nicht still für Mitglieder offen ist.
 Ohne Anmeldung darf das jeder, der die App erreicht — wie alles andere
 (Abschnitt 1).
 

@@ -78,6 +78,7 @@ final class ScenarioTool extends ToolGroup
     /** @return array<string,mixed> */
     private function scenario(array $args, McpContext $ctx): array
     {
+        $this->textLocale = $ctx->locale;   // v3.13.0 — Sätze zum Saldo in der Sprache der Anfrage
         $u = (string)$args['utility'];
         $target = $this->target($u, (string)$args['meter']);
         $in = $args;
@@ -133,24 +134,35 @@ final class ScenarioTool extends ToolGroup
             if ($v === null && $range === null) return null;
             return $eur($v ?? ($range[0] + $range[1]) / 2, array_filter(['range' => $range, 'uncertain' => $reasons]));
         };
+        // v3.13.0 — der heutige Abschlag mit der Herkunft wie am Vertrag (contractPrices): verlängert ohne Eintrag oder
+        // nach der Preisgarantie angenommen
+        $cid = is_string($r['billing']['contract_id'] ?? null) ? $r['billing']['contract_id'] : null;
+        $raw = $cid !== null ? $this->storedContract($u, $cid) : [];
+        $advanceBasis = $raw === [] ? 'entered' : Provenance::price(['renewed' => !empty($r['billing']['renewed'])] + $raw, $ctx->today,
+            self::priceFrom($this->services->get(\Energietracker\Services\ContractService::class)->effectiveAdvanceSchedule($raw), $ctx->today));
         $out['advance'] = self::compact([
             'method'           => is_string($a['method'] ?? null) ? $a['method'] : null,
-            'current'          => is_numeric($a['current'] ?? null) ? Num::money((float)$a['current'], $cur, 'entered') : null,
+            'current'          => is_numeric($a['current'] ?? null) ? Num::money((float)$a['current'], $cur, $advanceBasis) : null,
             'base_recommended' => $withRange(is_numeric($a['base_recommended'] ?? null) ? (float)$a['base_recommended'] : null, $rangeOf($unc['base_range'] ?? null)),
             'scen_recommended' => $withRange(is_numeric($a['scen_recommended'] ?? null) ? (float)$a['scen_recommended'] : null, $rangeOf($unc['scen_range'] ?? null)),
             'base_ongoing'     => is_numeric($a['base_ongoing'] ?? null) ? $eur((float)$a['base_ongoing']) : null,
             'scen_ongoing'     => is_numeric($a['scen_ongoing'] ?? null) ? $eur((float)$a['scen_ongoing']) : null,
             'months_left'      => is_int($a['months_left'] ?? null) ? $a['months_left'] : null,
-            'every_months'     => is_int($a['every_months'] ?? null) && $a['every_months'] > 1 ? Num::of($a['every_months'], 'months', 'entered') : null,
+            'every_months'     => is_int($a['every_months'] ?? null) && $a['every_months'] > 1 ? Num::of($a['every_months'], 'months', $advanceBasis) : null,
             'withheld'         => is_string($a['withheld'] ?? null) ? $a['withheld'] : null,
         ]);
         $b = is_array($r['billing'] ?? null) ? $r['billing'] : null;
         if ($b !== null) {
             $sign = Provenance::signFor(Utilities::isFeedIn($u));
+            // v3.13.0 — der Saldo zur Abrechnung in Worten wie jeder andere Saldo (withMeaning): `meaning` und `text`
+            // neben `sign`; ohne Arbeitspreis sind es nur die Abschläge (`no_price`)
+            $noPrice = !empty($b['price_missing']);
+            $opts = ['sign' => $sign] + ($noPrice ? ['uncertain' => ['price_missing']] : []);
+            $balance = fn(string $k): ?array => is_numeric($b[$k] ?? null) ? $this->withMeaning($eur((float)$b[$k], $opts), $u, $noPrice) : null;
             $out['billing'] = self::compact([
                 'until'            => is_string($b['until'] ?? null) ? $b['until'] : null,
-                'base_end_balance' => is_numeric($b['base_end_balance'] ?? null) ? $eur((float)$b['base_end_balance'], ['sign' => $sign]) : null,
-                'scen_end_balance' => is_numeric($b['scen_end_balance'] ?? null) ? $eur((float)$b['scen_end_balance'], ['sign' => $sign]) : null,
+                'base_end_balance' => $balance('base_end_balance'),
+                'scen_end_balance' => $balance('scen_end_balance'),
             ]);
         }
         $out['ranking'] = array_map(fn(array $x): array => self::compact([
@@ -225,8 +237,9 @@ final class ScenarioTool extends ToolGroup
                 ? ['range' => [min((float)$lo[$f], (float)$hi[$f]), max((float)$lo[$f], (float)$hi[$f])]] : [];
             $kwh = fn(string $f) => is_numeric($v[$f] ?? null) ? Num::of((float)$v[$f], 'kWh', $k === 'base' ? 'measured' : 'estimated', $rg($f)) : null;
             // der Ausgangsfall ist das gemessene Jahr (Beträge daraus mit den Preisen der Verträge), das Szenario ein Modellwert
+            // v3.13.0 — Beträge aus gemessener Menge und eingetragenem Preis: eingetragen (die schwächere Eingabe), nie gemessen
             $eur = fn(string $f) => is_numeric($v[$f] ?? null)
-                ? Num::money((float)$v[$f], $cur, $k === 'base' ? 'measured' : 'estimated', ['derived' => true] + $rg($f)) : null;
+                ? Num::money((float)$v[$f], $cur, $k === 'base' ? 'entered' : 'estimated', ['derived' => true] + $rg($f)) : null;
             return self::compact([
                 'generation' => $kwh('generation'), 'feed_in' => $kwh('feed_in'), 'import' => $kwh('import'), 'self_use' => $kwh('self_use'),
                 'autarky' => is_numeric($v['autarky'] ?? null) ? Num::of((float)$v['autarky'] * 100, '%', 'estimated', ['decimals' => 1]

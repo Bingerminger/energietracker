@@ -120,6 +120,36 @@ final class CatalogStyleTest extends TestCase
     }
 
     /**
+     * v3.13.0 — Begriff × Sprache in die andere Richtung: Für einen Begriff mit `follow` nennt jede Sprache ihre
+     * use-Form überall dort, wo der deutsche Text den Begriff nennt. `avoid` fängt nur bekannte Varianten; bis v3.12
+     * hieß die Heizgrenze in fr, it, es, pt und nl an drei Stellen dreimal anders (Glossar, Einstellung und Zählerkarte,
+     * Hinweis), und die Einstellung unter Rechnen hieß auch auf Deutsch noch „HGT-Basistemperatur“.
+     */
+    public function testTermbaseFollowsTheGermanTerm(): void
+    {
+        $base = json_decode((string)file_get_contents(self::root() . '/tests/fixtures/termbase.json'), true);
+        $follow = array_values(array_filter($base['terms'] ?? [], fn($t) => !empty($t['follow'])));
+        self::assertNotSame([], $follow, 'mindestens ein Begriff mit follow (Heizgrenze)');
+        $hits = [];
+        $checked = 0;
+        foreach ($follow as $term) {
+            $de = (string)$term['use']['de'];
+            $allow = $term['allowKeys'] ?? [];
+            foreach (self::catalog('de') as $key => $value) {
+                if (self::keyMatches($key, $allow) || mb_stripos(self::plain($value), $de) === false) continue;
+                $checked++;
+                foreach ($term['use'] as $lang => $use) {
+                    if ($lang === 'de') continue;
+                    $text = self::catalog($lang)[$key] ?? '';
+                    if (mb_stripos(self::plain($text), (string)$use) === false) $hits[] = "$lang $key: „{$use}“ fehlt in „{$text}“";
+                }
+            }
+        }
+        self::assertGreaterThanOrEqual(20, $checked, 'die Heizgrenze steht in rund zwanzig deutschen Texten');
+        self::assertSame([], $hits, "Begriff der Termbase fehlt in der Übersetzung:\n" . implode("\n", $hits));
+    }
+
+    /**
      * I18N-15: Eine Ansicht spricht den Nutzer nicht erst mit „du" und dann mit
      * „Sie" an. Festgelegt: de du, en you, fr vous, it tu, es tú, pt Sie-Form
      * ohne Pronomen (3. Person), nl je. Die Muster suchen die jeweils andere Form.

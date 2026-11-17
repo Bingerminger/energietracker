@@ -217,5 +217,30 @@ t('Datentabelle: nichts ohne Zeilen', chart.chartTableHtml({ columns: ['x'], row
   t('N4: aus vier Tagen kein Monatsmittel', data.perMonthAverage([{ ym: '2026-01', days: 4 }], 37.4) === null);
 }
 
+// ── v3.13.0 (GitHub #64) — Kachel-Balken im Abrechnungsjahr: die Monate der Periode, nicht die letzten zwölf ──
+// Fester Tag: Gas rechnet ab 01.09. ab, heute ist der 15.01.2026, gemessen bis zum 15.01.
+{
+  const months = [];
+  for (let ym = '2024-09'; ym <= '2026-01'; ym = data.shiftYm(ym, 1)) months.push(ym);
+  const rows = months.map((ym, i) => ({ ym, kwh: 100 + i, days: ym === '2026-01' ? 15 : data.daysInMonth(ym) }));
+  const p = data.periodMonths(rows, { from: '2025-09-01', until: '2026-08-31' }, '2026-01-15');
+  t('#64: Abrechnungsjahr ab 01.09. — Balken September bis August', p?.months.length === 12 && p.months[0] === '2025-09' && p.months[11] === '2026-08', p?.months.join(','));
+  t('#64: gemessene Monate mit Wert, künftige leer', p.rows.slice(0, 5).every(Boolean) && p.rows.slice(5).every(r => r === null)
+    && p.rows[0].kwh === 112 && p.rows[4].kwh === 116, p.rows.map(r => r?.kwh ?? '–').join(','));
+  t('#64: der angefangene Januar ist ein Teilmonat, die vollen nicht', p.partial[4] === true && p.partial.slice(0, 4).every(x => !x), p.partial.join(','));
+  t('#64: Fenster nennt Beginn und Ende der Periode', p.from === '2025-09' && p.to === '2026-08');
+  // Vergleichslinie: dieselben Monate ein Jahr davor (im Diagramm über shiftYm −12)
+  const byYm = new Map(rows.map(r => [r.ym, r]));
+  t('#64: Linie = dieselben Monate ein Jahr davor', byYm.get(data.shiftYm(p.months[0], -12))?.kwh === 100 && byYm.get(data.shiftYm(p.months[4], -12))?.kwh === 104);
+  // Periode beginnt mitten im Monat (erste Ablesung): dieser Monat ist ein Teilmonat
+  const q = data.periodMonths(rows, { from: '2025-09-14', until: '2026-08-31' }, '2026-01-15');
+  t('#64: Beginn mitten im Monat → erster Monat als Teilmonat', q.partial[0] === true && q.partial[1] === false);
+  // ohne Periode (Kalenderjahr, Einspeisung): null, die Kachel bleibt bei den letzten zwölf Monaten
+  t('#64: ohne Periode kein Fenster', data.periodMonths(rows, null, '2026-01-15') === null && data.periodMonths(rows, { from: '2026-02-01', until: '2025-01-31' }) === null);
+  // am Stichtag selbst: die neue Periode hat noch keinen gemessenen Monat
+  const r = data.periodMonths(rows, { from: '2026-09-01', until: '2027-08-31' }, '2026-09-01');
+  t('#64: neue Periode ohne Messung → nur leere Monate', r.rows.every(x => x === null));
+}
+
 console.log(`\n  chart.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

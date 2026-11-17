@@ -190,8 +190,8 @@ console.log('Marke des Baus');
 console.log('Hinweis „Neu in vX.Y“');
 {
   const { mod } = await visit();
-  t('passt zur Version (auch mit Korrekturstand)', mod.demoNews('3.12.0')?.href === mod.DEMO_NEWS.href && mod.demoNews('3.12.3') !== null);
-  t('beim nächsten Release schweigt die Zeile, statt Altes als neu zu nennen', mod.demoNews('3.13.0') === null && mod.demoNews('3.1.0') === null && mod.demoNews('13.12.0') === null && mod.demoNews(undefined) === null);
+  t('passt zur Version (auch mit Korrekturstand)', mod.demoNews('3.13.0')?.href === mod.DEMO_NEWS.href && mod.demoNews('3.13.3') !== null);
+  t('beim nächsten Release schweigt die Zeile, statt Altes als neu zu nennen', mod.demoNews('3.14.0') === null && mod.demoNews('3.1.0') === null && mod.demoNews('13.13.0') === null && mod.demoNews(undefined) === null);
   t('Text in jeder Sprache mit der Version', ['de', 'en', 'fr', 'it', 'es', 'pt', 'nl'].every(l =>
     JSON.parse(readFileSync(resolve(ROOT, 'public/locales', `${l}.json`), 'utf8')).demo?.news?.includes('{version}')));
 }

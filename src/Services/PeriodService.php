@@ -65,15 +65,33 @@ final class PeriodService
         return $last;
     }
 
-    /** @return list<array<string,mixed>> nach Beginn sortiert */
+    /**
+     * v3.13.0 (K2d) — Zeiträume, wie die Rechnung sie sieht (Support\FieldRules::view): Ein Zeitraum ab dem Jahr 0003
+     * aus einer älteren Version fällt aus der Rechnung (bisher erschöpfte die Monatsrechnung den Speicher); die Datei
+     * bleibt. Was gespeichert ist, liefert stored().
+     *
+     * @return list<array<string,mixed>> nach Beginn sortiert
+     */
     public function list(string $utility, ?string $meterId = null): array
     {
         $this->assertUtility($utility);
+        return self::sortedByStart(\Energietracker\Support\FieldRules::view($this->store, "$utility/periods.json", 'periods')[0], $meterId);
+    }
+
+    /** @return list<array<string,mixed>> v3.13.0 (K2d) — die gespeicherten Zeiträume (Liste der Oberfläche, Export) */
+    public function stored(string $utility, ?string $meterId = null): array
+    {
+        $this->assertUtility($utility);
         $all = $this->store->read("$utility/periods.json", []);
-        if (!is_array($all)) $all = [];
-        $all = array_values(array_filter($all, 'is_array'));
+        return self::sortedByStart(is_array($all) ? array_values(array_filter($all, 'is_array')) : [], $meterId);
+    }
+
+    /** @param list<array<string,mixed>> $all */
+    private static function sortedByStart(array $all, ?string $meterId): array
+    {
         if ($meterId !== null) $all = array_values(array_filter($all, fn($p) => ($p['meter_id'] ?? null) === $meterId));
-        usort($all, fn($a, $b) => strcmp((string)($a['from'] ?? ''), (string)($b['from'] ?? '')));
+        $from = fn(array $p): string => is_string($p['from'] ?? null) ? $p['from'] : '';
+        usort($all, fn($a, $b) => strcmp($from($a), $from($b)));
         return $all;
     }
 
@@ -91,7 +109,7 @@ final class PeriodService
         $clientRef = null;
         if (isset($input['client_ref']) && $input['client_ref'] !== '') {
             $clientRef = (string)$input['client_ref'];
-            if (!preg_match('/^[A-Za-z0-9-]{8,64}$/', $clientRef)) {
+            if (!preg_match(ReadingService::CLIENT_REF, $clientRef)) {   // v3.13.0 — eine Regel mit den Ablesungen
                 throw new \InvalidArgumentException($this->i18n->t('errors.reading.clientRefInvalid'));
             }
             foreach ($this->list($utility, $meterId) as $existing) {
@@ -289,6 +307,8 @@ final class PeriodService
     {
         $out = [];
         $isNew = $old === null;
+        // v3.13.0 (Paket F) — Notiz bis TextLimits (Anlegen, Ändern und jede Zeile des CSV-Imports, auch im Trockenlauf)
+        \Energietracker\Support\TextLimits::assert($input, 'periods');
         // „month: JJJJ-MM" als Abkürzung für einen ganzen Monat
         if (isset($input['month']) && !isset($input['from']) && !isset($input['to'])) {
             $m = self::parseMonth((string)$input['month']);
@@ -332,7 +352,8 @@ final class PeriodService
         if ($isNew || array_key_exists('source', $input)) {
             $out['source'] = in_array($input['source'] ?? null, self::SOURCES, true) ? (string)$input['source'] : 'manual';
         }
-        if ($isNew || array_key_exists('note', $input)) $out['note'] = mb_substr((string)($input['note'] ?? ''), 0, 500);
+        // v3.13.0 (Paket F) — bis 2000 Zeichen statt still auf 500 gekürzt (Länge: TextLimits oben)
+        if ($isNew || array_key_exists('note', $input)) $out['note'] = (string)($input['note'] ?? '');
         if (array_key_exists('reference', $input)) {
             // v3.12.0 — ein Text statt eines Objekts brach sonst beim Zugriff auf seine Felder ab
             if ($input['reference'] !== null && !is_array($input['reference'])) throw Input::objectExpected('reference');
@@ -340,8 +361,11 @@ final class PeriodService
             foreach (self::REFERENCE_FIELDS as $f) {
                 $rv = $input['reference'][$f] ?? null;
                 if ($rv === null || $rv === '') continue;
-                $num = is_string($rv) ? ReadingImportService::parseNum($rv) : (is_numeric($rv) ? (float)$rv : null);
-                if ($num === null || $num < 0) throw new LocalizedException('errors.period.valueInvalid', ['value' => (string)$rv], 'period reference');
+                $num = is_string($rv) ? ReadingImportService::parseNum($rv) : (is_int($rv) || is_float($rv) ? (float)$rv : null);
+                // v3.13.0 — eine Liste im Vergleichswert: 400 statt 500; Obergrenze wie der Wert selbst (10¹²)
+                if ($num === null || !is_finite($num) || $num < 0 || $num > ReadingService::MAX_COUNTER) {
+                    throw new LocalizedException('errors.period.valueInvalid', ['value' => is_scalar($rv) ? (string)$rv : ''], 'period reference');
+                }
                 $ref[$f] = round($num, 3);
             }
             $out['reference'] = $ref === [] ? null : $ref;

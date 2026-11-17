@@ -104,8 +104,12 @@ final class BackupController
         Response::json(['deleted' => true]);
     }
 
+    /**
+     * v3.13.0 — Schalter in der Adresse nach der einen Regel (Input::flag): `dry_run=ja` spielte bisher wirklich ein,
+     * Unlesbares ist jetzt 400 statt still „nein“.
+     */
     private static function flag(Request $req, string $name): bool
     {
-        return in_array(strtolower((string)$req->queryParam($name, '')), ['1', 'true', 'yes'], true);
+        return $req->flag($name);
     }
 }

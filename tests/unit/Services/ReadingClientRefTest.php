@@ -35,9 +35,18 @@ final class ReadingClientRefTest extends ServiceTestCase
         self::assertArrayNotHasKey('duplicate', $r);
     }
 
+    /** v3.13.0 — auch mit Unterstrich: Die Kennung eines KI-Vorschlags (`mp_…`) steht unverändert an der Ablesung. */
+    public function testAnUnderscoreIsAllowedSoAProposalKeepsItsId(): void
+    {
+        $r = $this->readings->create('gas', ['date' => '2026-01-01', 'counter' => 100, 'client_ref' => 'mp_0a1b2c3d4e5f6a7b8c9d0e1f']);
+        self::assertSame('mp_0a1b2c3d4e5f6a7b8c9d0e1f', $r['client_ref']);
+        self::assertSame(1, preg_match(ReadingService::CLIENT_REF, 'abc_def-12'), 'Zeiträume nach derselben Regel (PeriodService)');
+        self::assertSame(0, preg_match(ReadingService::CLIENT_REF, 'abc.def-12'));
+    }
+
     public function testAMalformedClientRefIsRejected(): void
     {
-        foreach (['kurz', str_repeat('a', 65), 'mit leerzeichen', '../../etc'] as $bad) {
+        foreach (['kurz', str_repeat('a', 65), 'mit leerzeichen', '../../etc', 'mp.0a1b2c3d4e'] as $bad) {
             try {
                 $this->readings->create('gas', ['date' => '2026-01-01', 'counter' => 100, 'client_ref' => $bad]);
                 self::fail("angenommen: $bad");

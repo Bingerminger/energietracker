@@ -69,7 +69,8 @@ Flexibility recalculates per meter.
 
 ✓ means: the level shows it. – means: hidden, but reachable by link. The
 columns run from left to right: what beginners see, every higher level sees
-too. A test checks every row with an anchor against the code.
+too. A test checks every row against the code; since v3.13.0 every row carries
+an anchor for it.
 
 ### Enter
 
@@ -83,10 +84,10 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-contract-terms"></a>Contract: price guaranteed until, “Cancellation takes effect”, minimum term, “Renews unless cancelled” | – | ✓ | ✓ | plan a switch |
 | <a id="level-el-price-changes"></a>Contract: more price rows (“+ Row”), bonuses, special payments | – | ✓ | ✓ | reflect price changes and refunds exactly |
 | <a id="level-el-contract-expert"></a>Contract: district heating key figures (CO₂, primary energy), prices per meter of a group, § 14a module 1 and module 3, credit notes from the direct marketer, “Import monthly prices”, counts per contract | – | – | ✓ | special cases of tariff and grid fee |
-| Reading: **“Only for the bill”** and **“Reading is correct”** in the edit dialog *(v3.9.0)* | ✓ | ✓ | ✓ | a reading the supplier billed with that skews the months |
-| Contract: **advance payments with a rhythm** (every 2 or 3 months, due dates from the bill) *(v3.9.0)* | ✓ | ✓ | ✓ | as the supplier collects them; balance and suggestion count per due date |
+| <a id="level-el-billing-only"></a>Reading: **“Only for the bill”** and **“Reading is correct”** in the edit dialog *(v3.9.0)* | ✓ | ✓ | ✓ | a reading the supplier billed with that skews the months |
+| <a id="level-el-advance-rhythm"></a>Contract: **advance payments with a rhythm** (every 2 or 3 months, due dates from the bill) *(v3.9.0)* | ✓ | ✓ | ✓ | as the supplier collects them; balance and suggestion count per due date |
 | <a id="level-household"></a><a id="level-household-meters"></a>Household → **Meters** — all meters in one place: sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | ✓ | ✓ | ✓ | manage the meters of a utility (button “Meters” at the top of the consumption view) |
-| Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Household → Utilities and the setup assistant; the button on the meters page from Experienced |
+| <a id="level-el-concept"></a>Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Household → Utilities, Household → Meters and the setup assistant |
 | <a id="level-el-meter-plant"></a>Meter: **PV system** (investment, commissioning, battery, plug-in solar), **heat pump electricity meter** | – | ✓ | ✓ | *from Experienced since v3.7.0:* the basis for payback and seasonal performance factor |
 | <a id="level-el-meter-expert"></a>Meter: meter group, baseline dates, “Import time series” | – | – | ✓ | group contract, calculating from a renovation, quarter hours from portals |
 
@@ -101,8 +102,8 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-heat-pump"></a>The **“Heat pump”** card with seasonal performance factor | – | ✓ | ✓ | *from Experienced since v3.7.0:* how efficiently the heat pump works |
 | <a id="level-el-utility-expert"></a>Consumption: hot water heat, CO₂ price in the fuel | – | – | ✓ | figures behind the cost |
 | <a id="level-todo"></a>**To do** — Open: deadlines, recommendations, rights, mail, for admins the AI proposals *(v3.12.0)* | ✓ | ✓ | ✓ | everything waiting for you |
-| “To do”: **adjust the heating limit** with “Apply (this meter only)” and “Not now”, also on the balance card, forecast and workshop *(v3.9.0)* | ✓ | ✓ | ✓ | whether the advance is enough depends on the heating limit |
-| “To do”: **check a reading**, duplicate readings, note on the baseline date *(v3.9.0)* | ✓ | ✓ | ✓ | otherwise a mistyped reading silently skews the months |
+| <a id="level-el-heat-limit"></a>“To do”: **adjust the heating limit** with “Apply (this meter only)” and “Not now”, also on the balance card, forecast and workshop *(v3.9.0)* | ✓ | ✓ | ✓ | whether the advance is enough depends on the heating limit |
+| <a id="level-el-reading-check"></a>“To do”: **check a reading**, duplicate readings, note on the baseline date *(v3.9.0)* | ✓ | ✓ | ✓ | otherwise a mistyped reading silently skews the months |
 | <a id="level-report"></a><a id="level-report-print"></a>**Annual report** — also as a PDF and for printing | ✓ | ✓ | ✓ | the year on one page |
 | <a id="level-figures"></a>**Key figures** — efficiency, comparison, tanks, electricity balance, explainers *(v3.12.0, until then on the overview)* | – | ✓ | ✓ | where the household stands |
 | <a id="level-analysis"></a>**Analysis** — heating signature, years compared | – | ✓ | ✓ | consumption and temperature side by side |
@@ -141,9 +142,9 @@ too. A test checks every row with an anchor against the code.
 |---|---|---|---|---|
 | <a id="level-inbox"></a>**Inbox** — drop a PDF, have it read, check every value against its source passage, apply it; enter by hand next to the document | ✓ | ✓ | ✓ | the app reads the supplier’s mail |
 | <a id="level-inbox-draft"></a>Draft from documents — set up the household from many documents at once *(v3.7.0)* | ✓ | ✓ | ✓ | first set-up without typing |
-| File per contract and meter — all documents in date order *(v3.7.0)* | ✓ | ✓ | ✓ | just a list of the documents |
-| Setting up reading — the “Reading” card (local or cloud) under Connections → Reading mail and photos | – | – | ✓ | set up once, usually by the person who manages the installation; the inbox and the set-up assistant open the same card as a dialog, at every level |
-| Shortcut “Share → Energietracker”, watched folder *(v3.7.0)* | – | ✓ | ✓ | input channels, like the integrations |
+| <a id="level-el-dossier"></a>File per contract and meter — all documents in date order *(v3.7.0)* | ✓ | ✓ | ✓ | just a list of the documents |
+| <a id="level-el-reading-setup"></a>Setting up reading — the “Reading” card (local or cloud) under Connections → Reading mail and photos | ✓ | ✓ | ✓ | *from Beginner since v3.12.0:* set up once, usually by the person who manages the installation; the inbox and the set-up assistant open the same card as a dialog |
+| <a id="level-el-channels"></a>Shortcut “Share → Energietracker”, watched folder *(v3.7.0)* | ✓ | ✓ | ✓ | input channels; the note is in the inbox and under Connections → Reading mail and photos |
 
 ### Household and people
 
@@ -159,10 +160,10 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-household-building"></a>Household → **Building** — living area, building, tenure, heating and hot water | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-household"></a>Building: own reference values, water reference values | – | ✓ | ✓ | placing your figures with your own numbers |
 | <a id="level-household-utilities"></a>Household → **Utilities** — active utilities, metering concept, billing dates | ✓ | ✓ | ✓ | |
-| <a id="level-el-settings-utilities"></a>Utilities: physical constants, energy sources (delivery), own flexibility values, photovoltaics | – | ✓ | ✓ | photovoltaics *from Experienced since v3.7.0* |
+| <a id="level-el-settings-utilities"></a>Utilities: physical constants, energy sources (delivery), own flexibility values, photovoltaics, counting advance payments | – | ✓ | ✓ | photovoltaics *from Experienced since v3.7.0*, counting advance payments *new in v3.13.0* |
 | <a id="level-el-settings-co2"></a>Calculation: CO₂ emission factors | – | – | ✓ | calculation parameters |
-| **People in the household**: add, rename, delete (Household → Building), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
-| Accounts and roles (Settings → Access and security → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.7 people could only be added here |
+| <a id="level-el-people"></a>**People in the household**: add, rename, delete (Household → People), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
+| <a id="level-el-users"></a>Accounts and roles (Settings → Access and security → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.7 people could only be added here |
 
 ### Connect
 

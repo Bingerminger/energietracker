@@ -376,6 +376,35 @@ stimmig ist, jede Variante sich einspielen lässt und die Rückrechnung für ein
 Schnitt alle Maße liefert. **Die Schwellen prüft er nicht**, das tun die
 Fachpakete.
 
+**Ein Haushalt mit Verträgen, die nicht glatt laufen (v3.13.0).** Die
+Beispielhaushalte kennen keinen Einzug mitten im Monat, kein Vertragsende ohne
+Folgevertrag und keinen Abschlag mit Terminen, und die Tests der Pakete prüfen
+jeden Fall einzeln mit kleinen Daten. Unter `tests/fixtures/edge-household/`
+liegt deshalb ein zweiter Testhaushalt mit **eigener Physik** (Therme mit
+Wärmeverlust und Heizgrenze 13,8 °C, Wärmepumpe mit Leistungszahl nach
+Außentemperatur, Ladevorgänge der Wallbox, Gießen an heißen Tagen), erzeugt von
+`generate.mjs` (fester Seed, `--check` vergleicht nur). Er ist **am 31.10.2026
+abgeschlossen**, die Tests rechnen mit „heute“ 01.11.2026.
+
+- **Wohnung A** (Miete, 71 m², Etagenheizung Gas) bis zum **Auszug am
+  14.05.2026**: Gas mit Schlussablesung am letzten Vertragstag, Strom mit der
+  Übergabe-Ablesung fünf Tage danach, ein Stand zum 31.12.2024 vom Versorger
+  geschätzt, Abrechnungsjahr 2024 mit dem 29.02., CO₂-Aufteilung im Teiljahr.
+- **Haus B** ab dem **Einzug am 10.05.2026**: Zählergruppe HT/NT mit verschiedenen
+  Preisen je Zählwerk und verschiedenen Ablesetagen, Wallbox mit Arbeitspreis
+  erst ab August und einem Preis an der Ablesung, Wasser mit Abschlag alle drei
+  Monate, Gartenzähler später abgelesen, ein geschätzter Stand am Ende.
+- Zwei Verträge enden am **Monatsletzten** (ein und drei Monate Frist).
+
+`EdgeHouseholdTest` prüft jeden Fall **Ansicht gegen Ansicht** (Saldo-Karte,
+„Saldo heute“, Abrechnungsjahr, „Rechnung prüfen“, Jahresbericht, `/api/summary`,
+KI) und gegen eine **Handrechnung aus den Zählerständen der Datei**, nicht aus dem
+Code der App; Kündigungsstichtage gegen eine eigene Vorwärtsrechnung. Die drei
+Bekannten Grenzen (Arbeitspreis auf den Cent, geschätzter Stand an einer
+Periodengrenze, Monatszeile einer Zählergruppe) beschreibt er, statt sie zu
+verdecken. Den Haushalt nehmen auch `McpConsistencyTest` und
+`McpOutputSchemaTest` mit (`McpReadTestCase::edge()`).
+
 **Verträge tagesgenau (v2.9.0).** `ContractDayAccurateTest` prüft Monate mit
 Preisänderung, Vertragswechsel und Lücke, den weiterlaufenden und den
 gekündigten Vertrag, Kündigungsstichtag und Erinnerung, verpasste Fristen,
@@ -582,10 +611,14 @@ Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
 **phpunit** (Service-Suite), **test** (Migrations-Smoke +
 Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
-(Image bauen + Container-Smoke gegen `/api/health`). **lint-php** und
-**phpunit** laufen seit v3.12.0 je unter PHP 8.3, 8.4 und 8.5: der
-Mindestversion (auch die von Ubuntu 24.04), 8.4 wie etwa in der Synology Web
-Station und 8.5 wie im Docker-Image. Der Job **docker** prüft seit v3.4.0
+(Image bauen + Container-Smoke gegen `/api/health`). Seit v3.13.0 prüft ein
+eigener Workflow **Zeitreise** (`.github/workflows/zeitreise.yml`) PHPUnit und
+die Node-Suiten mit Kalenderbezug unter verstellter Uhr am 15.01., in der
+Neujahrsnacht und am 01.03. (`tools/zeitreise.sh` mit libfaketime), **einmal pro
+Woche und auf Knopfdruck**, weil die Runde 40 bis 50 Minuten dauert; lokal läuft
+vor jedem Release dasselbe Werkzeug über elf Stichtage. **lint-php** und
+**phpunit** laufen seit v3.13.0 je unter PHP 8.4 und 8.5: der Mindestversion
+(etwa in der Synology Web Station und in Debian 13) und 8.5 wie im Docker-Image. Der Job **docker** prüft seit v3.4.0
 zusätzlich, dass php-fpm nur im Container erreichbar ist, und startet das Image
 gehärtet (Beispiel aus [Docker-Betrieb](../betrieb/docker.md#gehärteter-betrieb-v340)),
 seit v3.5.0 auch die Variante ohne root (`--target rootless`: ohne

@@ -7,7 +7,7 @@
 > Energietracker handles contracts, cost calculation and forecasts, while HA
 > quietly delivers the data in the background.
 
-This guide is the **official** integration (since Energietracker **v1.9.0**,
+This guide describes the interface that Energietracker itself provides (since Energietracker **v1.9.0**,
 feature F1009).
 
 > [!WARNING]
@@ -243,8 +243,10 @@ rest_command:
       }
 ```
 
-> **Path note:** `…/api.php/api/ingest` always works. If your web server has a
-> rewrite rule (Apache `.htaccess` / nginx), `…/api/ingest` works too.
+> **Path note:** `…/api.php/api/ingest` always works. In the Docker image, with
+> nginx following `docker/nginx.conf` and *(since v3.13.0)* with Apache and the
+> bundled `.htaccess`, `…/api/ingest` works too. If Apache lacks the module
+> `mod_rewrite`, only `…/api.php/api/ingest` works.
 
 Token in `secrets.yaml` — the **whole** header value, including `Bearer`:
 
@@ -358,7 +360,7 @@ mode: single
 
 ## Step 5 — Values back to Home Assistant
 
-> **Without YAML:** the [HACS integration](#hacs-integration-v3120) creates these sensors itself.
+> **Without YAML:** the [integration from the Marketplace (formerly HACS)](#integration-from-the-marketplace-formerly-hacs-v3120) creates these sensors itself.
 
 Since v3.1.0 it also works the other way round: Energietracker calculates
 balance, forecast and due dates, Home Assistant shows them and reacts to them.
@@ -431,10 +433,10 @@ rest:
   (`[from, to]`, otherwise empty); `projected_end_balance_total` is then just a
   single value of the estimate, the range is what counts.
 - *(v3.10.0)* **Limits of the attributes:** the path in `json_attributes_path`
-  has been checked against the JSONPath evaluation Home Assistant uses, not yet
-  in a running Home Assistant; feedback is welcome. Without a current contract
-  Home Assistant logs a warning “JSON result was not a dictionary” on every
-  update; the sensor’s state stays correct.
+  has *(since v3.13.0)* been checked in a running Home Assistant 2026.11: the
+  attributes arrive and match `/api/summary`. Without a current contract Home
+  Assistant logs a warning “JSON result was not a dictionary” on every update;
+  the sensor’s state stays correct.
 - A sensor shows “unknown” when the value does not exist — for example without a
   current contract or before the forecast has enough data.
 - *(v3.4.0)* **Done items do not count:** `agenda.due`, `agenda.overdue` and
@@ -567,15 +569,22 @@ the sender decides the name of a document.
 - **Address:** for example `http://192.168.178.10:8123`, without a path. In
   the home network `http://` works. An address outside (remote access to Home
   Assistant) only works with `https://`, otherwise Energietracker refuses.
+- *(v3.13.0)* **Does Home Assistant redirect?** If Home Assistant redirects
+  the address you entered, for example from `http://192.168.178.10:8123` to
+  `http://192.168.178.10`, Energietracker does not follow: it only connects to
+  the address you enter. “Send a test message” then names the new address.
+  Enter that one.
 - Only admins can change this.
 
-> **What is tested, and what is not (v3.9.0).** All three destinations are
+> **What is tested, and what is not (v3.13.0).** All three destinations are
 > tested against a mock Home Assistant (requests, secrets, each message once,
-> retry, upper limit, language). **Not yet tested in a running Home
-> Assistant** are the way through the Supervisor (whether `SUPERVISOR_TOKEN`
-> reaches the app) and the permissions in the `/share` folder of the Home
-> Assistant app. If something does not arrive there, “Send a test message”
-> names the reason; reports from real installations are welcome.
+> retry, upper limit, language). **Tested in a running Home Assistant** are the
+> way through the Supervisor (Home Assistant OS 18.4, the test message arrives
+> under notifications) and the webhook with the template below (Home Assistant
+> 2026.11, title and text arrive). **Not yet tested** are the permissions in the
+> `/share` folder of the Home Assistant app. If something does not arrive,
+> “Send a test message” names the reason; reports from real installations are
+> welcome.
 
 ### HTTPS with your own certificate *(v3.10.0)*
 
@@ -704,7 +713,7 @@ What the webhook receives (JSON; in the automation under `trigger.json`):
 
 ## “To do” sensor *(v3.9.0)*
 
-> **Without YAML:** the [HACS integration](#hacs-integration-v3120) creates these sensors itself.
+> **Without YAML:** the [integration from the Marketplace](#integration-from-the-marketplace-formerly-hacs-v3120) creates these sensors itself.
 
 `GET /api/todo` returns the “To do” list: how many items are due, how many of
 them are overdue or urgent, and the next one. Every due item counts, also a
@@ -793,21 +802,19 @@ back afterwards.
 
 ---
 
-## HACS integration *(v3.12.0)*
+<a id="hacs-integration-v3120"></a>
+
+## Integration from the Marketplace (formerly HACS) *(v3.12.0)*
 
 The integration **Energietracker for Home Assistant** creates the sensors itself, without YAML. It reads the
 same endpoints as the templates above (`/api/summary` and `/api/todo`) and needs Energietracker 3.9.0 or later
 (the attributes for the expected and the measured balance, “due soon” and the next appointment from 3.10.0) and
 Home Assistant 2026.3 or later.
 
-**Install:** as the custom repository `https://github.com/Bingerminger/energietracker-integration`, type
-**Integration**, until the integration is in the HACS default list.
+**Install:** the integration is in the default list of the Marketplace. In Home Assistant, open the
+**Marketplace**, **search for “Energietracker”**, download it and restart Home Assistant.
 
-- **From Home Assistant 2026.11,** HACS is built in as the **Marketplace**. Connect the Marketplace to GitHub
-  once (it shows a code for `https://github.com/login/device`; the connection only reads public information),
-  then add the repository → download **Energietracker** → restart Home Assistant.
-- **Up to 2026.10** with HACS: menu **⋮ → Custom repositories** → add the repository → download
-  **Energietracker** → restart Home Assistant.
+With Home Assistant 2026.3 to 2026.10 the way is still called HACS, likewise through the search for “Energietracker”.
 
 Then **Settings → Devices &
 services → Add integration → Energietracker**: the address at which you open Energietracker and, only when
@@ -821,9 +828,13 @@ shown under Connections → Home Assistant.
 - One device per meter: **Balance** (with a current contract, with the attributes
   `projected_end_balance_total`, `projected_end_range_total`, `projected_end_balance`, `measured_balance`,
   `measured_until` as above), **Consumption this year**, **Forecast 12 months** (not for heating oil and
-  pellets), **Days since reading**.
-- A group of meters with a group contract gets a device of its own with **Balance** only, so a sum over all
-  balance sensors counts every contract once.
+  pellets), **Days since reading**; from integration 1.1.0 with Energietracker 3.13.0, heating oil and pellets
+  add **Stock** (L or kg, attributes `capacity`, `estimated_from`) and **Fill level** (%), a feed-in with a
+  current contract **Already paid out**, **Still outstanding** and **Outstanding at settlement**.
+- A group of meters with a group contract gets a device of its own with **Balance**, so a sum over all balance
+  sensors counts every contract once. From integration 1.1.0 with Energietracker 3.13.0 also **Forecast 12
+  months** (peak plus off-peak) and **Forecast costs 12 months** (under the group contract, with the standing
+  charge).
 
 The integration asks every 15 minutes. A new meter appears after reloading the integration. When sign-in is
 switched on or the key is revoked, Home Assistant asks for a new key; when Energietracker is older than 3.9.0, a

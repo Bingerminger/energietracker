@@ -317,7 +317,8 @@ final class Proposals
         if (!InboxSchema::extracts($type) || !is_array($entry['extraction']['fields'] ?? null)) return $entry;
         $fields = Evidence::refine($type, $entry['extraction']['fields'], $this->markContext($entry, $as));
         $entry['extraction']['fields'] = $fields;
-        $entry['extraction']['flags'] = Evidence::flagCount($fields, (array)($entry['edits'] ?? []));
+        // v3.13.0 (Paket F) — entschiedene Einträge einer Liste zählen nicht mehr als „zu prüfen“
+        $entry['extraction']['flags'] = Evidence::flagCount($fields, (array)($entry['edits'] ?? []), (array)($entry['item_edits'] ?? []));
         return $entry;
     }
 
@@ -535,6 +536,9 @@ final class Proposals
         $u = $as['utility'] ?? null;
         if (!is_string($u) || !Utilities::exists($u)) return [];
         $entry = $this->marks($entry, $as);   // v3.7.0 (treffsicher) — Marken nach dem Bestand
+        // v3.13.0 (Paket F) — Entscheidungen je Listeneintrag: bestätigt ohne Marke, korrigiert mit dem neuen Wert,
+        // verworfen ohne Vorschlag (die gespeicherte Auslesung bleibt, wie sie gelesen wurde)
+        $entry = ItemEdits::apply($entry);
         $meter = !empty($as['meter_id']) ? $this->meters->get($u, (string)$as['meter_id']) : null;
         $contract = !empty($as['contract_id']) && Utilities::hasContracts($u) ? $this->contracts->get($u, (string)$as['contract_id']) : null;
         $ctx = ['entry' => $entry, 'u' => $u, 'meter' => $meter, 'contract' => $contract,

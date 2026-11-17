@@ -14,6 +14,7 @@ import { makeChart, tokenColor, chartTableHtml } from '../components/chart.js';
 import { t, tp } from '../lib/i18n.js';
 import { exampleTemperaturesCsv, downloadExample } from '../lib/csv-example.js';
 import { icon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 import { sessionRole } from '../lib/levels.js';
 
 export async function render(container, _params = [], ctx = {}) {
@@ -98,7 +99,7 @@ export async function render(container, _params = [], ctx = {}) {
             <div class="field-error" id="lat-msg" role="alert" hidden></div></div>
           <div class="field"><label for="lng">${t('temperatures.lng')}</label><input class="input" id="lng" data-field="longitude" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.longitude ?? 12.3731, 4))}"${dis}>
             <div class="field-error" id="lng-msg" role="alert" hidden></div></div>
-          <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" data-field="location_name" value="${escapeHtml(settings.location_name || 'Leipzig')}"${dis}></div>
+          <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" data-field="location_name" ${maxAttr('settings', 'location_name')} value="${escapeHtml(settings.location_name || 'Leipzig')}"${dis}></div>
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
         <label class="settings-field__check" style="margin-top:var(--sp-2)">

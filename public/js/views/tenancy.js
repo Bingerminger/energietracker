@@ -22,6 +22,7 @@ import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket ein
 // v3.11.0 (E) — Zuständig am Mietverhältnis (Person aus dem Verzeichnis), wie am Vertrag
 import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { icon } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 const CATEGORIES = ['heating', 'warm_water', 'cold_water', 'sewage', 'operating', 'other'];
 let selectedId = null;
@@ -85,15 +86,18 @@ export async function render(container, params, ctx) {
 
 // ── Karten ───────────────────────────────────────────────────────────
 
-function budgetCard(b) {
+// v3.13.0 — exportiert für tests/saldo-farbe.test.mjs (Mietverhältnis ohne Preise)
+export function budgetCard(b) {
   if (!b || b.error) {
     return `<div class="card"><h2 class="card__title">${t('tenancy.budget.title')}</h2>
       <div class="infobox infobox--fehler">${esc(b?.error || t('tenancy.budget.unavailable'))}</div></div>`;
   }
   const r = Number(b.projected_result_eur || 0);
+  // v3.13.0 — ohne Preise kennt die App die Kosten nicht (`price_missing`): kein Guthaben aus der ganzen Vorauszahlung
+  const pm = !!b.price_missing;
   // v3.12.0 (Sichtung S1) — ein Saldo: Farbe nach dem Vorzeichen, neutral nur bei genau 0
-  const rv = balanceView(r, null);
-  const verdict = rv.credit === null ? t('tenancy.budget.even')
+  const rv = pm ? { credit: null, cls: '', amount: 0 } : balanceView(r, null);
+  const verdict = pm ? t('priceMissing.short') : rv.credit === null ? t('tenancy.budget.even')
     : rv.credit ? t('tenancy.budget.credit', { amount: fmt.eur(rv.amount) }) : t('tenancy.budget.additional', { amount: fmt.eur(rv.amount) });
   const riskCls = { low: 'success', medium: 'warning', high: 'danger' }[b.risk] || 'neutral';
   return `
@@ -101,12 +105,13 @@ function budgetCard(b) {
       <h2 class="card__title">${t('tenancy.budget.title')}${info('prepayment')}</h2>
       <p class="muted">${esc(t('tenancy.budget.period', { from: fmt.date(b.period_from), to: fmt.date(b.period_to) }))}</p>
       <div class="kpi-grid">
-        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.expected')}</div><div class="kpi__value">${fmt.eur(b.expected_eur)}</div></div>
+        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.expected')}</div><div class="kpi__value">${pm ? '–' : fmt.eur(b.expected_eur)}</div></div>
         <div class="kpi"><div class="kpi__label">${t('tenancy.budget.prepaid')}</div><div class="kpi__value">${fmt.eur(b.prepaid_eur)}</div></div>
         <div class="kpi"><div class="kpi__label">${t('tenancy.budget.result')}</div><div class="kpi__value ${rv.credit === null ? '' : rv.cls}" data-role="tenancy-result">${esc(verdict)}</div>
           ${b.risk ? `<span class="badge badge--${riskCls}">${esc(t('tenancy.risk.' + b.risk))}</span>` : ''}</div>
-        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.suggested')}</div><div class="kpi__value">${fmt.eur(b.suggested_prepayment_eur)}</div></div>
+        <div class="kpi"><div class="kpi__label">${t('tenancy.budget.suggested')}</div><div class="kpi__value">${pm ? '–' : fmt.eur(b.suggested_prepayment_eur)}</div></div>
       </div>
+      ${pm ? `<p class="infobox infobox--neutral" data-role="tenancy-price-missing">${t('tenancy.budget.priceMissing')}</p>` : ''}
       <p class="muted small">${esc(t('tenancy.budget.disclaimer'))}</p>
       ${(b.assumptions || []).length ? `<ul class="muted small">${b.assumptions.map(a => `<li>${esc(a === 'months_estimated' ? tp('tenancy.assumption.monthsEstimated', b.months_estimated) : t('tenancy.assumption.' + a))}</li>`).join('')}</ul>` : ''}
       <details>
@@ -285,7 +290,7 @@ async function openTenancyModal(ten, utilities, done) {
         </div>
       </fieldset>
       <div class="fgrid">
-        <div class="field field--full"><label for="tf-notes">${t('tenancy.field.notes')}</label><textarea class="input input--text" id="tf-notes" name="notes">${esc(ten?.notes || '')}</textarea></div>
+        <div class="field field--full"><label for="tf-notes">${t('tenancy.field.notes')}</label><textarea class="input input--text" id="tf-notes" name="notes" ${maxAttr('tenancies', 'notes')} data-counter>${esc(ten?.notes || '')}</textarea></div>
       </div>
     </form>`;
   openModal({
@@ -441,7 +446,7 @@ function openStatementModal(ten, st, done) {
         </div>
         <div class="field field--full"><label class="check"><input type="checkbox" name="apply_prices" checked> ${t('tenancy.statement.applyPrices')}</label></div>
         <div class="field field--full"><label class="check"><input type="checkbox" name="apply_prepayment" checked> ${t('tenancy.statement.applyPrepayment')}</label></div>
-        <div class="field field--full"><label for="sf-note">${t('tenancy.field.notes')}</label><input class="input input--text" id="sf-note" name="note" maxlength="2000" value="${esc(st?.note || '')}"></div>
+        <div class="field field--full"><label for="sf-note">${t('tenancy.field.notes')}</label><input class="input input--text" id="sf-note" name="note" ${maxAttr('tenancy_statements', 'note')} data-counter value="${esc(st?.note || '')}"></div>
       </div>
     </form>`;
   openModal({

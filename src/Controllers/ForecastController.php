@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\ClimateNormalService;
+use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\I18nService;
@@ -20,6 +21,7 @@ final class ForecastController
         private ForecastService $forecasts,
         private MeterService $meters,
         private I18nService $i18n,
+        private ?ConsumptionService $consumption = null,   // v3.13.0 — Monate ohne Arbeitspreis kennzeichnen
     ) {}
 
     public function forMeter(Request $req): never
@@ -71,6 +73,24 @@ final class ForecastController
             }
             $meter['hdd_base_temp'] = (float)$hb;
         }
-        Response::json($this->forecasts->forMeter($utility, $meter, $opts));
+        Response::json(self::withPriceMissing($this->forecasts->forMeter($utility, $meter, $opts), $utility, $meter, $this->consumption));
+    }
+
+    /**
+     * v3.13.0 (additiv, nur wenn wahr) — Prognosemonate, in denen der Vertrag keinen Arbeitspreis hat: `price_missing: true`
+     * (`cost_estimated` sind dann keine Verbrauchskosten), dieselbe Regel wie an den Monatszeilen.
+     *
+     * @param array<string,mixed> $f Ergebnis von ForecastService::forMeter
+     * @param array<string,mixed> $meter
+     * @return array<string,mixed>
+     */
+    public static function withPriceMissing(array $f, string $utility, array $meter, ?ConsumptionService $consumption): array
+    {
+        if ($consumption === null || empty($f['forecast']) || !is_array($f['forecast'])) return $f;
+        $missing = $consumption->priceMissingIn($utility, $meter, $f['forecast']);
+        if ($missing === []) return $f;
+        foreach ($f['forecast'] as &$r) if (isset($missing[(string)($r['ym'] ?? '')])) $r['price_missing'] = true;
+        unset($r);
+        return $f;
     }
 }

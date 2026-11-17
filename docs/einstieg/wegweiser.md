@@ -52,7 +52,7 @@ Du liest ab und trägst ein, im Browser oder am Handy.
 
 **Was du brauchst**
 
-- Software: Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.3. Dazu einen aktuellen Browser.
+- Software: Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.4. Dazu einen aktuellen Browser.
 - Hardware: **Einen Rechner oder ein NAS im Heimnetz.** Zum Eintragen reicht das Handy.
 
 **Aufwand:** **Einmal einrichten:** Die Anleitung „Erste Schritte“ rechnet mit rund 15 Minuten. Danach trägst du nur noch Stände ein, so oft du magst. Aus zwei Ständen entsteht der erste Verbrauch.
@@ -219,13 +219,13 @@ Home Assistant liefert die Stände, der Energietracker rechnet und meldet zurüc
 
 - Stände kommen von selbst, täglich oder alle 15 Minuten.
 - Mit Werten je Viertelstunde auch die Auswertungen zu Flexibilität und Speicher.
-- **Zurück in Home Assistant:** Sensoren für Saldo, Verbrauch, Prognose und „Zu tun“, ohne YAML über die HACS-Integration.
+- **Zurück in Home Assistant:** Sensoren für Saldo, Verbrauch, Prognose und „Zu tun“, ohne YAML über die Integration aus dem Marketplace (ehemals HACS).
 - Benachrichtigungen bei Fristen und neuen Dokumenten, dazu Termine als Kalender.
 - Mit evcc die Ladevorgänge der Wallbox samt Anteil aus der Sonne.
 
 **Was du brauchst**
 
-- Software: **Home Assistant.** Den Energietracker als App in Home Assistant OS (experimentell) oder als eigenen Container. Für die Sensoren die HACS-Integration, ab Home Assistant 2026.3.
+- Software: **Home Assistant.** Den Energietracker als App in Home Assistant OS (experimentell) oder als eigenen Container. Für die Sensoren die Integration, ab Home Assistant 2026.3: im Marketplace, bis 2026.10 in HACS.
 - Hardware: **Was Home Assistant ohnehin braucht, dazu deine smarten Zähler oder Lesegeräte.** Als App braucht der Energietracker kein eigenes Gerät.
 
 **Aufwand:** **Token erzeugen, Zählern einen Alias geben, REST-Befehl und Automatisierung eintragen.** Das ist YAML; wer Home Assistant kennt, findet sich schnell zurecht. Der Rückweg über die Integration kommt ohne YAML aus.
@@ -235,7 +235,7 @@ Home Assistant liefert die Stände, der Energietracker rechnet und meldet zurüc
 1. **Den Energietracker starten:** als App in Home Assistant OS oder als eigener Container. [App in Home Assistant](../anleitungen/home-assistant.md#als-app-in-home-assistant-os) · [Docker](../betrieb/docker.md)
 2. Unter Verbindungen → Home Assistant den Token erzeugen und den Zählern einen Alias geben. (in der App: **Home Assistant**)
 3. In Home Assistant REST-Befehl und Automatisierung eintragen. [Home Assistant anbinden](../anleitungen/home-assistant.md#schritt-3--rest-command-in-home-assistant)
-4. Für die Sensoren die HACS-Integration installieren. [HACS-Integration](../anleitungen/home-assistant.md#hacs-integration-v3120)
+4. Für die Sensoren im Marketplace nach „Energietracker“ suchen und die Integration installieren. [Integration im Marketplace](../anleitungen/home-assistant.md#hacs-integration-v3120)
 5. **Wenn du magst:** Benachrichtigungen einschalten. [Benachrichtigungen](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390)
 6. **Mit Wallbox:** evcc dazunehmen. [Ladevorgänge aus evcc](../anleitungen/evcc.md)
 

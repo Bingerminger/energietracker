@@ -136,6 +136,14 @@ contracts), CSV monthly overview, annual report.
 - **Reading due:** the reminder “take a meter reading” (To do, calendar) follows
   the **end of the last period**, with the same limit as for readings
   (Settings → Display and reminders → “Warn after”, default 45 days).
+<!-- doc-claim: period-stichtag (StichtagPeriodsTest) -->
+- **Reference date** *(v3.13.0)*: **A period counts from its last day.** As
+  with meter readings, the app uses what was known on that date: a period that
+  ends only after the reference date does not count. So January counts from
+  31 January. This holds today and for every other day the app calculates for
+  (balance, annual report, tenancy budget, forecast). If you enter the current
+  month early, it shows in consumption, balance and forecast on its last day. Up
+  to v3.12 every period counted as soon as it was entered.
 
 ---
 

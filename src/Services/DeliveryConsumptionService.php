@@ -28,8 +28,14 @@ final class DeliveryConsumptionService
     private const MIN_CALIBRATION_DAYS = 14;
 
     private ?ClimateNormalService $climate;
-    /** @var array<string,array<string,mixed>> je Anfrage einmal rechnen */
+    /**
+     * @var array<string,array<string,mixed>> je Anfrage einmal rechnen. v3.13.0 — gemerkt wird das Tankbuch in
+     * Spalten ({@see tankSeries()}), nicht mehr je Tag eine Zeile: Bei 75 Jahren Tageswerten waren das rund 18 MB je
+     * Tank und Stichtag, jetzt rund 3 MB.
+     */
     private array $memo = [];
+    /** @var array{0:int,1:array<string,mixed>}|null v3.13.0 — temperatures.json je Anfrage [Generation, Daten] */
+    private ?array $tempsMemo = null;
 
     public function __construct(
         private JsonStore $store,
@@ -91,7 +97,53 @@ final class DeliveryConsumptionService
      *   hdd_filled_days: int
      * }
      */
-    public function tankModel(string $utility, array $meter, ?string $today = null): array
+    public function tankModel(string $utility, array $meter, ?string $today = null, ?array $temps = null): array
+    {
+        $s = $this->tankSeries($utility, $meter, $today, $temps);
+        $days = [];
+        foreach ($s['dates'] as $i => $d) $days[$d] = self::dayRow($s, $i);
+        return ['days' => $days, 'anchors' => $s['anchors'], 'estimated_from' => $s['estimated_from'],
+                'calibration' => $s['calibration'], 'warnings' => $s['warnings'], 'hdd_filled_days' => $s['hdd_filled_days']];
+    }
+
+    /**
+     * v3.13.0 — Eine Tageszeile des Tankbuchs aus den Spalten von {@see tankSeries()}, genau die Werte von
+     * tankModel(): `draw` auf sechs Stellen, `cost_eur` aus dem ungerundeten Verbrauch.
+     *
+     * @param array<string,mixed> $s Spalten aus tankSeries()
+     * @return array{draw: float, stock: float, delivery: float, estimated: bool, price_ct: ?float, cost_eur: ?float}
+     */
+    public static function dayRow(array $s, int $i): array
+    {
+        $d = $s['dates'][$i];
+        $draw = $s['draw'][$i];
+        $avg = $s['avg'][$i];
+        return [
+            'draw'      => round($draw, 6),
+            'stock'     => $s['stock'][$i],
+            'delivery'  => round($s['delivered'][$d] ?? 0.0, 2),
+            'estimated' => $d >= $s['estimated_from'],
+            'price_ct'  => $avg !== null ? round($avg, 4) : null,
+            'cost_eur'  => $avg !== null ? $draw * $avg / 100.0 : null,
+        ];
+    }
+
+    /**
+     * v3.13.0 — Das Tankbuch in Spalten: dieselbe Rechnung wie {@see tankModel()}, je Anfrage, Tank und Stichtag
+     * einmal (Zwischenspeicher bis zum nächsten Schreiben). Statt einer Zeile je Tag eine Liste je Größe:
+     *   dates     Tage vom Start bis zum Stichtag
+     *   draw      Verbrauch je Tag (ungerundet; die Zeile rundet auf sechs Stellen)
+     *   stock     Bestand am Ende des Tages (gerundet wie die Zeile)
+     *   avg       gleitender Durchschnittspreis in ct je Einheit (ungerundet) oder null
+     *   delivered Lieferungen je Tag (nur Tage mit Lieferung)
+     * Geschätzt ist ein Tag ab `estimated_from`. Bis v3.12 hielt jede Anfrage das ganze Tankbuch je Tag als Zeile
+     * und rechnete die Tagesreihe für jede Ansicht neu daraus ab; bei 75 Jahren Tageswerten reichten 128 MB für
+     * Übersicht, Agenda und Jahresbericht nicht mehr.
+     *
+     * @param array<string,mixed>|null $temps temperatures.json, wenn der Aufrufer sie schon gelesen hat
+     * @return array<string,mixed>
+     */
+    public function tankSeries(string $utility, array $meter, ?string $today = null, ?array $temps = null): array
     {
         if (!Utilities::isDelivery($utility)) {
             throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility], "tankModel only for delivery utilities, not $utility");
@@ -101,7 +153,8 @@ final class DeliveryConsumptionService
         if (isset($this->memo[$memoKey])) return $this->memo[$memoKey];
 
         $result = [
-            'days' => [], 'anchors' => [], 'estimated_from' => null,
+            'dates' => [], 'draw' => [], 'stock' => [], 'avg' => [], 'delivered' => [],
+            'anchors' => [], 'estimated_from' => null,
             'calibration' => ['source' => 'none', 'base_per_day' => 0.0, 'per_hdd' => 0.0, 'flat' => false],
             'warnings' => [], 'hdd_filled_days' => 0,
         ];
@@ -127,16 +180,23 @@ final class DeliveryConsumptionService
         // ── Tage und Gradtage ──
         $dates = [];
         for ($c = new \DateTimeImmutable($start), $e = new \DateTimeImmutable($today); $c <= $e; $c = $c->modify('+1 day')) {
-            $dates[] = $c->format('Y-m-d');
+            // v3.13.0 — verkettet statt direkt: format() liefert eine Zeichenkette mit Vorrat (unter PHP 8.5 rund
+            // 250 Byte je Tag), verkettet hat sie genau ihre zehn Zeichen. Bei 75 Jahren sind das 7 MB je Tankbuch.
+            $f = $c->format('Y-m-d');
+            $dates[] = substr($f, 0, 5) . substr($f, 5);
         }
-        $temps = $this->store->read('temperatures.json', []);
-        if (!is_array($temps)) $temps = [];
+        // v3.13.0 — Temperaturen einmal je Anfrage (vom Aufrufer oder gemerkt), nicht je Tank und Stichtag neu gelesen
+        $temps ??= $this->temperatures();
         [$hdd, $filled, $flat] = $this->hddSeries($dates, $hddBase, $temps);
         $result['hdd_filled_days'] = $filled;
         $rho = $flat ? 0.0 : $this->shapeRho($baseShare, $hddBase, $temps);
+        unset($temps);
         $flat = $flat || $baseShare >= 0.999;
+        // v3.13.0 — Gewichte je Tag als Liste in der Reihenfolge der Tage (bis v3.12 je Datum)
+        $nDays = count($dates);
         $w = [];
-        foreach ($dates as $d) $w[$d] = $flat ? 1.0 : $rho + $hdd[$d];
+        foreach ($dates as $d) $w[] = $flat ? 1.0 : $rho + $hdd[$d];
+        unset($hdd);
 
         // ── Stützstellen ──
         $anchors = [$start => ['kind' => 'start', 'stock' => $initial + ($qByDate[$start] ?? 0.0)]];
@@ -162,15 +222,16 @@ final class DeliveryConsumptionService
                 if ($d > $a && $d <= $b) $delivered += $q;
             }
             $cons = $anchors[$a]['stock'] + $delivered - $anchors[$b]['stock'];
-            $days = array_slice($dates, $idx[$a], $idx[$b] - $idx[$a]);
             if ($cons < -$tolerance) {
                 $result['warnings'][] = [
                     'code' => 'inconsistent_level', 'from' => $a, 'to' => $b,
                     'excess' => round(-$cons, 1),
                 ];
             }
-            $intervals[] = ['from' => $a, 'to' => $b, 'days' => $days, 'cons' => max(0.0, $cons), 'valid' => $cons >= -$tolerance];
+            // v3.13.0 — die Tage des Intervalls als Lage in der Liste [i0, i1) statt als Kopie der Daten
+            $intervals[] = ['from' => $a, 'to' => $b, 'i0' => $idx[$a], 'i1' => $idx[$b], 'cons' => max(0.0, $cons), 'valid' => $cons >= -$tolerance];
         }
+        unset($idx);
 
         // ── Rate kalibrieren ──
         $rate = null;
@@ -178,9 +239,9 @@ final class DeliveryConsumptionService
         $calDays = 0; $calCons = 0.0; $calW = 0.0;
         foreach ($intervals as $iv) {
             if (!$iv['valid']) continue;
-            $calDays += count($iv['days']);
+            $calDays += $iv['i1'] - $iv['i0'];
             $calCons += $iv['cons'];
-            foreach ($iv['days'] as $d) $calW += $w[$d];
+            for ($i = $iv['i0']; $i < $iv['i1']; $i++) $calW += $w[$i];
         }
         if ($calDays >= self::MIN_CALIBRATION_DAYS && $calW > 0) {
             $rate = $calCons / $calW;
@@ -195,7 +256,7 @@ final class DeliveryConsumptionService
                 $consumed = 0.0;
                 foreach ($qByDate as $d => $q) if ($d < $last) $consumed += $q;
                 $sumW = 0.0; $n = 0;
-                foreach ($dates as $d) if ($d >= $first && $d < $last) { $sumW += $w[$d]; $n++; }
+                foreach ($dates as $i => $d) if ($d >= $first && $d < $last) { $sumW += $w[$i]; $n++; }
                 if ($n >= self::MIN_CALIBRATION_DAYS && $sumW > 0 && $consumed > 0) {
                     $rate = $consumed / $sumW;
                     $source = 'deliveries';
@@ -204,7 +265,7 @@ final class DeliveryConsumptionService
             if ($rate === null && count($deliveryDates) === 1 && $deliveryDates[0] > $start && $initial > 0) {
                 // Eine Lieferung: Der Anfangsbestand war bis zu ihr verbraucht
                 $sumW = 0.0; $n = 0;
-                foreach ($dates as $d) if ($d < $deliveryDates[0]) { $sumW += $w[$d]; $n++; }
+                foreach ($dates as $i => $d) if ($d < $deliveryDates[0]) { $sumW += $w[$i]; $n++; }
                 if ($n >= self::MIN_CALIBRATION_DAYS && $sumW > 0) {
                     $rate = $initial / $sumW;
                     $source = 'first_delivery';
@@ -225,22 +286,23 @@ final class DeliveryConsumptionService
         ];
 
         // ── Tagesverbrauch ──
-        $draw = array_fill_keys($dates, 0.0);
-        $estimated = array_fill_keys($dates, false);
+        $draw = $nDays > 0 ? array_fill(0, $nDays, 0.0) : [];
         foreach ($intervals as $iv) {
             $sumW = 0.0;
-            foreach ($iv['days'] as $d) $sumW += $w[$d];
-            $n = count($iv['days']);
-            foreach ($iv['days'] as $d) {
-                $draw[$d] = $sumW > 0 ? $iv['cons'] * $w[$d] / $sumW : ($n > 0 ? $iv['cons'] / $n : 0.0);
+            for ($i = $iv['i0']; $i < $iv['i1']; $i++) $sumW += $w[$i];
+            $n = $iv['i1'] - $iv['i0'];
+            for ($i = $iv['i0']; $i < $iv['i1']; $i++) {
+                $draw[$i] = $sumW > 0 ? $iv['cons'] * $w[$i] / $sumW : ($n > 0 ? $iv['cons'] / $n : 0.0);
             }
         }
+        unset($intervals);
+        // Ab der letzten Stützstelle geschätzt (die Zeile trägt `estimated` = Tag ≥ estimated_from)
         $lastAnchor = $anchorDates[count($anchorDates) - 1];
-        foreach ($dates as $d) {
+        foreach ($dates as $i => $d) {
             if ($d < $lastAnchor) continue;
-            $draw[$d] = $rate !== null ? $rate * $w[$d] : 0.0;
-            $estimated[$d] = true;
+            $draw[$i] = $rate !== null ? $rate * $w[$i] : 0.0;
         }
+        unset($w);
         $result['estimated_from'] = $lastAnchor;
 
         // ── Bestand und Kosten ──
@@ -249,6 +311,7 @@ final class DeliveryConsumptionService
         $exhaustedWarned = false;
         $byDate = [];
         foreach ($deliveries as $d) $byDate[$d['date']][] = $d;
+        $stockCol = []; $avgCol = [];
         foreach ($dates as $i => $d) {
             // Anfangsbestand zum Preis p0 in den Tank legen
             if ($i === 0) $stock = $initial;
@@ -264,21 +327,20 @@ final class DeliveryConsumptionService
             }
             // Stützstelle: bekannter Bestand ersetzt den mitgeführten
             if (isset($anchors[$d])) $stock = $anchors[$d]['stock'];
-            $end = $stock - $draw[$d];
-            if ($end < -$tolerance && $estimated[$d] && !$exhaustedWarned) {
+            $end = $stock - $draw[$i];
+            if ($end < -$tolerance && $d >= $lastAnchor && !$exhaustedWarned) {
                 $result['warnings'][] = ['code' => 'stock_exhausted', 'date' => $d];
                 $exhaustedWarned = true;
             }
-            $result['days'][$d] = [
-                'draw'      => round($draw[$d], 6),
-                'stock'     => round(max(0.0, $end), 2),
-                'delivery'  => round($qByDate[$d] ?? 0.0, 2),
-                'estimated' => $estimated[$d],
-                'price_ct'  => $avg !== null ? round($avg, 4) : null,
-                'cost_eur'  => $avg !== null ? $draw[$d] * $avg / 100.0 : null,
-            ];
+            $stockCol[] = round(max(0.0, $end), 2);
+            $avgCol[] = $avg;
             $stock = max(0.0, $end);
         }
+        $result['dates'] = $dates;
+        $result['draw'] = $draw;
+        $result['stock'] = $stockCol;
+        $result['avg'] = $avgCol;
+        $result['delivered'] = $qByDate;
 
         foreach ($anchors as $d => $a) {
             $result['anchors'][] = ['date' => $d, 'kind' => $a['kind'], 'stock' => round($a['stock'], 2)];
@@ -295,7 +357,7 @@ final class DeliveryConsumptionService
      *
      * @return array<string,float>  date(YYYY-MM-DD) → verbrauch_kwh
      */
-    public function dailyDeliveryConsumption(string $utility, array $meter, ?string $today = null): array
+    public function dailyDeliveryConsumption(string $utility, array $meter, ?string $today = null, ?array $temps = null): array
     {
         if (!Utilities::isDelivery($utility)) {
             throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
@@ -303,8 +365,9 @@ final class DeliveryConsumptionService
         }
         $kwhPerUnit = $this->kwhPerUnit($utility);
         $out = [];
-        foreach ($this->tankModel($utility, $meter, $today)['days'] as $d => $row) {   // v3.12.0 — bis zum Stichtag
-            $out[$d] = round($row['draw'] * $kwhPerUnit, 6);
+        $s = $this->tankSeries($utility, $meter, $today, $temps);   // v3.12.0 — bis zum Stichtag; v3.13.0 — aus den Spalten
+        foreach ($s['dates'] as $i => $d) {
+            $out[$d] = round(round($s['draw'][$i], 6) * $kwhPerUnit, 6);   // wie bisher aus dem auf sechs Stellen gerundeten Verbrauch
         }
         return $out;
     }
@@ -315,13 +378,31 @@ final class DeliveryConsumptionService
      *
      * @return array<string,float> date → Abzug in Mengeneinheiten/Tag
      */
-    public function dailyDeliveryStockDraw(string $utility, array $meter, ?string $today = null): array
+    public function dailyDeliveryStockDraw(string $utility, array $meter, ?string $today = null, ?array $temps = null): array
     {
         if (!Utilities::isDelivery($utility)) {
             throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
                 "dailyDeliveryStockDraw only for delivery utilities, not $utility");
         }
-        return array_map(fn($row) => $row['draw'], $this->tankModel($utility, $meter, $today)['days']);
+        $s = $this->tankSeries($utility, $meter, $today, $temps);
+        $out = [];
+        foreach ($s['dates'] as $i => $d) $out[$d] = round($s['draw'][$i], 6);
+        return $out;
+    }
+
+    /**
+     * v3.13.0 — temperatures.json einmal je Anfrage (bis zum nächsten Schreiben), wie ConsumptionService.
+     *
+     * @return array<string,mixed>
+     */
+    public function temperatures(): array
+    {
+        $gen = $this->store->generation();
+        if ($this->tempsMemo === null || $this->tempsMemo[0] !== $gen) {
+            $t = $this->store->read('temperatures.json', []);
+            $this->tempsMemo = [$gen, is_array($t) ? $t : []];
+        }
+        return $this->tempsMemo[1];
     }
 
     /** Heizwert je Mengeneinheit (kWh/L bzw. kWh/kg) aus den Einstellungen. */
@@ -355,8 +436,9 @@ final class DeliveryConsumptionService
      */
     private function deliveriesFor(string $utility, array $meter, string $start, string $today): array
     {
-        $all = $this->store->read("$utility/deliveries.json", []);
-        if (!is_array($all)) $all = [];
+        // v3.13.0 (K2d) — Sicht der Rechnung (Support\FieldRules::view): ein Tag als Liste aus einer älteren Version brach
+        // bisher den Verbrauch des Tanks, „false“ als Text galt als geplant
+        $all = \Energietracker\Support\FieldRules::view($this->store, "$utility/deliveries.json", 'deliveries')[0];
         $out = array_values(array_filter(
             $all,
             fn($d) => is_array($d)

@@ -3,6 +3,7 @@
 // 2. Sprache des Browsers nur als Vorschlag: ein Hinweis, nie eine Umleitung.
 // 3. Bilder-Slider: Reiter, Pfeile, Tastatur, Wischen; ohne Bewegung bei „Bewegung reduzieren“.
 // 4. Mitlaufender Knopf am Handy, Knopf „Kopieren“ an den Befehlen.
+// 5. Animationen anhalten und wieder abspielen.
 // Der Speicher im Browser gehört auf github.io allen Seiten des Kontos, auch der Demo (sie räumt
 // Schlüssel mit „et-“ und „et.“ ab). Darum ein eigener Präfix „projektseite.“.
 (() => {
@@ -17,11 +18,18 @@
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   const mode = () => { const m = read(THEMA); return m === 'light' || m === 'dark' ? m : 'system'; };
   const wirksam = (m) => (m === 'system' ? (mq && mq.matches ? 'dark' : 'light') : m);
-  /** Quellen der Bilder: im System-Modus wie notiert, sonst dunkel erzwingen oder abschalten */
+  /**
+   * Quellen der Bilder: im System-Modus wie notiert, sonst dunkel erzwingen (data-breite: was dann noch gilt,
+   * etwa die Breite oder bei Animationen „Bewegung“) oder abschalten. Eine angehaltene Animation (5.) schaltet
+   * ihre animierten Quellen ab; dann gilt ihr Rückfallbild.
+   */
+  const ANIMIERT = /\/assets\/img\/anim\//;
   const bilder = (m) => {
-    for (const s of document.querySelectorAll('source[data-thema="dunkel"]')) {
-      if (!s.dataset.media) s.dataset.media = s.getAttribute('media');
-      s.setAttribute('media', m === 'system' ? s.dataset.media : m === 'dark' ? (s.dataset.breite || 'all') : 'not all');
+    for (const s of document.querySelectorAll('picture source')) {
+      if (s.dataset.media == null) s.dataset.media = s.getAttribute('media') || '';
+      let media = s.dataset.thema !== 'dunkel' || m === 'system' ? s.dataset.media : m === 'dark' ? (s.dataset.breite || 'all') : 'not all';
+      if (ANIMIERT.test(s.getAttribute('srcset') || '') && s.closest('[data-angehalten="ja"]')) media = 'not all';
+      if (s.getAttribute('media') !== media) s.setAttribute('media', media);
     }
   };
   const knopf = document.getElementById('thema');
@@ -126,6 +134,20 @@
     }, { passive: true });
     if (steuerung) steuerung.hidden = false;
     setzen(0);
+  }
+
+  // ── 5. Animationen anhalten ───────────────────────────────────────
+  // Ohne Skript bleibt der Knopf verborgen; bei „Bewegung reduzieren“ zeigt die Seite ohnehin das Rückfallbild.
+  for (const k of document.querySelectorAll('[data-bewegt]')) {
+    const box = k.closest('.bewegt');
+    const text = k.querySelector('span');
+    k.hidden = false;
+    k.addEventListener('click', () => {
+      const halt = box.dataset.angehalten !== 'ja';
+      box.dataset.angehalten = halt ? 'ja' : '';
+      text.textContent = halt ? k.dataset.aus : k.dataset.an;
+      bilder(mode());
+    });
   }
 
   // ── 4. Mitlaufender Knopf, Kopieren ───────────────────────────────

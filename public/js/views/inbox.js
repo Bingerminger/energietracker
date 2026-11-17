@@ -43,6 +43,7 @@ import { fieldHints, proposalNotes, duplicateHtml } from '../lib/inbox-marks.js'
 import { scanFolder } from '../lib/inbox-folder.js';
 import { priceBasisText, grossOf } from '../lib/price-basis.js';   // v3.7.0 — Basis eines Preises am Eingabefeld
 import { icon } from '../lib/icons.js';
+import { DOC_VALUE } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlänge eines korrigierten Texts
 
 // Ton der Infobox zur Einordnung eines Dokuments (figure.tone aus der Zusammenfassung)
 const GIST_TONE = { good: 'erfolg', warn: 'achtung', bad: 'fehler' };
@@ -332,14 +333,14 @@ function listHtml(entries) {
   return `<div class="table-wrap"><table class="data-table inbox-table">
     <thead><tr><th scope="col">${esc(t('inbox.col.document'))}</th><th scope="col">${esc(t('inbox.col.type'))}</th>
       <th scope="col">${esc(t('inbox.col.status'))}</th><th scope="col">${esc(t('inbox.col.added'))}</th>
-      <th scope="col"><span class="sr-only">${esc(t('inbox.col.actions'))}</span></th></tr></thead>
+      <th scope="col" class="spalte-aktionen"><span class="sr-only">${esc(t('inbox.col.actions'))}</span></th></tr></thead>
     <tbody id="inbox-list">${entries.map(e => `
       <tr data-entry="${esc(e.id)}" data-status="${esc(e.status)}">
         <td><a href="#/inbox/${esc(encodeURIComponent(e.id))}">${esc(e.name || e.id)}</a>${gistLineHtml(e)}</td>
         <td>${esc(e.type ? typeLabel(e.type) : '–')}</td>
         <td>${statusBadge(e)}</td>
         <td>${esc(fmt.date(String(e.created_at || '').slice(0, 10)))}</td>
-        <td class="cell-actions"><div class="cell-actions__reihe">${gistActionHtml(e.gist, { entryId: e.id, inList: true })}
+        <td class="cell-actions spalte-aktionen"><div class="cell-actions__reihe">${gistActionHtml(e.gist, { entryId: e.id, inList: true })}
           <a class="btn btn--ghost btn--sm" href="#/inbox/${esc(encodeURIComponent(e.id))}">${esc(t('inbox.open'))}</a>
           ${DEMO ? '' : `<button type="button" class="btn btn--ghost btn--sm" data-act="delete" data-id="${esc(e.id)}" aria-label="${esc(t('inbox.delete.label', { name: e.name || e.id }))}">${icon('kreuz', { size: 16 })}</button>`}</div></td>
       </tr>`).join('')}</tbody></table></div>`;
@@ -546,6 +547,12 @@ async function renderDetail(container, rawId, ctx = {}) {
       save({ edits: { [b.dataset.confirm]: f?.value } });
     }));
     side.querySelectorAll('[data-correct]').forEach(b => b.addEventListener('click', () => editField(b.dataset.correct)));
+    // v3.13.0 (Paket F) — Einträge eines Listenfelds: bestätigen, verwerfen, zurücksetzen, korrigieren
+    const itemPatch = (b, edit) => save({ item_edits: { [b.dataset.itemField]: { [b.dataset.itemIndex]: edit } } });
+    side.querySelectorAll('[data-item-confirm]').forEach(b => b.addEventListener('click', () => itemPatch(b, { action: 'confirm' })));
+    side.querySelectorAll('[data-item-discard]').forEach(b => b.addEventListener('click', () => itemPatch(b, { action: 'discard' })));
+    side.querySelectorAll('[data-item-reset]').forEach(b => b.addEventListener('click', () => itemPatch(b, null)));
+    side.querySelectorAll('[data-item-correct]').forEach(b => b.addEventListener('click', () => editItem(b.dataset.itemField, Number(b.dataset.itemIndex))));
     const applyBtn = side.querySelector('#inbox-apply');
     const sync = () => {
       const n = side.querySelectorAll('input[data-proposal]:checked').length;
@@ -606,7 +613,7 @@ async function renderDetail(container, rawId, ctx = {}) {
         ? `<input class="input" type="date" data-role="edit" value="${esc(cur || '')}">`
         : ['number', 'money', 'price_ct'].includes(def.kind)
           ? `<input class="input" type="text" inputmode="decimal" data-role="edit" value="${esc(formatForInput(cur))}">`
-          : `<input class="input" type="text" data-role="edit" maxlength="200" value="${esc(cur ?? '')}">`;
+          : `<input class="input" type="text" data-role="edit" maxlength="${DOC_VALUE}" value="${esc(cur ?? '')}">`;
     const box = document.createElement('div');
     box.className = 'inbox-edit';
     // v3.7.0 — Nettopreis mit gelesenem Satz: eingegeben wird wie gedruckt, die App rechnet um (lib/price-basis.js)
@@ -626,6 +633,64 @@ async function renderDetail(container, rawId, ctx = {}) {
         if (v === null) { toastErr(t('errors.inbox.editInvalid', { field: fieldLabel(name), value: input.value })); return; }
       }
       save({ edits: { [name]: v } });
+    });
+  };
+
+  /**
+   * v3.13.0 (Paket F) — einen Eintrag eines Listenfelds korrigieren: je Unterfeld eine Eingabe nach seiner Art
+   * (Tag, Zahl, Auswahl, ja/nein, Text). Geschickt wird nur, was sich geändert hat; der gelesene Wert bleibt
+   * gespeichert und steht daneben („Ausgelesen war …“).
+   */
+  const editItem = (name, index) => {
+    const f = pv.entry.extraction?.fields?.[name] || {};
+    const item = (f.items || []).find((i, k) => (Number.isInteger(i.index) ? i.index : k) === index);
+    const li = [...(fieldRow(name)?.querySelectorAll('[data-item]') || [])].find(el => Number(el.dataset.item) === index);
+    if (!item || !li || li.querySelector('.inbox-edit')) return;
+    const kinds = pv.schema?.[name]?.items || {};
+    const options = pv.schema?.[name]?.item_options || {};
+    const cur = item.value || {};
+    const id = (sub) => `ie-${name}-${index}-${sub}`;   // je Feld eindeutig (zwei Listen können offen sein)
+    const control = (sub, kind) => {
+      const v = cur[sub];
+      if (kind === 'enum') {
+        return `<select class="select" id="${id(sub)}" data-sub="${esc(sub)}"><option value="">–</option>${(options[sub] || []).map(o =>
+          `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(t('inbox.option.' + o))}</option>`).join('')}</select>`;
+      }
+      if (kind === 'bool') {
+        return `<select class="select" id="${id(sub)}" data-sub="${esc(sub)}"><option value="">–</option>
+          <option value="1"${v === true ? ' selected' : ''}>${esc(t('common.yes'))}</option><option value="0"${v === false ? ' selected' : ''}>${esc(t('common.no'))}</option></select>`;
+      }
+      if (kind === 'date') return `<input class="input" type="date" id="${id(sub)}" data-sub="${esc(sub)}" value="${esc(v || '')}">`;
+      if (['number', 'money', 'price_ct'].includes(kind)) {
+        return `<input class="input" type="text" inputmode="decimal" id="${id(sub)}" data-sub="${esc(sub)}" value="${esc(v === null || v === undefined ? '' : formatForInput(v))}">`;
+      }
+      return `<input class="input" type="text" id="${id(sub)}" data-sub="${esc(sub)}" maxlength="${DOC_VALUE}" value="${esc(v ?? '')}">`;
+    };
+    const box = document.createElement('div');
+    box.className = 'inbox-edit';
+    box.innerHTML = `<div class="fgrid">${Object.entries(kinds).map(([sub, kind]) =>
+      `<div class="field"><label for="${id(sub)}">${esc(t('inbox.sub.' + sub))}</label>${control(sub, kind)}</div>`).join('')}</div>
+      <p><button type="button" class="btn btn--primary btn--sm" data-role="ok">${esc(t('common.save'))}</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-role="no">${esc(t('common.cancel'))}</button></p>`;
+    li.append(box);
+    box.querySelector('[data-sub]')?.focus();
+    box.querySelector('[data-role="no"]').addEventListener('click', () => box.remove());
+    box.querySelector('[data-role="ok"]').addEventListener('click', () => {
+      const value = {};
+      for (const el of box.querySelectorAll('[data-sub]')) {
+        const sub = el.dataset.sub;
+        const kind = kinds[sub];
+        let v = el.value.trim();
+        if (v === '') v = null;
+        else if (['number', 'money', 'price_ct'].includes(kind)) {
+          v = parseDecimal(v);
+          if (v === null) { toastErr(t('errors.inbox.editInvalid', { field: t('inbox.sub.' + sub), value: el.value })); return; }
+        } else if (kind === 'bool') v = v === '1';
+        const was = cur[sub] ?? null;
+        if (v !== was && !(typeof v === 'number' && typeof was === 'number' && Math.abs(v - was) < 1e-9)) value[sub] = v;
+      }
+      if (!Object.keys(value).length) { box.remove(); return; }
+      save({ item_edits: { [name]: { [index]: { action: 'correct', value } } } });
     });
   };
 
@@ -661,8 +726,7 @@ export function fieldsHtml(pv, fields) {
     // v3.12.0 — „Stimmt“ an einem Preis ohne gelesenen Steuersatz übernimmt ihn als Bruttopreis: das sagen
     const grossNote = check && ['money', 'price_ct'].includes(def.kind) && (f.reasons || []).includes('price_from_invoice') && !f.net;
     const value = def.kind === 'list'
-      ? (f.items || []).map(i => `<li${i.status === 'check' ? ' class="inbox-item--check"' : ''}>${esc(itemText(n, i.value, i))}
-          ${i.quote ? `<blockquote class="inbox-quote">${esc(i.quote)}${i.page ? ` <button type="button" class="link-btn" data-page="${esc(i.page)}">${esc(t('inbox.doc.page', { n: i.page }))}</button>` : ''}</blockquote>` : ''}</li>`).join('')
+      ? (f.items || []).map((i, k) => listItemHtml(n, i, k)).join('')
       : esc(valueText(def.kind, edited ? edits[n] : f.value));
     return `<li class="inbox-field${check ? ' inbox-field--check' : ''}${edited ? ' inbox-field--edited' : ''}" data-field="${esc(n)}">
       <div class="inbox-field__head"><span class="inbox-field__label">${esc(fieldLabel(n))}</span>
@@ -688,6 +752,38 @@ export function fieldsHtml(pv, fields) {
     ${empty.length ? `<details class="inbox-empty"><summary>${esc(tp('inbox.fields.empty', empty.length))}</summary>
       <ul class="inbox-fields">${empty.map(row).join('')}</ul></details>` : ''}
   </div>`;
+}
+
+/**
+ * v3.13.0 (Paket F) — ein Eintrag eines Listenfelds mit Herkunft und eigener Entscheidung: „Stimmt“ (nur
+ * markiert), „Korrigieren“, „Verwerfen“; entschieden „Wie gelesen“ zum Zurücksetzen. `index` ist die Stelle
+ * in der gespeicherten Auslesung (Inbox\ItemEdits), nicht die in der Anzeige.
+ */
+export function listItemHtml(field, i, k) {
+  const idx = Number.isInteger(i.index) ? i.index : k;
+  const discarded = i.status === 'discarded';
+  const check = i.status === 'check';
+  const cls = ['inbox-item', check ? 'inbox-item--check' : '', discarded ? 'inbox-item--discarded' : '',
+    i.origin === 'corrected' ? 'inbox-item--edited' : ''].filter(Boolean).join(' ');
+  const text = esc(itemText(field, i.value, i));
+  const badge = discarded ? `<span class="badge" data-role="item-origin">${esc(t('inbox.item.discarded'))}</span>`
+    : i.origin === 'corrected' ? `<span class="badge badge--info" data-role="item-origin">${esc(t('inbox.item.corrected'))}</span>`
+      : i.confirmed ? `<span class="badge badge--success" data-role="item-origin">${esc(t('inbox.item.confirmed'))}</span>` : '';
+  const at = `data-item-field="${esc(field)}" data-item-index="${esc(idx)}"`;
+  const no = idx + 1;
+  const actions = DEMO ? '' : i.decision
+    ? `<p class="inbox-field__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-item-reset ${at} aria-label="${esc(t('inbox.item.resetNamed', { n: no }))}">${esc(t('inbox.item.reset'))}</button>
+        ${discarded ? '' : `<button type="button" class="btn btn--ghost btn--sm" data-item-correct ${at} aria-label="${esc(t('inbox.item.correctNamed', { n: no }))}">${esc(t('inbox.field.correct'))}</button>`}</p>`
+    : `<p class="inbox-field__actions">
+        ${check ? `<button type="button" class="btn btn--ghost btn--sm" data-item-confirm ${at} aria-label="${esc(t('inbox.item.confirmNamed', { n: no }))}">${esc(t('inbox.field.confirm'))}</button>` : ''}
+        <button type="button" class="btn btn--ghost btn--sm" data-item-correct ${at} aria-label="${esc(t('inbox.item.correctNamed', { n: no }))}">${esc(t('inbox.field.correct'))}</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-item-discard ${at} aria-label="${esc(t('inbox.item.discardNamed', { n: no }))}">${esc(t('inbox.item.discard'))}</button></p>`;
+  return `<li class="${cls}" data-item="${esc(idx)}">${discarded ? `<s>${text}</s>` : text} ${badge}
+    ${check ? `<p class="inbox-field__reason">${esc(reasonText(i.reasons))}</p>` : ''}
+    ${i.origin === 'corrected' && i.read_value ? `<p class="inbox-field__reason muted" data-role="item-read">${esc(t('inbox.field.edited', { value: itemText(field, i.read_value, {}) }))}</p>` : ''}
+    ${i.quote ? `<blockquote class="inbox-quote">${esc(i.quote)}${i.page ? ` <button type="button" class="link-btn" data-page="${esc(i.page)}">${esc(t('inbox.doc.page', { n: i.page }))}</button>` : ''}</blockquote>` : ''}
+    ${actions}</li>`;
 }
 
 /**

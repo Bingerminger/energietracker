@@ -386,6 +386,10 @@ h1 { font-size: clamp(2.5rem, 1.5rem + 3.6vw, 4rem); line-height: 1.03; font-wei
 .nummern li::marker { font-family: var(--font-num); font-weight: 600; color: var(--text-2); }
 .ha .knoepfe { margin-bottom: 20px; }
 .ha .knoepfe > a:not(.knopf) { font-size: 0.9375rem; font-weight: 500; }
+/* Logo der Integration (v3.13.0): eigenes Logo aus brand/, hell und dunkel über den Umschalter wie jedes Bild */
+.ha__logo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0 0 20px; }
+.ha__logo img { display: block; width: 184px; height: auto; }
+.ha__logo span { font-size: 0.875rem; color: var(--text-2); }
 
 /* Vertrauen */
 .belege { margin-bottom: 48px; }
@@ -482,3 +486,23 @@ h1 { font-size: clamp(2.5rem, 1.5rem + 3.6vw, 4rem); line-height: 1.03; font-wei
   .sprache a { padding-inline: 6px; }
   .folie--handy .folie__medium img { max-height: 420px; }
 }
+
+/* Animationen (v3.13.0): Rückfallbild bei „Bewegung reduzieren“, Knopf zum Anhalten (seite.js) */
+.bewegt { position: relative; display: block; width: 100%; }
+.bewegt__gross { display: block; }
+.bewegt img { display: block; width: 100%; height: auto; }
+.bewegt__knopf { position: absolute; right: 10px; bottom: 10px; gap: 6px; box-shadow: var(--shadow-2); }
+.bewegt__knopf[hidden], .bewegt__spielen, .bewegt[data-angehalten="ja"] .bewegt__pause { display: none; }
+.bewegt[data-angehalten="ja"] .bewegt__spielen { display: inline; }
+/* am Handy nur die Grafik, der Text bleibt für Screenreader */
+@media (max-width: 599.98px) {
+  .bewegt__knopf { right: 6px; bottom: 6px; min-height: 30px; padding: 4px 8px; }
+  .bewegt__knopf span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .bewegt__knopf { display: none; } }
+@media print { .bewegt__knopf { display: none; } }
+.bild--bewegt .bild__rahmen { background: var(--bg-2); }
+/* untereinander, in voller Breite: nebeneinander wären die Zahlen der Aufnahmen zu klein */
+.neu__bilder { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; margin-bottom: 32px; }
+.neu__knoepfe { margin-top: 20px; }
+#neu .infobox { margin-top: 20px; }

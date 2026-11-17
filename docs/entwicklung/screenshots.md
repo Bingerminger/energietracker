@@ -82,8 +82,8 @@ brauchen eine eigene Instanz (siehe unten).
 **Seit v3.12.0 nimmt ein Skript alle Bilder der Tabelle auf:** `tools/build-screenshots.mjs` lädt den
 Beispielhaushalt, stellt die Stufe Experte ein und nimmt jede Ansicht hell auf, am Mac und am iPhone. Dazu
 die Bilder für das README (hell und dunkel) unter `docs/assets/promo/screens/`. Danach
-`pngquant --quality=88-100 --strip`, **kein Bild über 150 KB**. **Jedes Bild zeigt die Oberfläche von v3.12.0,
-jedes auf Deutsch und Englisch.**
+`pngquant --quality=88-100 --strip`, **kein Bild über 150 KB**. **Die Bilder der Tabelle zeigen die Oberfläche
+von v3.12.0, die Bilder für das README die von v3.13.0, jedes auf Deutsch und Englisch.**
 
 **Drei Läufe je Sprache**, jeder gegen einen eigenen Server mit leerem Datenverzeichnis:
 

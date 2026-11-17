@@ -69,10 +69,31 @@ final class Tool
             'description' => $i18n->t("mcp.tools.{$this->name}.description", [], $locale),
             'inputSchema' => Schema::export($schema),
         ];
-        if ($this->outputSchema !== null) $def['outputSchema'] = Schema::export($this->outputSchema);
+        if ($this->outputSchema !== null) $def['outputSchema'] = Schema::export($this->describeOutput($this->outputSchema, $i18n, $locale));
         $def['annotations'] = $this->annotations;
         if ($this->meta !== []) $def['_meta'] = $this->meta;
         return $def;
+    }
+
+    /**
+     * v3.13.0 — Beschreibungen der Ausgabe aus dem Katalog (`mcp.tools.<name>.out.<pfad>`, Sprache des Servers),
+     * wie bei den Eingaben. Der Pfad nennt die Felder mit Punkt, Listen ohne Index (`rows.reading_on`).
+     *
+     * @param array<string,mixed> $schema
+     * @return array<string,mixed>
+     */
+    private function describeOutput(array $schema, I18nService $i18n, string $locale, string $prefix = ''): array
+    {
+        foreach ((array)($schema['properties'] ?? []) as $prop => $sub) {
+            if (!is_array($sub)) continue;
+            $path = $prefix === '' ? (string)$prop : "$prefix.$prop";
+            $key = "mcp.tools.{$this->name}.out.$path";
+            $text = $i18n->t($key, [], $locale);
+            if ($text !== $key && !isset($sub['description'])) $sub['description'] = $text;
+            $schema['properties'][$prop] = $this->describeOutput($sub, $i18n, $locale, $path);
+        }
+        if (is_array($schema['items'] ?? null)) $schema['items'] = $this->describeOutput($schema['items'], $i18n, $locale, $prefix);
+        return $schema;
     }
 
     /** @param array<string,mixed> $args geprüft gegen inputSchema */

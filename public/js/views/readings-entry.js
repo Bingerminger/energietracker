@@ -30,14 +30,16 @@
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { toastOk, toastErr, toastUndo } from '../components/toast.js';
+import { guardSubmit } from '../components/modal.js';
 import { t, tp } from '../lib/i18n.js';
 import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso, formatForInput } from '../lib/format.js';
-import { checkReading, confirmIssues, issueText, neighbours } from '../lib/plausibility.js';
+import { checkReading, confirmIssues, issueText, neighbours, weatherExpectations, readingPreview } from '../lib/plausibility.js';
 import { showFieldError } from '../lib/form.js';
 import { info } from '../components/info.js';
 import * as outbox from '../lib/outbox.js';
 import { shrinkPhoto } from '../lib/photo.js';
 import { icon, meterGlyph } from '../lib/icons.js';
+import { maxAttr } from '../lib/text-limits.js';   // v3.13.0 (Paket F) — Höchstlängen
 
 // Zeichen einer Zeile: die Grafik der Art, oder was jemand selbst am Zähler eingetragen hat
 const readingGlyph = (r) => meterGlyph({ icon: r.meter_icon }, { key: r.utility, icon: r.utility_icon }, { size: 24 });
@@ -181,8 +183,10 @@ export async function render(container, _params = [], ctx = {}) {
   saveLbl.textContent = progressText();
 
   stickyEl.hidden = false;
-  saveBtn.addEventListener('click', async () => {
-    saveBtn.disabled = true;
+  // v3.13.0 — über guardSubmit (components/modal.js): gesperrt, solange gespeichert wird, und Auslöser jeder Rückfrage
+  // dabei. Der gesperrte Knopf verlor im Browser den Fokus, während die Seite auf die Erwartung nach dem Wetter wartete;
+  // nach „Abbrechen“ stand er dann auf <body>.
+  saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
     saveLbl.textContent = t('readingsEntry.saving');
     let ok = 0, skipped = 0, failed = 0, held = 0, queued = 0;
     const created = [];   // neu angelegt → lässt sich rückgängig machen
@@ -202,7 +206,6 @@ export async function render(container, _params = [], ctx = {}) {
       else if (res.status === 'queued') queued++;
       else                   failed++;
     }
-    saveBtn.disabled = false;
     // v3.1.0 — ohne Verbindung: eingereiht, wird nachgesendet
     if (queued > 0) toastErr(tp('readingsEntry.queue.waitingN', await outbox.count().catch(() => queued)));
     // v2.6.0 — zurückgestellte Karten (Rückfrage abgelehnt) eigens melden
@@ -234,7 +237,7 @@ export async function render(container, _params = [], ctx = {}) {
       toastOk(t('readingsEntry.toast.nothing'));
     }
     saveLbl.textContent = progressText();
-  });
+  }));
 }
 
 function renderRow(r, today) {
@@ -324,7 +327,7 @@ function renderRow(r, today) {
       <div class="reading-card__note" data-role="note-wrap" id="rc-note-${escIdx(r)}" hidden>
         <label class="field">
           <span class="field__label">${t('readingsEntry.row.note')}</span>
-          <input class="input" data-role="note" type="text" maxlength="200" placeholder="${t('readingsEntry.row.notePlaceholder')}" />
+          <input class="input" data-role="note" type="text" ${maxAttr('readings', 'note')} placeholder="${t('readingsEntry.row.notePlaceholder')}" />
         </label>
       </div>
 
@@ -343,22 +346,22 @@ function escIdx(r) {
 
 // A — Verbrauchs-Vorschau: Differenz zum letzten Stand + Tage seit der
 // letzten Ablesung. Liefert null, wenn kein voriger Stand vorliegt.
-export function previewText(r, value, dateVal) {
+// v3.13.0 (Paket K2e) — über readingPreview (lib/plausibility.js), dieselbe Regel wie der Dialog „+ Ablesung“. Ein
+// Nachtrag (am oder vor dem letzten Stand) mit den geladenen Ständen des Zählers: seit dem Stand davor und bis zum Stand
+// danach zum gewählten Datum. Ohne die Stände keine Vorschau (nicht gegen den späteren Stand).
+export function previewText(r, value, dateVal, history = null) {
+  if (value == null || Number.isNaN(value)) return null;
+  const opts = { value, unit: r.unit, num: (n) => fmt.num(n, 3), view: 'readingsEntry' };
+  if (history && needsHistory(r, dateVal)) {
+    const n = neighbours(history.readings, history.meter, dateVal);
+    return readingPreview({ ...opts, date: dateVal, prev: n.prev, next: n.next, deviceChanged: n.deviceChanged, nextDeviceChanged: n.nextDeviceChanged });
+  }
   const last = r.last_reading;
-  if (!last || last.counter == null || Number.isNaN(value)) return null;
+  if (!last || last.counter == null) return null;
   // v3.12.0 — Nachtrag vor dem letzten Stand: kein Vergleich mit dem späteren (wie rowIssues: `prev` nur, wenn älter)
   if (last.date && dateVal && dateVal < last.date) return null;
-  const diff = value - Number(last.counter);
-  const sign = diff < 0 ? '−' : '+';
-  const delta = `${sign}${fmt.num(Math.abs(diff), 3)}`;
-  let days = null;
-  if (last.date && dateVal) {
-    const d = Math.round((new Date(dateVal) - new Date(last.date)) / 86400000);
-    if (Number.isFinite(d) && d > 0) days = d;
-  }
-  return days != null
-    ? tp('readingsEntry.preview.sinceLastDays', days, { delta, unit: r.unit, days })
-    : t('readingsEntry.preview.sinceLast', { delta, unit: r.unit });
+  const deviceChanged = !!(last.device_id && r.active_device_id && last.device_id !== r.active_device_id);
+  return readingPreview({ ...opts, date: dateVal || todayIso(), prev: last, deviceChanged });
 }
 
 // v2.6.0 — Rückfragen zu einer Karte (lib/plausibility.js). Vergleichsbasis
@@ -376,21 +379,39 @@ function historyOf(r) {
   return r.__history;
 }
 
-function rowIssues(r, value, date, today, history = null) {
+// v3.13.0 (Paket K2e) — der Stand am gewählten Tag, den ein neuer ersetzt: eine Regel für Rückfrage, Speichern und die
+// Erwartung nach dem Wetter (die alte Zahl bestimmt sie nicht mit, wie beim Vorschlag einer KI)
+function rowSameDay(r, date, history = null) {
+  if (history && needsHistory(r, date)) return history.readings.find(x => x.date === date && !x.is_future && x.id) || null;
+  const last = r.last_reading;
+  return last && last.date === date && last.id ? last : null;
+}
+
+function rowIssues(r, value, date, today, history = null, expected = null) {
   if (history && needsHistory(r, date)) {
-    const sameDay = history.readings.find(x => x.date === date && !x.is_future && x.id) || null;
-    return checkReading({ value, date, today, typical: r.typical_per_day ?? null, sameDay, ...neighbours(history.readings, history.meter, date) });
+    const sameDay = rowSameDay(r, date, history);
+    return checkReading({ value, date, today, typical: r.typical_per_day ?? null, sameDay, ...neighbours(history.readings, history.meter, date), expected });
   }
   const last = r.last_reading;
-  const sameDay = last && last.date === date && last.id ? last : null;
+  const sameDay = rowSameDay(r, date);
   const deviceChanged = !!(last?.device_id && r.active_device_id && last.device_id !== r.active_device_id);
   return checkReading({
     value, date, today,
     prev: last && last.date < date ? last : null,
     typical: r.typical_per_day ?? null,
-    sameDay, deviceChanged,
+    sameDay, deviceChanged, expected,
   });
 }
+
+// v3.13.0 (#65) — voriger Stand der Karte zum Datum (dieselbe Wahl wie rowIssues) und die Erwartung nach dem
+// Wetter für den Abstand bis zum Datum, je Karte einmal geladen (wie im Dialog „+ Ablesung“); ohne Antwort die alte Regel
+function rowPrev(r, date, history = null) {
+  if (history && needsHistory(r, date)) return neighbours(history.readings, history.meter, date).prev;
+  const last = r.last_reading;
+  return last && last.date < date ? last : null;
+}
+// v3.13.0 (Paket K2e) — ohne den Stand, den ein neuer am selben Tag ersetzt (der Tag ist das Ende des Abstands)
+const weatherOf = (r) => (r.__weather ??= weatherExpectations((from, to) => api.readingExpectation(r.utility, r.meter_id, from, to, rowSameDay(r, to, r.__historyValue || null)?.id ?? null)));
 
 function bindRow(card, r) {
   if (!card) return;
@@ -437,10 +458,14 @@ function bindRow(card, r) {
     if (needsHistory(r, date) && !r.__historyValue) {
       historyOf(r)?.then(h => { if (h && !r.__historyValue) { r.__historyValue = h; update(); } });
     }
-    const issues = rowIssues(r, v, date, todayIso(), r.__historyValue || null);
+    const history = r.__historyValue || null;
+    const prevR = rowPrev(r, date, history);
+    const wx = prevR ? weatherOf(r) : null;
+    if (wx && !wx.has(prevR.date, date)) wx.load(prevR.date, date).then(() => { if (card.isConnected) update(); });
+    const issues = rowIssues(r, v, date, todayIso(), history, wx ? wx.get(prevR.date, date) : null);
     hintEl.hidden = issues.length === 0;
     hintEl.textContent = issues.map(i => issueText(i, { unit: r.unit, date })).join(' · ');
-    const prev = previewText(r, v, dateEl?.value);
+    const prev = previewText(r, v, dateEl?.value, history);
     if (prev) { previewEl.hidden = false; previewEl.textContent = prev; }
     else      { previewEl.hidden = true; }
   };
@@ -581,7 +606,7 @@ function renderPeriodRow(r) {
       <div class="reading-card__note" data-role="note-wrap" id="rc-note-${i}" hidden>
         <label class="field">
           <span class="field__label">${t('readingsEntry.row.note')}</span>
-          <input class="input" data-role="note" type="text" maxlength="200" placeholder="${t('readingsEntry.row.notePlaceholder')}" />
+          <input class="input" data-role="note" type="text" ${maxAttr('readings', 'note')} placeholder="${t('readingsEntry.row.notePlaceholder')}" />
         </label>
       </div>
     </article>`;
@@ -693,7 +718,10 @@ async function trySaveCard(card, r, today = todayIso()) {
   // v2.6.0 — Rückfrage je auffälliger Karte, mit Zählername im Titel. Wer
   // ablehnt, behält die Eingabe; die Karte ist markiert und wird nachgemeldet.
   const history = needsHistory(r, date) ? (r.__historyValue || await historyOf(r)) : null;
-  const issues = rowIssues(r, counter, date, today, history);
+  if (history && !r.__historyValue) r.__historyValue = history;   // v3.13.0 (Paket K2e) — auch für den Ausschluss in weatherOf
+  const prevR = rowPrev(r, date, history);
+  const expected = prevR ? await weatherOf(r).load(prevR.date, date) : null;   // v3.13.0 (#65)
+  const issues = rowIssues(r, counter, date, today, history, expected);
   if (issues.length) {
     const ok = await confirmIssues(issues, {
       unit: r.unit, date, utility: r.utility,

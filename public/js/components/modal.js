@@ -125,7 +125,11 @@ function triggerLocator(el) {
 export function openModal({ title, body, footer = '', onMount = null, size = 'md', role = 'dialog', describedBy = null }) {
   const root = document.getElementById('modal-root');
   // A11y (N1009): Fokus merken, damit er beim Schließen zurückkehrt.
-  const prevFocus = document.activeElement;
+  // v3.13.0 — Hat der Knopf, dessen Aktion gerade läuft (guardSubmit), den Fokus schon verloren, ist er der Auslöser:
+  // Ein gesperrter Knopf gibt ihn im Browser ab, sobald die Aktion auf etwas wartet (etwa die Erwartung nach dem Wetter
+  // vor der Rückfrage), und die Rückfrage fand dann nur noch <body>.
+  const active = document.activeElement;
+  const prevFocus = (!active || active === document.body) && busyTriggers.at(-1)?.isConnected ? busyTriggers.at(-1) : active;
   const prevLocator = triggerLocator(prevFocus);
   const titleId = `modal-title-${++modalSeq}`;
   const backdrop = document.createElement('div');
@@ -203,13 +207,16 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
     target.focus();
     // v3.12.0 — der Auslöser ist gerade gesperrt (guardSubmit, solange der Handler mit der Rückfrage läuft, etwa
     // „Speichern“ bei der Plausibilitäts-Rückfrage): Ein gesperrter Knopf nimmt keinen Fokus, er fiel auf <body>.
-    // Sobald er wieder frei ist, bekommt er ihn, wenn niemand sonst ihn hat und kein Dialog offen ist.
+    // Sobald er wieder frei ist, bekommt er ihn, wenn niemand sonst ihn hat und kein Dialog über ihm offen ist.
+    // v3.13.0 — der Dialog, in dem er steht, darf offen sein („Anlegen“ im Dialog „+ Ablesung“); bis v3.12 blieb der
+    // Fokus dort auf <body>.
     if (target.disabled && document.activeElement !== target && typeof MutationObserver !== 'undefined') {
       const held = target;
       const freed = new MutationObserver(() => {
         if (held.disabled) return;
         freed.disconnect();
-        if (!root.lastElementChild && held.isConnected && (!document.activeElement || document.activeElement === document.body)) held.focus();
+        const top = root.lastElementChild;
+        if ((!top || top.contains(held)) && held.isConnected && (!document.activeElement || document.activeElement === document.body)) held.focus();
       });
       freed.observe(held, { attributes: true, attributeFilter: ['disabled'] });
       setTimeout(() => freed.disconnect(), 5000);
@@ -310,6 +317,10 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
  *
  *   saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => { … }));
  *
+ * v3.13.0 — Solange die Aktion läuft, gilt der Knopf als Auslöser einer Rückfrage, die sie öffnet (openModal), auch
+ * wenn er den Fokus schon verloren hat; nach „Abbrechen“ bekommt er ihn zurück. Eine Hilfsfunktion für alle
+ * Rückfragen aus Knöpfen, im Dialog wie auf der Seite.
+ *
  * @param {HTMLButtonElement|null} btn
  * @param {() => Promise<unknown>|unknown} handler
  */
@@ -318,15 +329,23 @@ export function guardSubmit(btn, handler) {
   return async (event) => {
     if (running) { event?.preventDefault?.(); return; }
     running = true;
-    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); busyTriggers.push(btn); }
     try {
       await handler(event);
     } finally {
       running = false;
-      if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+      if (btn) {
+        const i = busyTriggers.lastIndexOf(btn);
+        if (i >= 0) busyTriggers.splice(i, 1);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
     }
   };
 }
+
+/** v3.13.0 — Knöpfe, deren Aktion gerade läuft (guardSubmit), der jüngste zuletzt. */
+const busyTriggers = [];
 
 /**
  * Confirm dialog — returns a Promise<boolean>.

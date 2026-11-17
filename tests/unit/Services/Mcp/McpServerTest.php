@@ -132,7 +132,8 @@ final class McpServerTest extends McpTestCase
 
     public function testMalformedMessages(): void
     {
-        $batch = $this->raw('[{"jsonrpc":"2.0","id":1,"method":"ping"}]');
+        // v3.13.0 — Stapel nur in 2025-03-26 (McpBatchTest); mit späterer Fassung wie bisher abgewiesen
+        $batch = $this->raw('[{"jsonrpc":"2.0","id":1,"method":"ping"}]', null, ['mcp-protocol-version' => '2025-06-18']);
         self::assertSame([400, Server::INVALID_REQUEST, 'errors.mcp.batch', null],
             [$batch['status'], $batch['body']['error']['code'], $batch['body']['error']['data']['code'], $batch['body']['id']]);
         self::assertSame([400, Server::PARSE_ERROR], [$this->raw('kein json')['status'], $this->raw('kein json')['body']['error']['code']]);

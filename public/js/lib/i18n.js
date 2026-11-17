@@ -39,7 +39,37 @@ export function deviceLanguage() {
  */
 export function presetLocale(lang) {
   const loc = String(lang || '').slice(0, 2).toLowerCase();
-  if (/^[a-z]{2}$/.test(loc)) locale = loc;
+  if (/^[a-z]{2}$/.test(loc)) { locale = loc; chosen = true; }
+}
+
+// v3.13.0 (Paket K2e) — Kennt die App ihre Sprache (Wahl des Geräts, initI18n)? Bis dahin gilt keine eigene.
+let chosen = false;
+
+/**
+ * v3.13.0 (Paket K2e) — Sprache der Kopfzeilen jeder Anfrage (api.js). Kennt die App ihre Sprache (eigene Wahl des
+ * Geräts, geladener Katalog), steht sie in beiden. Vorher schickt die Oberfläche die Sprachwünsche des Browsers
+ * (`navigator.languages`) und keine eigene Wahl: Beim allerersten Start entscheidet der Server daraus Sprache, Land und
+ * Wetterort, danach gilt die Vorgabe der Installation. Bis v3.12 stand hier die Vorgabe „de“ der App, und ein
+ * französischer Browser bekam beim ersten Start Deutsch und Deutschland.
+ *
+ * @returns {{accept: ?string, device: ?string}} Accept-Language und X-ET-Language (null: nicht setzen)
+ */
+export function requestLanguages() {
+  if (chosen) return { accept: locale, device: locale };
+  return { accept: browserLanguages(), device: null };
+}
+
+/** Accept-Language aus `navigator.languages` („fr-CH, fr;q=0.9, en;q=0.8“), ohne Angabe null. */
+function browserLanguages() {
+  let list = [];
+  try {
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    list = [...(nav?.languages || [])];
+    if (!list.length && nav?.language) list = [nav.language];
+  } catch { return null; }
+  list = list.filter(l => typeof l === 'string' && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/.test(l)).slice(0, 8);
+  if (!list.length) return null;
+  return list.map((l, i) => (i === 0 ? l : `${l};q=${(1 - i / 10).toFixed(1)}`)).join(', ');
 }
 
 /**
@@ -104,6 +134,7 @@ async function loadCatalog(loc) {
 export async function initI18n(lang) {
   await loadLanguages();     // unterstützte Sprachen kennen, bevor normalisiert wird
   locale = normalize(lang);
+  chosen = true;
   catalog = await loadCatalog(locale);
   fallback = locale === DEFAULT_LOCALE ? catalog : await loadCatalog(DEFAULT_LOCALE);
   typographyMode = lookup(catalog, 'format.typography') || 'none';

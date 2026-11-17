@@ -123,8 +123,12 @@ final class MeteringConceptService
         // ein Subzähler hängt je Zählwerk am gleichnamigen Zählwerk: HT/NT nur am Gerät geht in der
         // Kaskade nicht (vorn HT/NT, dahinter der Haushalt mit einem Zählwerk)
         if ($tou === 'device' && $concept === 'cascade') throw new LocalizedException('errors.concept.touCascade', [], 'concept tou cascade');
-        $s = ['concept' => $concept, 'device' => $concept === 'single' ? null : $device, 'pv' => !empty($in['pv']),
-              'battery' => !empty($in['pv']) && !empty($in['battery']), 'tou' => $tou];
+        // v3.13.0 — PV und Speicher als Wahrheitswerte nach der einen Regel (Input::flag): `!empty("nein")` zeigte
+        // die Vorschau bisher mit PV-Zählern
+        $pv = \Energietracker\Support\Input::flag($in['pv'] ?? false, 'pv');
+        $battery = \Energietracker\Support\Input::flag($in['battery'] ?? false, 'battery');
+        $s = ['concept' => $concept, 'device' => $concept === 'single' ? null : $device, 'pv' => $pv,
+              'battery' => $pv && $battery, 'tou' => $tou];
         $slots = self::slots($s);
         $s['slots'] = [];
         foreach ($slots as $key => $def) {

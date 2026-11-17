@@ -23,6 +23,7 @@ export const AREAS = {
   recommendation: 'recommendations',
   inbox: 'contracts',            // v3.7.0 — aus einem Dokument im Posteingang übernommen
   reading: 'readings',           // v3.12.0 (F1037) — Ablesung von einer KI vorgeschlagen und übernommen
+  feed_in_payout: 'contracts',   // v3.13.0 (Paket vertrag) — Auszahlung der Einspeisung erfasst
 };
 export const AREA_KEYS = ['reminders', 'contracts', 'readings', 'tank', 'tenancy', 'recommendations'];
 

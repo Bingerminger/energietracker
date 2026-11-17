@@ -14,7 +14,7 @@ Selbst gehostet, ohne Konto und ohne Datenbank. Und auf Wunsch mit deiner KI im 
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.12.0-blue.svg" alt="Version 3.12.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.13.0-blue.svg" alt="Version 3.13.0"></a>
   <a href="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml"><img src="https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg" alt="Lizenz: AGPL-3.0-or-later"></a>
   <a href="docs/betrieb/docker.md"><img src="https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg" alt="Docker: amd64 und arm64"></a>
@@ -34,7 +34,7 @@ Selbst gehostet, ohne Konto und ohne Datenbank. Und auf Wunsch mit deiner KI im 
 | <img src="docs/assets/promo/icons/geld.svg" width="32" alt=""> | **Bekomme ich Geld zurück?** Saldo je Vertrag: gemessen bis zur letzten Ablesung, geschätzt bis heute, erwartet bei der Abrechnung, mit ehrlicher Spanne. Wie auf der Rechnung: „Guthaben“ oder „Nachzahlung“. [Saldo](docs/verstehen/00-overview.md#saldo-aus-einem-guss-seit-v3100) |
 | <img src="docs/assets/promo/icons/kolben.svg" width="32" alt=""> | **Was kostet ein kalter Winter?** Die Prognose-Werkstatt rechnet Winter, Dämmung, Raumtemperatur und Tarif mit deinen Daten durch, mit Rangliste und Ergebnis als PDF. [Was wäre wenn](docs/anleitungen/was-waere-wenn.md) |
 | <img src="docs/assets/promo/icons/beleg.svg" width="32" alt=""> | **Sparen, wo es belegbar ist.** Abschlag passend einstellen, Wechsel mit Kündigungsfrist und Gewinnschwelle prüfen, die Jahresrechnung je Abschnitt nachrechnen. Keine erfundenen Sparbeträge: Du siehst deine eigenen Zahlen. [Jahresabrechnung](docs/anleitungen/jahresabrechnung.md) |
-| <img src="docs/assets/promo/icons/stecker.svg" width="32" alt=""> | **Home Assistant misst, der Energietracker rechnet ab.** Zählerstände kommen aus Home Assistant, Fristen und neue Post gehen als Benachrichtigung zurück. Als App für Home Assistant OS, Sensoren über die HACS-Integration ohne YAML. [Home Assistant](docs/anleitungen/home-assistant.md) |
+| <img src="docs/assets/promo/icons/stecker.svg" width="32" alt=""> | **Home Assistant misst, der Energietracker rechnet ab.** Zählerstände kommen aus Home Assistant, Fristen und neue Post gehen als Benachrichtigung zurück. Als App für Home Assistant OS, Sensoren ohne YAML über die Integration aus dem Marketplace (ehemals HACS). [Home Assistant](docs/anleitungen/home-assistant.md) |
 | <img src="docs/assets/promo/icons/schloss.svg" width="32" alt=""> | **Deine Daten bleiben bei dir.** Keine Konten, keine Werbung, keine Telemetrie, keine Datenbank, nur Dateien auf deinem Server. Hinaus geht ab Werk nur der Wetterabgleich, abschaltbar; alles andere schaltest du selbst ein. [Deine Daten](#deine-daten) |
 
 **Neun Verbrauchsarten:** Gas, Strom, Wasser, Fernwärme, Heizöl, Pellets, PV-Einspeisung, PV-Erzeugung und
@@ -60,9 +60,10 @@ eigene Daten gehen dabei nicht verloren.
   Assistant ([Schritt für Schritt](docs/anleitungen/home-assistant.md#als-app-in-home-assistant-os)).
 
   [![Repository der Energietracker-App zu Home Assistant hinzufügen](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
-- **Sensoren in Home Assistant ohne YAML:** die Integration über den Marketplace (Home Assistant ab 2026.11)
-  oder HACS, [energietracker-integration](https://github.com/Bingerminger/energietracker-integration).
-- **Ohne Docker** genügt PHP ab 8.3: `git clone`, dann `php -S 127.0.0.1:8080 router.php`.
+- **Sensoren in Home Assistant ohne YAML:** im Marketplace nach „Energietracker“ suchen
+  ([energietracker-integration](https://github.com/Bingerminger/energietracker-integration)). Mit Home Assistant
+  2026.3 bis 2026.10 heißt der Weg noch HACS, ebenfalls über die Suche.
+- **Ohne Docker** genügt PHP ab 8.4: `git clone`, dann `php -S 127.0.0.1:8080 router.php`.
 - **Für den Dauerbetrieb:** [Installation](docs/betrieb/installation.md) ·
   [Docker, auch auf der Synology](docs/betrieb/docker.md) · [Apache und nginx](docs/betrieb/webserver.md) ·
   [Auf dem Handy nutzen](docs/einstieg/handy.md).
@@ -137,7 +138,7 @@ er nicht um. [Länderprofile](docs/verstehen/14-laenderprofile.md)
 
 ## Stand
 
-**v3.12.0** ist die aktuelle Version, was sich geändert hat, steht im [CHANGELOG](CHANGELOG.md).
+**v3.13.0** ist die aktuelle Version, was sich geändert hat, steht im [CHANGELOG](CHANGELOG.md).
 **Schnittstellen, CSV-Formate und das Backup-Format ändern sich nur additiv;** entfernt wird erst mit einer
 neuen Hauptversion und nach Ankündigung. Was als Nächstes kommt, steht in der [Roadmap](roadmap.md). Wer von
 einer privaten v0.9.0 kommt: Seit 3.4.0 liest keine Version deren Backups mehr ein; 3.3.0 installieren, dort

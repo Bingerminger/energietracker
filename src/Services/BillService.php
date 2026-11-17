@@ -103,12 +103,18 @@ final class BillService
         }
     }
 
-    /** @return list<array<string,mixed>> neueste zuerst */
+    /**
+     * Rechnungen, wie die Rechnung der App sie sieht, neueste zuerst. v3.13.0 (K2d) — Bestand nach der gemeinsamen
+     * Regel (Support\FieldRules::view): ohne brauchbaren Zeitraum aus der Rechnung, ein Abschnitt des Brennwerts
+     * ohne brauchbaren Tag fällt weg, ein anderes unbrauchbares Feld gilt als nicht eingetragen. Schreibwege lesen die
+     * Datei, wie sie ist.
+     *
+     * @return list<array<string,mixed>>
+     */
     public function list(string $utility, ?string $meterId = null): array
     {
         $this->assertUtility($utility);
-        $all = $this->store->read("$utility/bills.json", []);
-        $all = is_array($all) ? array_values(array_filter($all, 'is_array')) : [];
+        $all = \Energietracker\Support\FieldRules::view($this->store, "$utility/bills.json", 'bills')[0];
         if ($meterId !== null) $all = array_values(array_filter($all, fn($b) => ($b['meter_id'] ?? null) === $meterId));
         usort($all, fn($a, $b) => strcmp((string)($b['period_to'] ?? ''), (string)($a['period_to'] ?? '')));
         // v3.5.0 (GitHub #34) — Bei Wasser kam die Buchung bis v3.4 nie an
@@ -137,8 +143,19 @@ final class BillService
         throw new NotFoundException($this->i18n->t('errors.bill.notFound'));
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * v3.13.0 (K2d) — im Stapel (JsonStore::batch): Ein unbekannter Beleg neben einem vorhandenen ist 400, und der
+     * vorhandene bleibt unverknüpft (bisher war er schon verknüpft, als der unbekannte abgewiesen wurde).
+     *
+     * @return array<string,mixed>
+     */
     public function create(string $utility, array $input): array
+    {
+        return $this->store->batch(fn(): array => $this->createNow($utility, $input));
+    }
+
+    /** @return array<string,mixed> */
+    private function createNow(string $utility, array $input): array
     {
         $this->assertUtility($utility);
         \Energietracker\Support\Input::assertTexts($input, ['meter_id']);   // v3.12.0
@@ -158,8 +175,14 @@ final class BillService
         return $b;
     }
 
-    /** @return array<string,mixed> */
+    /** @return array<string,mixed> v3.13.0 (K2d) — im Stapel wie create() */
     public function update(string $utility, string $id, array $input): array
+    {
+        return $this->store->batch(fn(): array => $this->updateNow($utility, $id, $input));
+    }
+
+    /** @return array<string,mixed> */
+    private function updateNow(string $utility, string $id, array $input): array
     {
         $this->assertUtility($utility);
         $all = $this->store->read("$utility/bills.json", []);
@@ -560,6 +583,8 @@ final class BillService
         // v3.12.0 — Liste oder Objekt statt Text: 400 statt 500 (Support\Input)
         \Energietracker\Support\Input::assertTexts($in, ['meter_id', 'period_from', 'period_to', 'issued_on', 'contract_id',
             'special_payment_id', 'end_reading_on', 'received_on', 'note']);
+        // v3.13.0 (Paket F) — Notiz, Rechnungsnummer, Posten: Fehler mit Feld und Grenze statt still gekürzt
+        \Energietracker\Support\TextLimits::assert($in, 'bills', $old ?? []);
         foreach (['period_from', 'period_to'] as $f) {
             if ($isNew || array_key_exists($f, $in)) {
                 $v = (string)($in[$f] ?? '');
@@ -620,8 +645,9 @@ final class BillService
             $items = [];
             foreach ((array)($in['items'] ?? []) as $x) {
                 if (!is_array($x) || (($x['label'] ?? '') === '' && ($x['amount_eur'] ?? '') === '')) continue;
+                \Energietracker\Support\Input::assertTexts($x, ['label']);   // v3.13.0 — Liste im Posten: 400 statt 500
                 $item = [
-                    'label'      => mb_substr(trim((string)($x['label'] ?? '')), 0, 120),
+                    'label'      => trim((string)($x['label'] ?? '')),   // v3.13.0 — Länge: TextLimits (oben)
                     'amount_eur' => $this->num($x['amount_eur'] ?? 0, -1e6, 1e6),
                     'kind'       => in_array($x['kind'] ?? null, self::ITEM_KINDS, true) ? $x['kind'] : 'other',
                 ];
@@ -652,11 +678,16 @@ final class BillService
             $fs = [];
             foreach ((array)($in['factors'] ?? []) as $f) {
                 if (!is_array($f)) continue;
+                \Energietracker\Support\Input::assertTexts($f, ['from', 'to']);   // v3.13.0 — Liste im Abschnitt: 400 statt 500
                 $ff = (string)($f['from'] ?? '');
                 $ft = (string)($f['to'] ?? '');
                 if (!Dates::isIsoDate($ff) || ($ft !== '' && !Dates::isIsoDate($ft))) {
                     throw new LocalizedException('errors.bill.periodInvalid', ['from' => $ff, 'to' => $ft], 'bill factor date');
                 }
+                // v3.13.0 — derselbe Jahresbereich wie die übrigen Tage der Rechnung (1900 bis 2100); bisher ging ein
+                // Abschnitt ab dem Jahr 0003 durch
+                \Energietracker\Support\Input::assertDateInRange($ff, 'factors.from');
+                if ($ft !== '') \Energietracker\Support\Input::assertDateInRange($ft, 'factors.to');
                 $fs[] = ['from' => $ff, 'to' => $ft === '' ? null : $ft,
                          'zustandszahl' => $this->num($f['zustandszahl'] ?? null, 0.5, 1.5), 'brennwert' => $this->num($f['brennwert'] ?? null, 5, 20)];
             }
@@ -702,9 +733,9 @@ final class BillService
             $v = $in['invoice_number'];
             if ($v !== null && !is_string($v) && !is_int($v)) throw $this->invalid('invoice_number', $v);
             $v = trim((string)$v);
-            $out['invoice_number'] = $v === '' ? null : mb_substr($v, 0, 80);
+            $out['invoice_number'] = $v === '' ? null : $v;   // v3.13.0 — Länge: TextLimits (Fehler statt Kürzen)
         }
-        if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)($in['note'] ?? ''), 0, 2000);
+        if ($isNew || array_key_exists('note', $in)) $out['note'] = (string)($in['note'] ?? '');
         return $out;
     }
 
@@ -736,7 +767,7 @@ final class BillService
         if ($r !== null && $r !== '' && !in_array($r, self::NOTICE_REMEDIES, true)) throw $this->invalid('notice.remedy', $r);
         $out['remedy'] = $r === '' ? null : $r;
         $fn = trim((string)($n['file_number'] ?? ''));
-        $out['file_number'] = $fn === '' ? null : mb_substr($fn, 0, 80);
+        $out['file_number'] = $fn === '' ? null : $fn;   // v3.13.0 — Länge: TextLimits (Fehler statt Kürzen)
         return $out;
     }
 

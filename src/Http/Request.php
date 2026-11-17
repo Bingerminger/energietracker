@@ -154,6 +154,16 @@ final class Request
     }
 
     /**
+     * v3.13.0 — Schalter in der Adresse (`?dry_run=1`) nach der einen Regel für Wahrheitswerte
+     * (Support\Input::flag): ja/nein, true/false, 1/0, on/off, fehlt oder leer = nein, Unlesbares 400. Bisher
+     * zählte je Route nur „1“; `dry_run=true` spielte ein CSV wirklich ein statt zur Probe.
+     */
+    public function flag(string $name): bool
+    {
+        return \Energietracker\Support\Input::flag($this->queryParam($name, ''), $name);
+    }
+
+    /**
      * Bearer-Token aus dem Authorization-Header (F1009 — HA-Ingest).
      *
      * Der Header landet je nach Server an unterschiedlichen Stellen:

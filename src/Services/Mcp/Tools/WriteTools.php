@@ -19,6 +19,7 @@ use Energietracker\Services\Mcp\Sanitize;
 use Energietracker\Services\Mcp\Tool;
 use Energietracker\Services\Mcp\ToolGroup;
 use Energietracker\Services\MeterService;
+use Energietracker\Services\ReadingCheckService;
 use Energietracker\Services\ReadingService;
 use Energietracker\Support\Dates;
 use Energietracker\Support\LocalizedException;
@@ -57,7 +58,8 @@ final class WriteTools extends ToolGroup
 {
     /** `_meta` an apply_proposal: der Client fragt vor jedem Aufruf die Person (auch bei „immer erlauben“) */
     public const META_CONFIRM = 'anthropic/requiresUserInteraction';
-    public const NOTE_MAX = 200;
+    /** v3.13.0 (Paket F) — aus der Liste der Grenzen: enger als die Notiz einer Ablesung (TextLimits::MCP_NOTE) */
+    public const NOTE_MAX = \Energietracker\Support\TextLimits::MCP_NOTE;
     /** v3.12.0 (Skeptiker H2) — die Zusammenfassung nennt jetzt jeden Betrag und Preis */
     public const SUMMARY_MAX = 6000;
     /** v3.12.0 (Skeptiker N14) — kein Zählwerk hat mehr als zehn Stellen vor dem Komma */
@@ -162,7 +164,8 @@ final class WriteTools extends ToolGroup
         // ein Gerät an dem Tag; das erste Gerät verlegt die KI nie still vor (die Oberfläche tut es)
         if ($meters->deviceOnDate($meter, $date) === null) throw new LocalizedException('errors.reading.noDevice', ['date' => $date], 'propose_reading: no device');
 
-        $check = $readings->plausibilityFor($u, $meter, $date, $counter);
+        // v3.13.0 (Paket K1, #65) — bei Heizarten nach dem Wetter wie die Erfassung
+        $check = $readings->plausibilityFor($u, $meter, $date, $counter, $this->services->get(ReadingCheckService::class), $ctx->today);
         foreach ($check['real'] as $r) {
             if ($r['date'] === $date) {
                 throw new LocalizedException('errors.mcp.reading.sameDay', ['date' => $i18n->date($date),
@@ -178,7 +181,7 @@ final class WriteTools extends ToolGroup
         $note = Sanitize::text((string)($args['note'] ?? ''), self::NOTE_MAX);
         $summary = $this->readingSummary($u, $mid, $date, $counter, $estimated, $issues, $ctx);
         // v3.12.0 — der Zählername wie in get_meters maskiert (er kann eine Kennnummer tragen)
-        $untrusted = Sanitize::untrusted(['name' => $this->masked((string)($meter['name'] ?? '')), 'note' => $note]);
+        $untrusted = Sanitize::untrusted(['name' => $this->maskedName((string)($meter['name'] ?? '')), 'note' => $note]);
         $p = $this->services->get(PendingChanges::class)->create($ctx, 'reading',
             ['utility' => $u, 'meter_id' => $mid, 'date' => $date, 'counter' => $counter, 'is_estimated' => $estimated, 'note' => $note,
              'issues' => array_column($issues, 'type')], $summary, $this->ttl(), array_intersect_key($untrusted, ['name' => 1, 'note' => 1]));
@@ -283,7 +286,11 @@ final class WriteTools extends ToolGroup
             'date' => $i18n->date(date('Y-m-d', (int)$ts)), 'time' => date('H:i', (int)$ts)], $ctx->locale)];
     }
 
-    /** Text einer Rückfrage wie in der Erfassung (Katalog `readingCheck.*`). */
+    /**
+     * Text einer Rückfrage wie in der Erfassung (Katalog `readingCheck.*`). v3.13.0 (Paket K1, #65) — ein Sprung nach
+     * dem Wetter (Feld `expected`) nennt wie `issueText()` in public/js/lib/plausibility.js die Menge seit dem vorigen
+     * Stand und die Erwartung (`readingCheck.jumpWeather`).
+     */
     private function issueText(array $x, string $unit, McpContext $ctx): string
     {
         $i18n = $this->services->get(I18nService::class);
@@ -292,6 +299,10 @@ final class WriteTools extends ToolGroup
         if (isset($x['per_day'])) $p['perDay'] = $i18n->number((float)$x['per_day'], 1);
         if (isset($x['typical'])) $p['typical'] = $i18n->number((float)$x['typical'], 1);
         if (isset($x['next'])) $p['next'] = self::num($i18n, (float)$x['next']);
+        if ($x['type'] === 'jump' && isset($x['expected'])) {
+            return $i18n->t('readingCheck.jumpWeather', ['unit' => $unit, 'amount' => $i18n->number((float)($x['amount'] ?? 0), 1),
+                'expected' => $i18n->number((float)$x['expected'], 1)], $ctx->locale);
+        }
         return $i18n->t('readingCheck.' . $x['type'], $p, $ctx->locale);
     }
 
@@ -337,7 +348,7 @@ final class WriteTools extends ToolGroup
             if (in_array($p['status'] ?? '', ['conflict', 'overlap'], true)) $warnings[] = ['proposal' => (string)$p['id'], 'reason' => (string)$p['status']];
             if (!empty($p['open'])) $warnings[] = ['proposal' => (string)$p['id'], 'reason' => 'open'];
             // dieselben Rückfragen wie bei propose_reading: ein Stand aus dem Dokument, der nicht zum Verlauf passt
-            foreach ($p['kind'] === 'reading' ? $this->readingIssues($p, $u) : [] as $x) {
+            foreach ($p['kind'] === 'reading' ? $this->readingIssues($p, $u, $ctx) : [] as $x) {
                 $warnings[] = ['proposal' => (string)$p['id'], 'reason' => $x['type']];
                 $issues[$x['type']] = $x;
             }
@@ -367,18 +378,19 @@ final class WriteTools extends ToolGroup
 
     /**
      * Rückfragen zu einem Stand aus dem Dokument (ReadingService::plausibilityIssues)
-     * gegen die echten Stände des Zählers davor.
+     * gegen die echten Stände des Zählers davor. v3.13.0 (Paket K1, #65) — bei Heizarten nach dem Wetter.
      *
      * @param array<string,mixed> $p Vorschlag `reading` aus Inbox\Proposals
      * @return list<array{type:string}>
      */
-    private function readingIssues(array $p, string $u): array
+    private function readingIssues(array $p, string $u, McpContext $ctx): array
     {
         $d = (array)($p['data'] ?? []);
         $ru = is_string($d['utility'] ?? null) && Utilities::exists($d['utility']) ? $d['utility'] : $u;
         $meter = is_string($d['meter_id'] ?? null) ? $this->services->get(MeterService::class)->get($ru, $d['meter_id']) : null;
         if ($meter === null || !is_string($d['date'] ?? null) || !is_numeric($d['counter'] ?? null)) return [];
-        return $this->services->get(ReadingService::class)->plausibilityFor($ru, $meter, (string)$d['date'], (float)$d['counter'])['issues'];
+        return $this->services->get(ReadingService::class)->plausibilityFor($ru, $meter, (string)$d['date'], (float)$d['counter'],
+            $this->services->get(ReadingCheckService::class), $ctx->today)['issues'];
     }
 
     /** „Gas: aus dem Dokument inb_… (Rechnung) übernehmen: Ablesung (31.12.2025, 13.580 m³); …“ */

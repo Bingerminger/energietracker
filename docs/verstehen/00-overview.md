@@ -1016,6 +1016,7 @@ Kosten bis heute   = Arbeitspreis × gemessener Verbrauch      (bis zur letzten 
                    - Boni bis heute
 Abschläge bezahlt  = Abschläge laut Zahlungsplan, fällig am Monatsanfang,
                      bis einschließlich des laufenden Monats
+                     (mit „ganze Rate am Fälligkeitstag“: jede Rate, deren Tag erreicht ist)
 Saldo heute        = Kosten bis heute - Abschläge bezahlt + Sonderzahlungen netto
 Erwartet am Ende   = Saldo heute + geschätzte Restkosten - restliche Abschläge
 ```
@@ -1023,6 +1024,73 @@ Erwartet am Ende   = Saldo heute + geschätzte Restkosten - restliche Abschläge
 Bis v2.7 zählten Kosten **und** Abschläge nur für Monate mit Ablesung.
 Wer zuletzt im März abgelesen hatte, sah im September einen Saldo aus
 drei Monaten, während die Bank längst neun Abschläge abgebucht hatte.
+
+**Abschläge zählen: tagesanteilig oder ganze Rate (seit v3.13.0).** Beginnt
+oder endet ein Vertrag mitten im Monat, zählt die App den monatlichen Abschlag
+dieses Monats ab Werk **tagesanteilig** nach den Vertragstagen. Viele
+Versorger buchen aber die **ganze Rate an ihrem Fälligkeitstag** ab. Dafür gibt
+es eine Einstellung für alle Verträge (Haushalt → Verbrauchsarten, „Abschläge
+zählen“, [`advance_counting`](../referenz/einstellungen.md#abschläge-zählen-v3130)):
+Mit **„Ganze Rate am Fälligkeitstag“** zählt jede monatliche Zeile des
+Abschlagsplans eine ganze Rate an jedem Fälligkeitstag, der im Vertrag liegt
+(Beginn und Ende eingeschlossen), mit dem Betrag, der an diesem Tag gilt. Hat
+ein Monat den Tag (1 bis 31) nicht, gilt sein letzter Tag (31 heißt im Februar
+der 28. bzw. 29.). Abschläge mit Terminen
+(alle zwei oder drei Monate, Termine laut Rechnung) zählen in beiden Fällen ganz
+an ihrem Tag. Erfundenes Beispiel (`AdvanceDueDayTest`): 90 € monatlich, fällig
+am 1., Vertrag vom 01.01. bis 14.07., Kosten 600 €:
+
+<!-- doc-claim: advance-due-day-example (AdvanceDueDayTest) -->
+```text
+tagesanteilig   6 × 90 € + 90 € × 14/31 = 580,65 €   Nachzahlung 19,35 €
+ganze Rate      7 × 90 €                 = 630,00 €   Guthaben    30,00 €
+```
+
+**Die Regel gilt in jedem Teilzeitraum,** nicht nur im Monat des Wechsels:
+Saldo-Karte, Monatszeilen, Prognose, Abrechnungsjahr, „Rechnung prüfen“,
+Werkstatt, Jahresbericht und die Werte für Home Assistant und KI zählen eine
+Rate ganz, sobald ihr Tag erreicht ist.
+
+- **Laufender Monat:** Mit einem Fälligkeitstag nach dem 1. springt „Saldo
+  heute“ am Fälligkeitstag um eine Rate; bis dahin zählt die Rate des
+  laufenden Monats noch nicht (tagesanteilig zählt der laufende Monat ganz).
+- **„Saldo am ‹Ablesung›“** zählt die Raten vor dem Ablesetag (unten).
+- **Ein Abrechnungsjahr, das mitten im Monat beginnt,** bekommt die Rate dieses
+  Monats ganz oder gar nicht, je nach ihrem Tag.
+- **„Erwartet bei Abrechnung“** zählt in einem ganzen Abrechnungsjahr dieselben
+  zwölf Raten. Anders wird es, wenn der Vertrag darin mitten im Monat beginnt
+  oder endet oder sich der Abschlag mitten im Monat ändert.
+- Die Karte nennt den nächsten Termin **nach heute:** Am Fälligkeitstag ist es
+  schon der folgende, denn „Saldo heute“ zählt die Rate dieses Tags. Der
+  Abschlagsvorschlag rechnet je Rate bis zur Abrechnung.
+
+**Eine Rate am Tag der Ablesung gehört zum nächsten Zeitraum.** Eine Ablesung am
+Tag D ist die Grenze **zu Beginn** von D: Der tagesanteilige Teil zählt bis zum
+Vortag, und eine ganze Rate oder ein Termin am Tag D zählt ebenso erst im
+nächsten Zeitraum, an jedem Tag im Monat gleich. So rechnet auch die
+Jahresrechnung: Sie zählt die Abschläge, die im Abrechnungszeitraum fällig
+waren. „Saldo am ‹Ablesung›“, die Kachel „Abschläge … bis …“ und das
+Abrechnungsjahr folgen dieser Regel; „Saldo heute“ zählt die Rate am Tag selbst.
+**Ausnahme wie im Abrechnungsjahr:** Liegt die Ablesung auf dem letzten Tag des
+Zeitraums (etwa die Schlussablesung am letzten Vertragstag), zählt dieser Tag mit,
+auch eine Rate an diesem Tag; dann zählen Karte und Schlussrechnung gleich.
+*(seit v3.13.0)* Das Abrechnungsjahr zählt die Schlussablesung am letzten
+Vertragstag ebenso mit, auch ohne erfasste Schlussrechnung. Bis dahin endete es am
+Vortag: Mit 90 € als ganzer Rate am 15. und Vertrag bis 15.07. zählte es 540 € statt
+630 €.
+Erfundenes Beispiel (`AdvanceDueDayTest`): 90 € fällig am 1., Abrechnungsjahr wie
+das Kalenderjahr, Jahresablesung am 01.01.2026:
+
+<!-- doc-claim: advance-reading-day (AdvanceDueDayTest) -->
+```text
+Abrechnungsjahr 2025     12 × 90 € = 1.080,00 €   Rate vom 01.01.2026 nicht darin
+Saldo heute 2026          1 × 90 € =    90,00 €   die Rate vom 01.01.2026
+```
+
+**Vor dem Umschalten:** Wer nach dem Rat aus v3.12.0 die volle Rate eines
+solchen Monats als Sonderzahlung (Abschlagszahlung) gebucht hat, zählt sie
+danach doppelt; diese Sonderzahlung dann löschen. Ein Abschlag mit Terminen
+bleibt, wie er ist.
 
 **Die Schätzung** der Lücke und des Rests läuft je Tag: bei Gas und
 Fernwärme mit dem Heizmodell (`a × HGT + c`, mit der gemessenen
@@ -1114,6 +1182,7 @@ Spanne            = erwarteter Saldo + (Energie_Annahme − geschätzte Energie)
 Abschlag          = aktueller Abschlag + Spanne / verbleibende Monate
 ```
 
+<!-- doc-claim: group-billing-year (GroupReadingsDifferTest) -->
 **Gruppe mit verschieden weit abgelesenen Mitgliedern (seit v3.12.0).** Die Gruppe
 gilt als gemessen bis zum **frühesten** letzten Stand ihrer Mitglieder. Von da an
 schätzt die App die ganze Gruppe; was das später abgelesene Mitglied danach schon
@@ -1123,8 +1192,11 @@ abgelesen sind; ein Monat ohne ein Mitglied sähe sonst nach gesunkenem Verbrauc
 Liegen die Stände **mehr als 62 Tage** auseinander, ist der Saldo als unsicher
 gekennzeichnet (`group_readings_differ`): Die Spanne gibt den Tagen, für die es gar
 keinen Stand gibt, ± 50 %. Der Saldo nur über Gemessenes (`balance_measured`) endet
-ohnehin am frühesten Stand. **Ablesen aller Mitglieder am selben Tag** macht die
-Schätzung überflüssig.
+ohnehin am frühesten Stand, *(seit v3.13.0)* ebenso das **Abrechnungsjahr** der
+Gruppe: dieselbe Regel für beide, mit demselben Saldo (bis dahin lief es bis zum
+spätesten Stand, und dem früher abgelesenen Mitglied fehlten die Tage dazwischen).
+Ein als geschätzt erfasster Stand zählt in beiden nicht als gemessen. **Ablesen aller
+Mitglieder am selben Tag** macht die Schätzung überflüssig.
 
 Ohne Heizmodell (Strom, Wasser) gibt es weder Gütesperre noch einen Heizanteil,
 der über das Jahr fortgeschrieben wird; ein nie gemessener Kalendermonat nimmt die
@@ -1163,7 +1235,21 @@ Nachfolger und lückenlose Ketten bleiben unverändert.
 **Preis fehlt (seit v3.7.0).** Hat ein Vertrag keinen Arbeitspreis, enthalten
 Kosten und Saldo nur Grundpreis und Abschläge. Vertragsstatus und
 Abrechnungsjahr sagen es beide (`price_missing`), statt zwei verschiedene,
-gleich falsche Salden zu zeigen.
+gleich falsche Salden zu zeigen. *(Seit v3.13.0)* Dieselbe Regel wie an den
+Monaten: Trägt ein Preis je Ablesung (oder bei einem Gruppenvertrag ein Preis je
+Zählwerk) die Monate, fehlt nichts.
+
+<!-- doc-claim: reading-price-section (ReadingPriceSectionTest) -->
+**Preis je Ablesung (seit v3.13.0 überall gleich).** Hat ein Vertrag an einem Tag
+keinen Arbeitspreis (bei Wasser keinen Trinkwasserpreis), rechnet die App mit dem
+**Preis an der Ablesung**. Ein Ableseabschnitt nimmt den Preis seiner **ersten
+Ablesung**, hat sie keinen, den seiner **letzten**; ab einer Ablesung mit Preis gilt
+er weiter, bis eine Ablesung einen neuen nennt. Steht der erste Preis an der
+Ablesung vom 01.05., hat also der Abschnitt bis dahin (ab der Ablesung vom 01.04.)
+schon diesen Preis, die Abschnitte davor nicht. Dieselbe Regel gilt in den
+Monaten, auf der Saldo-Karte, im Abrechnungsjahr, in „Rechnung prüfen“ und in
+der KI-Schnittstelle. Bis v3.12 rechneten Abrechnungsjahr und „Rechnung prüfen“
+dann nur mit Grundpreis und Abschlägen.
 
 ### Eine Projektion für Saldo und Werkstatt *(seit v3.9.0)*
 
@@ -1234,12 +1320,14 @@ bis heute steht als Zusatzzeile darunter, die Prognose bleibt bei „Erwartet be
 Abrechnung“:
 
 ```text
-gemessen bis    = letzte Ablesung (exklusiv, wie die Monatszeilen)
+gemessen bis    = letzte Ablesung (exklusiv, wie die Monatszeilen; seit v3.13.0
+                  einschließlich, wenn sie auf dem letzten Tag des Zeitraums liegt)
 Kosten          = Arbeitspreis der gemessenen Monatszeilen
                 + Grundpreis tagesgenau [Saldo ab, letzte Ablesung)
                 - Boni der Monate mit gemessenen Tagen
 Abschläge       = Plan anteilig nach Tagen (der angebrochene Monat nur zum gemessenen Teil);
                   Raten mit Rhythmus ganz, wenn ihr Tag vor der Ablesung liegt
+                  (mit „ganze Rate am Fälligkeitstag“ jede Rate, seit v3.13.0)
 Saldo am …      = Kosten - Abschläge + Sonderzahlungen vor der Ablesung
 Zusatzzeile     = Saldo heute (current_balance) = Saldo am …
                   + geschätzter Verbrauch + Grundpreis − Abschläge + Sonderzahlungen seit der Ablesung
@@ -1362,6 +1450,8 @@ Arbeitspreis  je Abschnitt: Verbrauch der Abschnittstage × Preis dieses Tages
 Grundpreis    Monatsbetrag × Tage des Abschnitts / Tage des Monats
 Abschlag      Monatsbetrag am ersten Vertragstag des Monats,
               anteilig nach den Vertragstagen im Monat
+              (Standard; mit „ganze Rate am Fälligkeitstag“ eine ganze Rate
+              an jedem Fälligkeitstag im Vertrag, seit v3.13.0, Abschnitt 10)
 ```
 
 Bis v2.8 galt der Vertrag vom Monatsersten für den ganzen Monat: Ein Wechsel
@@ -1386,7 +1476,9 @@ nicht neun Monate vor Ablauf gekündigt wird; die Saldo-Karte nennt dann das
 Ende der laufenden Verlängerung und den Tag, bis zu dem gekündigt sein muss.
 Seit der Nachprüfung zu v3.11.0 gilt das schon vor dem Ende: Ist an einem
 Fernwärmevertrag keine Kündigungsfrist eingetragen, ist der Kündigungstag das
-Ende minus neun Monate (`cancel_by`, mit Erinnerung und Termin); ist er vorbei,
+Ende minus neun Monate (`cancel_by`, mit Erinnerung und Termin; *v3.13.0* beim
+Ende am Monatsletzten der Monatsletzte, [Rechtsgrundlagen Nr. 52](../referenz/rechtsgrundlagen.md#fristen));
+ist er vorbei,
 nennen Saldo-Karte, Zeitstrahl, Übersicht und „Wechsel prüfen“ die Verlängerung
 (`renewal_term` {until, cancel_by}) statt eines Wechsels zum Laufzeitende. Eine
 eingetragene Frist geht vor. Ist ein Folgevertrag eingetragen, läuft der

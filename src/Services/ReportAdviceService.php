@@ -235,8 +235,12 @@ final class ReportAdviceService
         // während der laufende Vertrag rund 60 % mehr erwartete). Und „passen“ nicht neben einer
         // Aufgabe „Abschläge über den Kosten“: Ein Guthaben über der Schwelle der Abschlag-Regel
         // (advanceOff) heißt „Abschläge höher als nötig“, mit dem größten dieser Guthaben.
-        $worst = null; $worstC = null; $uncC = null; $overC = null;
+        $worst = null; $worstC = null; $uncC = null; $overC = null; $pmC = null; $tfC = null;
         foreach ((array)($f['contracts'] ?? []) as $c) {
+            // v3.13.0 — ohne Arbeitspreis kein Urteil über die Abschläge (ReportModelService::contractFacts, `price_missing`)
+            if (!empty($c['is_current']) && !empty($c['has_advance']) && !empty($c['price_missing'])) { $pmC ??= $c; continue; }
+            // v3.13.0 — ebenso ohne gemessenen Verbrauch (`projection_missing`): kein „Keine Abschläge“
+            if (!empty($c['is_current']) && !empty($c['has_advance']) && !empty($c['projection_missing'])) { $tfC ??= $c; continue; }
             if (empty($c['is_current']) || empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
             if (is_array($c['projection_uncertain'] ?? null)) { $uncC ??= $c; continue; }
             $adv = (float)($c['current_advance'] ?? 0);
@@ -255,6 +259,15 @@ final class ReportAdviceService
         if (($lv === 'ok' || $worstC === null) && $uncC !== null) {
             $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $uncC;
         }
+        // v3.13.0 — ebenso nicht „passen“ und nicht „keine Abschläge“, solange einem Vertrag der Arbeitspreis fehlt
+        $pmDetail = null;
+        if (($lv === 'ok' || $worstC === null) && $pmC !== null) {
+            $lv = 'none'; $word = 'report.light.billing.priceMissing'; $worstC = null;
+            $pmDetail = $this->i18n->t('report.light.billingPriceMissing', ['label' => (string)$pmC['label']]);
+        } elseif (($lv === 'ok' || $worstC === null) && $tfC !== null) {
+            $lv = 'none'; $word = 'report.light.billing.tooFewReadings'; $worstC = null;
+            $pmDetail = $this->i18n->t('report.light.billingTooFewReadings', ['label' => (string)$tfC['label']]);
+        }
         $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
         // v3.9.0 (Skeptiker R2-4) — die Enden in Lesereihenfolge wie Saldo-Karte und Heizgrenze
         $ends = $worstUnc !== null ? self::balanceRangeEnds((array)$worstUnc['projected_range']) : null;
@@ -263,7 +276,7 @@ final class ReportAdviceService
             ? self::balanceRangeEnds([(float)$worstC['projection_band']['low'], (float)$worstC['projection_band']['high']]) : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,
             'word' => $this->i18n->t($word),
-            'detail' => $worstC === null ? $this->i18n->t('report.light.billingNone')
+            'detail' => $worstC === null ? ($pmDetail ?? $this->i18n->t('report.light.billingNone'))
                 : ($ends !== null
                     ? $this->i18n->t('balanceUncertain.light', ['label' => (string)$worstC['label'],
                         'low' => $this->balanceWord($ends[0]), 'high' => $this->balanceWord($ends[1])])

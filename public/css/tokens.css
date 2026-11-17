@@ -50,8 +50,11 @@
   --c-yellow:    #f5c842;
   --c-red:       #ef4444;
   /* v3.12.0 — als Schrift in Tabellenspalten (Kopf, Fuß, Hover auf --bg-2): Violett war dort 3,6:1; heller getönt
-     4,9:1 (tests/contrast.test.mjs). Die Aussagefarbe selbst bleibt für Flächen und Schaubilder. */
-  --c-violet-text: #a07cf8;
+     4,9:1 (tests/contrast.test.mjs). Die Aussagefarbe selbst bleibt für Flächen und Schaubilder.
+     v3.13.0 — auch als Schrift der Abzeichen „Schatten“ und „Angebot“ auf ihrer Tönung: über --bg-2 jetzt 4,9:1
+     (vorher 3,1:1 mit --c-violet, 4,2:1 mit #a07cf8). Blau ebenso („künftig“): auf der Tönung über --bg-2 5,4:1. */
+  --c-violet-text: #ac8ef9;
+  --c-blue-text: #74acea;
   --c-yellow-text: var(--c-yellow);
   --c-blue-soft: rgba(74, 144, 226, 0.12);
   --c-violet-soft: rgba(139, 92, 246, 0.14);
@@ -194,7 +197,9 @@
   --c-yellow:    #d97706;
   --c-red:       #b91c1c;
   /* v3.12.0 — Gelb als Schrift in Tabellenspalten war auf --bg-2 2,8:1; dunkler getönt 4,8:1 */
-  --c-violet-text: var(--c-violet);
+  /* v3.13.0 — Violett und Blau als Schrift der Abzeichen auf ihrer Tönung über --bg-2 jetzt 5,5:1 und 5,2:1 (vorher 4,4:1 und 4,0:1) */
+  --c-violet-text: #6d28d9;
+  --c-blue-text: #1d4ed8;
   --c-yellow-text: #a8530a;
   --c-blue-soft:   rgba( 37,  99, 235, 0.10);
   --c-violet-soft: rgba(124,  58, 237, 0.10);

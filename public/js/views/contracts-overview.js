@@ -65,14 +65,33 @@ export function mergeGroupRows(rows) {
   return out;
 }
 
-export async function render(container) {
-  const header = `
+/**
+ * v3.13.0 — „Neuer Vertrag“ im Kopf der Seite: bei einer Art gleich der Vertragsdialog, bei mehreren erst die
+ * Wahl der Art (ein Knopf, darunter die Arten wie im Menü einer Zeile). Bis v3.12 ging das nur über
+ * „Verträge verwalten“ einer Art.
+ * @param {Array<object>} utilities  Arten mit Verträgen, deren Zähler geladen sind
+ */
+export function newContractHtml(utilities = []) {
+  if (!utilities.length) return '';
+  const label = t('contracts.newContract');
+  if (utilities.length === 1) {
+    return `<div class="view-header__actions"><button type="button" class="btn btn--primary" data-new-contract="${escapeHtml(utilities[0].key)}">${escapeHtml(label)}</button></div>`;
+  }
+  const items = utilities.map(u => `<button type="button" class="btn btn--ghost btn--sm" data-new-contract="${escapeHtml(u.key)}">${artIcon(u, { size: 16 })} ${escapeHtml(u.label)}</button>`);
+  return `<div class="view-header__actions" data-role="new-contract">${rowMenuHtml({ label: t('contractsOverview.newContractPick', { label }), items, button: { text: label, cls: 'btn--primary' } })}</div>`;
+}
+
+const headerHtml = (utilities = []) => `
     <div class="view-header">
       <div>
         <h1 class="view-header__title">${escapeHtml(t('nav.contracts'))}</h1>
         <p class="view-header__subtitle">${escapeHtml(t('contractsOverview.subtitle'))}</p>
       </div>
+      ${newContractHtml(utilities)}
     </div>`;
+
+export async function render(container) {
+  const header = headerHtml();
   container.innerHTML = `${header}<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
 
   // v2.13.0 — ohne Heizöl und Pellets: deren Kosten stehen an den Lieferungen,
@@ -128,7 +147,8 @@ export async function render(container) {
     byContract.get(cid).push(e);
   }
   historyByContract = byContract;
-  draw(container, header, blocks);
+  // v3.13.0 — der Kopf mit „Neuer Vertrag“ für die Arten, deren Zähler geladen sind
+  draw(container, headerHtml(utilities.filter(u => rowCtx.has(u.key))), blocks);
 }
 
 /**
@@ -161,6 +181,14 @@ function draw(container, header, blocks) {
     if (focusAdvance) focusAdvanceField();
     if (await closed) render(container);
   };
+  // v3.13.0 — „Neuer Vertrag“ im Kopf: derselbe Dialog wie unter „Verträge verwalten“; ohne Zähler dorthin,
+  // wo der Hinweis steht, wie man einen anlegt
+  container.querySelectorAll('[data-new-contract]').forEach(b => b.addEventListener('click', async () => {
+    const x = rowCtx.get(b.dataset.newContract);
+    if (!x) return;
+    if (!x.meters.length) { location.hash = `#/utility/${encodeURIComponent(x.u.key)}/contracts`; return; }
+    if (await dispatchContractModal(x.u, x.meters, null, x.stored, x.groups)) render(container);
+  }));
   container.querySelectorAll('[data-row-edit]').forEach(b => b.addEventListener('click', () => openRow(b, false)));
   container.querySelectorAll('[data-row-advance]').forEach(b => b.addEventListener('click', () => openRow(b, true)));
   for (const [key, x] of rowCtx) {

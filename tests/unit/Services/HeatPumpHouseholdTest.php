@@ -308,4 +308,42 @@ final class HeatPumpHouseholdTest extends ServiceTestCase
         self::assertSame(['annual_err_pct', 'max_month_err_pct', 'energy_gap_kwh'], $sw['measures_confirmed']['ids']);
         self::assertStringContainsString('## Schwellen', (string)file_get_contents($this->dataDir . '/rueck.md'));
     }
+
+    /**
+     * v3.13.0 (Paket gegenproben) — „nachgerechnet“ rechnet mit dem Ist-Wetter des Fensters, auch wenn das
+     * Klimanormal Trendfelder trägt (`temp_trend*`, `rad_month_trend`, `rad_trend_*`, wie es die App seit E2 und C2
+     * abruft). Der Prüfhaushalt selbst hat keine; die Kopie hier bekommt sie. Vorab wirkt der Trend (Einspeise-Saldo),
+     * nachgerechnet nicht: dort ist das Ergebnis dasselbe wie ohne Trend.
+     */
+    public function testNachgerechnetIgnoresTheTrendsOfTheNormal(): void
+    {
+        $fx = $this->dataDir . '/fx-trend';
+        mkdir($fx);
+        foreach (glob(self::DIR . '*.json') ?: [] as $f) copy($f, $fx . '/' . basename($f));
+        $n = self::json('climate_normal.json');
+        $n += ['temp_trend' => 1.2, 'temp_trend_years' => 30, 'temp_trend_method' => 'linear_annual', 'temp_trend_slope' => 0.04,
+               'temp_trend_center' => 1995.5, 'rad_trend_factor' => 1.08, 'rad_trend_method' => 'linear_annual',
+               'rad_month_trend' => array_map(fn($v) => $v === null ? null : round((float)$v * 1.08, 2), $n['rad_month'])];
+        file_put_contents($fx . '/climate_normal.json', json_encode($n, JSON_THROW_ON_ERROR));
+
+        $run = function (?string $fixture, string $json): array {
+            $cmd = [PHP_BINARY, dirname(__DIR__, 3) . '/tools/rueckrechnung.php', '--runs', 'A/V1', '--cut', '2024-10', '--block', 'saldo',
+                    '--mode', 'both', '--json', $json, '--quiet'];
+            if ($fixture !== null) array_push($cmd, '--fixture', $fixture);
+            exec(implode(' ', array_map('escapeshellarg', $cmd)) . ' 2>&1', $out, $rc);
+            self::assertSame(0, $rc, implode("\n", $out));
+            $r = json_decode((string)file_get_contents($json), true, 512, JSON_THROW_ON_ERROR);
+            $feed = [];
+            foreach ($r['runs'][0]['saldo'] as $s) if (($s['key'] ?? '') === 'feed') $feed[$s['mode']] = $s['projected_eur'];
+            self::assertArrayHasKey('vorab', $feed);
+            self::assertArrayHasKey('nachgerechnet', $feed);
+            return $feed;
+        };
+        $flat = $run(null, $this->dataDir . '/flach.json');
+        $trend = $run($fx, $this->dataDir . '/trend.json');
+        // der Trend erreicht die App überhaupt (sonst bewiese der Vergleich nichts) …
+        self::assertNotEqualsWithDelta($flat['vorab'], $trend['vorab'], 0.5, 'vorab: Einspeise-Saldo mit dem Trend der Einstrahlung');
+        // … nachgerechnet aber nicht: das Ist-Wetter des Fensters trägt keinen Trend
+        self::assertSame($flat['nachgerechnet'], $trend['nachgerechnet'], 'nachgerechnet: Trendfelder des Normals ins Ist-Wetter übernommen');
+    }
 }

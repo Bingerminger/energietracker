@@ -5,6 +5,8 @@ namespace Energietracker\Tests\Services;
 
 use Energietracker\Services\AgendaService;
 use Energietracker\Services\BenchmarkService;
+use Energietracker\Services\BillingPeriodService;
+use Energietracker\Services\BillService;
 use Energietracker\Services\DeliveryService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\InstanceService;
@@ -127,6 +129,105 @@ final class GroupReadingsDifferTest extends ServiceTestCase
         // der letzte Punkt des Saldo-Verlaufs ist der erwartete Endsaldo, keine Stufe im Jahr
         $path = array_column($c['balance_path'], 'balance', 'ym');
         self::assertEqualsWithDelta(586.50, $path['2026-12'], 0.01, 'Saldo-Verlauf endet am erwarteten Saldo');
+    }
+
+    private function runningPeriod(array $target): array
+    {
+        $bills = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $all = (new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills))
+            ->forTarget('strom', $target, true, self::TODAY);
+        return array_values(array_filter($all['periods'], fn($p) => !empty($p['running'])))[0] + ['measured_until' => $all['measured_until']];
+    }
+
+    /**
+     * v3.13.0 (Paket K2a) — Das Abrechnungsjahr der Gruppe rechnet nach derselben Regel wie die Karte: gemessen bis zum
+     * frühesten letzten Stand der Mitglieder (`as_of` = Tag davor), mit demselben Saldo. Bis dahin lief es bis zum
+     * spätesten Stand: Grundpreis und Abschläge bis dorthin, die Menge des früher abgelesenen Mitglieds aber nur bis zu
+     * seinem Stand (ein Monat ohne Mitglied sah nach gesunkenem Verbrauch aus).
+     */
+    #[DataProvider('spreads')]
+    public function testTheBillingYearEndsWhereTheCardEnds(string $lastA, string $lastB, string $until, float $measured): void
+    {
+        $c = $this->groupStatus($lastA, $lastB);
+        $p = $this->runningPeriod($this->meters->groupTarget('strom', $this->gid));
+        self::assertSame($until, $p['measured_until']);
+        self::assertSame(date('Y-m-d', (int)strtotime("$until -1 day")), $p['as_of']);
+        self::assertSame($measured, $p['balance'], 'Abrechnungsjahr = Karte');
+        self::assertSame($c['balance_measured']['balance'], $p['balance']);
+        self::assertEqualsWithDelta(15.0 * $p['days'], $p['kwh'], 0.05, 'beide Mitglieder für jeden Tag der Periode');
+        self::assertSame(0, $p['gaps']);
+    }
+
+    /**
+     * Drei Mitglieder mit eigenen Werten: A 11, B 6, C 3 kWh/Tag, zuletzt am 30.09., 31.08. und 31.07. abgelesen; Vertrag
+     * 26 ct/kWh, 13 €/Monat, Abschlag 120 €/Monat. Gemessen bis 31.07.: 211 Tage × 20 kWh × 0,26 € = 1.097,20 € + Grundpreis
+     * 6 × 13 € + 13 € × 30/31 = 90,58 € − Abschläge 720 € + 120 € × 30/31 = 836,13 € → +351,65 €.
+     */
+    public function testThreeMembers(): void
+    {
+        $c3 = (string)$this->meters->create('strom', ['name' => 'C', 'installed_on' => '2024-01-01'])['id'];
+        $this->meters->update('strom', $c3, ['meter_group_id' => $this->gid]);
+        $this->read('2026-09-30', '2026-08-31', 11.0, 6.0);
+        $all = $this->store->read('strom/readings.json', []);
+        $dev = $this->meters->get('strom', $c3)['devices'][0]['id'];
+        for ($i = 0; ($d = date('Y-m-d', (int)strtotime("2024-01-01 +$i months"))) <= '2026-07-01'; $i++) {
+            $all[] = ['id' => "r_c_$i", 'meter_id' => $c3, 'device_id' => $dev, 'date' => $d, 'counter' => 3.0 * (int)round((strtotime($d) - strtotime('2024-01-01')) / 86400),
+                      'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false];
+        }
+        $all[] = ['id' => 'r_c_last', 'meter_id' => $c3, 'device_id' => $dev, 'date' => '2026-07-31', 'counter' => 3.0 * (int)round((strtotime('2026-07-31') - strtotime('2024-01-01')) / 86400),
+                  'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false];
+        $this->store->write('strom/readings.json', $all);
+        $this->contracts->create('strom', [
+            'meter_group_id' => $this->gid, 'provider' => 'Strom Musterstadt', 'start' => '2026-01-01',
+            'working_prices' => [['from' => '2026-01-01', 'ct_per_kwh' => 26.0]],
+            'base_prices' => [['from' => '2026-01-01', 'eur_per_month' => 13.0]],
+            'advance_payments' => [['from' => '2026-01-01', 'amount_eur' => 120.0]],
+        ]);
+        $group = $this->meters->groupTarget('strom', $this->gid);
+        $card = array_values(array_filter($this->consumption->contractStatus('strom', $group, self::TODAY)['contracts'], fn($c) => !empty($c['is_current'])))[0];
+        $p = $this->runningPeriod($group);
+        self::assertSame(['2026-07-31', '2026-07-30'], [$card['measured_until'], $p['as_of']]);
+        self::assertSame(351.65, $card['balance_measured']['balance']);
+        self::assertSame(351.65, $p['balance'], 'Abrechnungsjahr = Karte');
+    }
+
+    /**
+     * HT/NT-Gruppe mit eigenen Werten: HT 9 kWh/Tag zu 28 ct bis 30.09., NT 4 kWh/Tag zu 19 ct bis 31.08.; 11 €/Monat,
+     * Abschlag 90 €/Monat. Gemessen bis 31.08.: 242 Tage × (9 × 0,28 + 4 × 0,19) = 793,76 € + Grundpreis 7 × 11 € + 11 € ×
+     * 30/31 = 87,65 € − Abschläge 630 € + 90 € × 30/31 = 717,10 € → +164,31 €.
+     */
+    public function testAPeakOffPeakGroup(): void
+    {
+        $this->read('2026-09-30', '2026-08-31', 9.0, 4.0);
+        $this->contracts->create('strom', [
+            'meter_group_id' => $this->gid, 'provider' => 'Strom Musterstadt', 'start' => '2026-01-01',
+            'working_prices' => [['from' => '2026-01-01', 'ct_per_kwh' => 28.0]],
+            'working_prices_by_meter' => [$this->a => [['from' => '2026-01-01', 'ct_per_kwh' => 28.0]], $this->b => [['from' => '2026-01-01', 'ct_per_kwh' => 19.0]]],
+            'base_prices' => [['from' => '2026-01-01', 'eur_per_month' => 11.0]],
+            'advance_payments' => [['from' => '2026-01-01', 'amount_eur' => 90.0]],
+        ]);
+        $group = $this->meters->groupTarget('strom', $this->gid);
+        $card = array_values(array_filter($this->consumption->contractStatus('strom', $group, self::TODAY)['contracts'], fn($c) => !empty($c['is_current'])))[0];
+        $p = $this->runningPeriod($group);
+        self::assertSame(164.31, $card['balance_measured']['balance']);
+        self::assertSame(164.31, $p['balance'], 'Abrechnungsjahr = Karte');
+    }
+
+    /**
+     * Lektion 99 — die Grundlagen sagen in beiden Sprachen, dass das Abrechnungsjahr der Gruppe wie die Karte am frühesten
+     * Stand endet und denselben Saldo nennt; `testTheBillingYearEndsWhereTheCardEnds` rechnet es nach.
+     */
+    public function testTheDocsSayTheGroupBillingYearEndsLikeTheCard(): void
+    {
+        $want = ['docs/verstehen/00-overview.md' => ['frühesten Stand, *(seit v3.13.0)* ebenso das **Abrechnungsjahr**', 'mit demselben Saldo'],
+                 'docs/en/verstehen/00-overview.md' => ["earliest reading anyway, and *(since v3.13.0)* so does the group's **billing year**", 'with the same balance']];
+        foreach ($want as $file => $phrases) {
+            $text = (string)file_get_contents(dirname(__DIR__, 3) . '/' . $file);
+            $pos = strpos($text, '<!-- doc-claim: group-billing-year');
+            self::assertNotFalse($pos, "$file: Marke fehlt");
+            $block = str_replace("\n", ' ', substr($text, $pos, 1400));
+            foreach ($phrases as $p) self::assertStringContainsString($p, $block, "$file: $p");
+        }
     }
 
     /** Bis 62 Tage auseinander: keine Unsicherheit, und das Band der Schätzung enthält die Wahrheit. */

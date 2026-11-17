@@ -52,7 +52,7 @@ You read your meters and enter the readings, in a browser or on your phone.
 
 **What you need**
 
-- Software: The Energietracker, most easily as a Docker container, otherwise on a NAS or web server with PHP 8.3 or later. Plus an up-to-date browser.
+- Software: The Energietracker, most easily as a Docker container, otherwise on a NAS or web server with PHP 8.4 or later. Plus an up-to-date browser.
 - Hardware: **A computer or NAS on your home network.** A phone is enough for entering readings.
 
 **Effort:** **Set it up once:** the “First steps” guide allows about 15 minutes. After that you only enter readings, as often as you like. Two readings give the first consumption figure.
@@ -219,13 +219,13 @@ Home Assistant delivers the readings, the Energietracker calculates and reports 
 
 - Readings arrive by themselves, daily or every 15 minutes.
 - With values per quarter-hour, also the analyses of flexibility and storage.
-- **Back in Home Assistant:** sensors for balance, consumption, forecast and “To do”, without YAML through the HACS integration.
+- **Back in Home Assistant:** sensors for balance, consumption, forecast and “To do”, without YAML through the integration from the Marketplace (formerly HACS).
 - Notifications about deadlines and new documents, plus dates as a calendar.
 - With evcc, the wallbox’s charging sessions including the solar share.
 
 **What you need**
 
-- Software: **Home Assistant.** The Energietracker as an app in Home Assistant OS (experimental) or as its own container. For the sensors, the HACS integration, from Home Assistant 2026.3.
+- Software: **Home Assistant.** The Energietracker as an app in Home Assistant OS (experimental) or as its own container. For the sensors, the integration, from Home Assistant 2026.3: in the Marketplace, up to 2026.10 in HACS.
 - Hardware: **What Home Assistant needs anyway, plus your smart meters or readers.** As an app, the Energietracker needs no device of its own.
 
 **Effort:** **Create a token, give meters an alias, add a REST command and an automation.** That is YAML; anyone who knows Home Assistant will find their way quickly. The way back through the integration needs no YAML.
@@ -235,7 +235,7 @@ Home Assistant delivers the readings, the Energietracker calculates and reports 
 1. **Start the Energietracker:** as an app in Home Assistant OS or as its own container. [App in Home Assistant](../anleitungen/home-assistant.md#as-an-app-in-home-assistant-os) · [Docker](../betrieb/docker.md)
 2. Under Connections → Home Assistant, create the token and give the meters an alias. (in the app: **Home Assistant**)
 3. Add the REST command and the automation in Home Assistant. [Connect Home Assistant](../anleitungen/home-assistant.md#step-3--rest-command-in-home-assistant)
-4. Install the HACS integration for the sensors. [HACS integration](../anleitungen/home-assistant.md#hacs-integration-v3120)
+4. For the sensors, search for “Energietracker” in the Marketplace and install the integration. [Integration in the Marketplace](../anleitungen/home-assistant.md#hacs-integration-v3120)
 5. **If you like:** switch on notifications. [Notifications](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390)
 6. **With a wallbox:** add evcc. [Charging sessions from evcc](../anleitungen/evcc.md)
 

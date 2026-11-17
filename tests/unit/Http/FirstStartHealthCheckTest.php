@@ -58,6 +58,32 @@ final class FirstStartHealthCheckTest extends HttpServerTestCase
         self::assertSame('fr', $this->json('GET', '/api/settings')['language'] ?? null);
     }
 
+    /**
+     * v3.13.0 — Ein frisches Datenverzeichnis meldet sich ehrlich: `data_initialized: false` und als Schema das,
+     * das der erste Aufruf anlegt. Bis dahin stand dort „?“ und `data_initialized_at: null`, für einen Monitor
+     * dasselbe wie eine beschädigte meta.json. Health legt weiterhin nichts an.
+     */
+    public function testAFreshDataDirectorySaysSoInTheHealthCheck(): void
+    {
+        $this->startServer([], [], false);
+        for ($i = 0; $i < 2; $i++) {   // auch beim zweiten Mal: Health richtet nichts ein
+            $h = json_decode($this->request('GET', '/api/health')['body'], true)['data'] ?? [];
+            self::assertSame('ok', $h['status'] ?? null);
+            self::assertFalse($h['data_initialized'] ?? null, 'noch nicht eingerichtet');
+            self::assertSame(\Energietracker\Storage\Migrator::SCHEMA_VERSION, $h['schema_version'] ?? null, 'das Schema, das der erste Aufruf anlegt');
+            self::assertSame(0, $h['migrations_pending'] ?? null);
+            self::assertTrue(array_key_exists('data_initialized_at', $h) && $h['data_initialized_at'] === null, 'noch kein Zeitpunkt');
+            self::assertFileDoesNotExist("$this->dataDir/meta.json");
+        }
+
+        $this->json('GET', '/api/settings');
+        $h = json_decode($this->request('GET', '/api/health')['body'], true)['data'] ?? [];
+        self::assertTrue($h['data_initialized'] ?? null, 'nach dem ersten gewöhnlichen Aufruf eingerichtet');
+        self::assertSame(\Energietracker\Storage\Migrator::SCHEMA_VERSION, $h['schema_version'] ?? null);
+        self::assertIsString($h['data_initialized_at'] ?? null);
+        self::assertFileExists("$this->dataDir/meta.json");
+    }
+
     public function testAnyOtherFirstCallStillStartsTheInstallation(): void
     {
         // ein Skript ohne Accept-Language bekommt wie bisher die deutschen Vorgaben

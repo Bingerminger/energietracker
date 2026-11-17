@@ -9,6 +9,8 @@ use Energietracker\Config\Utilities;
 use Energietracker\Http\NotFoundException;
 use Energietracker\Http\ConflictException;
 use Energietracker\Support\Dates;
+use Energietracker\Support\FieldRules;
+use Energietracker\Support\TextLimits;
 
 /**
  * Backup/Restore — v3.0 format (utility-aware, supports F2 device chains).
@@ -70,6 +72,8 @@ final class BackupService
         'people'                    => PeopleService::FILE,
         // v3.7.0 — Posteingang: Dokument, Prüfsumme, Status, Auslesung, Zuordnung (das PDF unter attachment_files)
         'inbox'                     => InboxService::FILE,
+        // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung (entsteht mit der ersten Auszahlung)
+        'feed_in_payouts'           => FeedInPayoutService::FILE,
     ];
 
     /**
@@ -340,13 +344,26 @@ final class BackupService
         $problems = [];
         $writes = [];
         $report = ['utilities' => [], 'untouched' => [], 'problems' => []];
-        $problem = function (string $pot, ?int $index, string $what) use (&$problems): void {
-            if (count($problems) < 50) $problems[] = ['pot' => $pot, 'index' => $index, 'problem' => $what];
+        // v3.13.0 (Paket F) — `$extra`: zusätzliche Angaben zum Fund (Feld und Grenze bei too_long), additiv
+        // v3.13.0 — je Topf laufen alle Prüfungen (bisher endete die Kette am ersten Fund: Ein Stand „abc“ verdeckte einen
+        // Wahrheitswert „womöglich“ in derselben Datei). Ein Feld einer Zeile meldet nur der erste, der es findet
+        // (`counter` und `counter:counter`, `date:date` und `date_range:date` sind derselbe Fund); ein Feld in den
+        // Einträgen einer Liste entfällt nur, wenn die Liste selbst schon gemeldet ist (`amount:working_prices`).
+        $seen = [];
+        $problem = function (string $pot, ?int $index, string $what, array $extra = []) use (&$problems, &$seen): void {
+            $field = str_contains($what, ':') ? explode(':', $what, 2)[1] : $what;
+            $row = $pot . '|' . ($index ?? ($pot === 'settings' ? explode('.', $field, 2)[0] : '')) . '|';
+            if ($index === null && $pot !== 'settings') $field = $what;   // Fund am ganzen Topf: die Art zählt mit
+            $top = explode('.', $field, 2)[0];
+            if (isset($seen[$row . $field]) || ($top !== $field && isset($seen[$row . $top]))) return;
+            $seen[$row . $field] = true;
+            if (count($problems) < 50) $problems[] = ['pot' => $pot, 'index' => $index, 'problem' => $what] + $extra;
         };
 
         foreach (self::TOP_POTS as $key => $file) {
             if (!array_key_exists($key, $payload)) { $report['untouched'][] = $key; continue; }
             if (!is_array($payload[$key])) { $problem($key, null, 'not_an_object'); continue; }
+            self::checkLengths($key, $payload[$key], $key, $problem);   // v3.13.0 (Paket F) — Freitext über der Grenze
             if ($key === 'temperatures') {
                 foreach ($payload[$key] as $date => $v) {
                     if (!Dates::isIsoDate((string)$date) || !is_array($v)) { $problem($key, null, "entry:$date"); break; }
@@ -355,6 +372,8 @@ final class BackupService
                     foreach (['avg', 'min', 'max'] as $f) {
                         if (isset($v[$f]) && (is_bool($v[$f]) || !is_numeric($v[$f]) || (float)$v[$f] < -90 || (float)$v[$f] > 60)) { $problem($key, null, "value:$date.$f"); break 2; }
                     }
+                    // v3.13.0 (Paket sonne) — Einstrahlung optional, sonst eine Zahl von 0 bis 15 kWh/m² am Tag
+                    if (isset($v['rad']) && TemperatureService::radValue($v['rad']) === null) { $problem($key, null, "value:$date.rad"); break; }
                 }
             }
             if ($key === 'reminders' && $this->checkList($payload[$key], $key, ['id'], [], $problem)) self::checkValues('reminders', $payload[$key], $key, $problem);
@@ -367,9 +386,27 @@ final class BackupService
                 // `forecast_model: []` legte nach dem Einspielen bisher 34 Ansichten lahm, ohne Meldung
                 $check = new SettingsService($this->store);
                 $check->attachI18n($this->i18n);
-                foreach ($check->problems($payload[$key]) as $k) $problem($key, null, "setting:$k");
+                // v3.13.0 — null heißt „nicht eingetragen“ wie im Bestand (SettingsService::storedProblems): Eine ältere
+                // Version schrieb geleerte Felder als null, der eigene Export davon spielte sich bisher nicht ein
+                foreach ($check->problems(array_filter($payload[$key], fn($v) => $v !== null)) as $k) $problem($key, null, "setting:$k");
             }
             if ($key === 'ev_sessions') $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'charged_kwh'], ['date'], $problem);
+            // v3.13.0 (K2d) — ausgeblendete Empfehlungen: je Kennung ein Tag „bis“ (wie POST …/dismiss)
+            if ($key === 'recommendations_dismissed') {
+                foreach ($payload[$key] as $rid => $until) {
+                    if (!self::safeId((string)$rid) || FieldRules::problem('date', $until) !== null || !is_string($until)) { $problem($key, null, "date:$rid"); break; }
+                }
+            }
+            // v3.13.0 (Paket vertrag) — Auszahlungen der Einspeisung: Kennung, Zähler, Tag, Betrag als Zahl, Zeitraum als Tage
+            if ($key === 'feed_in_payouts' && $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'amount'], ['date', 'period_from', 'period_until'], $problem)) {
+                foreach ($payload[$key] as $i => $p) {
+                    // v3.13.0 — der Betrag gelesen wie am Schreibweg (Input::decimal, „12,5“ ist 12,5) und als Zahl geschrieben
+                    $amt = \Energietracker\Support\Input::decimal($p['amount']);
+                    if (!is_string($p['id']) || !preg_match(FeedInPayoutService::ID, $p['id'])) $problem($key, $i, 'id');
+                    elseif ($amt === null || abs($amt) > FeedInPayoutService::AMOUNT_MAX) $problem($key, $i, 'amount');
+                    elseif (is_string($p['amount'])) $payload[$key][$i]['amount'] = $amt;
+                }
+            }
             if ($key === 'tenancies') {
                 $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
                 // v3.11.0 (E) — Zuständigkeit am Mietverhältnis: dieselbe Form wie an Zählern und Verträgen
@@ -405,7 +442,9 @@ final class BackupService
                 }
                 // der Zähler geht durch ein älteres Backup nicht zurück
                 try { $current = $this->store->read($file, []); } catch (\Throwable) { $current = []; }
-                $writes[$file] = PeopleService::mergeForImport($payload[$key], $current);
+                // v3.13.0 — ein leeres Verzeichnis bleibt leer (der eigene Export spielt sich unverändert ein)
+                $empty = $payload[$key] === [] && PeopleService::normalize($current) === PeopleService::normalize([]);
+                $writes[$file] = $empty ? [] : PeopleService::mergeForImport($payload[$key], $current);
                 $report[$key] = count($list);
                 continue;
             }
@@ -414,6 +453,13 @@ final class BackupService
                     if (!preg_match(AttachmentService::ID, (string)$a['id'])) $problem($key, $i, 'id');
                     elseif (AttachmentService::extension((string)$a['mime']) === 'bin') $problem($key, $i, 'mime');
                 }
+            }
+            // v3.13.0 (K2d) — Termine und Mietverhältnisse nach denselben Regeln wie die Töpfe je Verbrauchsart
+            // (Support\FieldRules): Wahrheitswerte als true/false, Text statt Liste, Tage im Eingabebereich
+            // v3.13.0 — auch nach einem Fund derselben Datei (keine zweite Meldung je Feld: $problem)
+            if (isset(FieldRules::FIELDS[$key]) && array_is_list($payload[$key])
+                && self::checkRules($key, $payload[$key], $key, $problem, null)) {
+                $payload[$key] = self::normalized($key, $payload[$key]);
             }
             $writes[$file] = $payload[$key];
             // der Index der Viertelstundenreihen zählt seine Reihen, nicht seine zwei Schlüssel
@@ -473,6 +519,7 @@ final class BackupService
             if (!Utilities::exists((string)$key)) { $problem((string)$key, null, 'unknown_utility'); continue; }
             if (!is_array($bucket)) { $problem((string)$key, null, 'not_an_object'); continue; }
             $counts = [];
+            $refs = $this->knownTargets((string)$key, $bucket);   // v3.13.0 (K2d) — Zähler und Gruppen nach dem Einspielen
             foreach (self::UTILITY_POTS as $pot) {
                 if (!array_key_exists($pot, $bucket)) { $report['untouched'][] = "$key/$pot"; continue; }
                 $list = $bucket[$pot];
@@ -485,11 +532,18 @@ final class BackupService
                     'periods'      => [['id', 'meter_id', 'from', 'to'], ['from', 'to']],
                     'bills'        => [['id', 'meter_id', 'period_from', 'period_to'], ['period_from', 'period_to']],
                 };
-                if ($this->checkList($list, "$key/$pot", $required, $dates, $problem)
-                    && (!in_array($pot, ResponsibilityService::POTS, true) || self::checkAssignees($list, "$key/$pot", $problem))
-                    && self::checkPersonal($list, $pot, "$key/$pot", $problem)
-                    && self::checkValues($pot, $list, "$key/$pot", $problem)) {
-                    $writes["$key/$pot.json"] = $list;
+                // v3.13.0 (K2d) — checkRules: dieselben Regeln wie Schreibwege und Bestand (Support\FieldRules)
+                // v3.13.0 — alle Prüfungen laufen, auch nach einem Fund (der Bericht nennt jeden Fund, wie der Bestand);
+                // Zeilen, die keine Objekte sind, meldet checkList, die übrigen Prüfungen sehen nur die Objekte
+                $ok = $this->checkList($list, "$key/$pot", $required, $dates, $problem);
+                if (is_array($list) && array_is_list($list)) {
+                    $rows = array_filter($list, 'is_array');
+                    if (in_array($pot, ResponsibilityService::POTS, true)) $ok = self::checkAssignees($rows, "$key/$pot", $problem) && $ok;
+                    $ok = self::checkPersonal($rows, $pot, "$key/$pot", $problem) && $ok;
+                    $ok = self::checkValues($pot, $rows, "$key/$pot", $problem) && $ok;
+                    $ok = self::checkRules($pot, $list, "$key/$pot", $problem, $refs) && $ok;
+                    $ok = self::checkLengths($pot, $list, "$key/$pot", $problem) && $ok;   // v3.13.0 (Paket F)
+                    if ($ok) $writes["$key/$pot.json"] = self::normalized($pot, $list);
                 }
                 $counts[$pot] = is_array($list) ? count($list) : 0;
             }
@@ -524,8 +578,8 @@ final class BackupService
                 elseif (isset($row[$f]) && !Dates::inInputRange((string)$row[$f])) { $problem($pot, $i, "date_range:$f"); $ok = false; }
             }
             // v3.12.0 — Zählerstand wie beim Erfassen: endlich, ab 0, höchstens ReadingService::MAX_COUNTER
-            if (isset($row['counter']) && (is_bool($row['counter']) || !is_numeric($row['counter']) || !is_finite((float)$row['counter'])
-                || (float)$row['counter'] < 0 || (float)$row['counter'] > ReadingService::MAX_COUNTER)) { $problem($pot, $i, 'counter'); $ok = false; }
+            // v3.13.0 — dieselbe Funktion wie der Schreibweg (FieldRules::counter, „12,5“ ist 12,5)
+            if (isset($row['counter']) && FieldRules::counter($row['counter']) === null) { $problem($pot, $i, 'counter'); $ok = false; }
             if (isset($row['devices']) && (!is_array($row['devices']) || !array_is_list($row['devices']))) {
                 $problem($pot, $i, 'devices'); $ok = false;
             }
@@ -579,8 +633,10 @@ final class BackupService
         $bad = function (int $i, string $what) use ($name, $problem, &$ok): void { $problem($name, $i, $what); $ok = false; };
         $isBool = static fn(mixed $v): bool => $v === null || \Energietracker\Support\Input::bool($v) !== null;
         $dateOrEmpty = static fn(mixed $v): bool => $v === null || $v === '' || (Dates::isIsoDate($v) && Dates::inInputRange((string)$v));
+        // v3.13.0 — Zahlen gelesen wie auf den Schreibwegen (Input::decimal: „12,5“ ist 12,5), bisher `is_numeric`
+        $num = static fn(mixed $v): ?float => \Energietracker\Support\Input::decimal($v);
         $amount = static fn(mixed $v, bool $nonNeg): bool => $v === null || $v === ''
-            || (!is_bool($v) && is_numeric($v) && is_finite((float)$v) && abs((float)$v) <= ContractService::AMOUNT_MAX && (!$nonNeg || (float)$v >= 0));
+            || (($n = $num($v)) !== null && abs($n) <= ContractService::AMOUNT_MAX && (!$nonNeg || $n >= 0));
         $flags = match ($pot) {
             'readings'  => ['is_estimated', 'is_suspect', 'is_billing_only', 'is_verified', 'is_future'],
             'contracts' => ['is_shadow', 'auto_renews'],
@@ -620,28 +676,139 @@ final class BackupService
                 }
                 foreach (['notice_period_months' => 24, 'notice_period_days' => 730] as $f => $max) {
                     $v = $row[$f] ?? null;
-                    if ($v !== null && $v !== '' && (is_bool($v) || !is_numeric($v) || (float)$v < 0 || (float)$v > $max || floor((float)$v) != (float)$v)) $bad($i, "number:$f");
+                    if ($v !== null && $v !== '' && (($n = $num($v)) === null || $n < 0 || $n > $max || floor($n) != $n)) $bad($i, "number:$f");
                 }
                 if (!$amount($row['signup_bonus_eur'] ?? null, true)) $bad($i, 'number:signup_bonus_eur');
             }
             if ($pot === 'deliveries') {
                 foreach (DeliveryService::LIMITS as $f => $max) {
                     $v = $row[$f] ?? null;
-                    if ($v !== null && $v !== '' && (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v > $max)) $bad($i, "number:$f");
+                    if ($v !== null && $v !== '' && (($n = $num($v)) === null || $n > $max)) $bad($i, "number:$f");
                 }
             }
             if ($pot === 'periods') {
                 $v = $row['value'] ?? null;
-                if ($v !== null && (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v < 0 || (float)$v > ReadingService::MAX_COUNTER)) $bad($i, 'number:value');
+                if ($v !== null && (($n = $num($v)) === null || $n < 0 || $n > ReadingService::MAX_COUNTER)) $bad($i, 'number:value');
             }
             if ($pot === 'reminders') {
                 if (isset($row['recurrence']) && !in_array($row['recurrence'], ReminderService::RECURRENCES, true)) $bad($i, 'recurrence');
                 $m = $row['recurrence_months'] ?? null;
-                if ($m !== null && (is_bool($m) || !is_numeric($m) || (float)$m < 0 || (float)$m > 1200 || floor((float)$m) != (float)$m)) $bad($i, 'number:recurrence_months');
+                if ($m !== null && (($n = $num($m)) === null || $n < 0 || $n > 1200 || floor($n) != $n)) $bad($i, 'number:recurrence_months');
             }
             if ($pot === 'bills') {
                 foreach (['invoice', 'co2'] as $f) if (isset($row[$f]) && !is_array($row[$f])) $bad($i, "object:$f");
                 foreach (['items', 'factors'] as $f) if (isset($row[$f]) && (!is_array($row[$f]) || !array_is_list($row[$f]))) $bad($i, "list:$f");
+            }
+        }
+        return $ok;
+    }
+
+    /**
+     * v3.13.0 (K2d) — dieselben Regeln wie Schreibwege und Bestand (Support\FieldRules): Text statt Liste oder Objekt
+     * (Name, Titel, Notiz), Zahlen mit Grenzen (Tank, Anfangsstand, Preis je Ablesung, Lieferung), Tage im
+     * Eingabebereich auch in Listen (Peilstände, Zäsuren, Abschnitte des Brennwerts), Wahrheitswerte nach der einen
+     * Regel. Dazu, was nur im Ganzen zu prüfen ist: jede Kennung einmal je Topf (`duplicate_id`) und der Zähler bzw.
+     * die Gruppe, an der ein Datensatz hängt, nach dem Einspielen vorhanden (`reference:meter_id`). Bisher spielte der
+     * Import eine Ablesung an einem unbekannten oder artfremden Zähler ein, zwei Ablesungen mit derselben Kennung,
+     * eine Notiz als Objekt, einen Zählernamen als Liste (danach 500) und `is_shadow: "false"` als Text (die Leser
+     * fragen `empty()`: der laufende Vertrag fiel aus dem Saldo).
+     *
+     * @param array<array-key,mixed> $list
+     * @param callable(string, ?int, string): void $problem
+     * @param array{meters: array<string,true>, groups: array<string,true>}|null $refs bekannte Ziele (null: ohne Bezug)
+     */
+    private static function checkRules(string $pot, array $list, string $name, callable $problem, ?array $refs): bool
+    {
+        $ok = true;
+        $seen = [];
+        foreach ($list as $i => $row) {
+            if (!is_array($row)) continue;
+            // die Arten stehen in FieldRules::KINDS (BackupProblemCatalogTest)
+            foreach (FieldRules::problems($row, $pot) as $fieldRule) { $problem($name, (int)$i, $fieldRule); $ok = false; }
+            $id = $row['id'] ?? null;
+            if (is_string($id) || is_int($id)) {
+                if (isset($seen[(string)$id])) { $problem($name, (int)$i, 'duplicate_id'); $ok = false; }
+                $seen[(string)$id] = true;
+            }
+            if ($refs === null) continue;
+            // v3.13.0 — die Verweise nach derselben Regel wie der Bestand (FieldRules::references), jetzt auch Elternzähler
+            // und Gruppe am Zähler (bisher spielte der Import einen Elternzähler ein, den es nicht gibt)
+            foreach (FieldRules::references($pot, $row, $refs) as $f) { $problem($name, (int)$i, 'reference:' . $f); $ok = false; }
+        }
+        return $ok;
+    }
+
+    /**
+     * v3.13.0 (K2d) — Zähler und Gruppen einer Verbrauchsart, wie sie nach dem Einspielen dastehen: aus dem Backup,
+     * wenn es den Topf trägt, sonst die vorhandenen (Teil-Restore).
+     *
+     * @param array<string,mixed> $bucket
+     * @return array{meters: array<string,true>, groups: array<string,true>}
+     */
+    private function knownTargets(string $utility, array $bucket): array
+    {
+        $ids = function (string $pot) use ($utility, $bucket): array {
+            try {
+                $rows = array_key_exists($pot, $bucket) ? $bucket[$pot] : $this->store->read("$utility/$pot.json", []);
+            } catch (\Throwable) {
+                $rows = [];
+            }
+            return FieldRules::ids($rows);
+        };
+        return ['meters' => $ids('meters'), 'groups' => $ids('meter_groups')];
+    }
+
+    /**
+     * v3.13.0 (K2d) — so geschrieben, wie die Schreibwege speichern (Support\FieldRules::normalize): `"false"` als
+     * false, `"12,5"` als 12.5. Ein Backup aus der App ändert sich dabei nicht.
+     *
+     * @param array<array-key,mixed> $list
+     * @return array<array-key,mixed>
+     */
+    private static function normalized(string $pot, array $list): array
+    {
+        if (!isset(FieldRules::FIELDS[$pot])) return $list;
+        foreach ($list as $i => $row) {
+            if (!is_array($row)) continue;
+            $list[$i] = FieldRules::normalize($row, $pot);
+            // v3.13.0 — Preise der Wasserblöcke (checkValues prüft sie wie den Schreibweg): „1,95“ als Zahl
+            if ($pot !== 'contracts') continue;
+            foreach (['trinkwasser' => ['working_prices' => 'ct_per_m3', 'base_prices' => 'eur_per_month'],
+                      'schmutzwasser' => ['working_prices' => 'ct_per_m3', 'base_prices' => 'eur_per_month']] as $block => $lists) {
+                foreach ($lists as $f => $amt) {
+                    foreach (is_array($row[$block][$f] ?? null) ? $row[$block][$f] : [] as $j => $e) {
+                        if (is_array($e) && is_string($e[$amt] ?? null) && ($n = \Energietracker\Support\Input::decimal($e[$amt])) !== null) {
+                            $list[$i][$block][$f][$j][$amt] = $n;
+                        }
+                    }
+                }
+            }
+        }
+        return $list;
+    }
+
+    /**
+     * v3.13.0 (Paket F) — Freitext über der Grenze (Support\TextLimits, dieselbe Liste wie auf den Schreibwegen):
+     * Problem `too_long:<feld>` mit `field` und `max`, je Datensatz. Nichts wird gekürzt; ein Backup mit solchen
+     * Werten spielt der Import erst nach dem Korrigieren ein (wie jeden Wert, den die Schreibwege abweisen).
+     * Topf `settings` ist ein Objekt (ein Datensatz), `people` steht unter `people`.
+     *
+     * @param callable(string, ?int, string, array<string,mixed>=): void $problem
+     */
+    private static function checkLengths(string $pot, mixed $data, string $name, callable $problem): bool
+    {
+        if (!isset(TextLimits::FIELDS[$pot]) || !is_array($data)) return true;
+        $rows = match ($pot) {
+            'settings' => [$data],
+            'people'   => is_array($data['people'] ?? null) && array_is_list($data['people']) ? $data['people'] : [],
+            default    => array_is_list($data) ? $data : [],
+        };
+        $ok = true;
+        foreach ($rows as $i => $row) {
+            if (!is_array($row)) continue;
+            foreach (TextLimits::problems($row, $pot) as $p) {
+                $problem($name, $pot === 'settings' ? null : (int)$i, 'too_long:' . $p['field'], ['field' => $p['field'], 'max' => $p['max']]);
+                $ok = false;
             }
         }
         return $ok;
@@ -690,9 +857,7 @@ final class BackupService
         if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
             throw new \RuntimeException('Snapshot-Verzeichnis lässt sich nicht anlegen');
         }
-        $base = $prefix . date('Y-m-d_His');
-        $name = $base . '.json';
-        for ($n = 2; is_file("$dir/$name"); $n++) $name = "$base-$n.json";
+        $name = self::nextSnapshotName($dir, $prefix . date('Y-m-d_His'));
 
         $tmp = "$dir/.$name.tmp";
         $fp = @fopen($tmp, 'wb');
@@ -716,8 +881,26 @@ final class BackupService
         // v3.12.0 — Dateizeit ausdrücklich aus der Uhr, mit der rotate() vergleicht: Liefen Dateisystem-
         // und PHP-Uhr auseinander, verwarf die Rotation eben angelegte automatische Sicherungen als alt
         @touch("$dir/$name", time());
-        $this->rotate();
+        $this->rotate($name);
         return $name;
+    }
+
+    /**
+     * v3.13.0 (K2d) — Name eines neuen Snapshots: der Grundname der Sekunde, sonst die nächste Nummer ÜBER der höchsten
+     * vorhandenen dieser Sekunde (Grundname = 1). Bisher suchte die Schleife den ersten freien Namen ab dem Grundnamen:
+     * Hatte die Rotation den Grundnamen schon gelöscht, bekam die zwölfte Sicherung derselben Sekunde ihn wieder, galt
+     * damit als älteste und wurde sofort gelöscht, die Antwort nannte sie trotzdem. Ein neuer Name sortiert jetzt nie
+     * älter als ein vorhandener (snapshotOrder: Zeit, dann laufende Nummer).
+     */
+    public static function nextSnapshotName(string $dir, string $base): string
+    {
+        $highest = 0;
+        foreach (glob($dir . '/' . $base . '*.json') ?: [] as $f) {
+            $b = basename($f, '.json');
+            if ($b === $base) $highest = max($highest, 1);
+            elseif (preg_match('/^' . preg_quote($base, '/') . '-(\d+)$/D', $b, $m)) $highest = max($highest, (int)$m[1]);
+        }
+        return $highest === 0 ? "$base.json" : "$base-" . ($highest + 1) . '.json';
     }
 
     /**
@@ -868,13 +1051,15 @@ final class BackupService
      * KEEP_AUTO_DAYS Tage, je Anlass aber mindestens die neuesten KEEP_AUTO_MIN.
      * Bis v2.5.3 wuchs data/backups/ unbegrenzt.
      */
-    private function rotate(): void
+    /** @param string|null $keep v3.13.0 (K2d) — der eben angelegte Snapshot: nie löschen (die Antwort nennt ihn) */
+    private function rotate(?string $keep = null): void
     {
         $byReason = [];
         foreach ($this->listSnapshots() as $s) $byReason[$s['reason']][] = $s;
         $cutoff = time() - self::KEEP_AUTO_DAYS * 86400;
         foreach ($byReason as $reason => $list) {
             foreach ($list as $i => $s) {
+                if ($s['name'] === $keep) continue;
                 $drop = $reason === 'manual'
                     ? $i >= self::KEEP_MANUAL
                     : ($i >= self::KEEP_AUTO_MIN && strtotime($s['created_at']) < $cutoff);

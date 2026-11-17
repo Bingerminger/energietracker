@@ -8,7 +8,7 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 10 Nov 2026 · **Current version:** v3.12.0
+**As of:** 17 Nov 2026 · **Current version:** v3.13.0
 
 ---
 
@@ -19,8 +19,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.13.0** · in progress, out when it is ready | **Forecast for heat pump, PV and electric car** | The forecast calculates the heat pump by the weather and includes PV, battery and electric car; feed-in payouts can be recorded. Plus consistent terms in every language, length limits for free text and a faster tank model. |
-| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. |
+| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. **The forecast of heat pump and PV by the weather goes back on the test bench,** because in v3.13 it does not yet meet its thresholds, set in advance, on a test household; plus a heating model for curved heating curves (#38). |
 | **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
 
 ---
@@ -57,6 +56,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Date | Theme |
 |---|---|---|
+| v3.13.0 | 17 Nov 2026 | Battery, wall box and peak/off-peak in the forecast: feed-in by the sun, a new battery and a new wall box in the forecast, peak and off-peak as one contract (#40), the check at entry knows the season (#65), the integration from the Marketplace (formerly HACS) |
 | v3.12.0 | 10 Nov 2026 | Energietracker for your AI: MCP with the origin of every figure, proposals instead of writes, the HACS integration, a new interface, the balance of meter groups (#58) |
 | v3.11.0 | 4 Nov 2026 | Your rights as a customer: seven checks with a source, five letters, price changes in the inbox, contradicting contracts |
 | v3.10.1 | 3 Nov 2026 | Security fixes in the Docker image |

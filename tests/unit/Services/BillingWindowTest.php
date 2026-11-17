@@ -176,6 +176,23 @@ final class BillingWindowTest extends ServiceTestCase
         self::assertEqualsWithDelta(round($s['cost_to_date'] - $s['advance_paid'] - 50.0, 2), $s['current_balance'], 0.02);
     }
 
+    /**
+     * v3.13.0 (Paket gegenproben) — eine zusätzliche Abschlagszahlung vor dem Saldobeginn (01.11.2025, vor der
+     * laufenden Periode 2026) gehört zur Abrechnung 2025: Sie zählt im Saldo der laufenden Periode nicht mit.
+     * Der Fall oben hat nur Sonderzahlungen in der Periode, eine fehlende Prüfung des Beginns fiel dort nicht auf.
+     */
+    public function testAnExtraAdvanceBeforeTheBalanceStartDoesNotCount(): void
+    {
+        $early = ['id' => 'sp_early', 'date' => '2025-11-01', 'kind' => 'abschlagszahlung', 'amount_eur' => 30.0, 'note' => ''];
+        $extra = ['id' => 'sp_extra', 'date' => '2026-04-01', 'kind' => 'abschlagszahlung', 'amount_eur' => 50.0, 'note' => ''];
+        $this->seedStrom($this->store, '2025-01-01', [$early, $extra]);
+        $s = $this->contractRow($this->consumption, $this->meters);
+        self::assertSame('2026-01-01', $s['billing_period']['from'], 'Vorbedingung: die laufende Periode beginnt nach der frühen Zahlung');
+        self::assertSame(['2026-04-01'], array_column($s['special_payments'], 'date'), 'die Zahlung vom 01.11.2025 gehört zur Abrechnung 2025');
+        self::assertEqualsWithDelta(round($s['cost_to_date'] - $s['advance_paid'] - 50.0, 2), $s['current_balance'], 0.02,
+            'nur die 50 € in der Periode senken den Saldo');
+    }
+
     public function testARecordedBillStartsTheOpenBalanceBookedOrNot(): void
     {
         $this->seedStrom($this->store, '2025-01-01', []);

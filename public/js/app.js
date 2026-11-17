@@ -27,6 +27,7 @@ import { startFitGrids } from './lib/fit-grid.js';
 import { startTableStack } from './lib/table-stack.js';   // v3.12.0 (M4)
 import { scanFolder } from './lib/inbox-folder.js';   // v3.7.0 (Paket betrieb)
 import { mountIconSprite } from './lib/icons.js';
+import { startCharCounters } from './lib/text-limits.js';   // v3.13.0 (Paket F)
 
 // v3.12.0 — öffentliche Demo: Nach jedem Release beginnt sie bei null. Vor allem anderen,
 // denn alles darunter liest Haushalt, Stufe und Sprache aus dem Browser. Eine Installation wartet hier nicht.
@@ -47,6 +48,7 @@ mountThemeToggle(document.getElementById('theme-toggle'));
 mountIconSprite();
 startFitGrids();
 startTableStack();
+startCharCounters();   // v3.13.0 (Paket F) — Zähler unter langen Feldern (Notizen)
 
 function applyShellStrings() {
   // <html lang> an den tatsächlich geladenen Katalog angleichen.
@@ -216,6 +218,9 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
     if (!DEMO) {
       getSettings()
         .then(s => { if (s?.weather_auto_fill !== false) return api.syncOpenMeteo({ auto: 1 }); })
+        // v3.13.0 (Paket waermepumpe) — neue Tageswerte oder Vorhersage: Wer mit dem Wetter rechnet (Werkstatt), rechnet
+        // neu, damit am selben Tag dieselbe Zahl steht wie in Prognose und Saldo-Karte (Bekannte Grenze v3.12.0)
+        .then(r => { if (r && !r.skipped && Number(r.imported) > 0) window.dispatchEvent(new CustomEvent('et:weather-synced', { detail: r })); })
         .catch(() => {});
       // v3.7.0 (Paket betrieb) — Versorgerpost aus dem überwachten Ordner (nur Verwalter)
       scanFolder({ quiet: true }).catch(() => {});

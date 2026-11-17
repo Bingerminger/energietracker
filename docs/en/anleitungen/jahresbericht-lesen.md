@@ -107,6 +107,14 @@ needed”. A range of two credits runs from the smaller to the larger amount, as
 the balance card. The average working price on a utility’s page counts only months
 with a contract or a price of their own.
 
+*(since v3.13.0)* **If a contract has no unit price** (entirely or in months of the
+year), the report says “Price missing” like the balance card and the billing year: it
+promises no credit at the bill, the “Bill” light gives no verdict, and the costs of
+this utility do not count in the tiles or the costs per utility and month (they would
+only be the standing charge or part of the months). The same for a **tenancy without
+prices**: without a price for an assigned meter, or without a meter with a price and
+without flat-rate costs, the report names no credit of the whole prepayment.
+
 ## 4. Tasks: priority, amount, deadline
 
 Each task gives its reason with the household’s own figures, what it brings in

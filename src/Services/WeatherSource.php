@@ -9,13 +9,21 @@ namespace Energietracker\Services;
  */
 interface WeatherSource
 {
-    /** @return array{data:array<string,array{avg:float,min:float,max:float}>,error:?string} */
+    /**
+     * v3.13.0 (Paket sonne) — je Tag optional `rad`: Einstrahlung (Globalstrahlung) in kWh/m² am Tag.
+     *
+     * @return array{data:array<string,array{avg:float,min:float,max:float,rad?:float}>,error:?string}
+     */
     public function fetchArchive(float $lat, float $lon, string $start, string $end): array;
 
-    /** @return array{data:array<string,array{avg:float,min:float,max:float}>,error:?string} */
+    /** @return array{data:array<string,array{avg:float,min:float,max:float,rad?:float}>,error:?string} */
     public function fetchForecast(float $lat, float $lon, int $forecastDays = 14, int $pastDays = 0): array;
 
-    /** @return array{data:array<string,float>,error:?string} */
+    /**
+     * v3.13.0 (Paket sonne) — optional `rad`: Tag → Einstrahlung in kWh/m² (für `rad_month` des Klimanormals).
+     *
+     * @return array{data:array<string,float>,rad?:array<string,float>,error:?string}
+     */
     public function fetchArchiveMeans(float $lat, float $lon, string $start, string $end): array;
 
     /**

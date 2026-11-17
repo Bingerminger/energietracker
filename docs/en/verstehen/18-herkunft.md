@@ -55,6 +55,16 @@ One exception upwards: a total over whole reading intervals (a reading lies at b
 is called **measured**, even if all its months are `distributed`. Distributing over months
 evens out within each interval, so the total is as good as its readings.
 
+**Prices count too** *(since v3.13.0)*: an amount from assumed prices (the contract
+continues without an entry, or the price guarantee is over) is never called measured or
+entered, but **assumed**. That holds for the balance, the cost of a year or billing year
+and for totals over several meters. An entered price does not weaken a balance: the
+costs up to the last reading are still called measured. Rows with money name the basis
+of their money in `money_basis`, months with an assumed price also `price_basis:
+assumed`. A total over several meters is **estimated** in a month as soon as one meter
+behind it spreads that month at an estimated reading; a small estimated remainder no
+longer drops out of `parts`. <!-- doc-claim: weakest-input (McpWeakestInputTest) -->
+
 ## The figure object
 
 Every key figure comes as an object:
@@ -97,10 +107,16 @@ Next to it, it is spelled out, because models can misread a sign: `meaning` (`cr
 `back_payment`, `balanced`, `payout`, `reclaim`, without a unit price `no_price`) and `text`, a
 ready sentence in the server’s language, such as “Credit of €828.01”; at 0 “Settled”, for
 estimated values with “Estimated:” in front. An answer with a balance also states these
-sentences in a text block of their own.
+sentences in a text block of their own. With `no_price` the sentence names no amount since
+v3.13.0: the figure can contain the standing charge and months with a price, so it is not
+“only the advance payments”, and without a unit price it lacks consumption costs.
 
 With feed-in, money is in the field `revenue` (`accounting_kind: feed_in`), with generation
 not at all. If no contract applies, the amount is missing (`no_contract: true`): it is not 0.
+*(Since v3.13.0)* If a contract **without a unit price** applies, the amount is missing as
+well: not €0 and not just the standing charge, but `price_missing: true`, also for the
+months before a price entered later. The user interface says “Price missing” there. A
+price per reading carries the month: then there is an amount.
 
 The API and the CSV export calculate the same way
 ([Glossary: balance](09-glossar.md#terms)). The user interface shows the

@@ -107,5 +107,45 @@ for (const lang of LANGS) {
 }
 localStorage.removeItem('et-language');
 
+// ── v3.13.0 (Paket K2e) — Erster Start: Die Oberfläche schickt die Sprache des Browsers, nicht die eigene Vorgabe ──
+// Bis v3.12 trugen die ersten Anfragen `Accept-Language: de` und `X-ET-Language: de` (DEFAULT_LOCALE, solange kein
+// Katalog geladen war): Ein französischer Browser bekam beim allerersten Start Deutsch, Deutschland und den deutschen
+// Wetterort. Der Server entscheidet aus `Accept-Language` (firstStartChoice); die Region („fr-CH“) bestimmt das Land.
+{
+  const setLangs = (list) => Object.defineProperty(dom.window.navigator, 'languages', { value: list, configurable: true });
+  const fresh = async (tag) => import(`${JS}/lib/i18n.js?${tag}`);   // eine eigene Instanz: vor dem Laden eines Katalogs
+  setLangs(['fr-CH', 'fr', 'en']);
+  let F = await fresh('erststart-fr');
+  t('Erststart: Accept-Language aus navigator.languages, mit Gewichten', F.requestLanguages().accept === 'fr-CH, fr;q=0.9, en;q=0.8', JSON.stringify(F.requestLanguages()));
+  t('Erststart: keine eigene Sprache (kein X-ET-Language)', F.requestLanguages().device === null);
+  setLangs(['de-AT']);
+  F = await fresh('erststart-at');
+  t('Erststart de-AT', F.requestLanguages().accept === 'de-AT' && F.requestLanguages().device === null, JSON.stringify(F.requestLanguages()));
+  setLangs(['en-GB', 'de-DE']);
+  F = await fresh('erststart-gb');
+  t('Erststart en-GB vor de-DE', F.requestLanguages().accept === 'en-GB, de-DE;q=0.9', JSON.stringify(F.requestLanguages()));
+  setLangs(['fr-CH']);
+  F = await fresh('geraet');
+  F.presetLocale('it');
+  t('Eigene Wahl des Geräts: diese Sprache in beiden Kopfzeilen', JSON.stringify(F.requestLanguages()) === JSON.stringify({ accept: 'it', device: 'it' }), JSON.stringify(F.requestLanguages()));
+  F = await fresh('geladen');
+  await F.initI18n('nl');
+  t('Nach dem Laden der Sprache: diese in beiden Kopfzeilen', JSON.stringify(F.requestLanguages()) === JSON.stringify({ accept: 'nl', device: 'nl' }), JSON.stringify(F.requestLanguages()));
+  setLangs([]);
+  F = await fresh('nur-language');
+  t('Ohne Liste: navigator.language', F.requestLanguages().accept === dom.window.navigator.language && !!dom.window.navigator.language, JSON.stringify(F.requestLanguages()));
+  const navLang = dom.window.navigator.language;
+  Object.defineProperty(dom.window.navigator, 'language', { value: '', configurable: true });
+  F = await fresh('ohne');
+  t('Ohne Angabe des Browsers: keine eigene Kopfzeile (der Browser schickt seine)', F.requestLanguages().accept === null && F.requestLanguages().device === null, JSON.stringify(F.requestLanguages()));
+  Object.defineProperty(dom.window.navigator, 'language', { value: navLang, configurable: true });
+  setLangs(['fr-CH', 'x;<script>', 'de']);
+  F = await fresh('kaputt');
+  t('Ungültige Einträge fallen weg', F.requestLanguages().accept === 'fr-CH, de;q=0.9', JSON.stringify(F.requestLanguages()));
+  // api.js schickt genau diese Kopfzeilen
+  const apiSrc = readFileSync(`${JS}/api.js`, 'utf8');
+  t('api.js nimmt requestLanguages() für die Kopfzeilen', /requestLanguages\(\)/.test(apiSrc) && !/'Accept-Language': getLocale\(\)/.test(apiSrc));
+}
+
 console.log(`\n  sprache-wahl: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

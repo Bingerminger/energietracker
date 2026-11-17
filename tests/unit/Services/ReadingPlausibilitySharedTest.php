@@ -25,7 +25,8 @@ final class ReadingPlausibilitySharedTest extends TestCase
         self::assertGreaterThanOrEqual(10, count($fx['cases']));
         foreach ($fx['cases'] as $c) {
             $issues = ReadingService::plausibilityIssues((float)$c['value'], $c['date'], $c['prev'],
-                $c['typical'] === null ? null : (float)$c['typical'], (bool)$c['deviceChanged'], $c['next'] ?? null, (bool)($c['nextDeviceChanged'] ?? false));
+                $c['typical'] === null ? null : (float)$c['typical'], (bool)$c['deviceChanged'], $c['next'] ?? null, (bool)($c['nextDeviceChanged'] ?? false),
+                $c['expected'] ?? null);   // v3.13.0 (#65) — Erwartung nach dem Wetter
             self::assertSame($c['expect'], array_column($issues, 'type'), $c['name']);
         }
     }

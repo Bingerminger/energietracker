@@ -54,6 +54,13 @@ Switzerland, "de-AT" German and Austria. If the browser names no region, the
 language decides (English → United Kingdom). The default meters are then named
 in the right language straight away ("Compteur principal").
 
+**The interface sends the browser's language *(v3.13.0)*.** Until the app knows
+its language (the device's own choice or the installation default), its
+requests carry the browser's language preferences (`navigator.languages`) and no
+choice of its own. Up to v3.12 it sent its default "de" instead: a French
+browser got German, Germany and a German weather location on the very first
+start, although the server reads the header correctly.
+
 **The health check does not decide *(v3.12.0)*.** <!-- doc-claim: first-start-health -->
 `/api/health` without a language does not set up an empty data directory;
 `Accept-Language: *` (“any language”, as programs based on Node ask) does not count

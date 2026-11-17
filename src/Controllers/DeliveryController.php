@@ -25,7 +25,7 @@ final class DeliveryController
     public function index(Request $req): never
     {
         $meterId = $req->queryParam('meter_id');
-        Response::json($this->deliveries->list($req->param('utility'), $meterId));
+        Response::json($this->deliveries->stored($req->param('utility'), $meterId));   // v3.13.0 (K2d) — was gespeichert ist
     }
 
     public function create(Request $req): never
