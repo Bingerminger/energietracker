@@ -671,5 +671,38 @@ Kombichart, Verbrauchs-Monatschart, Analyse, Prognose).
 
 ---
 
+## 5. Tempo
+
+Seit v3.14.0. **Beim Entwickeln laufen nur die Tests, die eine Änderung
+betrifft; vor jedem Commit und Pull Request die ganze Suite.**
+
+```bash
+vendor/bin/phpunit --no-coverage --filter AgendaServiceTest   # eine Testklasse
+vendor/bin/phpunit --no-coverage tests/unit/Http              # ein Bereich
+node tests/forms.test.mjs                                     # eine Node-Suite ohne Server
+composer test:parallel                                        # ganze Suite, ein Prozess je Kern
+```
+
+- **Welche Tests eine Änderung betrifft:** die Testklasse der geänderten Klasse
+  und jede Testdatei, die sie nennt (`grep -rlw AgendaService tests/unit`); für
+  Module unter `public/js` die Node-Suiten, die den Dateinamen nennen, und immer
+  `browser-render.test.mjs` (§2).
+- **Die ganze Suite parallel:** `composer test:parallel` startet
+  `tools/phpunit-parallel.php` (`-j 4` für vier Prozesse). PHPUnit listet Dateien
+  und Tests selbst auf, das Werkzeug verteilt die Dateien nach der Dauer des
+  letzten Laufs und **schlägt fehl, wenn weniger Tests laufen, als PHPUnit
+  listet**. Welche Datei in welchem Prozess lief, steht in
+  `.phpunit.cache/parallel/verteilung.txt`. Am 18.11.2026 dauerte die Suite auf
+  einem Rechner mit zehn Kernen 42 s statt 250 s nacheinander. Der Lauf
+  nacheinander (`vendor/bin/phpunit --no-coverage`) gilt weiter; ihn nutzen die
+  CI und die Zeitreise.
+- **Damit Tests parallel laufen können:** einen Port für einen Testserver nur
+  über `TestPorts::free()` holen (`TestPortsTest` hält das fest; im parallelen
+  Lauf hat jeder Prozess einen eigenen Portbereich), Daten nur in einem eigenen
+  Temp-Verzeichnis, Umgebungsvariablen nach dem Test zurücksetzen.
+- **Die CI** teilt den Job `test` in vier gleichzeitige Gruppen (§3, CI-Pipeline).
+
+---
+
 [← Datenmodell](../referenz/datenmodell.md) ·
 [Release-Prozess →](release-prozess.md)

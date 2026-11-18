@@ -12,7 +12,7 @@ use Energietracker\Tests\Support\InboxFixture;
 /**
  * v3.9.0 (F1033, GitHub #36) — Sensor „Zu tun“ und Benachrichtigungen über
  * HTTP: die App auf einem freien Port, ein nachgebautes Home Assistant auf
- * Port 18741 (FakeHomeAssistant). Was nur hier sichtbar wird: die Arbeit nach
+ * einem eigenen (FakeHomeAssistant). Was nur hier sichtbar wird: die Arbeit nach
  * der Antwort (App::afterResponse), Geheimnisse in keiner Antwort, wer was
  * darf.
  */

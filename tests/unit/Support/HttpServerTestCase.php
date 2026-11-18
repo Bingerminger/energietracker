@@ -39,9 +39,7 @@ abstract class HttpServerTestCase extends TestCase
         $this->dataDir = sys_get_temp_dir() . '/et-http-' . bin2hex(random_bytes(4));
         mkdir($this->dataDir, 0755, true);
         file_put_contents($this->dataDir . '/settings.json', json_encode($settings));
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         $this->base = "http://127.0.0.1:$port";
         $all = array_merge(getenv(), ['ET_DATA_DIR' => $this->dataDir, 'ET_LOG_DEST' => 'null'], $env);
         foreach (['ET_AUTH', 'ET_ADMIN_PASSWORD_HASH', 'ET_ALLOWED_HOSTS', 'ET_DEBUG', 'ET_TRUSTED_PROXIES',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.1.0 (Review I18N-29) — Sprache pro Gerät, über HTTP gegen einen echten
@@ -29,9 +30,7 @@ final class DeviceLanguageTest extends TestCase
         mkdir($this->dataDir, 0755, true);
         // Standardsprache der Installation: Deutsch
         file_put_contents($this->dataDir . '/settings.json', json_encode(['language' => 'de']));
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr(strrchr(stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         $this->base = "http://127.0.0.1:$port";
         $env = array_merge(getenv(), ['ET_DATA_DIR' => $this->dataDir, 'ET_LOG_DEST' => 'null']);
         unset($env['ET_AUTH'], $env['ET_ADMIN_PASSWORD_HASH'], $env['ET_ALLOWED_HOSTS'], $env['ET_DEBUG']);

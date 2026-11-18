@@ -5,7 +5,8 @@ namespace Energietracker\Tests\Support;
 
 /**
  * v3.9.0 (F1033) — nachgebautes Home Assistant (tests/fixtures/fake-ha.php)
- * über `php -S` auf einem festen Port (Standard 18741, `ET_HA_FAKE_PORT`).
+ * über `php -S`. Port: `ET_HA_FAKE_PORT`, sonst seit v3.14.0 ein freier Port über TestPorts (bis v3.13.0
+ * fest 18741; zwei gleichzeitige PHPUnit-Prozesse teilten ihn).
  * Die Anfragen stehen als JSON-Zeilen in einer Datei (requests()).
  */
 final class FakeHomeAssistant
@@ -19,7 +20,7 @@ final class FakeHomeAssistant
 
     public function __construct()
     {
-        $port = (int)(getenv('ET_HA_FAKE_PORT') ?: 18741);
+        $port = (int)(getenv('ET_HA_FAKE_PORT') ?: TestPorts::free());
         $this->base = "http://127.0.0.1:$port";
         $this->log = sys_get_temp_dir() . '/et-fake-ha-' . bin2hex(random_bytes(4)) . '.jsonl';
         $env = array_merge(getenv(), ['FAKE_HA_LOG' => $this->log, 'FAKE_HA_TOKEN' => self::TOKEN]);

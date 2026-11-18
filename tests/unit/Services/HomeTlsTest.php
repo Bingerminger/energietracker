@@ -9,6 +9,7 @@ use Energietracker\Services\OcrService;
 use Energietracker\Support\HomeTls;
 use Energietracker\Support\LocalizedException;
 use Energietracker\Tests\Support\ServiceTestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.10.0 (GitHub #36) — HTTPS ins Heimnetz mit eigener PKI.
@@ -58,9 +59,7 @@ final class HomeTlsTest extends ServiceTestCase
         file_put_contents(self::$dir . '/server.pem', $certPem . self::$keyPem);
         file_put_contents(self::$dir . '/ca.pem', self::$caPem);
 
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        self::$port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        self::$port = TestPorts::free();
         $env = array_merge(getenv(), ['FAKE_TLS_PORT' => (string)self::$port, 'FAKE_TLS_PEM' => self::$dir . '/server.pem']);
         self::$server = proc_open([PHP_BINARY, dirname(__DIR__, 2) . '/fixtures/fake-tls.php'],
             [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, self::$dir, $env);

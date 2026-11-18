@@ -19,7 +19,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * Form der Nachricht je Weg, jede Nachricht nur einmal, Zeitpunkt, Sprache,
  * Geheimnisse. Die Quellen (Agenda, Empfehlungen, Posteingang) und die Uhr
  * sind eingespeist; der Transport zeichnet auf (am Ende einmal über echtes
- * HTTP gegen das nachgebaute Home Assistant auf Port 18741).
+ * HTTP gegen das nachgebaute Home Assistant auf eigenem Port).
  */
 #[CoversClass(HomeAssistantNotifyService::class)]
 #[CoversClass(NotifyConfig::class)]

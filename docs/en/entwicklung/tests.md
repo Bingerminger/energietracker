@@ -651,5 +651,38 @@ chart, consumption monthly chart, analysis, forecast).
 
 ---
 
+## 5. Speed
+
+Since v3.14.0. **While developing, run only the tests a change touches; before
+every commit and pull request, the whole suite.**
+
+```bash
+vendor/bin/phpunit --no-coverage --filter AgendaServiceTest   # one test class
+vendor/bin/phpunit --no-coverage tests/unit/Http              # one area
+node tests/forms.test.mjs                                     # one Node suite without a server
+composer test:parallel                                        # whole suite, one process per core
+```
+
+- **Which tests a change touches:** the test class of the changed class and
+  every test file that names it (`grep -rlw AgendaService tests/unit`); for
+  modules in `public/js`, the Node suites that name the file, and always
+  `browser-render.test.mjs` (§2).
+- **The whole suite in parallel:** `composer test:parallel` starts
+  `tools/phpunit-parallel.php` (`-j 4` for four processes). PHPUnit lists the
+  files and tests itself, the tool spreads the files by the run time of the last
+  run and **fails if fewer tests run than PHPUnit lists**. Which file ran in
+  which process is in `.phpunit.cache/parallel/verteilung.txt`. On 18 Nov 2026
+  the suite took 42 s on a machine with ten cores instead of 250 s one after the
+  other. The sequential run (`vendor/bin/phpunit --no-coverage`) stays valid; the
+  CI and the time travel use it.
+- **So that tests can run in parallel:** take a port for a test server only from
+  `TestPorts::free()` (`TestPortsTest` holds this; in the parallel run every
+  process has its own port range), keep data in a temp directory of its own,
+  reset environment variables after the test.
+- **The CI** splits the job `test` into four groups that run at the same time
+  (§3, CI pipeline).
+
+---
+
 [← Data model](../referenz/datenmodell.md) ·
 [Release process →](release-prozess.md)

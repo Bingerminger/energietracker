@@ -5,6 +5,7 @@ namespace Energietracker\Tests\Http;
 
 use Energietracker\App;
 use PHPUnit\Framework\TestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v2.6.0 — Anmeldung und HTTP-Verhalten gegen einen echten PHP-Server
@@ -50,9 +51,7 @@ final class AuthFlowTest extends TestCase
 
     private static function freePort(): int
     {
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr(strrchr(stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         return $port;
     }
 
