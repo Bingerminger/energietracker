@@ -12,6 +12,7 @@ use Energietracker\Support\LocalizedException;
 use Energietracker\Tests\Support\InboxFixture;
 use Energietracker\Tests\Support\ServiceTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.7.0 (Posteingang) — der lokale Anschluss: dieselbe Einstellung und
@@ -188,9 +189,7 @@ final class InboxLocalProviderTest extends ServiceTestCase
 
     public function testAgainstAFakeOllamaOverRealHttp(): void
     {
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         $log = $this->dataDir . '/ollama.log';
         $env = array_merge(getenv(), ['FAKE_OLLAMA_LOG' => $log]);
         $this->proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", dirname(__DIR__, 2) . '/fixtures/fake-ollama.php'],

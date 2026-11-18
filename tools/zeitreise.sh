@@ -117,7 +117,7 @@ run_phpunit() {   # $1 Stichtag, $2 Protokoll
   [ -n "${ZR_FILTER:-}" ] && args+=(--filter "$ZR_FILTER")
   [ -n "${ZR_PHPUNIT_ARGS:-}" ] && read -r -a extra <<< "$ZR_PHPUNIT_ARGS" && args+=("${extra[@]}")
   off=$(offset_to "$1") || return 2
-  # das nachgebaute Home Assistant der Tests (sonst fester Port 18741, den parallele Läufe teilen)
+  # das nachgebaute Home Assistant der Tests: fester Port je Lauf (sonst ein freier Port über TestPorts)
   ET_HA_FAKE_PORT=$((BASE+9)) "$FT" -f "$off" php vendor/phpunit/phpunit/phpunit "${args[@]}" < /dev/null > "$2" 2>&1
 }
 

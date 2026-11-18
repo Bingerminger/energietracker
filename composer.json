@@ -21,6 +21,7 @@
         "sort-packages": true
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "test:parallel": "@php tools/phpunit-parallel.php"
     }
 }

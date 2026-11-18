@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v2.7.0 — Erststart mit Länderprofil (I18N-01, N1014), über HTTP gegen
@@ -29,9 +30,7 @@ final class FirstStartProfileTest extends TestCase
         $this->dataDir = sys_get_temp_dir() . '/et-first-' . bin2hex(random_bytes(4));
         mkdir($this->dataDir, 0755, true);
         foreach ($seed as $file => $content) file_put_contents("$this->dataDir/$file", json_encode($content));
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr(strrchr(stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         $this->base = "http://127.0.0.1:$port";
         $env = array_merge(getenv(), ['ET_DATA_DIR' => $this->dataDir, 'ET_LOG_DEST' => 'null']);
         unset($env['ET_AUTH'], $env['ET_ADMIN_PASSWORD_HASH'], $env['ET_ALLOWED_HOSTS'], $env['ET_DEBUG']);

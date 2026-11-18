@@ -23,6 +23,7 @@ use Energietracker\Support\LocalizedException;
 use Energietracker\Tests\Support\InboxFixture;
 use Energietracker\Tests\Support\ServiceTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.7.0 (Paket cloud) — Auslesen in der Cloud: beide Anschlüsse gegen einen
@@ -48,9 +49,7 @@ final class CloudExtractionTest extends ServiceTestCase
 
     public static function setUpBeforeClass(): void
     {
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         self::$base = "http://127.0.0.1:$port";
         self::$log = sys_get_temp_dir() . '/et-fake-cloud-' . bin2hex(random_bytes(4)) . '.json';
         // ein Prozess (ohne PHP_CLI_SERVER_WORKERS): proc_terminate beendet ihn ganz

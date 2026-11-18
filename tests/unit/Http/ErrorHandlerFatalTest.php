@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.10.0 (Skeptiker, Beobachtung) — Auch eine Anfrage, die mit einem
@@ -24,9 +25,7 @@ final class ErrorHandlerFatalTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         self::$base = "http://127.0.0.1:$port";
         $env = getenv();
         unset($env['PHP_CLI_SERVER_WORKERS'], $env['ET_DEBUG']);

@@ -22,7 +22,9 @@ request that an agent helped and what you checked yourself.
 
 ```bash
 composer install                                   # PHPUnit only
-vendor/bin/phpunit --no-coverage                   # service layer
+vendor/bin/phpunit --no-coverage --filter FooTest  # while developing: what your change touches
+composer test:parallel                             # whole service layer, one process per core
+vendor/bin/phpunit --no-coverage                   # whole service layer, one after the other
 
 npm install --no-save jsdom                        # for the browser tests
 cp -R demo-data /tmp/etdata
@@ -35,6 +37,15 @@ The full list of Node suites, with the exact commands, is in
 request. Details: [docs/en/entwicklung/tests.md](docs/en/entwicklung/tests.md).
 If you change the example households, `node tools/build-personas.mjs --check`
 must pass too.
+
+**While developing, run only the tests your change touches:** the test class of
+the class you changed and every test that names it (`grep -rlw AgendaService
+tests/unit`); for a module in `public/js`, the Node suites that name the file,
+plus `browser-render.test.mjs`. **Before every commit and pull request, run the
+whole suite.** `composer test:parallel` (`tools/phpunit-parallel.php`) does that
+in about a fifth of the time and fails if fewer tests run than PHPUnit lists. A
+test server takes its port only from `TestPorts::free()`, so the processes never
+share one. Details: [docs/en/entwicklung/tests.md](docs/en/entwicklung/tests.md#5-speed).
 
 Every change brings its test. Do the **counter-check**: turn the new safeguard
 in the code back for a moment, and the test must fail. Tests never depend on

@@ -17,6 +17,7 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Support\LocalizedException;
 use Energietracker\Support\Outbound;
 use Energietracker\Tests\Support\ServiceTestCase;
+use Energietracker\Tests\Support\TestPorts;
 
 /**
  * v3.4.0 (N1020) — Sicher im Haushalt, auf der Ebene der Dienste: Sperre je
@@ -224,9 +225,7 @@ final class HouseholdHardeningTest extends ServiceTestCase
         mkdir($dir);
         file_put_contents("$dir/router.php", '<?php if (str_starts_with($_SERVER["REQUEST_URI"], "/redirect")) { header("Location: /big"); http_response_code(302); return; }'
             . ' header("Content-Type: application/json"); $chunk = str_repeat("x", 1048576); for ($i = 0; $i < 22; $i++) { echo $chunk; flush(); }');
-        $s = stream_socket_server('tcp://127.0.0.1:0');
-        $port = (int)substr((string)strrchr((string)stream_socket_get_name($s, false), ':'), 1);
-        fclose($s);
+        $port = TestPorts::free();
         $proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", "$dir/router.php"], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
         try {
             for ($i = 0; $i < 100 && @fsockopen('127.0.0.1', $port) === false; $i++) usleep(50_000);
