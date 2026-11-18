@@ -20,7 +20,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. **Die Prognose der Wärmepumpe und der PV nach dem Wetter kommt erneut auf den Prüfstand,** weil sie in v3.13 an einem Prüfhaushalt ihre vorab festgelegten Schwellen noch nicht schafft; dazu ein Heizmodell für gekrümmte Heizkurven (#38). |
+| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. **Die Prognose der Wärmepumpe und der PV nach dem Wetter kommt erneut auf den Prüfstand,** weil sie in v3.13 an einem Prüfhaushalt ihre vorab festgelegten Schwellen noch nicht schafft; dazu ein Heizmodell für gekrümmte Heizkurven (#38). Außerdem warnt die App, wenn ein Zählerstand aus Home Assistant tagelang gleich bleibt (#69). |
 | **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
 
 ---

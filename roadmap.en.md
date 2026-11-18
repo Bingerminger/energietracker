@@ -19,7 +19,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. **The forecast of heat pump and PV by the weather goes back on the test bench,** because in v3.13 it does not yet meet its thresholds, set in advance, on a test household; plus a heating model for curved heating curves (#38). |
+| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. **The forecast of heat pump and PV by the weather goes back on the test bench,** because in v3.13 it does not yet meet its thresholds, set in advance, on a test household; plus a heating model for curved heating curves (#38). The app also warns when a meter reading from Home Assistant stays the same for days (#69). |
 | **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
 
 ---

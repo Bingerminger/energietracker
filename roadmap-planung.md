@@ -144,6 +144,7 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | **Umzug aus anderen Apps** (2026-10-28): Import der Exporte verbreiteter Verbrauchs-Apps samt Historie (Zählerstände, Verträge, Preise), mit Trockenlauf wie beim CSV-Import; Formate nach Auswahl der Apps | M–L | Massen-Import | Planung 2026-10-28 |
 | — | **Abschlag mit Terminen nach einem Einzug:** ein Schalter „danach im Takt“ am Abschlag, damit Termine, die weniger als ein Jahr decken, im Rhythmus weiterlaufen; heute wiederholt die App sie jährlich (Bekannte Grenze v3.13.0) | S–M | Paket W (v3.13) | Entscheidung 2026-11-14 |
 | — | **Herkunft eines Abrechnungsjahrs nach Tagen** statt nach ganzen Monaten (KI-Schnittstelle): ein Jahr, das an einer echten Ablesung endet, heißt heute „geschätzt“, wenn sein letzter Monat zum Teil geschätzt ist | S | v3.13 Herkunft (`Provenance`) | Entscheidung 2026-11-14 |
+| — | **Warnung bei stehendem Zählerstand aus Home Assistant** (#69): bleibt der Stand eines Zählers mit Ablesungen über die Schnittstelle (`source: ingest`) eine einstellbare Zahl von Tagen gleich (Einstellung neben `alert_days_since_reading`), Hinweis unter „Zu tun“ und damit auch im Sensor und in den Benachrichtigungen; Stände von Hand bleiben außen vor | S–M | v3.9.0 Home Assistant, Agenda | Idee GitHub #66, 2026-11-18 |
 
 ### v3.15.0 — Für alle verständlich
 
