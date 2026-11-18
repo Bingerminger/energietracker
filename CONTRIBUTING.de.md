@@ -56,6 +56,7 @@ Immer mit `router.php` — ohne ihn liefert der PHP-Server auch `data/` aus.
 ```bash
 composer install                                   # nur für PHPUnit (dev)
 vendor/bin/phpunit --no-coverage                   # Service-Schicht
+composer test:parallel                             # dasselbe, ein Prozess je Kern
 
 npm install --no-save jsdom                        # für die Browser-Tests
 cp -R demo-data /tmp/etdata
@@ -69,7 +70,8 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/router.test.mjs`,
 `tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`,
 `tests/ha-snippet.test.mjs`, `tests/plural.test.mjs` und
 `tests/hardcoded-text.test.mjs`. Die CI führt alles bei jedem Pull Request aus.
-Details: [Tests](docs/entwicklung/tests.md).
+Beim Entwickeln nur die Tests, die die Änderung betrifft; vor einem Pull Request
+die ganze Suite. Details: [Tests](docs/entwicklung/tests.md).
 
 Eine Änderung bringt ihren Test mit. Bewährt hat sich die **Gegenprobe**: den
 neuen Schutz im Code kurz zurückdrehen — der Test muss dann rot werden.

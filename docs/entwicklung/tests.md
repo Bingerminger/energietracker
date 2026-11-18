@@ -691,15 +691,17 @@ composer test:parallel                                        # ganze Suite, ein
   `tools/phpunit-parallel.php` (`-j 4` für vier Prozesse). PHPUnit listet Dateien
   und Tests selbst auf, das Werkzeug verteilt die Dateien nach der Dauer des
   letzten Laufs und **schlägt fehl, wenn weniger Tests laufen, als PHPUnit
-  listet**. Welche Datei in welchem Prozess lief, steht in
-  `.phpunit.cache/parallel/verteilung.txt`. Am 18.11.2026 dauerte die Suite auf
+  listet**. Welche Datei in welchem Prozess lief, steht unter
+  `.phpunit.cache/parallel/`. Am 18.11.2026 dauerte die Suite auf
   einem Rechner mit zehn Kernen 42 s statt 250 s nacheinander. Der Lauf
   nacheinander (`vendor/bin/phpunit --no-coverage`) gilt weiter; ihn nutzen die
   CI und die Zeitreise.
 - **Damit Tests parallel laufen können:** einen Port für einen Testserver nur
   über `TestPorts::free()` holen (`TestPortsTest` hält das fest; im parallelen
-  Lauf hat jeder Prozess einen eigenen Portbereich), Daten nur in einem eigenen
-  Temp-Verzeichnis, Umgebungsvariablen nach dem Test zurücksetzen.
+  Lauf hat jeder Prozess einen eigenen Portbereich, und jeder Lauf nimmt sich
+  einen eigenen Block, damit mehrere Läufe auf einem Rechner nebeneinander
+  gehen), Daten nur in einem eigenen Temp-Verzeichnis, Umgebungsvariablen nach
+  dem Test zurücksetzen.
 - **Die CI** teilt den Job `test` in vier gleichzeitige Gruppen (§3, CI-Pipeline).
 
 ---

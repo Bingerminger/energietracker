@@ -44,8 +44,9 @@ tests/unit`); for a module in `public/js`, the Node suites that name the file,
 plus `browser-render.test.mjs`. **Before every commit and pull request, run the
 whole suite.** `composer test:parallel` (`tools/phpunit-parallel.php`) does that
 in about a fifth of the time and fails if fewer tests run than PHPUnit lists. A
-test server takes its port only from `TestPorts::free()`, so the processes never
-share one. Details: [docs/en/entwicklung/tests.md](docs/en/entwicklung/tests.md#5-speed).
+test server takes its port only from `TestPorts::free()`: every process of a run
+has its own port range, and every run claims its own block, so several runs on
+one machine stay apart. Details: [docs/en/entwicklung/tests.md](docs/en/entwicklung/tests.md#5-speed).
 
 Every change brings its test. Do the **counter-check**: turn the new safeguard
 in the code back for a moment, and the test must fail. Tests never depend on

@@ -38,7 +38,8 @@ final class TestPortsTest extends TestCase
 
     public function testWithARangeOnlyPortsOfThatRangeAndEachInTurn(): void
     {
-        $base = 29600 + random_int(0, 50) * 4;
+        // Probeports oberhalb der Blöcke von tools/phpunit-parallel.php (20000–31999), unter 32768
+        $base = 32100 + random_int(0, 40) * 4;
         putenv("ET_TEST_PORT_BASE=$base");
         putenv('ET_TEST_PORT_SPAN=4');
         $ports = [TestPorts::free(), TestPorts::free(), TestPorts::free()];
@@ -48,7 +49,7 @@ final class TestPortsTest extends TestCase
 
     public function testBusyPortsOfTheRangeAreSkipped(): void
     {
-        $base = 29800 + random_int(0, 50) * 3;
+        $base = 32300 + random_int(0, 40) * 3;
         putenv("ET_TEST_PORT_BASE=$base");
         putenv('ET_TEST_PORT_SPAN=3');
         $busy = [@stream_socket_server("tcp://127.0.0.1:$base"), @stream_socket_server('tcp://127.0.0.1:' . ($base + 2))];
@@ -62,7 +63,7 @@ final class TestPortsTest extends TestCase
 
     public function testAFullRangeIsAnErrorNotAForeignPort(): void
     {
-        $base = 30200 + random_int(0, 50) * 2;
+        $base = 32500 + random_int(0, 40) * 2;
         putenv("ET_TEST_PORT_BASE=$base");
         putenv('ET_TEST_PORT_SPAN=2');
         $busy = [@stream_socket_server("tcp://127.0.0.1:$base"), @stream_socket_server('tcp://127.0.0.1:' . ($base + 1))];
