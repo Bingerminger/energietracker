@@ -19,9 +19,26 @@ permissions:
   contents: read
 
 jobs:
+  # v3.14.0 — der Job „test“ läuft in vier Gruppen gleichzeitig (bis v3.13.0 ein Job „Backend-Shape &
+  # Browser-Render Tests“, im Median 15,5 min, alle Schritte nacheinander). Jeder Testschritt läuft in genau
+  # einer Gruppe (`if: matrix.gruppe == …`); Befehle und Reihenfolge bleiben, weil Werkzeuge wie
+  # tools/zeitreise.sh die Suiten aus dieser Datei lesen. Aufteilung nach gemessener Dauer, neue Suiten in die
+  # kürzeste Gruppe: docs/entwicklung/tests.md (CI-Pipeline).
   test:
-    name: Backend-Shape & Browser-Render Tests
+    name: Tests (${{ matrix.titel }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gruppe: server
+            titel: Server, API-Shape und Browser-Render
+          - gruppe: demo
+            titel: Demo, Barrierefreiheit und große Daten
+          - gruppe: raster
+            titel: Layout im Browser, Raster und Sichten
+          - gruppe: sprachen
+            titel: Layout im Browser, Sichtung und Sprachen
 
     steps:
       - uses: actions/checkout@v7
@@ -54,6 +71,7 @@ jobs:
       # v3.5.0 (F1027) — Tagesfilm: Viertelstundenmodell, Abspieler, Tastatur,
       # „Bewegung reduzieren“, „Tag“ nur mit Viertelstunden.
       - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität, Router, Kontraste, Charts, Doku, Schaubilder, Formulare)
+        if: matrix.gruppe == 'server'
         run: |
           node tests/format.test.mjs
           node tests/ha-snippet.test.mjs
@@ -119,9 +137,11 @@ jobs:
           node tests/outbound-admin.test.mjs
 
       - name: Demo-Daten vorbereiten
+        if: matrix.gruppe == 'server'
         run: cp -r demo-data /tmp/etdata
 
       - name: Migrations-Smoke (1.0.0 → aktuelles Schema)
+        if: matrix.gruppe == 'server'
         run: |
           # Separater Datensatz mit künstlich heruntergesetztem Schema,
           # damit der Migrationspfad weiterhin in der CI durchlaufen wird
@@ -161,6 +181,7 @@ jobs:
       # (zufällige Rotläufe beim Neuzeichnen). v3.13.0 — die Prüfungen mit Kalenderbezug leiten ihre Erwartung
       # aus dem Stand der Daten ab und kippen zum Jahreswechsel nicht mehr; der Workflow „Zeitreise“ (zeitreise.yml, wöchentlich) prüft das.
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)
+        if: matrix.gruppe == 'server'
         run: |
           set -euo pipefail
           # router.php spiegelt das nginx-Routing (statische Assets +
@@ -213,6 +234,7 @@ jobs:
       # klicken. Rot, wenn eine Seite eine Antwort braucht, die nicht
       # vorberechnet ist. Startet eigene Server (8895 PHP, 8894 statisch).
       - name: Öffentliche Demo (bauen und durchklicken)
+        if: matrix.gruppe == 'demo'
         run: node tests/demo.test.mjs
 
       # v3.4.0 (N1020) — dieselbe App mit präparierten Daten (HTML und
@@ -220,12 +242,14 @@ jobs:
       # Kein Wert darf als HTML in der Seite landen. Startet einen eigenen
       # Server auf einem freien Port.
       - name: Ansichten mit präparierten Daten (kein HTML aus den Daten)
+        if: matrix.gruppe == 'server'
         run: node tests/poisoned-render.test.mjs
 
       # v3.4.0 (N1021) — Vertragsreihenfolge, Blättern und Rechnung prüfen mit
       # dem Beispielhaushalt „eigenheim-modern“ und 400 Tageswerten. Startet
       # einen eigenen Server auf einem freien Port (ET_LISTS_PORT).
       - name: Listen, Verträge, Rechnung prüfen (Beispielhaushalt)
+        if: matrix.gruppe == 'server'
         run: node tests/lists.test.mjs
 
       # v3.7.0 (Haushalt aus Dokumenten) — der Entwurf über alle ausgelesenen
@@ -233,6 +257,7 @@ jobs:
       # Modell), Übernehmen, „Auslesen einrichten“ als Dialog, der Assistent mit
       # drei Wegen. Eigener Server auf einem freien Port (ET_DRAFT_PORT).
       - name: Haushalt aus Dokumenten (Entwurf, Einrichtung)
+        if: matrix.gruppe == 'server'
         run: node tests/inbox-draft.test.mjs
 
       # v3.7.0 (Qualität) — Barrierefreiheit der Dialoge: die echte App in JSDOM,
@@ -242,6 +267,7 @@ jobs:
       # dunkel). Ohne Liste der Dialoge: neue prüft er von selbst mit. Startet
       # einen eigenen Server auf einem freien Port (ET_A11Y_PORT).
       - name: Barrierefreiheit der Dialoge
+        if: matrix.gruppe == 'demo'
         run: node tests/a11y.test.mjs
 
       # v3.7.0 (Qualität) — Grenzen mit großen Datenmengen: ein erfundener
@@ -250,6 +276,7 @@ jobs:
       # großzügigen Schranken (Zehnfaches der Messung in
       # docs/entwicklung/messung-grosse-daten.md). Eigener Server, freier Port.
       - name: Grenzen mit großen Datenmengen
+        if: matrix.gruppe == 'demo'
         run: node tests/large-data.test.mjs
 
       # v3.12.0 (F1037) — Energietracker für deine KI: /api/mcp mit rohem
@@ -257,28 +284,34 @@ jobs:
       # Schlüsselpflicht, Fehlerfälle mit Status und JSON-RPC-Code. Eigener
       # Server auf einem freien Port (ET_MCP_PORT).
       - name: MCP-Protokoll (KI-Schnittstelle)
+        if: matrix.gruppe == 'server'
         run: node tests/mcp-protocol.test.mjs
 
       # v3.12.0 (Designsprache) — kein Flattersatz der Boxen: die echte App im echten
       # Browser über Stufe und Breite, kein Querscrollen, gleich breite Ziffern. JSDOM
       # kennt kein Layout, deshalb als einzige Suite mit Chromium.
       - name: Chromium für die Layout-Prüfung
+        if: matrix.gruppe == 'raster' || matrix.gruppe == 'sprachen'
         run: npm install playwright && npx playwright install --with-deps chromium
 
       - name: Raster ohne Flattersatz (Layout im Browser)
+        if: matrix.gruppe == 'raster'
         run: node tests/box-raster.test.mjs
 
       # v3.12.0 (Sichtung M1) — Felder am iPhone, Knopfreihen, Unterzähler, Kontrast der Salden
       - name: Sichtung M1 (Layout im Browser)
+        if: matrix.gruppe == 'sprachen'
         run: node tests/sichtung-layout.test.mjs
 
       # v3.12.0 (M5) — alle sieben Sprachen am iPhone, die längeren auch am Mac:
       # kein Text ragt aus Kachel, Knopf oder Zelle, kein Knopf über zwei Zeilen
       - name: Lange Sprachen (Layout im Browser)
+        if: matrix.gruppe == 'sprachen'
         run: node tests/laengen.test.mjs
 
       # v3.12.0 (M4) — Kacheln, Sichten je Art (Chart.js in verdeckten Sichten), Zeilen, Frühere Verträge
       - name: Übersicht, Sichten und Verträge (im Browser)
+        if: matrix.gruppe == 'raster'
         run: node tests/sichten.test.mjs
 
   lint-php:

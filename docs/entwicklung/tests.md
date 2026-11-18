@@ -611,7 +611,15 @@ Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
 **phpunit** (Service-Suite), **test** (Migrations-Smoke +
 Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
-(Image bauen + Container-Smoke gegen `/api/health`). Seit v3.13.0 prüft ein
+(Image bauen + Container-Smoke gegen `/api/health`). Seit v3.14.0 läuft **test**
+in vier Gruppen gleichzeitig (bis dahin alle Schritte nacheinander, im Median
+15,5 Minuten): **server** (Frontend-Unit-Tests, Migrations-Smoke, API-Shape und
+Browser-Render, Suiten mit eigenem Server), **demo** (öffentliche Demo,
+Barrierefreiheit, große Datenmengen), **raster** und **sprachen** (Layout im
+Browser mit Chromium). Jeder Schritt steht einzeln in `ci.yml` und läuft über
+`if: matrix.gruppe == …` in genau einer Gruppe; die Befehle bleiben wörtlich
+stehen, weil `tools/zeitreise.sh` die Suiten daraus liest. Eine neue Suite kommt
+in die Gruppe mit der kürzesten Laufzeit. Seit v3.13.0 prüft ein
 eigener Workflow **Zeitreise** (`.github/workflows/zeitreise.yml`) PHPUnit und
 die Node-Suiten mit Kalenderbezug unter verstellter Uhr am 15.01., in der
 Neujahrsnacht und am 01.03. (`tools/zeitreise.sh` mit libfaketime), **einmal pro
