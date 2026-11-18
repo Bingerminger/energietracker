@@ -593,6 +593,14 @@ This exact sequence runs automated in the **CI pipeline**
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),
 **test** (migration smoke + frontend API shape + browser render via `router.php`)
 and **docker** (build image + container smoke against `/api/health`). Since
+v3.14.0 **test** runs in four groups at the same time (until then all steps one
+after the other, 15.5 minutes median): **server** (frontend unit tests, migration
+smoke, API shape and browser render, suites with their own server), **demo**
+(public demo, accessibility, large data), **raster** and **sprachen** (layout in
+the browser with Chromium). Every step stays on its own in `ci.yml` and runs in
+exactly one group via `if: matrix.gruppe == …`; the commands stay verbatim,
+because `tools/zeitreise.sh` reads the suites from there. A new suite goes into
+the group with the shortest run time. Since
 v3.13.0 a separate **Zeitreise** workflow (`.github/workflows/zeitreise.yml`)
 checks PHPUnit and the Node suites that depend on the calendar under a shifted
 clock on 15 January, on New Year's night and on 1 March (`tools/zeitreise.sh`
