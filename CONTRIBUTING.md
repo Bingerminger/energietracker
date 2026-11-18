@@ -54,6 +54,7 @@ Always with `router.php` — without it the PHP server also serves `data/`.
 ```bash
 composer install                                   # only for PHPUnit (dev)
 vendor/bin/phpunit --no-coverage                   # service layer
+composer test:parallel                             # the same, one process per core
 
 npm install --no-save jsdom                        # for the browser tests
 cp -R demo-data /tmp/etdata
@@ -67,7 +68,8 @@ Without a server, `tests/format.test.mjs`, `tests/router.test.mjs`,
 `tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`,
 `tests/ha-snippet.test.mjs`, `tests/plural.test.mjs` and
 `tests/hardcoded-text.test.mjs` run. CI runs everything on every pull request.
-Details: [Tests](docs/en/entwicklung/tests.md).
+While developing, run only the tests your change touches; before a pull request,
+the whole suite. Details: [Tests](docs/en/entwicklung/tests.md).
 
 A change brings its test. The **counter-check** has proven itself: briefly turn
 the new safeguard in the code back — the test must then fail.

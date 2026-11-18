@@ -14,18 +14,25 @@ declare(strict_types=1);
  *   Weicht die Summe der Prozesse davon ab, schlägt der Lauf fehl: Kein Test fällt unbemerkt heraus.
  * - Verteilt wird nach der Dauer je Datei aus dem letzten Lauf (`.phpunit.cache/parallel/zeiten.json`, aus den
  *   JUnit-Protokollen der Prozesse); unbekannte Dateien zählen mit dem Mittel. Gleiche Eingabe, gleiche
- *   Verteilung; welche Datei in welchem Prozess lief, steht in `.phpunit.cache/parallel/verteilung.txt`.
+ *   Verteilung; welche Datei in welchem Prozess lief, steht in `.phpunit.cache/parallel/lauf-<n>/verteilung.txt`.
  * - Jeder Prozess bekommt eine eigene Konfiguration (aus phpunit.xml, nur die Dateien ersetzt), einen eigenen
  *   Cache und einen eigenen Bereich für die Ports seiner Testserver (`ET_TEST_PORT_BASE`, siehe
- *   tests/unit/Support/TestPorts.php), damit sich die Prozesse nicht in die Quere kommen.
+ *   tests/unit/Support/TestPorts.php). Jeder Lauf nimmt sich per Sperrdatei einen eigenen Block solcher Bereiche:
+ *   Mehrere Läufe auf einem Rechner, auch aus verschiedenen Arbeitskopien, kommen sich nicht in die Quere.
  * - Immer ohne Coverage. Exit 0 nur, wenn jeder Prozess grün ist und die Zahl stimmt.
  *
  * Der volle Lauf nacheinander (`vendor/bin/phpunit --no-coverage`) bleibt gültig; die CI nutzt ihn, solange
  * der parallele Lauf dort nicht messbar schneller ist (docs/entwicklung/tests.md, „Tempo“).
  */
 
-const PORT_BASE = 24000;   // über der Zeitreise (19200 ff.) und dem nachgebauten Home Assistant, unter 32768
-const PORT_SPAN = 400;
+// Ports der Testserver: jeder Lauf nimmt sich per Sperrdatei einen freien Block, jeder Prozess darin PORT_SPAN Ports
+// (frei gewordene werden wiederverwendet). Über der Zeitreise (19200 ff.) und dem nachgebauten Home Assistant,
+// unter den Ports, die Linux selbst vergibt (ab 32768). So laufen bis zu PORT_BLOCKS Läufe nebeneinander, auch aus
+// mehreren Arbeitskopien.
+const PORT_FIRST = 20000;
+const PORT_SPAN = 150;
+const MAX_JOBS = 16;
+const PORT_BLOCKS = 5;
 
 $root = dirname(__DIR__);
 chdir($root);
@@ -45,7 +52,18 @@ for ($i = 0; $i < count($args); $i++) {
 }
 $pass = array_values(array_filter($pass, fn($a) => $a !== '--no-coverage'));
 if ($jobs <= 0) $jobs = (int)(getenv('ET_PARALLEL') ?: trim((string)shell_exec('getconf _NPROCESSORS_ONLN 2>/dev/null')) ?: 4);
-$jobs = max(1, min($jobs, 16));
+$jobs = max(1, min($jobs, MAX_JOBS));
+
+// ── Block für die Ports dieses Laufs (die Sperre hält, bis der Lauf endet)
+$lock = null;
+$block = 0;
+for ($k = 0; $k < PORT_BLOCKS; $k++) {
+    $h = fopen(sys_get_temp_dir() . "/et-phpunit-parallel-$k.lock", 'c');
+    if ($h !== false && flock($h, LOCK_EX | LOCK_NB)) { $lock = $h; $block = $k; break; }
+    if ($h !== false) fclose($h);
+}
+if ($lock === null) { fwrite(STDERR, 'Schon ' . PORT_BLOCKS . " Läufe gleichzeitig, später noch einmal\n"); exit(2); }
+$portBase = PORT_FIRST + $block * MAX_JOBS * PORT_SPAN;
 
 $run = function (array $cmd) use ($root): string {
     $p = proc_open(array_merge([PHP_BINARY, ...$cmd]), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root);
@@ -63,10 +81,11 @@ $expected = count($t[0]);
 if ($files === [] || $expected === 0) { fwrite(STDERR, "PHPUnit findet keine Tests\n"); exit(1); }
 $jobs = min($jobs, count($files));
 
-// ── Verteilen nach Dauer
-$dir = "$root/.phpunit.cache/parallel";
+// ── Verteilen nach Dauer (Zeiten gemeinsam, Arbeitsordner je Block)
+$cache = "$root/.phpunit.cache/parallel";
+$dir = "$cache/lauf-$block";
 @mkdir($dir, 0777, true);
-$times = is_file("$dir/zeiten.json") ? (array)json_decode((string)file_get_contents("$dir/zeiten.json"), true) : [];
+$times = is_file("$cache/zeiten.json") ? (array)json_decode((string)file_get_contents("$cache/zeiten.json"), true) : [];
 $known = array_values(array_filter(array_map(fn($f) => $times[substr($f, strlen($root) + 1)] ?? null, $files), 'is_numeric'));
 $fallback = $known ? array_sum($known) / count($known) : 1.0;
 $weight = [];
@@ -109,7 +128,7 @@ foreach ($groups as $i => $g) {
     $suites->appendChild($suite);
     $x->appendChild($suites);
     $doc->save("$dir/$i/phpunit.xml");
-    $env = array_merge(getenv(), ['ET_TEST_PORT_BASE' => (string)(PORT_BASE + $i * PORT_SPAN), 'ET_TEST_PORT_SPAN' => (string)PORT_SPAN]);
+    $env = array_merge(getenv(), ['ET_TEST_PORT_BASE' => (string)($portBase + $i * PORT_SPAN), 'ET_TEST_PORT_SPAN' => (string)PORT_SPAN]);
     $procs[$i] = proc_open(
         [PHP_BINARY, $phpunit, '-c', "$dir/$i/phpunit.xml", '--no-coverage', '--colors=never', '--log-junit', "$dir/$i/junit.xml", ...$pass],
         [0 => ['file', '/dev/null', 'r'], 1 => ['file', "$dir/$i/ausgabe.log", 'w'], 2 => ['file', "$dir/$i/ausgabe.log", 'a']],
@@ -153,12 +172,12 @@ foreach ($groups as $i => $g) {
         }
     }
 }
-if (!$failed) file_put_contents("$dir/zeiten.json", json_encode($times, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+if (!$failed) file_put_contents("$cache/zeiten.json", json_encode($times, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
 foreach ($failed as $i) {
     $out = (string)file_get_contents("$dir/$i/ausgabe.log");
     $pos = preg_match('/^There (?:was|were) \d+/m', $out, $mm, PREG_OFFSET_CAPTURE) ? $mm[0][1] : max(0, strlen($out) - 4000);
-    echo "\n── Prozess $i (Dateien: .phpunit.cache/parallel/verteilung.txt, Protokoll: .phpunit.cache/parallel/$i/ausgabe.log)\n";
+    echo "\n── Prozess $i (Dateien: .phpunit.cache/parallel/lauf-$block/verteilung.txt, Protokoll: .phpunit.cache/parallel/lauf-$block/$i/ausgabe.log)\n";
     echo substr($out, $pos), "\n";
 }
 $missing = !$failed && $tests !== $expected;
