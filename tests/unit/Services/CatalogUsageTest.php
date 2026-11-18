@@ -72,14 +72,29 @@ final class CatalogUsageTest extends TestCase
         return array_values(array_unique($out));
     }
 
+    /**
+     * v3.14.0 — Alles, was im Code zwischen zwei aufeinanderfolgenden Anführungszeichen steht, als Menge.
+     * Ein Schlüssel steht wörtlich im Code, wenn er genau zwischen zwei Anführungszeichen steht; weil
+     * Schlüssel selbst keine enthalten, ist das dasselbe wie ein Eintrag dieser Menge. Bis v3.13.0 lief je
+     * Schlüssel ein regulärer Ausdruck über den ganzen Code: rund 30 s, ein Zehntel der Suite. Vor der
+     * Umstellung für alle 7151 Schlüssel mit dem alten Weg verglichen: gleiches Ergebnis.
+     *
+     * @return array<string,int>
+     */
+    private static function quoted(string $src): array
+    {
+        return array_flip(preg_split('/[\'"`]/', $src) ?: []);
+    }
+
     public function testEveryKeyIsUsed(): void
     {
         $keys = array_keys(self::flatten((array)json_decode((string)file_get_contents(self::root() . '/public/locales/de.json'), true)));
         $src = self::sources();
+        $quoted = self::quoted($src);
         $prefixes = self::dynamicPrefixes($src);
         $dead = [];
         foreach ($keys as $key) {
-            if (preg_match('/[\'"`]' . preg_quote($key, '/') . '[\'"`]/', $src)) continue;
+            if (isset($quoted[$key])) continue;
             foreach ($prefixes as $p) if (str_starts_with($key, $p)) continue 2;
             $dead[] = $key;
         }
@@ -92,7 +107,7 @@ final class CatalogUsageTest extends TestCase
         $src = self::sources();
         $prefixes = self::dynamicPrefixes($src);
         $key = 'settings.zzzNeverUsedKey';
-        $used = preg_match('/[\'"`]' . preg_quote($key, '/') . '[\'"`]/', $src)
+        $used = isset(self::quoted($src)[$key])
             || array_filter($prefixes, fn($p) => str_starts_with($key, $p));
         self::assertFalse((bool)$used, 'Ein Präfix ist zu breit — „settings." darf nicht als dynamisch gelten');
     }
