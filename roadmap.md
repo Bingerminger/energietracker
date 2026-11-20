@@ -9,7 +9,7 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 17.11.2026 · **Aktuelle Version:** v3.13.0
+**Stand:** 20.11.2026 · **Aktuelle Version:** v3.13.0
 
 ---
 
@@ -20,8 +20,8 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. **Die Prognose der Wärmepumpe und der PV nach dem Wetter kommt erneut auf den Prüfstand,** weil sie in v3.13 an einem Prüfhaushalt ihre vorab festgelegten Schwellen noch nicht schafft; dazu ein Heizmodell für gekrümmte Heizkurven (#38). Außerdem warnt die App, wenn ein Zählerstand aus Home Assistant tagelang gleich bleibt (#69). |
-| **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
+| **v3.14.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, und wer aus einer anderen App kommt, bringt seine Historie mit: ein Import mit freier Spaltenzuordnung und Trockenlauf, dazu der Verlauf aus Home Assistant. Die Monatswerte verteilen den Verbrauch zwischen zwei Ablesungen nach dem Wetter, ähnlich dem Gradtagzahlverfahren der Versorger; Abrechnung und Saldo bleiben tagesanteilig. Die App meldet, wenn ein Zählerstand aus Home Assistant tagelang gleich bleibt (#69), und der Wetterabruf wartet, wenn Open-Meteo überlastet ist. Dazu Korrekturen beim Saldo von Zählern mit Verbrauch je Zeitraum, bei Abschlägen nach einem Einzug und bei der Kündigung in der Grundversorgung (immer zwei Wochen). **Offen gesagt: Die Prognose der Wärmepumpe und der PV nach dem Wetter bleibt aus.** In einer Vorstudie am Prüfhaushalt hat kein Baustein seine vorab festgelegte Schwelle erreicht, auch nicht mit gekrümmter Heizkurve (#38). Die Hinweise in der App bleiben, ein neuer Anlauf hat noch kein Release. |
+| **v3.15.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. Dazu werden Preisänderungen mitten im Abrechnungsjahr aufgeteilt wie beim Versorger (Gas nach Gradtagzahlen), rechtzeitig vor den ersten Rechnungen über den 1.1.2027. |
 
 ---
 
@@ -31,6 +31,10 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
   Nebenkosten- und Heizkostenabrechnung als Vermieter, Aufteilung des CO₂-Preises. Vorher fragen wir in
   Discussions, was ihr dafür braucht.
 - **Speicher mit Netz- und Solarstrom (MiSpeL),** sobald die Regeln dafür feststehen, spätestens 2027.
+- **Ideen ohne Termin:** Fristen und Abschläge als Kalender und „Zu tun“ als Aufgabenliste in Home Assistant,
+  Preise für das Energie-Dashboard, ein Wechselangebot gegen den eigenen Verbrauch prüfen, „Lohnt sich ein
+  dynamischer Tarif?“ mit den eigenen Viertelstunden, § 14a Modul 1 oder 2 nachrechnen, weitere Länder in Europa.
+  Was davon zuerst kommt, entscheidet eure Rückmeldung in Discussions.
 - **Jedes Jahr:** CO₂-Preis und Strompreispauschale, sobald sie veröffentlicht sind.
 
 ## Bewusst nicht geplant

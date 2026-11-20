@@ -116,42 +116,51 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | **Abschläge zählen** (Vertragswechsel im Monat): eine Einstellung für alle Verträge, tagesanteilig (Standard, wie bisher) oder ganze Rate am Fälligkeitstag; eine Rate am Tag einer Ablesung zählt im Zeitraum danach, wie die Jahresrechnung. **Stand 2026-11-13:** gebaut | M | — | Bekannte Grenze v3.12.0 |
 | — | **Einstellung „Angaben für Briefe nur Verwalter“:** Mit Anmeldung ändert auf Wunsch nur ein Verwalter Absender und Lieferanschrift | S | v3.12.0 Briefe | Entscheidung 2026-11-10 |
 | — | **Längengrenzen für Freitext:** Notizen und Namen mit Höchstlänge, dieselbe Grenze im Backup-Import | M | v3.12.0 Eingaben | Bekannte Grenze v3.12.0 |
-| — | **Tankmodell schneller:** die Tagesreihe je Anfrage einmal rechnen und auf den abgefragten Zeitraum begrenzen; Messung in `docs/entwicklung/messung-grosse-daten.md` ergänzen | M | v3.7.0 Messung | Entscheidung 2026-11-10 |
 | — | **Begriffe in den Übersetzungen:** die Heizgrenze in fr, it, es, pt und nl überall gleich, „HGT-Basistemperatur“ unter Rechnen, „Snapshot“ in it und nl, „Annual report“ im Englischen | S–M | — | Bekannte Grenze v3.12.0 |
 | — | **Ältere Gegenproben nachziehen:** rund 70 Muster passen nach dem Umbau nicht mehr zum Code und laufen bis dahin nicht | M | — | Entscheidung 2026-11-10 |
 | — | **Prüfung der öffentlichen Demo im Januar:** `demo.test` wird ab Mitte Januar rot, weil das Schaufenster zu Beginn seines Abrechnungsjahrs noch keinen gemessenen Teil hat; die Prüfung aus dem Stand der Demo ableiten oder an einem festen Tag laufen lassen | S | — | Bekannte Grenze v3.12.0 |
 | — | **Mitglieder sehen nur, was sie ändern dürfen:** Token-Knöpfe, evcc- und Heimnetz-Felder unter Verbindungen ausblenden | S | v3.12.0 Verbindungen | Bekannte Grenze v3.12.0 |
 | — | **Haushalt › Zähler „Alle“ mit einer Sammelabfrage** statt bis zu 18 einzelner Anfragen | S–M | v3.12.0 Haushalt | Entscheidung 2026-11-10 |
 | — | **Kosten & Verträge:** Zahl am Reiter „Frühere Verträge“, Knopf „Neuer Vertrag“ im Kopf der Seite | S | v3.12.0 Kosten & Verträge | Entscheidung 2026-11-10 |
-| — | **Rücknahme von KI-Einträgen** im Verlauf (heute lehnt „Rückgängig“ sie mit `409` ab) | M | F1037 | Entscheidung 2026-11-10 |
-| — | **Listenfelder im Posteingang** einzeln bestätigen und korrigieren | M | v3.7.0 Posteingang | Bekannte Grenze v3.12.0 |
+| — | **Rücknahme von KI-Einträgen** im Verlauf (heute lehnt „Rückgängig“ sie mit `409` ab). **Stand 2026-11-18:** so nicht baubar, offen | M | F1037 | Entscheidung 2026-11-10 |
 | — | **Zeitreise in der CI:** die Runde unter verstellter Uhr als eigenen Job prüfen (heute lokal vor jedem Release) | S | v3.12.0 Stichtag | Entscheidung 2026-11-10 |
 | — | **Stichtag für Zähler mit Verbrauch je Zeitraum** | M | v3.12.0 Stichtag | Bekannte Grenze v3.12.0 |
 | — | **Werkstatt nach dem Wetterabgleich neu rechnen,** damit am selben Tag dieselbe Zahl steht | S | F1040 | Bekannte Grenze v3.12.0 |
 | — | **Integration 1.1.0** (Marketplace, ehemals HACS): Sensor für den Füllstand von Öl und Pellets | S | F1038 | Entscheidung 2026-11-10 |
 | — | **Rückfrage beim Eintragen eines Zählerstands nach dem Wetter** statt nach dem Median der letzten Abstände (dieselbe Erwartung wie „Zwischenablesung prüfen“), damit der Heizbeginn keine falsche Rückfrage auslöst | S–M | v3.9.0 Zwischenablesung prüfen | GitHub #65 |
 
-### v3.14.0 — Lange Verläufe und Umzug
+### v3.14.0 — Lange Verläufe und Umzug (im Bau seit 2026-11-20)
+
+Planung abgeschlossen am 2026-11-20, kein fester Termin. Jede Zeile kommt mit Test und Gegenprobe. Was am
+Prüfhaushalt seine vorab festgelegte Schwelle nicht schafft, bleibt beim alten Weg und steht als Bekannte Grenze im
+CHANGELOG.
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
-| N1006 | Speicher-Umbau (Cache über Anfragen hinweg, weniger Dateilesen): nach der Beschleunigung in v3.7.0 erst bei langen importierten Verläufen nötig; Schwelle in `entwicklung/messung-grosse-daten.md` | L | v3.7.0 Messung | Entscheidung 2026-10-21 |
-| — | Heizmodell für gekrümmte Heizkurven (GitHub #38): Grundlast aus den Sommermonaten, Heizgrenze angepasst statt fest, ggf. quadratischer Term; vorher Vergleich über mehrere Haushalte, weil sich jede Erwartung ändert. #38 bleibt bis dahin offen | M–L | F1013 Heizmodell, v3.7.0 Gütesperre | GitHub #38, 2026-10-22 |
-| — | Verbrauch zwischen zwei Ablesungen nach Wetter verteilen statt gleichmäßig (Gas nach Heizgradtagen, PV nach Globalstrahlung aus Open-Meteo; die Einstrahlung je Tag holt die App seit v3.13) | M | v3.7.0 Kennung gemessen/verteilt | Antwort auf #39, 2026-10-22 |
-| — | **Wärmepumpe nach dem Wetter erneut prüfen:** in v3.13 gebaut, Schalter aus (`HeatPumpWeather`); Prognose, Band und Saldo am Prüfhaushalt gegen die Schwellen in `schwellen.json`, zusammen mit dem gekrümmten Heizmodell (#38) | M–L | v3.13 Prüfhaushalt, Heizmodell | Prüfung in v3.13 nicht bestanden (2026-11-12) |
-| — | **PV-Prognose nach der Einstrahlung erneut prüfen** (Erzeugung und Einspeisung, Schalter in `PvWeatherModel`) | M | v3.13 Einstrahlung | Prüfung in v3.13 nicht bestanden (2026-11-12) |
-| — | Beispielhaushalte nicht mehr aus dem Modell der App erzeugen (Heizkurve mit Heizgrenze unter 15 °C, Solargewinne, Speichermasse; einige Haushalte mit lückenhaften Ablesungen), damit Demo und Render-Tests auch Unsicherheit zeigen | M | v3.7.0 unordentlicher Testhaushalt | Entscheidung 2026-10-22 |
-| — | **Umzug aus anderen Apps** (2026-10-28): Import der Exporte verbreiteter Verbrauchs-Apps samt Historie (Zählerstände, Verträge, Preise), mit Trockenlauf wie beim CSV-Import; Formate nach Auswahl der Apps | M–L | Massen-Import | Planung 2026-10-28 |
-| — | **Abschlag mit Terminen nach einem Einzug:** ein Schalter „danach im Takt“ am Abschlag, damit Termine, die weniger als ein Jahr decken, im Rhythmus weiterlaufen; heute wiederholt die App sie jährlich (Bekannte Grenze v3.13.0) | S–M | Paket W (v3.13) | Entscheidung 2026-11-14 |
-| — | **Herkunft eines Abrechnungsjahrs nach Tagen** statt nach ganzen Monaten (KI-Schnittstelle): ein Jahr, das an einer echten Ablesung endet, heißt heute „geschätzt“, wenn sein letzter Monat zum Teil geschätzt ist | S | v3.13 Herkunft (`Provenance`) | Entscheidung 2026-11-14 |
-| — | **Warnung bei stehendem Zählerstand aus Home Assistant** (#69): bleibt der Stand eines Zählers mit Ablesungen über die Schnittstelle (`source: ingest`) eine einstellbare Zahl von Tagen gleich (Einstellung neben `alert_days_since_reading`), Hinweis unter „Zu tun“ und damit auch im Sensor und in den Benachrichtigungen; Stände von Hand bleiben außen vor | S–M | v3.9.0 Home Assistant, Agenda | Idee GitHub #66, 2026-11-18 |
+| N1006 | **Speicher-Umbau:** das Ergebnis je Zähler zwischen Anfragen merken; alt gegen neu byte-gleich an allen Endpunkten der Messung mit großen Daten | L | v3.7.0 Messung | Entscheidung 2026-10-21 |
+| — | **Lange Verläufe:** Die Diagnose meldet ein zu knappes `memory_limit`, der Jahresbericht läuft auch bei sehr langen Verläufen ohne Fehler 500, die Werkstatt rechnet Heizöl über das Tankmodell | S–M | v3.7.0 Messung | Messung 2026-11-18 |
+| — | **Umzug aus anderen Apps:** ein ganzer Haushalt mit freier Spaltenzuordnung, Trockenlauf und Sicherung davor, dazu der Verlauf aus Home Assistant. Die Stände laufen durch dieselbe Plausibilitätsprüfung wie beim Eintippen | L | Massen-Import | Planung 2026-10-28, Entscheidung 2026-11-18 |
+| — | **Verbrauch zwischen zwei Ablesungen in den Monatswerten nach dem Wetter verteilen:** Gas und Wärme ähnlich dem Gradtagzahlverfahren der Versorger (Grundlast gleichmäßig, Heizanteil nach Heizgradtagen), PV nach der Einstrahlung, Strom tagesanteilig. Abrechnungsjahr, Saldo und Kosten bleiben tagesanteilig | L | F1013 Heizmodell, v3.13 Einstrahlung | Antwort auf #39, Entscheidung 2026-11-18 |
+| — | **Beispielhaushalte mit eigener Physik** statt aus dem Modell der App (Heizgrenze unter 15 °C, Solargewinne, lückenhafte Ablesungen), damit Demo und Render-Tests auch Unsicherheit zeigen | M | v3.7.0 unordentlicher Testhaushalt | Entscheidung 2026-10-22 |
+| — | **Einspeise-Saldo nach einem neuen Speicher** auf derselben Grundlage wie die Prognose der Einspeisung | S | v3.13 Speicher | Bekannte Grenze v3.13.0 |
+| — | **Hinweis bei stehendem Zählerstand aus Home Assistant** (#69): ab 3 Tagen ohne Änderung bei Ständen über die Schnittstelle (`source: ingest`), einstellbar, abhakbar, unter „Zu tun“ und damit auch im Sensor und in den Benachrichtigungen; dazu ein Knopf „stehende Stände entfernen“. Stände von Hand bleiben außen vor | S–M | v3.9.0 Home Assistant, Agenda | Idee GitHub #66, Antwort in #69 |
+| — | **Wetterabruf robust:** Rückzug nach HTTP 429 mit „nächster Versuch um …“, das Archiv in Jahresstücken mit Fortschritt. Dazu der Schalter `ET_WEATHER=off` für Betrieb ohne Anfrage nach außen und ein Klimanormal in den Beispieldaten | M | v2.8.0 Wetterabgleich | HTTP 429 im Betrieb, 2026-11-18 |
+| — | **Home Assistant:** fehlende Schreibrechte im Ordner für den Posteingang melden | S–M | v3.7.0 Posteingang | Entscheidung 2026-11-18 |
+| — | **Abschläge:** Termine nach einem Einzug im Takt; nach dem letzten Termin fortgeschrieben, als „angenommen“ markiert, mit dem Hinweis, den neuen Plan aus der Rechnung einzutragen; „Rechnung prüfen“ verrechnet Abschläge ab Rechnungsbeginn | M | Paket W (v3.13) | Entscheidung 2026-11-18 |
+| — | **Rechnen an Grenzen:** Saldo am Vertragsende, Monatszeile einer Gruppe mit fehlendem Mitglied („unvollständig“), Subzähler mit eigenem Vertrag, Herkunft eines Abrechnungsjahrs nach Tagen (KI-Schnittstelle), „Preis fehlt für n Tage“ | M | v3.13 Herkunft (`Provenance`) | Bekannte Grenzen v3.13.0 |
+| — | **Korrekturen nach einer Prüfung von v3.13.0:** Saldo von Zählern mit Verbrauch je Zeitraum, Eingaben und Backup-Import, Fehlerantworten, Zahlabzeichen besser lesbar, Kündigung in der Grundversorgung immer zwei Wochen, Doku | M | — | Prüfung 2026-11-20 |
+| — | **Integration 1.2.0:** Kategorien im Manifest, Gerätedaten, ein Knopf zum Marketplace statt zwei | S–M | F1038 | Prüfung gegen Home Assistant 2026.11 |
+| — | **Werkzeuge:** Tests und Farm ohne Open-Meteo, schnelleres Tor (Suiten parallel), fehlende Tests aus dem Tor 3.13, `cosign verify` lokal | M | PR #70 | Messung des Zugs 3.13 |
 
 ### v3.15.0 — Für alle verständlich
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
 | N10xx | Übersetzter Doku-Kern (Erste Schritte, Einrichtung, Anwendungsfälle) für fr/it/es/pt/nl, jede Übersetzung mit Quell-Hash, veraltet → Englisch | M–L | N1019 | Release-Schnitt 2026-10-12 („Kern später“; 2026-10-13 erneut zurückgestellt) |
-| — | **Länderprofile Österreich und Schweiz** (2026-10-28): Preise, Steuern und Fristen je Land, Rechte-Prüfungen je Land oder ausdrücklich „nur Deutschland“ | M–L | N1014 Länderprofile, v3.11.0 | Planung 2026-10-28 |
+| N1027 | **Länder-Regelwerke als Module:** je Land Daten mit Gültigkeitsdatum und Quelle, eigene Regeln, Tests und Doku hinter einer gemeinsamen Schnittstelle; Deutschland zieht als Erstes um, byte-gleich belegt. Konzept vor F1042 | L | — | Ideenrunde 2026-11-20 |
+| F1042 | **Länderprofile Österreich und Schweiz** (2026-10-28): Preise, Steuern und Fristen je Land, Rechte-Prüfungen je Land oder ausdrücklich „nur Deutschland“ | M–L | N1027, N1014 Länderprofile, v3.11.0 | Planung 2026-10-28 |
+| F1045 | **Mengenaufteilung bei Preisänderungen** wie beim Versorger (Gas: modifizierte Gradtagzahlen für die Heizung, linear für Kochen und Warmwasser; Strom tagesanteilig) in Abrechnungsjahr, Saldo und „Rechnung prüfen“, vor den ersten Gasrechnungen über den 1.1.2027 | M–L | Verteilung nach dem Wetter (v3.14) | CO₂-Preis 2027, Entscheidung 2026-11-18 |
+| — | **Gutschrift des Netzbetreibers im Posteingang** als Auszahlung der Einspeisung erkennen | S–M | v3.13 Auszahlungen | Entscheidung 2026-11-18 |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -175,6 +184,27 @@ Entschieden am 2026-11-10. Dazu kommen die Punkte, die v3.12.0 unter „Bekannte
 | — | Strompreispauschale 2028 nach der Destatis-Veröffentlichung Ende September 2027 eintragen (jährlicher Punkt „Jahreswerte“ in der Release-Prüfliste) | S | — | Patch-Pool v3.5.0 |
 | — | Verzeichnisse und App-Stores (awesome-selfhosted, Unraid Community Apps, Umbrel, CasaOS, YunoHost), Vergleichsseite, Beiträge in Foren; jeweils Entwurf zur Freigabe | S je Eintrag | — | Planung 2026-10-28 |
 | — | **Bezug nach einem neuen Speicher, Zähler vor einer neuen Wallbox:** in v3.13 gebaut, Schalter aus (`DeviceArrival`), bis dahin Hinweis mit Zäsur-Vorschlag; offene Wege: die Ladung in der Kaskade zwischen Wärmepumpe und Netz teilen, das Laden der Wallbox aus der Sonne | M | v3.13 Speicher und Wallbox | Prüfung in v3.13 nicht bestanden (2026-11-12); Ziel-Release offen |
+| — | **Prognose der Wärmepumpe und der PV nach dem Wetter, Heizmodell für gekrümmte Heizkurven (#38):** in v3.13 gebaut, Schalter aus (`HeatPumpWeather`, `PvWeatherModel`). Vorstudie 2026-11-18 am Prüfhaushalt gegen `schwellen.json`, auch mit einer zweiten Gradtagzahl ab 6 °C und der Grundlast aus den Sommermonaten: kein Baustein an seiner Schwelle. Ein neuer Anlauf braucht einen neuen Ansatz oder mehr echte Daten | L | v3.13 Prüfhaushalt, F1013 Heizmodell | Vorstudie 2026-11-18; Ziel-Release offen |
+| N1030 | **Sicherheit laufend:** Image-Scan auswerten, `cosign verify` als Prüfschritt, Abhängigkeiten der Images | S je Runde | — | Ideenrunde 2026-11-18 |
+| N1031 | **Abhängigkeiten gegenprüfen:** Home Assistant erscheint jeden Monat. Je Release die Hinweise für Integrationen und Apps lesen, die Farm gegen die aktuelle Version, die nächste Beta und die Mindestversion (heute 2026.3) laufen lassen, Mindestversion und Doku nachziehen; dazu PHP, Basis-Images, evcc, Open-Meteo und Marketplace. Ab v3.14 (HA 2026.11 und Beta 2026.12) | S je Monat | Farm, HA-App, Integration | Maintainer 2026-11-18 |
+
+### Ohne Release (Ideenrunde 2026-11-20)
+
+| Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
+|---|---|---|---|---|
+| F1041 | **Preisbestandteile nach Rechtsstand:** Stromsteuer, Energiesteuer Gas, CO₂ und Umsatzsteuer je Datum im Länderprofil; Prognose und Saldo passen sich bekannten Änderungen an und prüfen Rechnungsposten | L | N1027 | Stromsteuer 2027 |
+| F1043 | **Weitere Länder in Europa** nach Nachfrage, zuerst die Sprachen der App (FR, IT, ES, PT, NL, BE, LU), je Land ein Modul | M–L je Land | F1042 | Ideenrunde 2026-11-18 |
+| F1044 | **Nordamerika (USA, Kanada):** Einheiten (therms, Gallonen, °F), monatliche Abrechnung, Net Metering; erst ein Konzept | XL | N1027, Einheiten in der Utilities-SSOT | Ideenrunde 2026-11-18 |
+| N1028 | `ConsumptionService.php` in kleinere Dienste aufteilen, byte-gleich belegt (Vorschlag: nach v3.14, vor großen Umbauten der Prognose) | L | — | Ideenrunde 2026-11-18 |
+| N1029 | `utility.js` vereinfachen (`rerender`, `balanceCard`), nur zusammen mit einem Umbau der Ansicht | M–L | — | Ideenrunde 2026-11-18 |
+| F1046 | **Wechselservice:** (1) ein Angebot gegen den eigenen Verbrauch prüfen (der Posteingang liest das Angebot; Bonus, Preisgarantie, Laufzeit, Grundversorgung), (2) ein vorbefüllter Link zu Vergleichsportalen ohne Datenfluss vor dem Klick, (3) Tarifdaten über eine Schnittstelle nur kostenlos und ohne persönliche Daten, vorher Recherche | M–L | Tarifvergleich v2.3, Posteingang, F1045 | Ideenrunde 2026-11-20 |
+| F1047 | **Kalender und To-do in Home Assistant:** Fristen, Abschlagstermine und Stichtage als `calendar`, „Zu tun“ als `todo`; Abhaken wirkt im Energietracker | M | Integration, Schreibschlüssel | Ideenrunde 2026-11-20 |
+| F1048 | **Preis-Sensoren für das Energie-Dashboard:** Arbeitspreis je Zähler und Grundpreis je Tag aus den Verträgen | S–M | Integration | Ideenrunde 2026-11-20 |
+| F1049 | **Komfort in Home Assistant:** Blueprints (Ablesung übertragen, stehender Stand, Monatsbericht) und Assist über den MCP-Client von HA mit lokalem Modell (Anleitung, Farm) | S–M | F1037, Farm | Ideenrunde 2026-11-20 |
+| N1032 | **Diagnose und Reparaturen in Home Assistant:** „Diagnose herunterladen“ ohne Schlüssel, Reparaturmeldungen bei ungültigem Schlüssel oder zu alter Version | S | Integration | Ideenrunde 2026-11-20 |
+| F1050 | **Lohnt sich ein dynamischer Tarif?** Die eigenen Viertelstunden gegen freie Börsenpreise (Quelle, Lizenz und Kosten vorher prüfen) | M–L | F1021 Viertelstunden | Ideenrunde 2026-11-20 |
+| F1051 | **§ 14a EnWG Modul 1 oder 2** für Wärmepumpe und Wallbox, mit den eigenen Daten gerechnet | M | v3.9 Messkonzepte, N1027 | Ideenrunde 2026-11-20 |
+| — | **Verweise ins Leere und doppelte Kennungen:** Felder, die auf Gelöschtes zeigen, verwaiste Rechnungen nach dem Löschen eines Vertrags, doppelte Kennungen in der Datenprüfung; heikel, weil der Import sonst eigene Exporte abweisen könnte | M | — | Vorklärung 2026-11-18 |
 
 ### Seit dem letzten Eingang ausgeliefert (Abgleich 2026-10-28)
 

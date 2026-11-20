@@ -8,7 +8,7 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 17 Nov 2026 · **Current version:** v3.13.0
+**As of:** 20 Nov 2026 · **Current version:** v3.13.0
 
 ---
 
@@ -19,8 +19,8 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. **The forecast of heat pump and PV by the weather goes back on the test bench,** because in v3.13 it does not yet meet its thresholds, set in advance, on a test household; plus a heating model for curved heating curves (#38). The app also warns when a meter reading from Home Assistant stays the same for days (#69). |
-| **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
+| **v3.14.0** | **Long histories and moving in** | Many years of data stay fast, and anyone coming from another app brings their history along: an import with free column mapping and a dry run, plus the history from Home Assistant. Monthly values distribute the consumption between two readings by the weather, similar to the degree-day method suppliers use; billing and balance stay pro rata by day. The app tells you when a meter reading from Home Assistant stays the same for days (#69), and the weather sync waits when Open-Meteo is overloaded. Plus fixes to the balance of meters with consumption per period, to advance payments after moving in and to the notice period of the basic supply (always two weeks). **To be open about it: the forecast of heat pump and PV by the weather stays off.** In a preliminary study on the test household, no building block met its threshold set in advance, not even with a curved heating curve (#38). The notes in the app remain; a new attempt has no release yet. |
+| **v3.15.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. Price changes in the middle of a billing year are split the way suppliers do it (gas by degree days), in time for the first bills across 1 January 2027. |
 
 ---
 
@@ -30,6 +30,10 @@ done and tested, usually after one to three weeks.
   service charge and heating cost statements as a landlord, splitting the CO₂ price. We will ask in
   Discussions first what you need for it.
 - **Storage with grid and solar power (MiSpeL),** once the rules are settled, at the latest in 2027.
+- **Ideas without a date:** deadlines and advance payments as a calendar and “To do” as a to-do list in Home
+  Assistant, prices for the energy dashboard, checking a switching offer against your own consumption, “Is a
+  dynamic tariff worth it?” with your own quarter hours, recalculating § 14a module 1 or 2, more countries in
+  Europe. Your feedback in Discussions decides what comes first.
 - **Every year:** CO₂ price and the flat-rate electricity price, as soon as they are published.
 
 ## Deliberately not planned
