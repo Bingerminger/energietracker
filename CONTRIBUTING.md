@@ -22,18 +22,29 @@ to know: running the tests, conventions, no user data, no third-party packages.
 
 ## Ideas, plans and status
 
-- **Ideas and wishes** go to
-  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas),
-  with a short form; everyone can vote with 👍 there. Bugs go into an issue (form “Report a bug”).
-- **What is planned** shows on the
-  [project board](https://github.com/users/Bingerminger/projects/1) and in the
-  [milestones](https://github.com/Bingerminger/energietracker/milestones), one
-  per release. The [roadmap](roadmap.en.md) sums it up.
-- **Status labels** on issues: `status: triage` (being assessed),
-  `status: accepted` (accepted, not yet scheduled), `status: planned`
-  (scheduled for a release, see the milestone), `status: declined` (declined,
-  with a reason). `found-by-automation` marks reports from an automated test
-  or an agent.
+**From a wish to a release**, the same path for every report:
+
+1. **Report.** A bug goes into an issue (form “Report a bug”), a question under
+   [Discussions → Q&A](https://github.com/Bingerminger/energietracker/discussions/categories/q-a), an idea under
+   [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas), where everyone
+   can vote with 👍. Please never report a vulnerability in public, see [SECURITY.md](SECURITY.md).
+2. **Assess.** New bugs carry `status: triage`. We reproduce them and close duplicates with a link to the issue that
+   stays. If something is missing, the issue carries `status: needs info`.
+3. **Accepted.** What we want to build is an issue on the
+   [project board](https://github.com/users/Bingerminger/projects/1) under “Accepted”. An idea from Discussions only
+   becomes an issue at this point, with a link back. A 👍 on the issue tells us what should come first.
+4. **Planned and in progress.** When a release is planned, the issue gets a
+   [milestone](https://github.com/Bingerminger/energietracker/milestones) and hangs under the release’s tracking issue.
+   The board shows “Planned” and “In progress”, the [roadmap](roadmap.en.md) sums it up.
+5. **Released.** With the release we close the issue and name the version. If it still does not work for you, please
+   reopen it.
+
+What we will not build is closed as “not planned”, with a reason. What cannot be fixed right away is listed as a
+known limitation in the [changelog](CHANGELOG.en.md).
+
+**Where the status lives:** only in the board’s “Status” field. Labels only say what an issue is (`bug`,
+`enhancement`, `documentation`), which area it touches (`area: …`) and whether we are waiting for an answer
+(`status: triage`, `status: needs info`). `found-by-automation` marks reports from an automated test or an agent.
 
 ## Setting up
 

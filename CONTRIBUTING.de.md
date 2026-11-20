@@ -23,19 +23,30 @@ Nutzerdaten, keine Fremdpakete (auf Englisch).
 
 ## Wünsche, Planung und Status
 
-- **Ideen und Wünsche** gehören unter
-  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas),
-  mit einer kurzen Vorlage; dort kann jeder mit 👍 abstimmen. Fehler gehören in ein Issue (Formular
-  „Fehler melden“).
-- **Was geplant ist**, zeigen das
-  [Projektboard](https://github.com/users/Bingerminger/projects/1) und die
-  [Milestones](https://github.com/Bingerminger/energietracker/milestones), einer
-  je Release. Die [Roadmap](roadmap.md) fasst es zusammen.
-- **Status-Labels** an Issues: `status: triage` (wird geprüft),
-  `status: accepted` (angenommen, noch ohne Release), `status: planned` (für
-  einen Release geplant, siehe Milestone), `status: declined` (abgelehnt, mit
-  Begründung). `found-by-automation` kennzeichnet Meldungen aus einem
-  automatisierten Test oder von einem Agenten.
+**Vom Wunsch zum Release**, für alle Meldungen derselbe Weg:
+
+1. **Melden.** Ein Fehler kommt in ein Issue (Formular „Fehler melden“), eine Frage unter
+   [Discussions → Q&A](https://github.com/Bingerminger/energietracker/discussions/categories/q-a), eine Idee unter
+   [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas). Dort kann jeder
+   mit 👍 abstimmen. Sicherheitslücken bitte nie öffentlich, sondern wie in [SECURITY.md](SECURITY.md).
+2. **Prüfen.** Neue Fehler tragen `status: triage`. Wir stellen sie nach und schließen Dubletten mit einem Verweis auf
+   das Issue, das bleibt. Fehlt eine Angabe, steht `status: needs info` daran.
+3. **Angenommen.** Was wir bauen wollen, steht als Issue im [Projektboard](https://github.com/users/Bingerminger/projects/1)
+   unter „Angenommen“. Aus einer Idee in Discussions wird erst dann ein Issue, mit einem Verweis zurück. Ein 👍 am Issue
+   zeigt uns, was zuerst kommen soll.
+4. **Geplant und in Arbeit.** Mit der Planung eines Release bekommt das Issue einen
+   [Milestone](https://github.com/Bingerminger/energietracker/milestones) und hängt am Sammel-Issue des Release. Das
+   Board zeigt „Geplant“ und „In Arbeit“, die [Roadmap](roadmap.md) fasst es zusammen.
+5. **Ausgeliefert.** Mit dem Release schließen wir das Issue und nennen die Version. Klemmt es bei dir noch, öffne es
+   bitte wieder.
+
+Was wir nicht bauen, schließen wir mit Begründung als „not planned“. Was nicht sofort behebbar ist, steht als
+Bekannte Grenze im [CHANGELOG](CHANGELOG.md).
+
+**Wo der Stand steht:** allein im Feld „Status“ des Boards. Labels sagen nur, was ein Issue ist (`bug`,
+`enhancement`, `documentation`), welchen Bereich es betrifft (`area: …`) und ob wir auf eine Antwort warten
+(`status: triage`, `status: needs info`). `found-by-automation` kennzeichnet Meldungen aus einem automatisierten
+Test oder von einem Agenten.
 
 ## Einrichten
 

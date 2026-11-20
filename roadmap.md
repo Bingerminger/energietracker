@@ -34,7 +34,9 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 - **Ideen ohne Termin:** Fristen und Abschläge als Kalender und „Zu tun“ als Aufgabenliste in Home Assistant,
   Preise für das Energie-Dashboard, ein Wechselangebot gegen den eigenen Verbrauch prüfen, „Lohnt sich ein
   dynamischer Tarif?“ mit den eigenen Viertelstunden, § 14a Modul 1 oder 2 nachrechnen, weitere Länder in Europa.
-  Was davon zuerst kommt, entscheidet eure Rückmeldung in Discussions.
+  Was davon zuerst kommt, entscheidet ihr: Gebt den Ideen im
+  [Board](https://github.com/users/Bingerminger/projects/1/views/3) unter „Angenommen“ einen 👍, neue Ideen gern
+  unter [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas).
 - **Jedes Jahr:** CO₂-Preis und Strompreispauschale, sobald sie veröffentlicht sind.
 
 ## Bewusst nicht geplant

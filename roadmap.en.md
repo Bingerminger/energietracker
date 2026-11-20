@@ -33,7 +33,9 @@ done and tested, usually after one to three weeks.
 - **Ideas without a date:** deadlines and advance payments as a calendar and “To do” as a to-do list in Home
   Assistant, prices for the energy dashboard, checking a switching offer against your own consumption, “Is a
   dynamic tariff worth it?” with your own quarter hours, recalculating § 14a module 1 or 2, more countries in
-  Europe. Your feedback in Discussions decides what comes first.
+  Europe. You decide what comes first: give the ideas on the
+  [board](https://github.com/users/Bingerminger/projects/1/views/3) under “Accepted” a 👍, and post new ideas under
+  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas).
 - **Every year:** CO₂ price and the flat-rate electricity price, as soon as they are published.
 
 ## Deliberately not planned
